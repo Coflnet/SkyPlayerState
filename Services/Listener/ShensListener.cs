@@ -18,7 +18,7 @@ public partial class ShensListener : UpdateListener
 
     public override async Task Process(UpdateArgs args)
     {
-        if (args.msg.Chest.Name != null && !args.msg.Chest.Name.StartsWith("Shen's"))
+        if (args.msg.Chest.Name == null || !args.msg.Chest.Name.StartsWith("Shen's"))
             return;
         var items = args.msg.Chest.Items.Take(6*9).Where(i => i.Tag != null).Select(i =>
         {
