@@ -17,7 +17,15 @@ public class ProfileAndNameUpdate : UpdateListener
             var uuid = await nameService.PlayerNameUuidNameGetAsync(args.msg.PlayerId);
             if (uuid != null)
             {
-                state.McInfo.Uuid = Guid.Parse(uuid.Trim('"'));
+                try
+                {
+                    state.McInfo.Uuid = Guid.Parse(uuid.Trim('"'));
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine($"could not parse uuid for {args.msg.PlayerId}: '{uuid}'");
+                    throw;
+                }
                 state.McInfo.Name = args.msg.PlayerId;
             }
             else
