@@ -63,6 +63,11 @@ namespace Coflnet.Sky.PlayerState.Controllers
             var data = await service.GetStateObject(playerId);
             return data?.Limits;
         }
+        [HttpGet("{playerId}/skills")]
+        public async Task<SkillService.Skill[]> GetSkills(Guid playerId, [FromServices] SkillService service)
+        {
+            return await service.GetSkills(playerId);
+        }
 
         [HttpGet]
         [Route("{playerId}/extracted")]

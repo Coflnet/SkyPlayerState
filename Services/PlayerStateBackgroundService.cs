@@ -64,6 +64,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         AddHandler<TradeDetect>(UpdateMessage.UpdateKind.INVENTORY | UpdateMessage.UpdateKind.CHAT);
         AddHandler<TradeInfoListener>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<ShensListener>(UpdateMessage.UpdateKind.INVENTORY);
+        AddHandler<SkillListener>(UpdateMessage.UpdateKind.INVENTORY);
         this.persistenceService = persistenceService;
         this.activitySource = activitySource;
     }
