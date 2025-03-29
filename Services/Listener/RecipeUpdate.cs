@@ -1,8 +1,15 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Cassandra;
+using Cassandra.Data.Linq;
+using Cassandra.Mapping;
+using Coflnet.Sky.Sniper.Client.Model;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
 namespace Coflnet.Sky.PlayerState.Services;
@@ -12,17 +19,34 @@ public class RecipeUpdate : UpdateListener
     /// <inheritdoc/>
     public override async Task Process(UpdateArgs args)
     {
-        if (!(args.msg.Chest?.Name?.StartsWith("Museum - disabled") ?? false))
+        if (!(args.msg.Chest?.Name?.EndsWith(" Recipe") ?? false))
             return;
-        Console.WriteLine($"Museum update {args.msg.Chest?.Name} {JsonConvert.SerializeObject(args.msg.Chest?.Items.Take(36))}");
-        ExtractMuseumExp(args);
+        await ExtractRecipe(args);
+    }
+
+    private async Task ExtractRecipe(UpdateArgs args)
+    {
+        var ingredients = args.msg.Chest.Items.Skip(10).Take(3).Concat(args.msg.Chest.Items.Skip(19).Take(3)).Concat(args.msg.Chest.Items.Skip(28).Take(3))
+            .Select(i => new KeyValuePair<string?, int>(i?.Tag, i?.Count ?? 0)).ToList();
+        var requirements = args.msg.Chest.Items[32].Description.Split('\n').Where(l => l.Contains("Requires")).ToList();
+        Console.WriteLine($"Recipe update {args.msg.Chest.Name} {JsonConvert.SerializeObject(ingredients)} {JsonConvert.SerializeObject(requirements)}");
+        var recipe = new Recipe
+        {
+            Tag = args.msg.Chest.Items[25].Tag,
+            Ingredients = ingredients,
+            LastUpdated = DateTime.UtcNow,
+            LastUpdatedBy = args.msg.UserId + "-" + args.msg.PlayerId,
+            Requirements = requirements,
+            ResultCount = args.msg.Chest.Items[25].Count ?? 1
+        };
+        await args.GetService<RecipeService>().Save(recipe);
     }
 
     private static void ExtractMuseumExp(UpdateArgs args)
     {
         if (!(args.msg.Chest?.Name?.Contains("Museum") ?? false))
             return;
-        
+
         var existing = new Dictionary<string, int>();
         if (File.Exists("museum.json"))
         {
@@ -42,38 +66,53 @@ public class RecipeUpdate : UpdateListener
         }
         File.WriteAllText("museum.json", JsonConvert.SerializeObject(existing, Formatting.Indented));
     }
-    private static void ExtractCarpentryCost(UpdateArgs args)
+
+}
+
+public class RecipeService
+{
+    private Table<Recipe> recipes;
+    private ILogger<RecipeService> logger;
+
+    public RecipeService(ISession session, ILogger<RecipeService> logger)
     {
-        if (true || !(args.msg.Chest?.Name?.Contains("Carpentry B") ?? false))
-        {
-            return;
-        }
-        var result = new Dictionary<string, List<Cost>>();
-        // sample: §8Furniture\n\n§7Opens the Anvil menu!\n\n§f§lCOMMON\n§8§m-----------------\n§7Cost\n§fDark Oak Wood Plank §8x20\n§fOak Wood Plank §8x3\n§fStone §8x5\n§fStick\n§fAnvil\n§fIron Shovel\n§fIron Pickaxe\n§aDiamond Chestplate\n\n§cRequires Carpentry Skill XXIII!
-        foreach (var item in args.msg.Chest.Items.Take(45))
-        {
-            if (item.Tag == null)
-                continue;
-            var tag = item.Tag;
-            var costs = item.Description.Split("Cost")[1].Split("\n\n")[0].Split("\n").Skip(1)
-                .Select(x =>
-                {
-                    var match = Regex.Match(x, @"§.([^§]*)(§.x(\d+)|)$");
-                    if (!match.Success)
-                        return new();
-                    if (!int.TryParse(match.Groups[3].Value, out var count))
-                        count = 1;
-                    var tag = args.GetService<Coflnet.Sky.Items.Client.Api.IItemsApi>().ItemsSearchTermGet(match.Groups[1].Value.Trim()).First().Tag;
-                    return new Cost() { Item = tag, Count = count };
-                }).Where(x => x.Item != "").ToList();
-            result.Add(tag, costs);
-        }
-        Console.WriteLine($"Recipe update {args.msg.Chest.Name} {JsonConvert.SerializeObject(result, Formatting.Indented)}");
+        var mapping = new MappingConfiguration().Define(
+            new Map<Recipe>()
+                .TableName("recipes")
+                .PartitionKey(r => r.Tag)
+                .ClusteringKey(r => r.ComparisonKey)
+                .Column(r => r.Tag, cm => cm.WithName("name"))
+                .Column(r => r.Serialized, cm => cm.WithName("ingredients"))
+                .Column(r => r.ResultCount, cm => cm.WithName("result_count"))
+                .Column(r => r.Ingredients, cm => cm.Ignore())
+                .Column(r => r.Requirements, cm => cm.WithName("requirements"))
+        );
+        recipes = new Table<Recipe>(session, mapping);
+        recipes.CreateIfNotExists();
+        this.logger = logger;
     }
 
-    public class Cost
+    public async Task<IEnumerable<Recipe>> GetRecipes(string tag)
     {
-        public string Item { get; set; }
-        public int Count { get; set; }
+        return await recipes.Where(r => r.Tag == tag).ExecuteAsync();
     }
+
+    internal async Task Save(Recipe recipe)
+    {
+        await recipes.Insert(recipe).ExecuteAsync();
+    }
+}
+
+public class Recipe
+{
+    public string Tag { get; set; }
+    public List<KeyValuePair<string?, int>> Ingredients { get; set; }
+    [JsonIgnore]
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string Serialized { get => JsonConvert.SerializeObject(Ingredients); set => Ingredients = JsonConvert.DeserializeObject<List<KeyValuePair<string?, int>>>(value); }
+    public int ResultCount { get; set; }
+    public List<string> Requirements { get; set; }
+    public string ComparisonKey { get => Encoding.UTF8.GetString(MD5.HashData(Encoding.UTF8.GetBytes(Tag + Serialized + string.Join(',', Requirements)))); set { } }
+    public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+    public string LastUpdatedBy { get; set; }
 }

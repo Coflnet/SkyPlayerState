@@ -103,5 +103,11 @@ namespace Coflnet.Sky.PlayerState.Controllers
 
             return NoContent();
         }
+
+        [HttpGet("recipe/{tag}")]
+        public async Task<IEnumerable<Recipe>> GetRecipes(string tag, [FromServices] RecipeService recipeService)
+        {
+            return await recipeService.GetRecipes(tag);
+        }
     }
 }
