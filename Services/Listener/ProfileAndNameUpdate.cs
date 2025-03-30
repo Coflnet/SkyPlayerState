@@ -15,7 +15,7 @@ public class ProfileAndNameUpdate : UpdateListener
         {
             var nameService = args.GetService<IPlayerNameApi>();
             var uuid = await nameService.PlayerNameUuidNameGetAsync(args.msg.PlayerId);
-            if (uuid != null)
+            if (!string.IsNullOrEmpty(uuid))
             {
                 try
                 {
