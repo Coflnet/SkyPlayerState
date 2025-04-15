@@ -61,6 +61,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         AddHandler<BoosterCookieExtractor>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<RecipeUpdate>(UpdateMessage.UpdateKind.INVENTORY);
 
+        AddHandler<KuudraListener>(UpdateMessage.UpdateKind.INVENTORY | UpdateMessage.UpdateKind.Scoreboard);
         AddHandler<TradeDetect>(UpdateMessage.UpdateKind.INVENTORY | UpdateMessage.UpdateKind.CHAT);
         AddHandler<TradeInfoListener>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<ShensListener>(UpdateMessage.UpdateKind.INVENTORY);
