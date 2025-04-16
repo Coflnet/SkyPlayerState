@@ -10,5 +10,7 @@ public class ExtractedInfo
 {
     [Key(0)]
     public DateTime BoosterCookieExpires;
+    [Key(1)]
+    public DateTime KuudraStart;
 }
 #nullable restore

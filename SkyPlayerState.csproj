@@ -31,6 +31,7 @@
     <PackageReference Include="MongoDB.Driver" Version="2.30.0" />
     <PackageReference Include="Coflnet.Sky.PlayerName.Client" Version="0.2.3" />
     <PackageReference Include="Coflnet.Sky.Proxy.Client" Version="0.1.2" />
+    <PackageReference Include="RestSharp" Version="112.1.0" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Release'">

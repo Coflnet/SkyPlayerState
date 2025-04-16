@@ -83,6 +83,7 @@ public class Startup
         services.AddSingleton<ITransactionService, TransactionService>();
         services.AddSingleton<IShenStorage, ShenHistoryService>();
         services.AddSingleton<SkillService>();
+        services.AddSingleton<SniperService>();
         services.AddSingleton<RecipeService>();
         services.AddSingleton<ICassandraService>(di => di.GetRequiredService<ITransactionService>() as ICassandraService 
                     ?? throw new Exception("ITransactionService is not a ICassandraService"));
