@@ -19,7 +19,7 @@ public class KuudraListener : UpdateListener
     {
         if (args.msg.Chest?.Name != "Paid Chest")
             return;
-        Console.WriteLine($"Got paid chest {args.msg.PlayerId} {JsonConvert.SerializeObject(args.msg.Chest)}");
+        Console.WriteLine($"Got kuudra paid chest {args.msg.PlayerId} {JsonConvert.SerializeObject(args.msg.Chest)}");
     }
 
     private async Task CheckKuudra(UpdateArgs args)
