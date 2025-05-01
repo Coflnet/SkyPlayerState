@@ -53,7 +53,7 @@ public class Item
     /// Stacksize
     /// </summary>
     [Key(7)]
-    public byte? Count { get; set; }
+    public int? Count { get; set; }
 
     public Item(Item item)
     {

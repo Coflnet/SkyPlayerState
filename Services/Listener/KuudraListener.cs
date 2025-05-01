@@ -12,7 +12,7 @@ public class KuudraListener : UpdateListener
     {
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.Scoreboard)
             await CheckKuudra(args);
-        if(args.msg.Kind == Models.UpdateMessage.UpdateKind.INVENTORY)
+        if (args.msg.Kind == Models.UpdateMessage.UpdateKind.INVENTORY)
             await GotInventory(args);
     }
 
@@ -22,7 +22,19 @@ public class KuudraListener : UpdateListener
             return;
         var type = args.msg.Chest.Items[31].Description.Split('\n').Last();
         var items = args.msg.Chest.Items.Take(30).Where(i => i.Tag != null).ToList();
+        var essence = args.msg.Chest.Items.Take(30).FirstOrDefault(i => i.ItemName.Contains("Essence"));
+        if (essence != null)
+        {
+            essence.Tag = essence.ItemName.Substring(2).Split('x').First().Replace(" ", "_").ToUpper();
+            items.Add(essence);
+        }
         var value = await args.GetService<SniperService>().GetPrices(items);
+        if (essence != null)
+        {
+            var essenceValue = value.Last(); // last index is last added
+            if (int.TryParse(essence.ItemName.Split('x').Last(), out var count))
+                essenceValue.Median = essenceValue.Median * count;
+        }
         var coinSum = value.Sum(v => v.Median);
         var keyWorth = type switch
         {
@@ -32,13 +44,15 @@ public class KuudraListener : UpdateListener
             "§5Hot Kuudra Key" => 685_000,
             _ => 500_000
         };
+        var combined = items.Zip(value, (i, v) => new { i, v });
         if (args.currentState.ExtractedInfo.KuudraStart > DateTime.UtcNow.AddMinutes(-5))
         {
             var timeElapsed = DateTime.UtcNow - args.currentState.ExtractedInfo.KuudraStart;
             args.SendMessage($"{McColorCodes.WHITE}This run was worth {McColorCodes.GOLD}{coinSum:N0} coins\n" +
                              $"Paid chest value: {McColorCodes.GOLD}{value.Sum(i => i?.Median ?? 0):N0} coins\n" +
                              $"Run took {McColorCodes.AQUA}{timeElapsed.Minutes}m {timeElapsed.Seconds}s\n" +
-                             $"Thats an estimated {McColorCodes.GOLD}{(coinSum - keyWorth) / timeElapsed.TotalHours:N0} coins {McColorCodes.AQUA}per hour");
+                             $"Thats an estimated {McColorCodes.GOLD}{(coinSum - keyWorth) / timeElapsed.TotalHours:N0} coins {McColorCodes.AQUA}per hour\n" +
+                             $"{McColorCodes.DARK_GRAY}Thats {string.Join(' ', combined.Select(i => i.i.ItemName + ":" + i.v.Median).Distinct())}");
             args.currentState.ExtractedInfo.KuudraStart = DateTime.MinValue;
         }
         else
