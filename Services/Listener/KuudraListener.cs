@@ -26,7 +26,7 @@ public class KuudraListener : UpdateListener
         var essence = args.msg.Chest.Items.Take(30).FirstOrDefault(i => i.ItemName.Contains("Essence"));
         if (essence != null)
         {
-            essence.Tag = essence.ItemName.Substring(2).Split('x').First().Replace(" ", "_").ToUpper();
+            essence.Tag = GetTag(essence);
             items.Add(essence);
         }
         var value = await args.GetService<SniperService>().GetPrices(items);
@@ -59,6 +59,11 @@ public class KuudraListener : UpdateListener
         else
             args.SendMessage($"Kuudra chest is worth {coinSum - keyWorth:N0} coins");
         Console.WriteLine($"Got kuudra paid chest {args.msg.PlayerId} {type} {JsonConvert.SerializeObject(args.msg.Chest.Items.Take(30))}");
+    }
+
+    public static string GetTag(Models.Item essence)
+    {
+        return "ESSENCE_" + essence.ItemName.Substring(2).Split(' ').First().ToUpper();
     }
 
     private async Task CheckKuudra(UpdateArgs args)
