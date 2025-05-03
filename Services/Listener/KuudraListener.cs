@@ -20,7 +20,8 @@ public class KuudraListener : UpdateListener
     {
         if (args.msg.Chest?.Name != "Paid Chest")
             return;
-        var type = args.msg.Chest.Items[31].Description.Split('\n').Last();
+        var type = args.msg.Chest.Items[31].Description?.Split('\n').Last()
+            ?? args.msg.Chest.Items.FirstOrDefault(i=>i.ItemName?.Contains("Kuudra Key") ?? false)?.ItemName;
         var items = args.msg.Chest.Items.Take(30).Where(i => i.Tag != null).ToList();
         var essence = args.msg.Chest.Items.Take(30).FirstOrDefault(i => i.ItemName.Contains("Essence"));
         if (essence != null)
