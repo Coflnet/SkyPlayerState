@@ -10,8 +10,10 @@ public class KuudraListener : UpdateListener
     /// <inheritdoc/>
     public override async Task Process(UpdateArgs args)
     {
+        if (args.currentState.Settings.DisableKuudraTracking)
+            return;
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.Scoreboard)
-            await CheckKuudra(args);
+                await CheckKuudra(args);
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.INVENTORY)
             await GotInventory(args);
     }
