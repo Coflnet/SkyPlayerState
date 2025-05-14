@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Moq;
 using Newtonsoft.Json;
 using Coflnet.Sky.PlayerState.Tests;
+using FluentAssertions;
 
 namespace Coflnet.Sky.PlayerState.Services;
 
@@ -66,6 +67,80 @@ public class ItemIdAssignUpdateTest
         await listener.Process(CreateArgs(matchingSample));
         Assert.That(calledWith, Is.Null);
         Assert.That(1, Is.EqualTo(matchingSample.Id));
+    }
+
+    [Test]
+    public async Task StoredDarkClaymore()
+    {
+        var json = """
+        {
+        "id": 0,
+        "itemName": "§f§f§dWithered Dark Claymore §6✪✪✪✪✪§c➋",
+        "tag": "DARK_CLAYMORE",
+        "extraAttributes": {
+        "rarity_upgrades": 1,
+        "hot_potato_count": 15,
+        "gems": {
+            "COMBAT_0": "FLAWED",
+            "unlocked_slots": [
+            "COMBAT_0",
+            "COMBAT_1"
+            ],
+            "COMBAT_1_gem": "JASPER",
+            "COMBAT_1": "FLAWED",
+            "COMBAT_0_gem": "JASPER"
+        },
+        "runes": {
+            "BLOOD_2": 3
+        },
+        "champion_combat_xp": 4243008.1234105695,
+        "modifier": "withered",
+        "upgrade_level": 7,
+        "uid": "b2643b46dc17",
+        "uuid": "800a6181-7c2e-48e9-8ccb-b2643b46dc17",
+        "timestamp": 1738720261216,
+        "tier": 8
+        },
+        "enchantments": {
+        "champion": 10,
+        "cleave": 6,
+        "critical": 6,
+        "cubism": 5,
+        "dragon_hunter": 5,
+        "ender_slayer": 6,
+        "experience": 5,
+        "fire_aspect": 3,
+        "first_strike": 4,
+        "giant_killer": 6,
+        "impaling": 3,
+        "lethality": 6,
+        "looting": 4,
+        "luck": 6,
+        "PROSECUTE": 6,
+        "scavenger": 5,
+        "sharpness": 6,
+        "syphon": 5,
+        "thunderlord": 7,
+        "ultimate_swarm": 3,
+        "vampirism": 6,
+        "venomous": 5
+        },
+        "color": null,
+        "description": null,
+        "count": 1
+        }
+        """;
+
+        var existing = JsonConvert.DeserializeObject<Item>(json);
+        existing.Id = 1;
+        var newItem = JsonConvert.DeserializeObject<Item>(json);
+        var comparer = new ItemCompare();
+        comparer.GetHashCode(newItem).Should().Be(comparer.GetHashCode(existing));
+        comparer.Equals(newItem, existing).Should().BeTrue();
+
+        var listener = new ItemIdAssignUpdate();
+        var sum = listener.Join([newItem], [existing]).First();
+        Assert.That(sum.Id, Is.EqualTo(existing.Id));
     }
 
     private MockedUpdateArgs CreateArgs(params Item[] items)

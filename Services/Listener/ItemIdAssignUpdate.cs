@@ -61,7 +61,7 @@ public class ItemIdAssignUpdate : UpdateListener
         || (i.Description?.Contains("§7Cost: §a") ?? false);
     }
 
-    private IEnumerable<Item> Join(IEnumerable<Item> original, IEnumerable<Item> stored)
+    public IEnumerable<Item> Join(IEnumerable<Item> original, IEnumerable<Item> stored)
     {
         foreach (var item in original)
         {
