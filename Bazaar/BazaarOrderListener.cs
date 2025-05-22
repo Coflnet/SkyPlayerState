@@ -180,6 +180,8 @@ public class BazaarOrderListener : UpdateListener
 
         if (side == Transaction.TransactionType.BAZAAR)
             return; // no order affecting message
+        if (itemName == null)
+            throw new ArgumentNullException(nameof(itemName), $"in {msg} no item name was found");
         var itemTransactionTask = AddItemTransaction(args, side, amount, itemName);
         if (price != 0)
         {

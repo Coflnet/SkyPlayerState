@@ -177,7 +177,7 @@ public class BazaarOrderTests
     public async Task InstaSell()
     {
         await listener.Process(CreateArgs("[Bazaar] Executing instant sell...",
-            "[Bazaar] Sold 1,280x Coal for 3,840 coins!"));
+            "[Bazaar] Sold 1,280x Coal for 3,840.2 coins!"));
         transactionService.Verify(t => t.AddTransactions(It.Is<Transaction>(t =>
                     t.Type == (Transaction.TransactionType.BAZAAR | Transaction.TransactionType.REMOVE)
                     && t.Amount == 1280
