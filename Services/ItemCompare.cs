@@ -49,11 +49,33 @@ public class ItemCompare : IEqualityComparer<Item>
                 x = new(x.Key, dumb.Select(a => new KeyValuePair<string, object>(a.Key.ToString()!, a.Value)));
             if (y.Value is IEnumerable<KeyValuePair<object, object>> dumb2)
                 y = new(y.Key, dumb2.Select(a => new KeyValuePair<string, object>(a.Key.ToString()!, a.Value)));
-            
-            if(x.Value is JObject jx)
-                x = new(x.Key, jx.ToObject<Dictionary<string, object>>());
-            if (y.Value is JObject jy)
-                y = new(y.Key, jy.ToObject<Dictionary<string, object>>());
+
+            if (x.Value is IEnumerable<object> jx && y.Value is IEnumerable<object> jy)
+            {
+                var combined = jx.Zip(jy);
+                foreach (var item in combined)
+                {
+                    var second = item.Second;
+                    var first = item.First;
+                    if (item.Second is Dictionary<object, object> dict)
+                        second = dict.ToDictionary(x => x.Key.ToString()!, x => x.Value);
+                    if (item.First is Dictionary<object, object> dict2)
+                        first = dict2.ToDictionary(x => x.Key.ToString()!, x => x.Value);
+                    if (item.First is KeyValuePair<string, object> el1 && second is KeyValuePair<string, object> el2)
+                    {
+                        if (!Equals(el1, el2))
+                            return false;
+                    }
+                    else if (item.First is Dictionary<string, object> list1 && second is Dictionary<string, object> list2)
+                    {
+                        if (!this.Equal(list1, list2))
+                            return false;
+                    }
+                    else if (!Equals(item.First, item.Second))
+                        return false;
+                }
+                return true;
+            }
 
             return x.Key == y.Key && (x.Value.Equals(y.Value)
                 || x.Value is IEnumerable<KeyValuePair<string, object>> xi && y.Value is IEnumerable<KeyValuePair<string, object>> yi && this.Equal(xi, yi)
@@ -82,10 +104,22 @@ public class ItemCompare : IEqualityComparer<Item>
         public int GetHashCode([DisallowNull] KeyValuePair<string, object> obj)
         {
             var code = 0;
-            if (obj.Value is IEnumerable col)
+            if (obj.Value is IEnumerable col && obj.Value is not string)
                 foreach (var p in col)
                     if (p is KeyValuePair<string, object> xi)
                         code ^= GetHashCode(xi);
+                    else if (p is KeyValuePair<object, object> xo)
+                        code ^= GetHashCode(new KeyValuePair<string, object>(xo.Key.ToString()!, xo.Value));
+                    else if (p is Dictionary<string, object> dict)
+                        foreach (var item in dict)
+                        {
+                            code ^= GetHashCode(item);
+                        }
+                    else if (p is Dictionary<object, object> dict2)
+                        foreach (var item in dict2)
+                        {
+                            code ^= GetHashCode(new KeyValuePair<string, object>(item.Key.ToString()!, item.Value));
+                        }
                     else if (p is JProperty childObj)
                     {
                         var type = childObj.GetType();
@@ -101,13 +135,20 @@ public class ItemCompare : IEqualityComparer<Item>
                             code ^= token.Value<double>().GetHashCode();
                         else if (token.Type == JTokenType.Boolean)
                             code ^= token.Value<bool>().GetHashCode();
+                        else if (token.Type == JTokenType.Object)
+                        {
+                            code ^= token.First?.Value<object>()?.ToString()?.GetHashCode() ?? 0;
+                        }
                         else
                         {
-                            code = token.ToString().GetHashCode();
+                            code ^= token.ToString().GetHashCode();
                         }
                     }
                     else
+                    {
+                        var type = p.GetType();
                         code ^= p.GetHashCode();
+                    }
             else if (IsNumeric(obj.Value))
                 code = (int)(Convert.ToInt64(obj.Value) & int.MaxValue);
             else

@@ -7,6 +7,8 @@ using Moq;
 using Newtonsoft.Json;
 using Coflnet.Sky.PlayerState.Tests;
 using FluentAssertions;
+using MessagePack;
+using Newtonsoft.Json.Linq;
 
 namespace Coflnet.Sky.PlayerState.Services;
 
@@ -45,11 +47,11 @@ public class ItemIdAssignUpdateTest
         Assert.That(1, Is.EqualTo(matchingSample.Id));
         itemsService.Verify(s => s.FindOrCreate(It.IsAny<IEnumerable<Item>>()), Times.Never);
     }
-    
+
     [Test]
     public async Task BoosterCookie()
     {
-        var json = 
+        var json =
         """
         {"Id":null,"ItemName":"§6Booster Cookie","Tag":"BOOSTER_COOKIE","ExtraAttributes":{"uid":"4bee3a354fb4","uuid":"19746077-7ecb-46a8-a220-4bee3a354fb4","timestamp":"9/24/20 3:19 PM","tier":5},"Enchantments":null,"Color":null,
         "Description":"§7Consume to gain the §dCookie\n§dBuff §7for §b4 §7days:\n\n§8‣ §7Ability to gain §bBits§7!\n§8‣ §3+25☯ §7Insta-sell your Material stash to the §6Bazaar\n\n§6§lLEGENDARY","Count":1}
@@ -78,8 +80,9 @@ public class ItemIdAssignUpdateTest
         "itemName": "§f§f§dWithered Dark Claymore §6✪✪✪✪✪§c➋",
         "tag": "DARK_CLAYMORE",
         "extraAttributes": {
-        "rarity_upgrades": 1,
-        "hot_potato_count": 15,
+        "runes": {
+            "BLOOD_2": 3
+        },
         "gems": {
             "COMBAT_0": "FLAWED",
             "unlocked_slots": [
@@ -90,9 +93,12 @@ public class ItemIdAssignUpdateTest
             "COMBAT_1": "FLAWED",
             "COMBAT_0_gem": "JASPER"
         },
-        "runes": {
-            "BLOOD_2": 3
-        },
+        "necromancer_souls": [
+        {
+          "mob_id": "MASTER_CRYPT_TANK_ZOMBIE_60",
+          "dropped_instance_id": "master_catacombs_floor_one",
+          "dropped_mode_id": "dungeon"
+        }],
         "champion_combat_xp": 4243008.1234105695,
         "modifier": "withered",
         "upgrade_level": 7,
@@ -103,24 +109,6 @@ public class ItemIdAssignUpdateTest
         },
         "enchantments": {
         "champion": 10,
-        "cleave": 6,
-        "critical": 6,
-        "cubism": 5,
-        "dragon_hunter": 5,
-        "ender_slayer": 6,
-        "experience": 5,
-        "fire_aspect": 3,
-        "first_strike": 4,
-        "giant_killer": 6,
-        "impaling": 3,
-        "lethality": 6,
-        "looting": 4,
-        "luck": 6,
-        "PROSECUTE": 6,
-        "scavenger": 5,
-        "sharpness": 6,
-        "syphon": 5,
-        "thunderlord": 7,
         "ultimate_swarm": 3,
         "vampirism": 6,
         "venomous": 5
@@ -131,9 +119,15 @@ public class ItemIdAssignUpdateTest
         }
         """;
 
-        var existing = JsonConvert.DeserializeObject<Item>(json);
-        existing.Id = 1;
-        var newItem = JsonConvert.DeserializeObject<Item>(json);
+        var existing = new CassandraItem(JsonConvert.DeserializeObject<Item>(json)).ToTransfer();
+        var copy = new Item(existing);
+        foreach (var kvp in existing.ExtraAttributes!.Keys)
+        {
+            if (existing.ExtraAttributes[kvp] is JToken token)
+                copy.ExtraAttributes[kvp] = CassandraItem.ConvertJTokenToNative(token);
+        }
+        var newItem = MessagePackSerializer.Deserialize<Item>(MessagePackSerializer.Serialize(copy));
+        existing.Id = Random.Shared.Next(1, 1000000);
         var comparer = new ItemCompare();
         comparer.GetHashCode(newItem).Should().Be(comparer.GetHashCode(existing));
         comparer.Equals(newItem, existing).Should().BeTrue();
@@ -142,6 +136,8 @@ public class ItemIdAssignUpdateTest
         var sum = listener.Join([newItem], [existing]).First();
         Assert.That(sum.Id, Is.EqualTo(existing.Id));
     }
+
+
 
     private MockedUpdateArgs CreateArgs(params Item[] items)
     {

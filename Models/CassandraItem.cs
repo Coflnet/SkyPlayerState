@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json.Linq;
 
 namespace Coflnet.Sky.PlayerState.Models;
 
@@ -52,12 +53,54 @@ public class CassandraItem : ICassandraItem
         {
             Color = Color,
             Enchantments = Enchantments?.ToDictionary(x => x.Key, x => (byte)x.Value),
-            ExtraAttributes = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, object>>(ExtraAttributesJson),
+            ExtraAttributes = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, object>>(ExtraAttributesJson)?
+                .ToDictionary(x=>x.Key, x => ConvertJTokenToNative(JToken.FromObject(x.Value))),
             Id = Id,
             ItemName = ItemName,
             Tag = Tag,
             Count = 1
         };
+    }
+
+        public static object ConvertJTokenToNative(JToken token)
+    {
+        if (token is JValue jValue)
+        {
+            // JValue represents a primitive value (string, number, boolean, null)
+            // The Value property will already be a .NET native type.
+            // For dates, Newtonsoft might deserialize them as DateTime objects if recognized.
+            // If they are strings, they'll remain strings.
+            return jValue.Value;
+        }
+        else if (token is JArray jArray)
+        {
+            // Convert JArray to List<object>
+            var list = new List<object>();
+            foreach (var item in jArray)
+            {
+                list.Add(ConvertJTokenToNative(item));
+            }
+            return list;
+        }
+        else if (token is JObject jObject)
+        {
+            // Convert JObject to Dictionary<string, object>
+            var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase); // Or your preferred comparer
+            foreach (var property in jObject.Properties())
+            {
+                dict[property.Name] = ConvertJTokenToNative(property.Value);
+            }
+            return dict;
+        }
+        else if (token == null || token.Type == JTokenType.Null)
+        {
+            return null;
+        }
+        else
+        {
+            // Should not happen with standard JSON deserialization
+            throw new InvalidOperationException("Unsupported JToken type: " + token.GetType());
+        }
     }
 }
 
