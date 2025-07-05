@@ -85,6 +85,8 @@ public class Startup
         services.AddSingleton<SkillService>();
         services.AddSingleton<SniperService>();
         services.AddSingleton<RecipeService>();
+        services.AddSingleton<ItemDetails>();
+        services.AddSingleton<NBT>();
         services.AddSingleton<ICassandraService>(di => di.GetRequiredService<ITransactionService>() as ICassandraService 
                     ?? throw new Exception("ITransactionService is not a ICassandraService"));
         services.AddSingleton<IMessageApi>(sp => new MessageApi(Configuration["EVENTS_BASE_URL"]));

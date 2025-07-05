@@ -34,12 +34,14 @@ public class TradeDetectTests
         var args = GetUpdateArgs(ChatUpdate);
         var transactionService = new Mock<ITransactionService>();
         var nameService = new Mock<IPlayerNameApi>();
+        var itemDetails = new ItemDetails(null);
         nameService.Setup(s => s.PlayerNameUuidNameGetAsync(It.IsAny<string>(), 0, default)).ReturnsAsync(Guid.Empty.ToString());
         args.AddService(transactionService.Object);
         args.AddService(nameService.Object);
+        args.AddService(itemDetails);
         args.currentState.RecentViews.Enqueue(inventory);
         var beefId = Random.Shared.Next(10, 10000);
-        ItemDetails.Instance.TagLookup["RAW_BEEF"] = beefId;
+        itemDetails.TagLookup["RAW_BEEF"] = beefId;
 
         await service.Process(args);
 

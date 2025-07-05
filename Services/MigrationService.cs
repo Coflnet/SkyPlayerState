@@ -22,16 +22,18 @@ public class MigrationService : BackgroundService
     private IPersistenceService persistenceService;
     private ITransactionService transactionService;
     private ICassandraService cassandraService;
+    private ItemDetails itemDetails;
     private Prometheus.Counter migrateCount = Prometheus.Metrics.CreateCounter("sky_playerstate_migrate", "How many players were migrated");
     private Prometheus.Counter migrateFailed = Prometheus.Metrics.CreateCounter("sky_playerstate_migrate_fail", "How many players failed to migrate");
 
-    public MigrationService(ILogger<MigrationService> logger, IConfiguration config, IPersistenceService persistenceService, ITransactionService transactionService, ICassandraService playerStateService)
+    public MigrationService(ILogger<MigrationService> logger, IConfiguration config, IPersistenceService persistenceService, ITransactionService transactionService, ICassandraService playerStateService, ItemDetails itemDetails)
     {
         this.logger = logger;
         this.config = config;
         this.persistenceService = persistenceService;
         this.transactionService = transactionService;
         this.cassandraService = playerStateService;
+        this.itemDetails = itemDetails;
     }
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -40,8 +42,8 @@ public class MigrationService : BackgroundService
         var newTable = cassandraService.GetSplitItemsTable(session);
         var semaphore = new SemaphoreSlim(50);
 
-        await ItemDetails.Instance.LoadLookup();
-        var tags = ItemDetails.Instance.TagLookup.Keys.OrderBy(t => t).ToList();
+        await itemDetails.LoadLookup();
+        var tags = itemDetails.TagLookup.Keys.OrderBy(t => t).ToList();
         var cacheKey = "playerStatemigrateTagsDone2";
         var doneTags = await CacheService.Instance.GetFromRedis<List<string>>(cacheKey) ?? new();
         foreach (var tag in tags.Except(doneTags))

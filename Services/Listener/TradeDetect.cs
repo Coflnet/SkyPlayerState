@@ -12,6 +12,7 @@ public class TradeDetect : UpdateListener
     public const int IdForCoins = 1_000_001;
     public ILogger<TradeDetect> logger;
     private CoinParser parser = new();
+    private Core.ItemDetails itemDetails;
 
     public TradeDetect(ILogger<TradeDetect> logger)
     {
@@ -21,11 +22,13 @@ public class TradeDetect : UpdateListener
     /// <inheritdoc/>
     public override async Task Process(UpdateArgs args)
     {
+        if (itemDetails == null)
+            itemDetails = args.GetService<Core.ItemDetails>();
         if (args.msg.PlayerId == "Core" || (args.currentState.Settings?.DisableTradeTracking ?? false))
-        {
-            Console.WriteLine("trade tracking blocked for " + args.currentState.PlayerId);
-            return;
-        }
+            {
+                Console.WriteLine("trade tracking blocked for " + args.currentState.PlayerId);
+                return;
+            }
         if (args.msg.Kind == UpdateMessage.UpdateKind.CHAT)
         {
             var lastMessage = args.msg.ChatBatch.Last();
@@ -199,6 +202,6 @@ public class TradeDetect : UpdateListener
     {
         if (parser.IsCoins(item))
             return IdForCoins;
-        return Core.ItemDetails.Instance.GetItemIdForTag(item.Tag);
+        return itemDetails.GetItemIdForTag(item.Tag);
     }
 }
