@@ -124,7 +124,7 @@ public class TradeDetect : UpdateListener
         foreach (var item in tradeView.Items)
         {
             var i = index++;
-            if (i >= 36)
+            if (i >= 36 || IsLastItemInWindow(item))
                 break;
             if (item == null || item.ItemName == null)
                 continue;
@@ -133,6 +133,11 @@ public class TradeDetect : UpdateListener
                 spent.Add(item);
             else if (column > 4)
                 received.Add(item);
+        }
+
+        static bool IsLastItemInWindow(Item item)
+        {
+            return item.ItemName != null && item.ItemName.Contains("Deal timer!");
         }
     }
 
