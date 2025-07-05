@@ -11,7 +11,7 @@ public class TradeDetect : UpdateListener
 {
     public const int IdForCoins = 1_000_001;
     public ILogger<TradeDetect> logger;
-    private CoinParser parser = new();
+    private static CoinParser parser = new();
     private Core.ItemDetails itemDetails;
 
     public TradeDetect(ILogger<TradeDetect> logger)
@@ -25,10 +25,10 @@ public class TradeDetect : UpdateListener
         if (itemDetails == null)
             itemDetails = args.GetService<Core.ItemDetails>();
         if (args.msg.PlayerId == "Core" || (args.currentState.Settings?.DisableTradeTracking ?? false))
-            {
-                Console.WriteLine("trade tracking blocked for " + args.currentState.PlayerId);
-                return;
-            }
+        {
+            Console.WriteLine("trade tracking blocked for " + args.currentState.PlayerId);
+            return;
+        }
         if (args.msg.Kind == UpdateMessage.UpdateKind.CHAT)
         {
             var lastMessage = args.msg.ChatBatch.Last();
@@ -129,7 +129,7 @@ public class TradeDetect : UpdateListener
             var i = index++;
             if (i >= 36 || IsLastItemInWindow(item))
                 break;
-            if (item == null || item.ItemName == null)
+            if (item == null || item.ItemName == null || item.Tag == null && !parser.IsCoins(item))
                 continue;
             var column = i % 9;
             if (column < 4)
@@ -140,7 +140,8 @@ public class TradeDetect : UpdateListener
 
         static bool IsLastItemInWindow(Item item)
         {
-            return item.ItemName != null && item.ItemName.Contains("Deal timer!");
+            return item.ItemName != null && (
+                item.ItemName.Contains("Deal timer!") || item.ItemName.Contains("Deal!") || item.ItemName.Contains("Deal accepted!") || item.ItemName == "§eNew deal");
         }
     }
 
