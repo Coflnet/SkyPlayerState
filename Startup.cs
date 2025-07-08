@@ -10,7 +10,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using Prometheus;
-using MongoDB.Driver;
 using Coflnet.Sky.EventBroker.Client.Api;
 using Coflnet.Sky.PlayerName.Client.Api;
 using Coflnet.Sky.Proxy.Client.Api;
@@ -48,23 +47,6 @@ public class Startup
             var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
             c.IncludeXmlComments(xmlPath);
         });
-
-        // Replace with your server version and type.
-        // Use 'MariaDbServerVersion' for MariaDB.
-        // Alternatively, use 'ServerVersion.AutoDetect(connectionString)'.
-        // For common usages, see pull request #1233.
-        //var serverVersion = new MariaDbServerVersion(new Version(Configuration["MARIADB_VERSION"]));
-
-        // Replace 'YourDbContext' with the name of your own DbContext derived class.
-        /*services.AddDbContext<PlayerStateDbContext>(
-            dbContextOptions => dbContextOptions
-                .UseMySql(Configuration["DB_CONNECTION"], serverVersion)
-                .EnableSensitiveDataLogging() // <-- These two calls are optional but help
-                .EnableDetailedErrors()       // <-- with debugging (remove for production).
-        );*/
-        services.AddSingleton(a => new MongoClient(
-            Configuration["Mongo:ConnectionString"]
-        ));
 
         if (Configuration["MIGRATOR"] == "true")
         {

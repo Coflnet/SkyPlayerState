@@ -4,7 +4,6 @@ using Coflnet.Sky.PlayerState.Models;
 using System;
 using System.Collections.Generic;
 using Coflnet.Sky.PlayerState.Services;
-using MongoDB.Bson;
 using Newtonsoft.Json;
 
 namespace Coflnet.Sky.PlayerState.Controllers
@@ -31,7 +30,6 @@ namespace Coflnet.Sky.PlayerState.Controllers
                 ExtraAttributes = data// BsonDocument.Parse(sourceData) //new() { { "exp", 5 }, { "attr", new List<string>() { "kk", "bb" }.ToArray() } }
             };
             
-            Console.WriteLine(data.ToBsonDocument().ToJson());
             Console.WriteLine(JsonConvert.SerializeObject(newItem.ExtraAttributes));
             var items = await _booksService.FindOrCreate(new Item[] { newItem });
 
@@ -46,11 +44,6 @@ namespace Coflnet.Sky.PlayerState.Controllers
         public async Task<List<Item>> Get(List<ItemIdSearch> toSearch) =>
             await _booksService.FindItems(toSearch);
 
-        [HttpGet]
-        public async Task<List<Item>> Get([FromQuery] Item item) =>
-            await _booksService.GetAsync(new Item[]{item});
-
-
         [HttpGet("{id}")]
         public async Task<ActionResult<Item>> Get(long id)
         {
@@ -62,46 +55,6 @@ namespace Coflnet.Sky.PlayerState.Controllers
             }
 
             return book;
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> Post(Item newItem)
-        {
-            await _booksService.CreateAsync(newItem);
-
-            return CreatedAtAction(nameof(Get), new { id = newItem.Id }, newItem);
-        }
-
-        [HttpPut("{id:length(24)}")]
-        public async Task<IActionResult> Update(long id, Item updatedItem)
-        {
-            var book = await _booksService.GetAsync(id);
-
-            if (book is null)
-            {
-                return NotFound();
-            }
-
-            updatedItem.Id = book.Id;
-
-            await _booksService.UpdateAsync(id, updatedItem);
-
-            return NoContent();
-        }
-
-        [HttpDelete("{id:length(24)}")]
-        public async Task<IActionResult> Delete(long id)
-        {
-            var book = await _booksService.GetAsync(id);
-
-            if (book is null)
-            {
-                return NotFound();
-            }
-
-            await _booksService.RemoveAsync(id);
-
-            return NoContent();
         }
 
         [HttpGet("recipe/{tag}")]

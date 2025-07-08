@@ -1,8 +1,6 @@
 using System.Collections.Generic;
 using System.Dynamic;
 using MessagePack;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
 
 namespace Coflnet.Sky.PlayerState.Models;
 #nullable enable
@@ -21,7 +19,6 @@ public class Item
     /// The item name for display
     /// </summary>
     [Key(1)]
-    [BsonElement("Name")]
     public string? ItemName { get; set; } = null!;
     /// <summary>
     /// Hypixel item tag for this item
