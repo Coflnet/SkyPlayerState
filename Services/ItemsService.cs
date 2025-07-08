@@ -1,7 +1,6 @@
 using System.Threading.Tasks;
 using Coflnet.Sky.PlayerState.Models;
 using System.Linq;
-using Microsoft.Extensions.Options;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using Cassandra.Data.Linq;
@@ -21,12 +20,9 @@ namespace Coflnet.Sky.PlayerState.Services
     {
         private readonly ICassandraService cassandraService;
         private static CassandraItemCompare cassandraCompare = new();
-        private Prometheus.Counter insertCount = Prometheus.Metrics.CreateCounter("sky_playerstate_mongo_insert", "How many items were inserted");
         private Prometheus.Counter cassandraInsertCount = Prometheus.Metrics.CreateCounter("sky_playerstate_cassandra_insert", "How many items were inserted");
-        private Prometheus.Counter selectCount = Prometheus.Metrics.CreateCounter("sky_playerstate_mongo_select", "How many items were selected");
 
-        public ItemsService(
-            IOptions<MongoSettings> bookStoreDatabaseSettings,ICassandraService cassandraService)
+        public ItemsService(ICassandraService cassandraService)
         {
             this.cassandraService = cassandraService;
         }
