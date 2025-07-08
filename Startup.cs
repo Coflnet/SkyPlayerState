@@ -25,6 +25,7 @@ using Coflnet.Sky.Bazaar.Client.Api;
 using Coflnet.Sky.Api.Client.Api;
 
 namespace Coflnet.Sky.PlayerState;
+
 public class Startup
 {
     public Startup(IConfiguration configuration)
@@ -38,6 +39,7 @@ public class Startup
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddControllers().AddNewtonsoftJson();
+        services.AddSwaggerGenNewtonsoftSupport();
         services.AddSwaggerGen(c =>
         {
             c.SwaggerDoc("v1", new OpenApiInfo { Title = "SkyPlayerState", Version = "v1" });
@@ -87,7 +89,7 @@ public class Startup
         services.AddSingleton<RecipeService>();
         services.AddSingleton<ItemDetails>();
         services.AddSingleton<NBT>();
-        services.AddSingleton<ICassandraService>(di => di.GetRequiredService<ITransactionService>() as ICassandraService 
+        services.AddSingleton<ICassandraService>(di => di.GetRequiredService<ITransactionService>() as ICassandraService
                     ?? throw new Exception("ITransactionService is not a ICassandraService"));
         services.AddSingleton<IMessageApi>(sp => new MessageApi(Configuration["EVENTS_BASE_URL"]));
         services.AddSingleton<IScheduleApi>(sp => new ScheduleApi(Configuration["EVENTS_BASE_URL"]));
