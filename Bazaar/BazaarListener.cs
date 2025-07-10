@@ -104,7 +104,7 @@ public class BazaarListener : UpdateListener
     /// <returns></returns>
     public static string OrderKey(Offer o)
     {
-        return ((o.IsSell ? "s" : "b") + o.Amount + o.PricePerUnit+ Regex.Replace(o.ItemName, "(§.)*", "")).Truncate(32);
+        return ((o.IsSell ? "s" : "b") + o.Amount + o.PricePerUnit + Regex.Replace(o.ItemName, "(§.)*", "")).Truncate(32);
     }
 
     private static Offer ParseOffer(Models.Item item)

@@ -17,6 +17,25 @@ public class ExtractedInfo
     public KatStatus? KatStatus { get; set;}
     [Key(3)]
     public List<ForgeItem>? ForgeItems = [];
+    public ExtractedInfo()
+    {
+        BoosterCookieExpires = DateTime.MinValue;
+        KuudraStart = DateTime.MinValue;
+        KatStatus = null;
+        ForgeItems = [];
+    }
+    public ExtractedInfo(ExtractedInfo extractedInfo)
+    {
+        BoosterCookieExpires = extractedInfo.BoosterCookieExpires;
+        KuudraStart = extractedInfo.KuudraStart;
+        KatStatus = extractedInfo.KatStatus == null ? null : new KatStatus
+        {
+            IsKatActive = extractedInfo.KatStatus.IsKatActive,
+            KatEnd = extractedInfo.KatStatus.KatEnd,
+            ItemName = extractedInfo.KatStatus.ItemName
+        };
+        ForgeItems = extractedInfo.ForgeItems == null ? [] : new List<ForgeItem>(extractedInfo.ForgeItems);
+    }
 }
 
 [MessagePackObject]

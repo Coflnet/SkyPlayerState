@@ -88,6 +88,8 @@ public class StateObject
             Profiles = new List<Profile>(other.Profiles);
         if (other.BazaarOffers != null)
             BazaarOffers = new List<Offer>(other.BazaarOffers);
+        if(other.ExtractedInfo != null)
+            ExtractedInfo = new ExtractedInfo(other.ExtractedInfo);
         Settings = other.Settings;
     }
 }
