@@ -14,15 +14,11 @@ public class ExtractedInfo
     [Key(1)]
     public DateTime KuudraStart;
     [Key(2)]
-    public KatStatus? KatStatus { get; set;}
+    public KatStatus? KatStatus;
     [Key(3)]
     public List<ForgeItem>? ForgeItems = [];
     public ExtractedInfo()
     {
-        BoosterCookieExpires = DateTime.MinValue;
-        KuudraStart = DateTime.MinValue;
-        KatStatus = null;
-        ForgeItems = [];
     }
     public ExtractedInfo(ExtractedInfo extractedInfo)
     {
