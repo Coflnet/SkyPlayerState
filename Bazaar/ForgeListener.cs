@@ -24,17 +24,17 @@ public class ForgeListener : UpdateListener
         }).ToList();
     }
 
-    private DateTime ParseTimeFromDescription(Item i)
+    public DateTime ParseTimeFromDescription(Item i)
     {
         // example: §7Time Remaining: §a55m 6s
-        // optional hours: // §7Time Remaining: §a1h 55m 6s
-        var timeMatch = System.Text.RegularExpressions.Regex.Match(i.Description!, @"§7Time Remaining: §a(?:(\d+)d )?(?:(\d+)h )?(\d+)m (\d+)s");
+        // optional hours: §7Time Remaining: §a4h 11m for item §5Refined Mithril
+        var timeMatch = System.Text.RegularExpressions.Regex.Match(i.Description!, @"§7Time Remaining: §a(?:(\d+)d )?(?:(\d+)h )?(?:(\d+)m )?(?:(\d+)s)?");
         if (timeMatch.Success)
         {
             int days = timeMatch.Groups[1].Success ? int.Parse(timeMatch.Groups[1].Value) : 0;
             int hours = timeMatch.Groups[2].Success ? int.Parse(timeMatch.Groups[2].Value) : 0;
-            int minutes = int.Parse(timeMatch.Groups[3].Value);
-            int seconds = int.Parse(timeMatch.Groups[4].Value);
+            int minutes = timeMatch.Groups[3].Success ? int.Parse(timeMatch.Groups[3].Value) : 0;
+            int seconds = timeMatch.Groups[4].Success ? int.Parse(timeMatch.Groups[4].Value) : 0;
             var parsed = DateTime.Now.AddDays(days).AddHours(hours).AddMinutes(minutes).AddSeconds(seconds);
             Console.WriteLine($"Parsed forge item time: {parsed} for item {i.ItemName}");
             return parsed;
