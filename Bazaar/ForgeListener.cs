@@ -41,6 +41,10 @@ public class ForgeListener : UpdateListener
         }
         else if (i.Tag == null)
             return default;
+        else if (i.Description?.Contains("Completed") ?? false)
+        {
+            return DateTime.UtcNow.AddMinutes(-1);
+        }
         else
         {
             Console.WriteLine($"Failed to parse time from description: {i.Description} for item {i.ItemName}");
