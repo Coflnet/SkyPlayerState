@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Cassandra.Data.Linq;
+using Coflnet.Sky.Bazaar.Client.Api;
 using Coflnet.Sky.Sniper.Client.Api;
 
 namespace Coflnet.Sky.PlayerState.Services;
@@ -128,17 +129,21 @@ public class CollectionListener : UpdateListener
         var previousLocation = args.currentState.ExtractedInfo.CurrentLocation;
         if (previousLocation != null && previousLocation != currentLocation)
         {
-            Console.WriteLine($"Items changed from {previousLocation} to {currentLocation} for player {args.currentState.PlayerId}");
             var profit = 0L;
             var collected = args.currentState.ItemsCollectedRecently;
             if (collected.Count > 0)
             {
-                var cleanPrices = args.GetService<ISniperApi>().ApiSniperPricesCleanGetAsync();
+                var cleanPrices = await args.GetService<ISniperApi>().ApiSniperPricesCleanGetAsync();
+                var bazaarPrices = await args.GetService<IBazaarApi>().ApiBazaarPricesGetAsync();
+                foreach (var item in bazaarPrices)
+                {
+                    cleanPrices[item.ProductId] = (int)item.SellPrice;
+                }
                 if (cleanPrices != null)
                 {
                     profit = collected.Select(c =>
                     {
-                        var price = cleanPrices.Result.GetValueOrDefault(c.Key);
+                        var price = cleanPrices.GetValueOrDefault(c.Key);
                         return price * c.Value;
                     }).Sum();
                 }
@@ -153,6 +158,7 @@ public class CollectionListener : UpdateListener
                     ItemsCollected = new Dictionary<string, int>(args.currentState.ItemsCollectedRecently),
                     Profit = profit
                 });
+                Console.WriteLine($"Profit summary for {args.currentState.PlayerId} at {previousLocation}: {profit} coins from {string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}"))}");
             }
             args.currentState.ItemsCollectedRecently.Clear();
             args.currentState.ExtractedInfo.LastLocationChange = DateTime.UtcNow;

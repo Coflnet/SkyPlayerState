@@ -30,8 +30,11 @@ public class TrackedProfitService
                 .PartitionKey(t => t.PlayerUuid)
                 .ClusteringKey(t => t.EndTime, SortOrder.Descending)
             );
-        locationPeriods = new Table<Period>(session, mapping, "locationPeriods");
-        historyPeriods = new Table<Period>(session, mapping, "historyPeriods");
+        
+        locationPeriods = new Table<Period>(session, mapping, "locationperiods");
+        historyPeriods = new Table<Period>(session, mapping, "historyperiods");
+        await locationPeriods.CreateIfNotExistsAsync();
+        await historyPeriods.CreateIfNotExistsAsync();
         var TABLE_NAME_HISTORY = "historyPeriods";
         var keeptime = 1209600 / 2; // 1 week in seconds
         var compactionResult = await session.ExecuteAsync(new SimpleStatement(

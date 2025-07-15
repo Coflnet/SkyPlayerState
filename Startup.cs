@@ -81,6 +81,7 @@ public class Startup
         services.AddSingleton<IPlayerNameApi>(sp => new PlayerNameApi(Configuration["PLAYERNAME_BASE_URL"]));
         services.AddSingleton<IBaseApi>(sp => new BaseApi(Configuration["PROXY_BASE_URL"]));
         services.AddSingleton<IOrderBookApi>(sp => new OrderBookApi(Configuration["BAZAAR_BASE_URL"]));
+        services.AddSingleton<Sky.Bazaar.Client.Api.IBazaarApi>(sp => new Sky.Bazaar.Client.Api.BazaarApi(Configuration["BAZAAR_BASE_URL"]));
 
         services.AddSingleton<IItemsApi>(context => new ItemsApi(Configuration["ITEMS_BASE_URL"]));
         services.AddSingleton<IAuctionsApi>(context => new AuctionsApi(Configuration["API_BASE_URL"]));
