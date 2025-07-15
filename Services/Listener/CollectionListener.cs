@@ -121,15 +121,19 @@ public class CollectionListener : UpdateListener
             args.currentState.ExtractedInfo.CurrentServer = server;
         }
         var currentLocation = args.msg.Scoreboard?.FirstOrDefault(s => s.StartsWith(" ⏣ "))?.Substring(3).Trim();
-        if (currentLocation != null)
+        if (currentLocation == null)
         {
-            var previousLocation = args.currentState.ExtractedInfo.CurrentLocation;
-            if (previousLocation != null && previousLocation != currentLocation)
+            return;
+        }
+        var previousLocation = args.currentState.ExtractedInfo.CurrentLocation;
+        if (previousLocation != null && previousLocation != currentLocation)
+        {
+            Console.WriteLine($"Items changed from {previousLocation} to {currentLocation} for player {args.currentState.PlayerId}");
+            var profit = 0L;
+            var collected = args.currentState.ItemsCollectedRecently;
+            if (collected.Count > 0)
             {
-                Console.WriteLine($"Items changed from {previousLocation} to {currentLocation} for player {args.currentState.PlayerId}");
                 var cleanPrices = args.GetService<ISniperApi>().ApiSniperPricesCleanGetAsync();
-                var profit = 0L;
-                var collected = args.currentState.ItemsCollectedRecently;
                 if (cleanPrices != null)
                 {
                     profit = collected.Select(c =>
@@ -149,10 +153,10 @@ public class CollectionListener : UpdateListener
                     ItemsCollected = new Dictionary<string, int>(args.currentState.ItemsCollectedRecently),
                     Profit = profit
                 });
-                args.currentState.ItemsCollectedRecently.Clear();
-                args.currentState.ExtractedInfo.LastLocationChange = DateTime.UtcNow;
             }
-            args.currentState.ExtractedInfo.CurrentLocation = currentLocation;
+            args.currentState.ItemsCollectedRecently.Clear();
+            args.currentState.ExtractedInfo.LastLocationChange = DateTime.UtcNow;
         }
+        args.currentState.ExtractedInfo.CurrentLocation = currentLocation;
     }
 }
