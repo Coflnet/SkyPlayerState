@@ -1,0 +1,158 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using Cassandra.Data.Linq;
+using Coflnet.Sky.Sniper.Client.Api;
+
+namespace Coflnet.Sky.PlayerState.Services;
+
+public class CollectionListener : UpdateListener
+{
+    private Dictionary<string, string> NametoTagLookup;
+    /// <inheritdoc/>
+    public override async Task Process(UpdateArgs args)
+    {
+        if (args.msg.Kind == Models.UpdateMessage.UpdateKind.Scoreboard)
+        {
+            await HandleScoreboard(args);
+            return;
+        }
+        if (args.msg.Kind == Models.UpdateMessage.UpdateKind.INVENTORY)
+        {
+            HandleInventory(args);
+        }
+        if (args.msg.Kind == Models.UpdateMessage.UpdateKind.CHAT)
+        {
+            // stash messages
+            foreach (var uploadedLine in args.msg.ChatBatch)
+            {
+                if (!uploadedLine.StartsWith("Added items:"))
+                    continue;
+                await HandleSackNotification(args, uploadedLine);
+            }
+        }
+    }
+
+    private async Task HandleSackNotification(UpdateArgs args, string uploadedLine)
+    {
+        if (NametoTagLookup == null)
+        {
+            var itemApi = args.GetService<Items.Client.Api.IItemsApi>();
+            var names = await itemApi.ItemNamesGetAsync();
+            NametoTagLookup = names.Where(g => g.Name != null).GroupBy(g => g.Name).Select(g => g.First()).ToDictionary(n => n.Name, n => n.Tag);
+        }
+        var lines = uploadedLine.Split('\n').Skip(1).Reverse().Skip(2).ToList();
+        foreach (var item in lines)
+        {
+            // @" \+([\d,]+) ([^(]+) "
+            var match = Regex.Match(item, @" \+([\d,]+) ([^(]+) ");
+            if (match.Success)
+            {
+                var itemName = match.Groups[2].Value.Trim();
+                if (int.TryParse(match.Groups[1].Value.Replace(",", ""), out var count))
+                {
+                    var tag = NametoTagLookup.GetValueOrDefault(itemName);
+                    if (tag == null)
+                    {
+                        Console.WriteLine($"Item not found in lookup: {itemName}");
+                        continue;
+                    }
+                    args.currentState.ItemsCollectedRecently[tag] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(tag, 0) + count;
+                    Console.WriteLine($"Item collected from stash: {itemName} x{count} for player {args.currentState.PlayerId}");
+                }
+                else
+                {
+                    Console.WriteLine($"Failed to parse item count from chat: {match.Groups[1].Value}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Failed to match item from chat: {item}");
+            }
+        }
+    }
+
+    static void HandleInventory(UpdateArgs args)
+    {
+        var previousInventory = args.currentState.RecentViews.Reverse().Skip(1).FirstOrDefault();
+        if (previousInventory == null)
+            return;
+        Dictionary<string, int?> mapOfItems = GetLookupItemCount(previousInventory);
+        var currentInventory = GetLookupItemCount(args.msg.Chest);
+        Console.WriteLine($"Processing inventory for player {args.currentState.PlayerId} with {currentInventory.Count} items");
+        foreach (var item in currentInventory)
+        {
+            if (item.Value == null)
+                continue;
+            if (mapOfItems.TryGetValue(item.Key, out var previousCount))
+            {
+                if (previousCount == null)
+                    continue;
+                var diff = item.Value - previousCount;
+                if (diff != 0)
+                {
+                    args.currentState.ItemsCollectedRecently[item.Key] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(item.Key, 0) + (int)diff;
+                    Console.WriteLine($"Item collected: {item.Key} x{diff} for player {args.currentState.PlayerId}");
+                }
+            }
+        }
+        Console.WriteLine($"Items collected recently for player {args.currentState.PlayerId}: {string.Join(", ", args.currentState.ItemsCollectedRecently.Select(i => $"{i.Key}: {i.Value}"))}");
+        static Dictionary<string, int?> GetLookupItemCount(Models.ChestView? previousInventory)
+        {
+            // skip more than the 4 lines above and maybe 1 offhand slot
+            var accessibleInventory = previousInventory.Items.Skip(previousInventory.Items.Count - 36 / 9 * 9).Take(36).ToList();
+            var mapOfItems = accessibleInventory
+                .Where(i => i.Tag != null && i.ItemName != null)
+                .GroupBy(i => i.Tag)
+                .ToDictionary(g => g.Key, g => g.Sum(i => i.Count));
+            return mapOfItems;
+        }
+    }
+
+    private static async Task HandleScoreboard(UpdateArgs args)
+    {
+        // 07/14/15
+        var currentDate = DateTime.UtcNow.ToString("MM/dd/yy");
+        var yesterdayDate = DateTime.UtcNow.AddDays(-1).ToString("MM/dd/yy");
+        var server = args.msg.Scoreboard?.FirstOrDefault(s => s.StartsWith(currentDate) || s.StartsWith(yesterdayDate))?.Split(' ')[1];
+        if (server != null)
+        {
+            args.currentState.ExtractedInfo.CurrentServer = server;
+        }
+        var currentLocation = args.msg.Scoreboard?.FirstOrDefault(s => s.StartsWith(" ⏣ "))?.Substring(3).Trim();
+        if (currentLocation != null)
+        {
+            var previousLocation = args.currentState.ExtractedInfo.CurrentLocation;
+            if (previousLocation != null && previousLocation != currentLocation)
+            {
+                Console.WriteLine($"Items changed from {previousLocation} to {currentLocation} for player {args.currentState.PlayerId}");
+                var cleanPrices = args.GetService<ISniperApi>().ApiSniperPricesCleanGetAsync();
+                var profit = 0L;
+                var collected = args.currentState.ItemsCollectedRecently;
+                if (cleanPrices != null)
+                {
+                    profit = collected.Select(c =>
+                    {
+                        var price = cleanPrices.Result.GetValueOrDefault(c.Key);
+                        return price * c.Value;
+                    }).Sum();
+                }
+                // TODO: init profit summary
+                await args.GetService<TrackedProfitService>().AddPeriod(new()
+                {
+                    EndTime = DateTime.UtcNow,
+                    StartTime = args.currentState.ExtractedInfo.LastLocationChange,
+                    Location = previousLocation,
+                    PlayerUuid = args.currentState.PlayerId,
+                    Server = args.currentState.ExtractedInfo.CurrentServer,
+                    ItemsCollected = new Dictionary<string, int>(args.currentState.ItemsCollectedRecently),
+                    Profit = profit
+                });
+                args.currentState.ItemsCollectedRecently.Clear();
+                args.currentState.ExtractedInfo.LastLocationChange = DateTime.UtcNow;
+            }
+            args.currentState.ExtractedInfo.CurrentLocation = currentLocation;
+        }
+    }
+}

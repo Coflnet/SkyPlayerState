@@ -22,6 +22,7 @@ using System.Linq;
 using System.Collections.Generic;
 using Coflnet.Sky.Bazaar.Client.Api;
 using Coflnet.Sky.Api.Client.Api;
+using Coflnet.Sky.Sniper.Client.Api;
 
 namespace Coflnet.Sky.PlayerState;
 
@@ -68,6 +69,8 @@ public class Startup
         services.AddSingleton<IShenStorage, ShenHistoryService>();
         services.AddSingleton<SkillService>();
         services.AddSingleton<SniperService>();
+        services.AddSingleton<ISniperApi>(di=> new SniperApi(Configuration["SNIPER_BASE_URL"]));
+        services.AddSingleton<TrackedProfitService>();
         services.AddSingleton<RecipeService>();
         services.AddSingleton<ItemDetails>();
         services.AddSingleton<NBT>();

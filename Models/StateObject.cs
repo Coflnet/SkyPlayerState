@@ -54,6 +54,8 @@ public class StateObject
     public StateSettings Settings = new();
     [Key(11)]
     public LimitsSummary Limits = new();
+    [Key(12)]
+    public Dictionary<string, int> ItemsCollectedRecently = new();
     [IgnoreMember]
     public SemaphoreSlim Lock = new SemaphoreSlim(1);
     [IgnoreMember]
@@ -90,6 +92,8 @@ public class StateObject
             BazaarOffers = new List<Offer>(other.BazaarOffers);
         if(other.ExtractedInfo != null)
             ExtractedInfo = new ExtractedInfo(other.ExtractedInfo);
+        if (other.ItemsCollectedRecently != null)
+            ItemsCollectedRecently = new Dictionary<string, int>(other.ItemsCollectedRecently);
         Settings = other.Settings;
     }
 }

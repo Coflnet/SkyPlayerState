@@ -16,7 +16,13 @@ public class ExtractedInfo
     [Key(2)]
     public KatStatus? KatStatus;
     [Key(3)]
-    public List<ForgeItem>? ForgeItems = [];
+    public List<ForgeItem?>? ForgeItems = [];
+    [Key(4)]
+    public string CurrentServer { get; set; }
+    [Key(5)]
+    public string CurrentLocation { get; set; } = "Unknown";
+    [Key(6)]
+    public DateTime LastLocationChange { get; set; } = DateTime.UtcNow;
     public ExtractedInfo()
     {
     }
@@ -30,7 +36,10 @@ public class ExtractedInfo
             KatEnd = extractedInfo.KatStatus.KatEnd,
             ItemName = extractedInfo.KatStatus.ItemName
         };
-        ForgeItems = extractedInfo.ForgeItems == null ? [] : new List<ForgeItem>(extractedInfo.ForgeItems);
+        ForgeItems = extractedInfo.ForgeItems == null ? [] : new List<ForgeItem?>(extractedInfo.ForgeItems);
+        CurrentServer = extractedInfo.CurrentServer;
+        CurrentLocation = extractedInfo.CurrentLocation;
+        LastLocationChange = extractedInfo.LastLocationChange;
     }
 }
 
