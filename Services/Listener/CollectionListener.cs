@@ -133,20 +133,24 @@ public class CollectionListener : UpdateListener
             var collected = args.currentState.ItemsCollectedRecently;
             if (collected.Count > 0)
             {
-                var cleanPrices = await args.GetService<ISniperApi>().ApiSniperPricesCleanGetAsync();
+                var cleanPrices = new Dictionary<string, double>();
+                var ahPrices = await args.GetService<ISniperApi>().ApiSniperPricesCleanGetAsync();
                 var bazaarPrices = await args.GetService<IBazaarApi>().ApiBazaarPricesGetAsync();
                 foreach (var item in bazaarPrices)
                 {
                     cleanPrices[item.ProductId] = (int)item.SellPrice;
                 }
-                if (cleanPrices != null)
+                foreach (var item in ahPrices)
                 {
-                    profit = collected.Select(c =>
-                    {
-                        var price = cleanPrices.GetValueOrDefault(c.Key);
-                        return price * c.Value;
-                    }).Sum();
+                    if (item.Value > 0)
+                        cleanPrices[item.Key] = item.Value;
                 }
+
+                profit = (long)collected.Select(c =>
+                {
+                    var price = cleanPrices.GetValueOrDefault(c.Key);
+                    return price * c.Value;
+                }).Sum();
                 // TODO: init profit summary
                 await args.GetService<TrackedProfitService>().AddPeriod(new()
                 {
