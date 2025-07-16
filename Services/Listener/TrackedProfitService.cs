@@ -31,11 +31,11 @@ public class TrackedProfitService
                 .ClusteringKey(t => t.EndTime, SortOrder.Descending)
             );
         
+        var TABLE_NAME_HISTORY = "historyPeriods2";
         locationPeriods = new Table<Period>(session, mapping, "locationperiods");
-        historyPeriods = new Table<Period>(session, mapping, "historyperiods");
+        historyPeriods = new Table<Period>(session, historyMapping, TABLE_NAME_HISTORY);
         await locationPeriods.CreateIfNotExistsAsync();
         await historyPeriods.CreateIfNotExistsAsync();
-        var TABLE_NAME_HISTORY = "historyPeriods";
         var keeptime = 1209600 / 2; // 1 week in seconds
         var compactionResult = await session.ExecuteAsync(new SimpleStatement(
             $"SELECT compaction, default_time_to_live FROM system_schema.tables WHERE keyspace_name = '{session.Keyspace}' AND table_name = '{TABLE_NAME_HISTORY.ToLower()}';"));
