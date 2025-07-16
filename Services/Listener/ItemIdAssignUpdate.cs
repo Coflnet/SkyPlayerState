@@ -39,7 +39,15 @@ public class ItemIdAssignUpdate : UpdateListener
     private static bool CanGetAnIdByStoring(Item i, string chestName)
     {
         // one extra attribute is the tier
-        return i.ExtraAttributes != null && i.ExtraAttributes.Count > 1 && !IsNpcSell(i) && !IsBazaar(chestName) && !IsDungeonItem(i);
+        return i.ExtraAttributes != null && i.ExtraAttributes.Count > 1
+            && !IsNpcSell(i) && !IsBazaar(chestName) && !IsDungeonItem(i)
+            && !IsInAnInventory(i);
+    }
+
+    private static bool IsInAnInventory(Item i)
+    {
+        // Hypixel assigns ids for shift click detection every second, ignore those items, eg §eClick to take fuel out!
+        return i.Description != null && i.Description.Contains("§eClick"); 
     }
 
     private static bool IsDungeonItem(Item i)
