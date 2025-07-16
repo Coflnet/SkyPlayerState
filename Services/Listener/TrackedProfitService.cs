@@ -70,11 +70,11 @@ public class TrackedProfitService
         await historyPeriods!.Insert(period).ExecuteAsync();
     }
 
-    public async Task<List<Period>> GetPeriodsForPlayer(string playerUuid, string location)
+    public async Task<List<Period>> GetPeriodsForPlayer(string playerUuid)
     {
         if (locationPeriods == null || historyPeriods == null)
             await Setup();
-        return (await locationPeriods.Where(p => p.PlayerUuid == playerUuid && p.Location == location).ExecuteAsync()).ToList();
+        return (await locationPeriods.Where(p => p.PlayerUuid == playerUuid).ExecuteAsync()).ToList();
     }
 
     public async Task<List<Period>> GetHistoryForPlayer(string playerUuid, DateTime? before = null, int count = 50)

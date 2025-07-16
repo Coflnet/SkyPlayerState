@@ -76,5 +76,23 @@ namespace Coflnet.Sky.PlayerState.Controllers
             var data = await service.GetStateObject(playerId);
             return data?.ExtractedInfo ?? throw new CoflnetException("no_player_data", $"No player data found for {playerId}. Make sure you use the CoflMod and opened the skyblock menu.");
         }
+
+        [HttpGet]
+        [Route("{playerId}/profit/location")]
+        public async Task<List<TrackedProfitService.Period>> GetLocationProfit(string playerId, [FromServices] TrackedProfitService service)
+        {
+            var data = await service.GetPeriodsForPlayer(playerId);
+            if (data == null)
+                throw new CoflnetException("no_location_profit", $"No location profit found for {playerId}. Make sure you use the CoflMod.");
+            return data;
+        }
+
+        [HttpGet]
+        [Route("{playerId}/profit/history")]
+        public async Task<List<TrackedProfitService.Period>> GetHistoryProfit(string playerId, DateTime before, int count, [FromServices] TrackedProfitService service)
+        {
+            return await service.GetHistoryForPlayer(playerId, before, count);
+        }
+
     }
 }

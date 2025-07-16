@@ -157,7 +157,7 @@ public class CollectionListener : UpdateListener
                     EndTime = DateTime.UtcNow,
                     StartTime = args.currentState.ExtractedInfo.LastLocationChange,
                     Location = previousLocation,
-                    PlayerUuid = args.currentState.PlayerId,
+                    PlayerUuid = args.currentState.McInfo.Uuid.ToString("N"),
                     Server = args.currentState.ExtractedInfo.CurrentServer,
                     ItemsCollected = new Dictionary<string, int>(args.currentState.ItemsCollectedRecently),
                     Profit = profit
