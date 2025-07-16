@@ -28,11 +28,28 @@ public class CollectionListener : UpdateListener
             // stash messages
             foreach (var uploadedLine in args.msg.ChatBatch)
             {
+                if (uploadedLine.StartsWith("You caught"))
+                    await HandleShardCatch(args, uploadedLine);
                 if (!uploadedLine.StartsWith("Added items:"))
                     continue;
                 await HandleSackNotification(args, uploadedLine);
             }
         }
+    }
+
+    private async Task HandleShardCatch(UpdateArgs args, string uploadedLine)
+    {
+        // eg "You caught a Verdant Shard!" "You caught x2 Birries Shards!"
+        var match = Regex.Match(uploadedLine, @"You caught (a|x\d) (.*) Shards?!");
+        if (!match.Success)
+        {
+            Console.WriteLine($"Failed to match shard catch: {uploadedLine}");
+            return;
+        }
+        var shardName = match.Groups[2].Value.Trim();
+        var count = match.Groups[1].Value.StartsWith("x") ? int.Parse(match.Groups[1].Value.Substring(1)) : 1;
+        var tag = "SHARD_" + shardName.ToUpperInvariant().Replace(" ", "_");
+        args.currentState.ItemsCollectedRecently[tag] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(tag, 0) + count;
     }
 
     private async Task HandleSackNotification(UpdateArgs args, string uploadedLine)
@@ -81,7 +98,6 @@ public class CollectionListener : UpdateListener
             return;
         Dictionary<string, int?> mapOfItems = GetLookupItemCount(previousInventory);
         var currentInventory = GetLookupItemCount(args.msg.Chest);
-        Console.WriteLine($"Processing inventory for player {args.currentState.PlayerId} with {currentInventory.Count} items");
         foreach (var item in currentInventory)
         {
             if (item.Value == null)
@@ -98,7 +114,6 @@ public class CollectionListener : UpdateListener
                 }
             }
         }
-        Console.WriteLine($"Items collected recently for player {args.currentState.PlayerId}: {string.Join(", ", args.currentState.ItemsCollectedRecently.Select(i => $"{i.Key}: {i.Value}"))}");
         static Dictionary<string, int?> GetLookupItemCount(Models.ChestView? previousInventory)
         {
             // skip more than the 4 lines above and maybe 1 offhand slot
