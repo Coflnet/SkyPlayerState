@@ -86,7 +86,7 @@ public class PersistenceService : IPersistenceService
         hash = GetHash(inventory);
         if (DidNothingChange(stateObject, hash))
         {
-            Console.WriteLine("\nNothing changed");
+            Console.WriteLine($"\nNothing changed for {stateObject.PlayerId}, skipping save.");
             return;
         }
         // allow only one save every 5 seconds
@@ -119,7 +119,7 @@ public class PersistenceService : IPersistenceService
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Failed to save state object");
+            logger.LogError(e, "Failed to save state object for {playerId}", stateObject.PlayerId);
         }
     }
 
