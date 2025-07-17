@@ -39,15 +39,15 @@ public class CollectionListener : UpdateListener
 
     private async Task HandleShardCatch(UpdateArgs args, string uploadedLine)
     {
-        // eg "You caught a Verdant Shard!" "You caught x2 Birries Shards!"
-        var match = Regex.Match(uploadedLine, @"You caught (a|x\d) (.*) Shards?!");
+        // eg "You caught a Verdant Shard!" "You caught x2 Birries Shards!" "LOOT SHARE You received a Chill Shard for assisting Oden."
+        var match = Regex.Match(uploadedLine, @"You (caught|received) (a|x\d) (.*) Shards?(!| for)");
         if (!match.Success)
         {
             Console.WriteLine($"Failed to match shard catch: {uploadedLine}");
             return;
         }
-        var shardName = match.Groups[2].Value.Trim();
-        var count = match.Groups[1].Value.StartsWith("x") ? int.Parse(match.Groups[1].Value.Substring(1)) : 1;
+        var shardName = match.Groups[3].Value.Trim();
+        var count = match.Groups[2].Value.StartsWith("x") ? int.Parse(match.Groups[2].Value.Substring(1)) : 1;
         var tag = "SHARD_" + shardName.ToUpperInvariant().Replace(" ", "_");
         args.currentState.ItemsCollectedRecently[tag] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(tag, 0) + count;
     }
