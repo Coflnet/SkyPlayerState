@@ -27,6 +27,12 @@ public class ExtractedInfo
     public HeartOfThe? HeartOfTheMountain { get; set; } = null;
     [Key(8)]
     public HeartOfThe? HeartOfTheForest { get; set; } = null;
+    [Key(9)]
+    public int AgathaLevel { get; set; }
+    [Key(10)]
+    public Dictionary<string, int> ShardCounts { get; set; }
+    [Key(11)]
+    public Dictionary<string, int> AttributeLevel { get; set; }
     public ExtractedInfo()
     {
     }
