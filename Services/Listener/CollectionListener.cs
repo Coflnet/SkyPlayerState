@@ -30,9 +30,10 @@ public class CollectionListener : UpdateListener
             {
                 if (uploadedLine.StartsWith("You caught"))
                     await HandleShardCatch(args, uploadedLine);
-                if (!uploadedLine.StartsWith("Added items:"))
-                    continue;
-                await HandleSackNotification(args, uploadedLine);
+                if (uploadedLine.StartsWith("Added items:"))
+                    await HandleSackNotification(args, uploadedLine);
+                if (uploadedLine.StartsWith("Removed items:"))
+                    await HandleSackNotification(args, uploadedLine);
             }
         }
     }
@@ -64,7 +65,7 @@ public class CollectionListener : UpdateListener
         foreach (var item in lines)
         {
             // @" \+([\d,]+) ([^(]+) "
-            var match = Regex.Match(item, @" \+([\d,]+) ([^(]+) ");
+            var match = Regex.Match(item, @" ([+-]?[\d,]+) ([^(]+) ");
             if (match.Success)
             {
                 var itemName = match.Groups[2].Value.Trim();
