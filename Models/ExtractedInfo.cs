@@ -23,6 +23,10 @@ public class ExtractedInfo
     public string CurrentLocation { get; set; } = "Unknown";
     [Key(6)]
     public DateTime LastLocationChange { get; set; } = DateTime.UtcNow;
+    [Key(7)]
+    public HeartOfThe? HeartOfTheMountain { get; set; } = null;
+    [Key(8)]
+    public HeartOfThe? HeartOfTheForest { get; set; } = null;
     public ExtractedInfo()
     {
     }

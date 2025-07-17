@@ -64,6 +64,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         AddHandler<KatInventoryListener>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<ForgeListener>(UpdateMessage.UpdateKind.INVENTORY);
 
+        AddHandler<HeartOfTheListener>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<KuudraListener>(UpdateMessage.UpdateKind.INVENTORY | UpdateMessage.UpdateKind.Scoreboard);
         AddHandler<CollectionListener>(UpdateMessage.UpdateKind.INVENTORY | UpdateMessage.UpdateKind.Scoreboard | UpdateMessage.UpdateKind.CHAT | UpdateMessage.UpdateKind.Tab);
         AddHandler<TradeDetect>(UpdateMessage.UpdateKind.INVENTORY | UpdateMessage.UpdateKind.CHAT);
