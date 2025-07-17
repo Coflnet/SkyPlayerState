@@ -50,6 +50,11 @@ public class ExtractedInfo
         CurrentServer = extractedInfo.CurrentServer;
         CurrentLocation = extractedInfo.CurrentLocation;
         LastLocationChange = extractedInfo.LastLocationChange;
+        HeartOfTheMountain = extractedInfo.HeartOfTheMountain;
+        HeartOfTheForest = extractedInfo.HeartOfTheForest;
+        AgathaLevel = extractedInfo.AgathaLevel;
+        ShardCounts = new Dictionary<string, int>(extractedInfo.ShardCounts);
+        AttributeLevel = new Dictionary<string, int>(extractedInfo.AttributeLevel);
     }
 }
 
