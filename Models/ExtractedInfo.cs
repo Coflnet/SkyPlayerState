@@ -30,9 +30,9 @@ public class ExtractedInfo
     [Key(9)]
     public int AgathaLevel { get; set; }
     [Key(10)]
-    public Dictionary<string, int> ShardCounts { get; set; }
+    public Dictionary<string, int>? ShardCounts { get; set; }
     [Key(11)]
-    public Dictionary<string, int> AttributeLevel { get; set; }
+    public Dictionary<string, int>? AttributeLevel { get; set; }
     public ExtractedInfo()
     {
     }
@@ -46,15 +46,15 @@ public class ExtractedInfo
             KatEnd = extractedInfo.KatStatus.KatEnd,
             ItemName = extractedInfo.KatStatus.ItemName
         };
-        ForgeItems = extractedInfo.ForgeItems == null ? [] : [.. extractedInfo.ForgeItems];
+        ForgeItems = extractedInfo.ForgeItems == null ? null : [.. extractedInfo.ForgeItems];
         CurrentServer = extractedInfo.CurrentServer;
         CurrentLocation = extractedInfo.CurrentLocation;
         LastLocationChange = extractedInfo.LastLocationChange;
         HeartOfTheMountain = extractedInfo.HeartOfTheMountain;
         HeartOfTheForest = extractedInfo.HeartOfTheForest;
         AgathaLevel = extractedInfo.AgathaLevel;
-        ShardCounts = extractedInfo.ShardCounts == null ? [] : new (extractedInfo.ShardCounts);
-        AttributeLevel = extractedInfo.AttributeLevel == null ? [] : new (extractedInfo.AttributeLevel);
+        ShardCounts = extractedInfo.ShardCounts == null ? null : new(extractedInfo.ShardCounts);
+        AttributeLevel = extractedInfo.AttributeLevel == null ? null : new(extractedInfo.AttributeLevel);
     }
 }
 
