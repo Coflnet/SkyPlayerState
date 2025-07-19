@@ -12,7 +12,7 @@ public class ForgeListener : UpdateListener
         if (args.msg.Chest?.Name != "The Forge")
             return;
 
-        var inprocess = args.msg.Chest.Items.Take(14)
+        var inprocess = args.msg.Chest.Items.Take(17)
             .Where(i => i.Tag != null || (i.Description?.Contains("Click to select") ?? false))
             .ToList();
 
