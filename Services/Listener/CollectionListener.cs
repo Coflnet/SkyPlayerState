@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Cassandra.Data.Linq;
 using Coflnet.Sky.Bazaar.Client.Api;
+using Coflnet.Sky.PlayerState.Models;
 using Coflnet.Sky.Sniper.Client.Api;
 
 namespace Coflnet.Sky.PlayerState.Services;
@@ -143,46 +144,52 @@ public class CollectionListener : UpdateListener
             return;
         }
         var previousLocation = args.currentState.ExtractedInfo.CurrentLocation;
-        if (previousLocation != null && previousLocation != currentLocation)
+        if (previousLocation != null && previousLocation != currentLocation
+            // if the same location is used, attempt to store it for people staying in same location
+            || args.currentState.ExtractedInfo.LastLocationChange < DateTime.UtcNow.AddMinutes(-5))
         {
-            var profit = 0L;
-            var collected = args.currentState.ItemsCollectedRecently;
-            if (collected.Count > 0)
-            {
-                var cleanPrices = new Dictionary<string, double>();
-                var ahPrices = await args.GetService<ISniperApi>().ApiSniperPricesCleanGetAsync();
-                var bazaarPrices = await args.GetService<IBazaarApi>().ApiBazaarPricesGetAsync();
-                foreach (var item in bazaarPrices)
-                {
-                    cleanPrices[item.ProductId] = (int)item.SellPrice;
-                }
-                foreach (var item in ahPrices)
-                {
-                    if (item.Value > 0)
-                        cleanPrices[item.Key] = item.Value;
-                }
-
-                profit = (long)collected.Select(c =>
-                {
-                    var price = cleanPrices.GetValueOrDefault(c.Key);
-                    return price * c.Value;
-                }).Sum();
-                // TODO: init profit summary
-                await args.GetService<TrackedProfitService>().AddPeriod(new()
-                {
-                    EndTime = DateTime.UtcNow,
-                    StartTime = args.currentState.ExtractedInfo.LastLocationChange,
-                    Location = previousLocation,
-                    PlayerUuid = args.currentState.McInfo.Uuid.ToString("N"),
-                    Server = args.currentState.ExtractedInfo.CurrentServer,
-                    ItemsCollected = new Dictionary<string, int>(args.currentState.ItemsCollectedRecently),
-                    Profit = profit
-                });
-                Console.WriteLine($"Profit summary for {args.currentState.PlayerId} at {previousLocation}: {profit} coins from {string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}"))}");
-            }
-            args.currentState.ItemsCollectedRecently.Clear();
-            args.currentState.ExtractedInfo.LastLocationChange = DateTime.UtcNow;
+            await StoreLocationProfit(args, previousLocation);
         }
         args.currentState.ExtractedInfo.CurrentLocation = currentLocation;
+    }
+
+    private static async Task StoreLocationProfit(UpdateArgs args, string previousLocation)
+    {
+        var profit = 0L;
+        var collected = args.currentState.ItemsCollectedRecently;
+        if (collected.Count > 0)
+        {
+            var cleanPrices = new Dictionary<string, double>();
+            var ahPrices = await args.GetService<ISniperApi>().ApiSniperPricesCleanGetAsync();
+            var bazaarPrices = await args.GetService<IBazaarApi>().ApiBazaarPricesGetAsync();
+            foreach (var item in bazaarPrices)
+            {
+                cleanPrices[item.ProductId] = (int)item.SellPrice;
+            }
+            foreach (var item in ahPrices)
+            {
+                if (item.Value > 0)
+                    cleanPrices[item.Key] = item.Value;
+            }
+
+            profit = (long)collected.Select(c =>
+            {
+                var price = cleanPrices.GetValueOrDefault(c.Key);
+                return price * c.Value;
+            }).Sum();
+            await args.GetService<TrackedProfitService>().AddPeriod(new()
+            {
+                EndTime = DateTime.UtcNow,
+                StartTime = args.currentState.ExtractedInfo.LastLocationChange,
+                Location = previousLocation,
+                PlayerUuid = args.currentState.McInfo.Uuid.ToString("N"),
+                Server = args.currentState.ExtractedInfo.CurrentServer,
+                ItemsCollected = new Dictionary<string, int>(args.currentState.ItemsCollectedRecently),
+                Profit = profit
+            });
+            Console.WriteLine($"Profit summary for {args.currentState.PlayerId} at {previousLocation}: {profit} coins from {string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}"))}");
+        }
+        args.currentState.ItemsCollectedRecently.Clear();
+        args.currentState.ExtractedInfo.LastLocationChange = DateTime.UtcNow;
     }
 }
