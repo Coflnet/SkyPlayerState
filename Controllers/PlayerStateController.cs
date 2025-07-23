@@ -93,6 +93,21 @@ namespace Coflnet.Sky.PlayerState.Controllers
         {
             return await service.GetHistoryForPlayer(playerId, before, count);
         }
-
+        [HttpGet]
+        [Route("{playerId}/storage")]
+        public async Task<List<ChestView>> GetStorage(Guid playerId, Guid profileId, [FromServices] StorageService service)
+        {
+            var items = await service.GetStorageItems(playerId, profileId);
+            if (items == null || items.Count == 0)
+                throw new CoflnetException("no_storage", $"No storage found for player {playerId} with profile {profileId}.");
+            
+            return items.Select(item => new ChestView
+            {
+                Name = item.ChestName,
+                Position = item.Position,
+                Items = item.Items,
+                OpenedAt = item.OpenedAt
+            }).ToList();
+        }
     }
 }

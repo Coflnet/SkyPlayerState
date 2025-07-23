@@ -73,6 +73,7 @@ public class Startup
         services.AddSingleton<TrackedProfitService>();
         services.AddSingleton<RecipeService>();
         services.AddSingleton<ItemDetails>();
+        services.AddSingleton<StorageService>();
         services.AddSingleton<NBT>();
         services.AddSingleton<ICassandraService>(di => di.GetRequiredService<ITransactionService>() as ICassandraService
                     ?? throw new Exception("ITransactionService is not a ICassandraService"));

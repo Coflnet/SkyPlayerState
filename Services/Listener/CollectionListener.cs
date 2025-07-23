@@ -4,7 +4,6 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Cassandra.Data.Linq;
 using Coflnet.Sky.Bazaar.Client.Api;
-using Coflnet.Sky.PlayerState.Models;
 using Coflnet.Sky.Sniper.Client.Api;
 
 namespace Coflnet.Sky.PlayerState.Services;
