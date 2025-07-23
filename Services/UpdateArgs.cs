@@ -34,6 +34,12 @@ public class UpdateArgs : IDisposable
         });
     }
 
+    public void SendDebugMessage(string text, string? clickAction = null)
+    {
+        if(currentState.Settings.DebugEnabled)
+        SendMessage(text, clickAction, "Debug");
+    }
+
     public virtual T GetService<T>() where T : notnull
     {
         if (scope == null)

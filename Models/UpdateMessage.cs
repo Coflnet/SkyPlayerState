@@ -48,6 +48,8 @@ public class StateSettings
     public bool DisableBazaarTracking { get; set; }
     [Key(2)]
     public bool DisableKuudraTracking { get; set; }
+    [Key(3)]
+    public bool DebugEnabled { get; set; }
 }
 
 #nullable restore
