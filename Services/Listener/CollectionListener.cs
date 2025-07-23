@@ -35,6 +35,8 @@ public class CollectionListener : UpdateListener
                     await HandleSackNotification(args, uploadedLine);
                 if (uploadedLine.StartsWith("Removed items:"))
                     await HandleSackNotification(args, uploadedLine);
+                if (uploadedLine.Contains("Chameleon (0."))
+                    args.currentState.ItemsCollectedRecently["SHARD_CHAMELEON"] = args.currentState.ItemsCollectedRecently.GetValueOrDefault("SHARD_CHAMELEON", 0) + 1;
             }
         }
     }
@@ -187,6 +189,7 @@ public class CollectionListener : UpdateListener
                 ItemsCollected = new Dictionary<string, int>(args.currentState.ItemsCollectedRecently),
                 Profit = profit
             });
+            args.SendDebugMessage("You collected a total of " + profit + " coins worth of items in " + previousLocation + " " + string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}")));
             Console.WriteLine($"Profit summary for {args.currentState.PlayerId} at {previousLocation}: {profit} coins from {string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}"))}");
         }
         args.currentState.ItemsCollectedRecently.Clear();
