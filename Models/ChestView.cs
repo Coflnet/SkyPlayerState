@@ -22,5 +22,7 @@ public class ChestView
     /// </summary>
     [Key(2)]
     public BlockPos? Position;
+    [Key(3)]
+    public DateTime OpenedAt;
 }
 #nullable restore
