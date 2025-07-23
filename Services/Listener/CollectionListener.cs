@@ -100,6 +100,14 @@ public class CollectionListener : UpdateListener
         if (previousInventory == null)
             return;
         Dictionary<string, int?> mapOfItems = GetLookupItemCount(previousInventory);
+        if (!StorageListener.IsNotStorage(previousInventory)
+            || IsBazaarOrderCreate(previousInventory) || ClaimedBazaar(previousInventory)
+            || previousInventory.Name == "Create BIN Auction")
+        {
+            // if the previous inventory is a storage, we don't want to track items collected
+            Console.WriteLine($"Skipping item collection tracking for storage chest {previousInventory.Name} for player {args.currentState.PlayerId}");
+            return;
+        }
         var currentInventory = GetLookupItemCount(args.msg.Chest);
         foreach (var item in currentInventory)
         {
@@ -127,6 +135,17 @@ public class CollectionListener : UpdateListener
                 .ToDictionary(g => g.Key, g => g.Sum(i => i.Count));
             return mapOfItems;
         }
+    }
+
+    private static bool ClaimedBazaar(Models.ChestView previousInventory)
+    {
+        // maybe also check if previous Item was actually present
+        return previousInventory.Name.EndsWith("Bazaar Orders");
+    }
+
+    private static bool IsBazaarOrderCreate(Models.ChestView previousInventory)
+    {
+        return previousInventory.Name.Contains("Confirm");
     }
 
     private static async Task HandleScoreboard(UpdateArgs args)

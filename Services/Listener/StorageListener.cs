@@ -15,7 +15,7 @@ public class StorageListener : UpdateListener
             return;
         }
         var chestView = args.msg.Chest;
-        if (chestView.Name == null || !chestView.Name.StartsWith("Ender Chest") && !chestView.Name.Contains("Backpack (Slot") && !chestView.Name.Contains("Chest"))
+        if (chestView.Name == null || IsNotStorage(chestView))
         {
             return; // Only process Ender Chest or Storage chests
         }
@@ -30,5 +30,10 @@ public class StorageListener : UpdateListener
             PlayerId = args.currentState.McInfo.Uuid
         });
         Console.WriteLine($"Saved storage item for player {args.currentState.PlayerId} in chest {chestView.Name}, items: {itemsToStore} at position {chestView.Position}");
+    }
+
+    public static bool IsNotStorage(Models.ChestView chestView)
+    {
+        return !chestView.Name.StartsWith("Ender Chest") && !chestView.Name.Contains("Backpack (Slot") && !chestView.Name.Contains("Chest");
     }
 }
