@@ -106,7 +106,15 @@ public class RecipeService
 
     internal async Task Save(Recipe recipe)
     {
-        await recipes.Insert(recipe).ExecuteAsync();
+        try
+        {
+            await recipes.Insert(recipe).ExecuteAsync();
+        }
+        catch (System.Exception e)
+        {
+            logger.LogError(e, "Failed to save recipe {Tag} {full}", recipe.Tag, JsonConvert.SerializeObject(recipe));
+            throw; // rethrow the exception to let the caller handle it
+        }
     }
 }
 
