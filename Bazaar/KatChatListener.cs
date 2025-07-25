@@ -69,6 +69,12 @@ public class KatChatListener : UpdateListener
                     Console.WriteLine($"Failed to parse time from line: {line}");
                 }
             }
+            if (line.StartsWith("[NPC] Kat: If you have any other pets you'd like to upgrade")) // done & collect message
+            {
+                args.currentState.ExtractedInfo.KatStatus ??= new();
+                args.currentState.ExtractedInfo.KatStatus.IsKatActive = false;
+                Console.WriteLine($"Kat upgrade completed for player {args.currentState.PlayerId}");
+            }
         }
 
         static TimeSpan ParseTime(string timeString)
