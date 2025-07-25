@@ -26,6 +26,11 @@ public class RecipeUpdate : UpdateListener
 
     private async Task ExtractRecipe(UpdateArgs args)
     {
+        if(args.msg.Chest?.Items.Count < 9* 10)
+        {
+            args.GetService<ILogger<RecipeUpdate>>().LogWarning("Recipe chest {ChestName} has less than 90 items, skipping from {player}", args.msg.Chest.Name, args.msg.PlayerId);
+            return;
+        }
         var ingredients = args.msg.Chest.Items.Skip(10).Take(3).Concat(args.msg.Chest.Items.Skip(19).Take(3)).Concat(args.msg.Chest.Items.Skip(28).Take(3))
             .Select(i => new KeyValuePair<string?, int>(i?.Tag, i?.Count ?? 0)).ToList();
         var requirements = args.msg.Chest.Items[32].Description.Split('\n').Where(l => l.Contains("Requires")).ToList();
