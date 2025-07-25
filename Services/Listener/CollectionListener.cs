@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Cassandra.Data.Linq;
 using Coflnet.Sky.Bazaar.Client.Api;
 using Coflnet.Sky.Sniper.Client.Api;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 namespace Coflnet.Sky.PlayerState.Services;
 
@@ -100,13 +102,20 @@ public class CollectionListener : UpdateListener
         if (previousInventory == null)
             return;
         Dictionary<string, int?> mapOfItems = GetLookupItemCount(previousInventory);
-        if (!StorageListener.IsNotStorage(previousInventory)
-            || IsBazaarOrderCreate(previousInventory) || ClaimedBazaar(previousInventory)
-            || previousInventory.Name == "Create BIN Auction")
+        try
         {
-            // if the previous inventory is a storage, we don't want to track items collected
-            Console.WriteLine($"Skipping item collection tracking for storage chest {previousInventory.Name} for player {args.currentState.PlayerId}");
-            return;
+            if (previousInventory.Name != null && (!StorageListener.IsNotStorage(previousInventory)
+                || IsBazaarOrderCreate(previousInventory) || ClaimedBazaar(previousInventory)
+                || previousInventory.Name == "Create BIN Auction"))
+            {
+                // if the previous inventory is a storage, we don't want to track items collected
+                Console.WriteLine($"Skipping item collection tracking for storage chest {previousInventory.Name} for player {args.currentState.PlayerId}");
+                return;
+            }
+        }
+        catch (System.Exception e)
+        {
+            args.GetService<ILogger<CollectionListener>>().LogError(e, "Failed to handle inventory for player {PlayerId} {previousInventory}", args.currentState.PlayerId, JsonConvert.SerializeObject(previousInventory));
         }
         var currentInventory = GetLookupItemCount(args.msg.Chest);
         foreach (var item in currentInventory)
