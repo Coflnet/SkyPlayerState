@@ -33,6 +33,8 @@ public class ExtractedInfo
     public Dictionary<string, int>? ShardCounts { get; set; }
     [Key(11)]
     public Dictionary<string, int>? AttributeLevel { get; set; }
+    [Key(12)]
+    public Composter? Composter { get; set; } = null;
     public ExtractedInfo()
     {
     }
@@ -55,7 +57,45 @@ public class ExtractedInfo
         AgathaLevel = extractedInfo.AgathaLevel;
         ShardCounts = extractedInfo.ShardCounts == null ? null : new(extractedInfo.ShardCounts);
         AttributeLevel = extractedInfo.AttributeLevel == null ? null : new(extractedInfo.AttributeLevel);
+        Composter = extractedInfo.Composter == null ? null : new Composter
+        {
+            NextCompostAt = extractedInfo.Composter.NextCompostAt,
+            FuelStored = extractedInfo.Composter.FuelStored,
+            MatterStored = extractedInfo.Composter.MatterStored,
+            LastCompostToClaim = extractedInfo.Composter.LastCompostToClaim,
+            SpeedPercentIncrease = extractedInfo.Composter.SpeedPercentIncrease,
+            MultiDropChance = extractedInfo.Composter.MultiDropChance,
+            FuelCap = extractedInfo.Composter.FuelCap,
+            MatterCap = extractedInfo.Composter.MatterCap,
+            CostReductionPercent = extractedInfo.Composter.CostReductionPercent
+        };
     }
+}
+
+[MessagePackObject]
+public class Composter
+{
+    [Key(0)]
+    public DateTime NextCompostAt;
+    [Key(1)]
+    public int FuelStored;
+    [Key(2)]
+    public int MatterStored;
+    [Key(3)]
+    public int LastCompostToClaim;
+    /// <summary>
+    /// From Composter Upgrades
+    /// </summary>
+    [Key(4)]
+    public int SpeedPercentIncrease;
+    [Key(5)]
+    public int MultiDropChance;
+    [Key(6)]
+    public int FuelCap;
+    [Key(7)]
+    public int MatterCap;
+    [Key(8)]
+    public int CostReductionPercent;
 }
 
 [MessagePackObject]
