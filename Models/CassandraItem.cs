@@ -35,7 +35,7 @@ public class CassandraItem : ICassandraItem
     public CassandraItem(Item item)
     {
         ItemId = item.ExtraAttributes?.TryGetValue("uuid", out var uuid) == true ? Guid.Parse(uuid.ToString()!) : default;
-        ItemName = item.ItemName;
+        ItemName = item.ItemName?.Replace("§f§f","");
         Tag = item.Tag;
         Enchantments = item.Enchantments?.OrderBy(k => k.Key).ToDictionary(x => x.Key, x => (int)x.Value) ?? new Dictionary<string, int>();
         Color = item.Color;
