@@ -62,5 +62,11 @@ namespace Coflnet.Sky.PlayerState.Controllers
         {
             return await recipeService.GetRecipes(tag);
         }
+
+        [HttpGet("npccost/{tag}")]
+        public async Task<IEnumerable<NpcCost>> GetNpcCost(string tag, [FromServices] RecipeService recipeService)
+        {
+            return await recipeService.GetNpcCost(tag);
+        }
     }
 }

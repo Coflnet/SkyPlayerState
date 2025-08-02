@@ -16,12 +16,85 @@ namespace Coflnet.Sky.PlayerState.Services;
 
 public class RecipeUpdate : UpdateListener
 {
+    private readonly HashSet<string> alreadyProcessed = new HashSet<string>();
     /// <inheritdoc/>
     public override async Task Process(UpdateArgs args)
     {
-        if (!(args.msg.Chest?.Name?.EndsWith(" Recipe") ?? false))
+        if (args.msg.Chest?.Name?.EndsWith(" Recipe") ?? false)
+            await ExtractRecipe(args);
+        if (args.msg.Chest?.Items.Count < 9 * 10 || args.msg.UserId == null
+            || !args.msg.Chest.Items[10].Description.Contains("Cost")
+            || !args.msg.Chest.Items[9 * 5 + 4].ItemName.Contains("Sell Item")) // all npc that sell something can also be sold to
+            return; // not a selling npc
+        if (alreadyProcessed.Contains(args.msg.Chest.Name))
             return;
-        await ExtractRecipe(args);
+        Console.WriteLine("Extracting npc cost from " + args.msg.Chest.Name + JsonConvert.SerializeObject(args.msg.Chest.Items.Take(9 * 5).Where(i => i.Tag != null), Formatting.Indented));
+        foreach (var item in args.msg.Chest.Items.Where(i => i.Tag != null))
+        {
+            // Parse costs from the item's description
+            var description = item.Description;
+            if (description == null || !description.Contains("Cost"))
+                continue;
+
+            var costs = new Dictionary<string, int>();
+            var costSection = Regex.Split(description, @"\n").SkipWhile(l => !l.Contains("§7Cost")).Skip(1);
+            foreach (var line in costSection)
+            {
+                // Stop if we reach Stock or an empty line
+                if (string.IsNullOrWhiteSpace(line) || line.Contains("Stock"))
+                    break;
+
+                // Match lines like "§625 Coins" or "§6Enchanted Diamond x16"
+                var match = Regex.Match(line, @"§6(?<amount>[\d,]+)\s(?<item>.+?)(?:\sx(?<count>\d+))?$");
+                if (match.Success)
+                {
+                    var amountStr = match.Groups["amount"].Value.Replace(",", "");
+                    var itemName = match.Groups["item"].Value.Trim();
+                    var countStr = match.Groups["count"].Success ? match.Groups["count"].Value : "1";
+                    if (int.TryParse(amountStr, out int amount))
+                    {
+                        // If the item is "Coins", use amount as value, else use count
+                        if (itemName == "Coins")
+                            costs["Coins"] = amount;
+                        else if (int.TryParse(countStr, out int count))
+                            costs[itemName] = count;
+                    }
+                }
+                else
+                {
+                    // Try to match lines like "§6Enchanted Diamond x16"
+                    var altMatch = Regex.Match(line, @"§6(?<item>.+?)\sx(?<count>\d+)$");
+                    if (altMatch.Success)
+                    {
+                        var itemName = altMatch.Groups["item"].Value.Trim();
+                        var countStr = altMatch.Groups["count"].Value;
+                        if (int.TryParse(countStr, out int count))
+                            costs[itemName] = count;
+                    }
+                }
+            }
+            var stock = Regex.Match(description, @"§6Stock: §b(?<stock>\d+)").Groups["stock"].Value;
+            int.TryParse(stock, out int stockCount);
+
+            if (costs.Count > 0)
+            {
+                var npcCost = new NpcCost
+                {
+                    ItemTag = item.Tag,
+                    NpcName = args.msg.Chest.Name,
+                    Costs = costs,
+                    Description = item.Description,
+                    Stock = stockCount,
+                    ResultCount = item.Count ?? 1,
+                    LastUpdatedBy = args.msg.UserId + "-" + args.msg.PlayerId
+                };
+                await args.GetService<RecipeService>().Save(npcCost);
+                Console.WriteLine($"NPC cost update {npcCost.NpcName} {npcCost.ItemTag} {JsonConvert.SerializeObject(npcCost.Costs)}");
+                alreadyProcessed.Add(args.msg.Chest.Name);
+            }
+            else
+                args.GetService<ILogger<RecipeUpdate>>().LogWarning("No costs found for item {ItemTag} in chest {ChestName} for player {PlayerId}", item.Tag, args.msg.Chest.Name, args.msg.PlayerId);
+        }
     }
 
     private async Task ExtractRecipe(UpdateArgs args)
@@ -79,6 +152,7 @@ public class RecipeUpdate : UpdateListener
 public class RecipeService
 {
     private Table<Recipe> recipes;
+    private Table<NpcCost> npcCosts;
     private ILogger<RecipeService> logger;
 
     public RecipeService(ISession session, ILogger<RecipeService> logger)
@@ -96,6 +170,15 @@ public class RecipeService
         );
         recipes = new Table<Recipe>(session, mapping);
         recipes.CreateIfNotExists();
+        var npcMapping = new MappingConfiguration().Define(
+            new Map<NpcCost>()
+                .TableName("npc_costs")
+                .PartitionKey(n => n.ItemTag)
+                .ClusteringKey(n => n.NpcName)
+                .Column(n => n.ItemTag, cm => cm.WithName("item_tag"))
+        );
+        npcCosts = new Table<NpcCost>(session, npcMapping);
+        npcCosts.CreateIfNotExists();
         this.logger = logger;
     }
 
@@ -116,6 +199,35 @@ public class RecipeService
             throw; // rethrow the exception to let the caller handle it
         }
     }
+
+    public async Task<IEnumerable<NpcCost>> GetNpcCost(string itemTag)
+    {
+        return await npcCosts.Where(n => n.ItemTag == itemTag).ExecuteAsync();
+    }
+
+    public async Task Save(NpcCost npcCost)
+    {
+        try
+        {
+            await npcCosts.Insert(npcCost).ExecuteAsync();
+        }
+        catch (System.Exception e)
+        {
+            logger.LogError(e, "Failed to save NPC cost for item {ItemTag} {full}", npcCost.ItemTag, JsonConvert.SerializeObject(npcCost));
+            throw; // rethrow the exception to let the caller handle it
+        }
+    }
+}
+
+public class NpcCost
+{
+    public string ItemTag { get; set; }
+    public string NpcName { get; set; }
+    public Dictionary<string, int> Costs { get; set; } = new();
+    public string? Description { get; set; }
+    public int Stock { get; set; } = 0;
+    public int ResultCount { get; set; } = 1;
+    public string LastUpdatedBy { get; set; } = string.Empty;
 }
 
 public class Recipe
