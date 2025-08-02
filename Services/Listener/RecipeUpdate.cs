@@ -20,7 +20,8 @@ public class RecipeUpdate : UpdateListener
     /// <inheritdoc/>
     public override async Task Process(UpdateArgs args)
     {
-        if (args.msg.Chest?.Name?.EndsWith(" Recipe") ?? false)
+        if (args.msg.Chest?.Items.Count >= 9 * 10 && args.msg.UserId != null
+            && args.msg.Chest?.Items[32].ItemName == "§aSupercraft")
             await ExtractRecipe(args);
         if (args.msg.Chest?.Items.Count < 9 * 10 || args.msg.UserId == null
             || !args.msg.Chest.Items[10].Description.Contains("Cost")
