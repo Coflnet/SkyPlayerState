@@ -24,7 +24,7 @@ public class RecipeUpdate : UpdateListener
             && args.msg.Chest?.Items[32].ItemName == "§aSupercraft")
             await ExtractRecipe(args);
         if (args.msg.Chest?.Items.Count < 9 * 10 || args.msg.UserId == null
-            || !args.msg.Chest.Items[10].Description.Contains("Cost")
+            || !(args.msg.Chest?.Items[10]?.Description?.Contains("Cost") ?? false)
             || !args.msg.Chest.Items[9 * 5 + 4].ItemName.Contains("Sell Item")) // all npc that sell something can also be sold to
             return; // not a selling npc
         if (alreadyProcessed.Contains(args.msg.Chest.Name))
