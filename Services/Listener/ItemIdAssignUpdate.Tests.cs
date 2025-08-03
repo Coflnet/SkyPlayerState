@@ -138,7 +138,6 @@ public class ItemIdAssignUpdateTest
     }
 
 
-
     private MockedUpdateArgs CreateArgs(params Item[] items)
     {
         var sampleWithId = new Item(sampleItem);

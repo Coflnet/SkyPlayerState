@@ -25,12 +25,13 @@ public class RecipeUpdate : UpdateListener
             await ExtractRecipe(args);
         if (args.msg.Chest?.Items.Count < 9 * 10 || args.msg.UserId == null
             || !(args.msg.Chest?.Items[10]?.Description?.Contains("Cost") ?? false)
-            || !args.msg.Chest.Items[9 * 5 + 4].ItemName.Contains("Sell Item")) // all npc that sell something can also be sold to
+            || !args.msg.Chest.Items[10].Description.Contains("Click to trade")) // npc purchases have click to trade on items
             return; // not a selling npc
         if (alreadyProcessed.Contains(args.msg.Chest.Name))
             return;
-        Console.WriteLine("Extracting npc cost from " + args.msg.Chest.Name + JsonConvert.SerializeObject(args.msg.Chest.Items.Take(9 * 5).Where(i => i.Tag != null), Formatting.Indented));
-        foreach (var item in args.msg.Chest.Items.Where(i => i.Tag != null))
+        var items = args.msg.Chest.Items.Take(9 * 5).Where(i => i.Tag != null);
+        Console.WriteLine("Extracting npc cost from " + args.msg.Chest.Name + JsonConvert.SerializeObject(items, Formatting.Indented));
+        foreach (var item in items)
         {
             // Parse costs from the item's description
             var description = item.Description;
@@ -45,32 +46,23 @@ public class RecipeUpdate : UpdateListener
                 if (string.IsNullOrWhiteSpace(line) || line.Contains("Stock"))
                     break;
 
-                // Match lines like "§625 Coins" or "§6Enchanted Diamond x16"
-                var match = Regex.Match(line, @"§6(?<amount>[\d,]+)\s(?<item>.+?)(?:\sx(?<count>\d+))?$");
+                // Match lines like "§625 Coins" or "§6Enchanted Diamond x16" or "§aRusty Coin §8x32" or "§aRusty Coin"
+                var match = Regex.Match(line, @"§.(?:(?<amount>\d+)\s+)?(?<name>.*?)(?:\s+(?:§.x|x)(?<amount2>\d+))?$");
                 if (match.Success)
                 {
-                    var amountStr = match.Groups["amount"].Value.Replace(",", "");
-                    var itemName = match.Groups["item"].Value.Trim();
-                    var countStr = match.Groups["count"].Success ? match.Groups["count"].Value : "1";
-                    if (int.TryParse(amountStr, out int amount))
+                    var name = match.Groups["name"].Value.Trim();
+                    // remove color codes from the name
+                    name = Regex.Replace(name, @"§.", "");
+                    var amountStr = match.Groups["amount"].Success ? match.Groups["amount"].Value : match.Groups["amount2"].Value;
+
+                    if (int.TryParse(amountStr, out var amount))
                     {
-                        // If the item is "Coins", use amount as value, else use count
-                        if (itemName == "Coins")
-                            costs["Coins"] = amount;
-                        else if (int.TryParse(countStr, out int count))
-                            costs[itemName] = count;
+                        costs[name] = amount;
                     }
-                }
-                else
-                {
-                    // Try to match lines like "§6Enchanted Diamond x16"
-                    var altMatch = Regex.Match(line, @"§6(?<item>.+?)\sx(?<count>\d+)$");
-                    if (altMatch.Success)
+                    else
                     {
-                        var itemName = altMatch.Groups["item"].Value.Trim();
-                        var countStr = altMatch.Groups["count"].Value;
-                        if (int.TryParse(countStr, out int count))
-                            costs[itemName] = count;
+                        // No amount found, default to 1
+                        costs[name] = 1;
                     }
                 }
             }
