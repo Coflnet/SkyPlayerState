@@ -74,8 +74,11 @@ public class RecipeUpdate : UpdateListener
                     }
                 }
             }
-            var stock = Regex.Match(description, @"§6Stock: §b(?<stock>\d+)").Groups["stock"].Value;
-            int.TryParse(stock, out int stockCount);
+            // Match lines like "§68 Coins\n\n§7Stock\n§6640 §7remaining\n\n§eClick to trade!"
+            var stockMatch = Regex.Match(description, @"§6(?<stock>\d+)\s§7remaining");
+            int stockCount = 0;
+            if (stockMatch.Success)
+                int.TryParse(stockMatch.Groups["stock"].Value, out stockCount);
 
             if (costs.Count > 0)
             {
