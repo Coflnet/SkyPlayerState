@@ -105,7 +105,7 @@ public class CollectionListener : UpdateListener
         try
         {
             if (previousInventory.Name != null && (!StorageListener.IsNotStorage(previousInventory)
-                || IsBazaarOrderCreate(previousInventory) || ClaimedBazaar(previousInventory)
+                || IsBazaarOrderCreate(previousInventory) || IsBazaarWindow(previousInventory)
                 || previousInventory.Name == "Create BIN Auction"))
             {
                 // if the previous inventory is a storage, we don't want to track items collected
@@ -146,10 +146,11 @@ public class CollectionListener : UpdateListener
         }
     }
 
-    private static bool ClaimedBazaar(Models.ChestView previousInventory)
+    private static bool IsBazaarWindow(Models.ChestView previousInventory)
     {
         // maybe also check if previous Item was actually present
-        return previousInventory.Name.EndsWith("Bazaar Orders");
+        return previousInventory.Name.EndsWith("Bazaar Orders")
+            || previousInventory.Name.Contains('➜'); // for insta sells
     }
 
     private static bool IsBazaarOrderCreate(Models.ChestView previousInventory)
