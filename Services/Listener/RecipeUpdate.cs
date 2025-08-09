@@ -46,14 +46,17 @@ public class RecipeUpdate : UpdateListener
                 if (string.IsNullOrWhiteSpace(line) || line.Contains("Stock"))
                     break;
 
-                // Match lines like "§625 Coins" or "§6Enchanted Diamond x16" or "§aRusty Coin §8x32" or "§aRusty Coin"
-                var match = Regex.Match(line, @"§.(?:(?<amount>\d+)\s+)?(?<name>.*?)(?:\s+(?:§.x|x)(?<amount2>\d+))?$");
+                // Match lines like "§625 Coins" or "§6Enchanted Diamond x16" or "§aRusty Coin §8x32" or "§aRusty Coin" or "§61,000,000 Coins"
+                var match = Regex.Match(line, @"§.(?:(?<amount>[\d,]+)\s+)?(?<name>.*?)(?:\s+(?:§.x|x)(?<amount2>[\d,]+))?$");
                 if (match.Success)
                 {
                     var name = match.Groups["name"].Value.Trim();
                     // remove color codes from the name
                     name = Regex.Replace(name, @"§.", "");
                     var amountStr = match.Groups["amount"].Success ? match.Groups["amount"].Value : match.Groups["amount2"].Value;
+
+                    // Remove thousand separators before parsing
+                    amountStr = amountStr.Replace(",", "");
 
                     if (int.TryParse(amountStr, out var amount))
                     {
