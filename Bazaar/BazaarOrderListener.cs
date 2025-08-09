@@ -223,7 +223,7 @@ public class BazaarOrderListener : UpdateListener
             var itemApi = args.GetService<IItemsApi>();
             var searchResult = await itemApi.ItemsSearchTermGetAsync(itemName);
             var tag = searchResult.First().Tag;
-            await orderBookApi.OrderBookPostAsync(new()
+            await orderBookApi.AddOrderAsync(new()
             {
                 Amount = amount,
                 UserId = args.msg.UserId,
@@ -249,7 +249,7 @@ public class BazaarOrderListener : UpdateListener
             var itemApi = args.GetService<IItemsApi>();
             var searchResult = await itemApi.ItemsSearchTermGetAsync(itemName);
             var tag = searchResult.First().Tag;
-            await orderApi.OrderBookDeleteAsync(tag, args.msg.UserId, order.Created);
+            await orderApi.RemoveOrderAsync(tag, args.msg.UserId, order.Created);
             args.GetService<ILogger<BazaarOrderListener>>().LogInformation("Removed order from order book for {user} {item} {amount} {price}", args.currentState.McInfo.Name, tag, order.Amount, order.PricePerUnit);
         }
         catch (Exception e)

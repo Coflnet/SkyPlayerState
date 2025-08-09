@@ -151,7 +151,7 @@ public class BazaarOrderTests
         ), Times.Once);
         AssertCoalSell();
         Assert.That(3, Is.EqualTo(invokeCount));
-        orderBookApi.Verify(o => o.OrderBookDeleteAsync("COAL", "5", createTime, 0, default), Times.Once);
+        orderBookApi.Verify(o => o.RemoveOrderAsync("COAL", "5", createTime, 0, default), Times.Once);
     }
     [Test]
     public async Task InstaBuy()

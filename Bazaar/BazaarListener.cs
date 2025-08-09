@@ -122,7 +122,7 @@ public class BazaarListener : UpdateListener
 
         var offer = new Offer()
         {
-            IsSell = item.ItemName!.StartsWith("§6§lSELL"),
+            IsSell = item.ItemName!.Contains("SELL"),
             ItemTag = item.Tag,
             Amount = ParseInt(amount),
             PricePerUnit = double.Parse(pricePerUnit, System.Globalization.CultureInfo.InvariantCulture),

@@ -191,7 +191,7 @@ public class CollectionListener : UpdateListener
         {
             var cleanPrices = new Dictionary<string, double>();
             var ahPrices = await args.GetService<ISniperApi>().ApiSniperPricesCleanGetAsync();
-            var bazaarPrices = await args.GetService<IBazaarApi>().ApiBazaarPricesGetAsync();
+            var bazaarPrices = await args.GetService<IBazaarApi>().GetAllPricesAsync();
             foreach (var item in bazaarPrices)
             {
                 cleanPrices[item.ProductId] = (int)item.SellPrice;
