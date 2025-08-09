@@ -213,6 +213,16 @@ public class RecipeService
             throw; // rethrow the exception to let the caller handle it
         }
     }
+
+    internal async Task<IEnumerable<NpcCost>> GetNpcCosts()
+    {
+        return await npcCosts.ExecuteAsync();
+    }
+
+    internal async Task<IEnumerable<Recipe>> GetRecipes()
+    {
+        return await recipes.ExecuteAsync();
+    }
 }
 
 public class NpcCost
