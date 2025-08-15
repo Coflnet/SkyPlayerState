@@ -100,7 +100,7 @@ public class AhBrowserListener : UpdateListener
         var response = restClient.Execute(request);
         if (response.StatusCode != System.Net.HttpStatusCode.OK)
         {
-            logger.LogWarning("Failed to whipe auction " + matchingAuctionId + " " + response.StatusCode + response.Content);
+            logger.LogWarning("Failed to whipe auction " + matchingAuctionId + " " + response.StatusCode + response.Content + restClient.BuildUri(request));
             return false;
         }
         logger.LogInformation("Whiped auction " + matchingAuctionId);
