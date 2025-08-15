@@ -96,7 +96,7 @@ public class AhBrowserListener : UpdateListener
             logger.LogWarning("Could not find auction for " + matchingAuctionId);
             return false;
         }
-        var request = new RestRequest($"player/{auction.AuctioneerId}/{auction.ProfileId ?? "null"}/whiped", Method.Patch);
+        var request = new RestRequest($"player/{auction.AuctioneerId}/{auction.ProfileId ?? auction.AuctioneerId}/whiped", Method.Patch);
         var response = restClient.Execute(request);
         if (response.StatusCode != System.Net.HttpStatusCode.OK)
         {
