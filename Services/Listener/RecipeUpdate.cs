@@ -8,9 +8,12 @@ using System.Threading.Tasks;
 using Cassandra;
 using Cassandra.Data.Linq;
 using Cassandra.Mapping;
+using Coflnet.Sky.Core;
 using Coflnet.Sky.Sniper.Client.Model;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using RestSharp;
 
 namespace Coflnet.Sky.PlayerState.Services;
 
@@ -30,6 +33,11 @@ public class RecipeUpdate : UpdateListener
         if (alreadyProcessed.Contains(args.msg.Chest.Name))
             return;
         var items = args.msg.Chest.Items.Take(9 * 5).Where(i => i.Tag != null);
+        if (await HasSealOfFamily(args.currentState.McInfo.Uuid, args))
+        {
+            Console.WriteLine("Seal of the family detected, skipping npc cost extraction for " + args.msg.Chest.Name + " for player " + args.msg.PlayerId);
+            return; // prices are uncertain with seal of the family, skip this update
+        }
         Console.WriteLine("Extracting npc cost from " + args.msg.Chest.Name + JsonConvert.SerializeObject(items, Formatting.Indented));
         foreach (var item in items)
         {
@@ -95,6 +103,17 @@ public class RecipeUpdate : UpdateListener
                 args.GetService<ILogger<RecipeUpdate>>().LogWarning("No costs found for item {ItemTag} in chest {ChestName} for player {PlayerId}", item.Tag, args.msg.Chest.Name, args.msg.PlayerId);
         }
     }
+
+    private async Task<bool> HasSealOfFamily(Guid uuid, UpdateArgs args)
+    {
+        var pricesApi = args.GetService<Api.Client.Api.IPricesApi>();
+        var profileClient = new RestClient(args.GetService<IConfiguration>()["PROFILE_BASE_URL"] ?? throw new Exception("PROFILE_BASE_URL not configured"));
+        var museumJson = await profileClient.ExecuteAsync(new RestRequest($"/api/profile/{uuid.ToString("n")}/current?maxAge={DateTime.UtcNow.AddDays(-1):yyyy-MM-ddTHH:mm:ssZ}"));
+        var profile = JsonConvert.DeserializeObject<Api.Client.Model.Member>(museumJson.Content);
+        var items = await pricesApi.ApiProfileItemsPostAsync(profile);
+        return items.Any(i => i.Value.Any(it => it.Tag == "SEAL_OF_THE_FAMILY"));
+    }
+
 
     private async Task ExtractRecipe(UpdateArgs args)
     {
