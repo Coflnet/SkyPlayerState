@@ -37,30 +37,9 @@ public class TradeInfoListener : UpdateListener
         {
             var item = newItems[i];
             var price = prices[i];
-            args.SendMessage($"Item: {item.ItemName} Count: {item.Count} showed up in trade window");
-            var uid = price?.Lbin?.AuctionId ?? 0;
-            if (uid == 0)
-            {
-                args.SendMessage("No lbin found");
-                continue;
-            }
-            var lbin = await GetAuction(args, uid);
-            if (lbin == null)
-            {
-                args.SendMessage("Most similar lbin not found");
-            }
-            else
-            {
-                args.SendMessage($"Lbin is {price!.Lbin.Price:N0} - click to open on ah", $"/viewauction {lbin?.Uuid}");
-                if (price?.SLbin != null && price.SLbin.AuctionId != 0)
-                {
-                    var slbin = await GetAuction(args, price.SLbin.AuctionId);
-                    if (slbin != null)
-                    {
-                        args.SendMessage($"Second lowest BIN is {price.SLbin.Price} - click to open on ah", $"/viewauction {slbin?.Uuid}");
-                    }
-                }
-            }
+            args.SendMessage($"Item: {item.ItemName} x{item.Count} showed up in trade window",
+                "https://sky.coflnet.com/item/" + item.Tag,
+                "open on website");
         }
     }
 
