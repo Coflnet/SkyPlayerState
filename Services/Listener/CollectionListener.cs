@@ -110,10 +110,6 @@ public class CollectionListener : UpdateListener
             {
                 // if the previous inventory is a storage, we don't want to track items collected
                 Console.WriteLine($"Skipping item collection tracking for storage chest {previousInventory.Name} for player {args.currentState.PlayerId}");
-                if (previousInventory.Name == "Obsidian Chest")
-                {
-                    Console.WriteLine("Obsidian Chest detected " + JsonConvert.SerializeObject(previousInventory.Items));
-                }
                 return;
             }
         }
