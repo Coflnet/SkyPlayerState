@@ -35,7 +35,7 @@ public class StorageListener : UpdateListener
     public static bool IsNotStorage(Models.ChestView chestView)
     {
         return !chestView.Name.StartsWith("Ender Chest") && !chestView.Name.Contains("Backpack (Slot")
-        && chestView.Name != "Chest" && chestView.Name != "Double Chest" //island chests
+        && chestView.Name != "Chest" && chestView.Name != "Large Chest" //island chests
         && chestView.Name != "Chest Storage" && chestView.Name != "Medium Shelves" && !chestView.Name.Contains("Chest+") //furniture
         ;
     }
