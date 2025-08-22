@@ -26,6 +26,8 @@ public class RecipeUpdate : UpdateListener
         if (args.msg.Chest?.Items.Count >= 9 * 10 && args.msg.UserId != null
             && args.msg.Chest?.Items[32].ItemName == "§aSupercraft")
             await ExtractRecipe(args);
+        if (args.msg.Chest?.Name == "Anvil")
+            await CheckAnvilRecipe(args);
         if (args.msg.Chest?.Items.Count < 9 * 10 || args.msg.UserId == null
             || !(args.msg.Chest?.Items[10]?.Description?.Contains("Cost") ?? false)
             || !args.msg.Chest.Items[10].Description.Contains("Click to trade")) // npc purchases have click to trade on items
@@ -102,6 +104,14 @@ public class RecipeUpdate : UpdateListener
             else
                 args.GetService<ILogger<RecipeUpdate>>().LogWarning("No costs found for item {ItemTag} in chest {ChestName} for player {PlayerId}", item.Tag, args.msg.Chest.Name, args.msg.PlayerId);
         }
+    }
+
+    private async Task CheckAnvilRecipe(UpdateArgs args)
+    {
+        var texts = args.msg.Chest.Items.Take(9 * 5).Where(i=>i.Tag != null).Select(i => i?.Description).ToList();
+        if (texts.Count < 3 || args.msg.Chest.Items.Where(i => i.Tag != null).First().Tag != "ENCHANTED_BOOK")
+            return;
+        Console.WriteLine($"Checking book recipe with text: {string.Join("\n", texts)}");
     }
 
     private async Task<bool> HasSealOfFamily(Guid uuid, UpdateArgs args)
