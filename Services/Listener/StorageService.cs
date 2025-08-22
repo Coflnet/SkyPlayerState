@@ -20,7 +20,7 @@ public class StorageService
         var mapping = new MappingConfiguration().Define(new Map<StorageItem>()
             .PartitionKey(t => t.PlayerId, t => t.ProfileId)
             .ClusteringKey(t => t.ChestName)
-            .ClusteringKey(t => t.Position)
+            .ClusteringKey(t => t.SerializedPosition)
             .Column(t => t.ChestName, cm => cm.WithName("chest_name"))
             .Column(t => t.SerializedItems, cm => cm.WithName("serialized_items"))
             .Column(t => t.SerializedPosition, cm => cm.WithName("serialized_position"))
@@ -28,7 +28,7 @@ public class StorageService
             .Column(t => t.Items, cm => cm.Ignore())
             .Column(t => t.Position, cm => cm.Ignore())
         );
-        storageTable = new Table<StorageItem>(session, mapping, "player_storage");
+        storageTable = new Table<StorageItem>(session, mapping, "player_storage2");
         storageTable.CreateIfNotExists();
     }
 
@@ -52,7 +52,7 @@ public class StorageService
         public byte[] SerializedItems { get; set; }
         [JsonIgnore]
         [System.Text.Json.Serialization.JsonIgnore]
-        public string? SerializedPosition { get; set; }
+        public string SerializedPosition { get; set; }
         public List<Item> Items
         {
             get => MessagePackSerializer.Deserialize<List<Item>>(SerializedItems, options);
@@ -60,8 +60,8 @@ public class StorageService
         }
         public Core.BlockPos? Position
         {
-            get => string.IsNullOrEmpty(SerializedPosition) ? null : JsonConvert.DeserializeObject<Core.BlockPos>(SerializedPosition);
-            set => SerializedPosition = value == null ? null : JsonConvert.SerializeObject(value);
+            get => JsonConvert.DeserializeObject<Core.BlockPos>(SerializedPosition ?? "null");
+            set => SerializedPosition = JsonConvert.SerializeObject(value);
         }
         public DateTime OpenedAt { get; set; }
     }
