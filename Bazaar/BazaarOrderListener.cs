@@ -53,6 +53,38 @@ public class BazaarOrderListener : UpdateListener
             amount = ParseInt(parts[1].Value);
             itemName = parts[2].Value;
             price = ParseCoins(parts[3].Value);
+            if (price > 10000)
+            {
+                // hypixel doesn't display the decimal price anymore, we got to parse it from the item in previous gui
+                Console.WriteLine($"Found from message {price} ({(double)price / amount / 10} per unit) for {amount}x {itemName}");
+                var lastView = args.currentState.RecentViews.LastOrDefault(v => v.Name.Contains("Confirm"));
+                if (lastView != null)
+                {
+                    var item = lastView.Items.FirstOrDefault(i => i.ItemName != null && (i.ItemName.Contains("Buy Order") || i.ItemName.Contains("Sell Offer")));
+                    if (item != null)
+                    {
+                        var match = Regex.Match(item.Description, @"Price per unit: §6([\d,]+\.?\d*) coins").Groups;
+                        if (match.Count > 1)
+                        {
+                            var perUnit = ParseCoins(match[1].Value);
+                            price = (long)(perUnit * amount);
+                            Console.WriteLine($"Found from item {price} ({(double)price / amount / 10} per unit) for {amount}x {itemName}");
+                        }
+                        else
+                        {
+                            Console.WriteLine("No price match found in " + item.Description);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("No order item found in " + JsonConvert.SerializeObject(lastView.Items));
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("No last view found");
+                }
+            }
             var order = new Offer()
             {
                 Amount = amount,

@@ -11,6 +11,7 @@ using Coflnet.Sky.PlayerState.Tests;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Newtonsoft.Json;
 using NUnit.Framework;
 
 namespace Coflnet.Sky.PlayerState.Bazaar;
@@ -60,6 +61,26 @@ public class BazaarOrderTests
         AssertCoalBuy();
         Assert.That(1, Is.EqualTo(currentState.BazaarOffers.Count));
         Assert.That(3, Is.EqualTo(invokeCount));
+    }
+
+
+    [Test]
+    public async Task BuyOrderCreateExpensive()
+    {
+        UpdateArgs args = CreateArgs("[Bazaar] Submitting buy order...",
+                    "[Bazaar] Buy Order Setup! 4x Magma Core for 2,182,638 coins.");
+        await listener.Process(args);
+
+        // coins are locked up
+        transactionService.Verify(t => t.AddTransactions(It.Is<Transaction>(t =>
+            t.Type == Transaction.TransactionType.BazaarListSell
+            && t.Amount == 21826384
+            && t.ItemId == TradeDetect.IdForCoins
+            )
+        ), Times.Once);
+        Assert.That(1, Is.EqualTo(currentState.BazaarOffers.Count));
+        Assert.That(4, Is.EqualTo(currentState.BazaarOffers[0].Amount));
+        Assert.That(545659.6, Is.EqualTo(currentState.BazaarOffers[0].PricePerUnit));
     }
 
     private void AssertCoalBuy()
@@ -258,6 +279,25 @@ public class BazaarOrderTests
                 UserId = "5"
             }
         };
+        currentState.RecentViews.Enqueue(JsonConvert.DeserializeObject<ChestView>("""
+        {"Items":[{"Id":null,"ItemName":null,"Tag":null,"ExtraAttributes":null,"Enchantments":{},"Color":null,"Description":null,"Count":0},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":"§aBuy Order","Tag":"MAGMA_CORE","ExtraAttributes":{},"Enchantments":null,"Color":null,
+        "Description":"§8Bazaar\n\n§7Price per unit: §6545,659.6 coins\n\n§7Order: §a4§7x §9Magma Core\n§7Total price: §62,182,638 coins\n\n§bOrders are shared by co-op!\n\n§7§eClick to submit order!","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1}
+        ],"Name":"Confirm Buy Order","Position":null,"OpenedAt":"2025-08-25T11:44:56.1953913Z"}
+        """)!);
         itemsApi = new Mock<IItemsApi>();
         scheduleApi = new Mock<IScheduleApi>();
         orderBookApi = new Mock<IOrderBookApi>();
