@@ -64,6 +64,7 @@ namespace Coflnet.Sky.PlayerState.Controllers
             return await recipeService.GetRecipes(tag);
         }
         [HttpGet("recipe")]
+        [ResponseCache(Duration = 3600)]
         public async Task<IEnumerable<Recipe>> GetAllRecipes([FromServices] RecipeService recipeService)
         {
             return (await recipeService.GetRecipes()).Where(r=>r.LastUpdated > DateTime.UtcNow.AddDays(-60));
@@ -75,7 +76,8 @@ namespace Coflnet.Sky.PlayerState.Controllers
             return await recipeService.GetNpcCost(tag);
         }
         [HttpGet("npccost")]
-        public async Task<IEnumerable<NpcCost>> GetAllNpcCost( [FromServices] RecipeService recipeService)
+        [ResponseCache(Duration = 3600)]
+        public async Task<IEnumerable<NpcCost>> GetAllNpcCost([FromServices] RecipeService recipeService)
         {
             return await recipeService.GetNpcCosts();
         }
