@@ -83,6 +83,44 @@ public class BazaarOrderTests
         Assert.That(545659.6, Is.EqualTo(currentState.BazaarOffers[0].PricePerUnit));
     }
 
+    [Test]
+    public async Task SellOrderCreateExpensive()
+    {
+        UpdateArgs args = CreateArgs("[Bazaar] Submitting buy order...",
+                    "[Bazaar] Sell Offer Setup! 64x Agatha's Coupon for 764,796 coins.");
+        args.currentState.RecentViews.Enqueue(JsonConvert.DeserializeObject<ChestView>("""
+        {"Items":[{"Id":null,"ItemName":null,"Tag":null,"ExtraAttributes":null,"Enchantments":{},"Color":null,"Description":null,"Count":0},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1},
+        {"Id":null,"ItemName":"§aBuy Order","Tag":"MAGMA_CORE","ExtraAttributes":{},"Enchantments":null,"Color":null,
+        "Description":"§8Bazaar\n\n§7Price per unit: §612,085.9 coins\n\n§7Selling: §a64§7x §aAgatha's Coupon\n§7You earn: §6764,796 coins\n\n§bOrders are shared by co-op!\n§8Current tax: 1.1%\n\n§7§eClick to submit order!","Count":1},
+        {"Id":null,"ItemName":" ","Tag":null,"ExtraAttributes":null,"Enchantments":null,"Color":null,"Description":"","Count":1}
+        ],"Name":"Confirm Buy Order","Position":null,"OpenedAt":"2025-08-25T11:44:56.1953913Z"}
+        """)!);
+        await listener.Process(args);
+
+        // coins are locked up
+        transactionService.Verify(t => t.AddTransactions(It.Is<Transaction>(t =>
+            t.Type == Transaction.TransactionType.BazaarListSell
+            && t.Amount == 64
+            && t.ItemId == 5
+            )
+        ), Times.Once);
+        Assert.That(1, Is.EqualTo(currentState.BazaarOffers.Count));
+        Assert.That(64, Is.EqualTo(currentState.BazaarOffers[0].Amount));
+        Assert.That(12085.9, Is.EqualTo(currentState.BazaarOffers[0].PricePerUnit));
+    }
+
     private void AssertCoalBuy()
     {
         // coins exchanged to item
@@ -110,7 +148,7 @@ public class BazaarOrderTests
     public async Task SellOrderCreateAndFill()
     {
         UpdateArgs args = CreateArgs("[Bazaar] Submitting sell order...",
-                    "[Bazaar] Sell Offer Setup! 64x Coal for 303.7 coins.");
+                    "[Bazaar] Sell Offer Setup! 64x Coal for 208.8 coins.");
         await listener.Process(args);
 
         transactionService.Verify(t => t.AddTransactions(It.Is<Transaction>(t =>
@@ -121,7 +159,7 @@ public class BazaarOrderTests
                     ), Times.Once);
         Assert.That(currentState.BazaarOffers.Count, Is.EqualTo(1));
         Assert.That(currentState.BazaarOffers[0].Amount, Is.EqualTo(64));
-        Assert.That(currentState.BazaarOffers[0].PricePerUnit, Is.EqualTo(303.7 / 64));
+        Assert.That(currentState.BazaarOffers[0].PricePerUnit, Is.EqualTo(3.3));
 
         scheduleApi.Verify(s => s.ScheduleUserIdPostAsync("5", It.IsAny<DateTime>(), It.Is<MessageContainer>(con =>
             con.Message == "Your bazaar order for Coal expired"

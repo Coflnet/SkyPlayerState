@@ -53,6 +53,11 @@ public class BazaarOrderListener : UpdateListener
             amount = ParseInt(parts[1].Value);
             itemName = parts[2].Value;
             price = ParseCoins(parts[3].Value);
+            if (isSell)
+            {
+                price = (long)(price / (1-0.01125) - 0.1); // include tax (estimate)
+                Console.WriteLine($"Adjusted price for tax {price} ({(double)price / amount / 10} per unit) for {amount}x {itemName}");
+            }
             if (price > 10000)
             {
                 // hypixel doesn't display the decimal price anymore, we got to parse it from the item in previous gui
@@ -72,7 +77,7 @@ public class BazaarOrderListener : UpdateListener
                         }
                         else
                         {
-                            Console.WriteLine("No price match found in " + JsonConvert.SerializeObject(lastView.Items.Take(9*3).Where(i=>i.Tag != null)) + " from " + args.msg.PlayerId);
+                            Console.WriteLine("No price match found in " + JsonConvert.SerializeObject(lastView.Items.Take(9 * 3).Where(i => i.Tag != null)) + " from " + args.msg.PlayerId);
                         }
                     }
                     else
@@ -89,7 +94,7 @@ public class BazaarOrderListener : UpdateListener
             {
                 Amount = amount,
                 ItemName = itemName,
-                PricePerUnit = (double)price / amount / 10,
+                PricePerUnit = Math.Round((double)price / amount) / 10,
                 IsSell = side.HasFlag(Transaction.TransactionType.REMOVE),
                 Created = args.msg.ReceivedAt,
             };
