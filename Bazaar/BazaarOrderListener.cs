@@ -72,7 +72,7 @@ public class BazaarOrderListener : UpdateListener
                         }
                         else
                         {
-                            Console.WriteLine("No price match found in " + JsonConvert.SerializeObject(lastView.Items));
+                            Console.WriteLine("No price match found in " + JsonConvert.SerializeObject(lastView.Items.Take(9*3).Where(i=>i.Tag != null)) + " from " + args.msg.PlayerId);
                         }
                     }
                     else
