@@ -49,8 +49,20 @@ public class BazaarOrderListener : UpdateListener
         if (msg.Contains("Setup!"))
         {
             side |= Transaction.TransactionType.Move;
-            var parts = Regex.Match(msg, @"([\d,]+)x (.+) for ([\d,]+\.?\d*) coins").Groups;
-            amount = ParseInt(parts[1].Value);
+            var match = Regex.Match(msg, @"([\d,]+)x\s+(.+?)\s+for\s+([\d\.,kKmM]+)\s+coins", RegexOptions.CultureInvariant);
+            if (!match.Success)
+            {
+                Console.WriteLine("No setup match found for: " + msg);
+                return;
+            }
+            var parts = match.Groups;
+            var amountStr = parts[1].Value;
+            if (string.IsNullOrWhiteSpace(amountStr))
+            {
+                Console.WriteLine("No amount captured in setup: " + msg);
+                return;
+            }
+            amount = ParseInt(amountStr);
             itemName = parts[2].Value;
             price = ParseCoins(parts[3].Value);
             if (isSell)
@@ -68,10 +80,10 @@ public class BazaarOrderListener : UpdateListener
                     var item = lastView.Items.FirstOrDefault(i => i.ItemName != null && (i.ItemName.Contains("Buy Order") || i.ItemName.Contains("Sell Offer")));
                     if (item != null)
                     {
-                        var match = Regex.Match(item.Description, @"Price per unit: §6([\d,]+\.?\d*) coins").Groups;
-                        if (match.Count > 1)
+                        var itemMatch = Regex.Match(item.Description!, @"Price per unit: §6([\d,]+\.?\d*) coins").Groups;
+                        if (itemMatch.Count > 1)
                         {
-                            var perUnit = ParseCoins(match[1].Value);
+                            var perUnit = ParseCoins(itemMatch[1].Value);
                             price = (long)(perUnit * amount);
                             Console.WriteLine($"Found from item {price} ({(double)price / amount / 10} per unit) for {amount}x {itemName}");
                         }
@@ -297,12 +309,62 @@ public class BazaarOrderListener : UpdateListener
 
     private static int ParseInt(string value)
     {
-        return int.Parse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowThousands, CultureInfo.InvariantCulture);
+        try
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return 0;
+            var v = value.Trim();
+            var last = char.ToLowerInvariant(v[v.Length - 1]);
+            if (last == 'k' || last == 'm')
+            {
+                var numberPart = v.Substring(0, v.Length - 1).Replace(",", "").Trim();
+                if (double.TryParse(numberPart, NumberStyles.AllowDecimalPoint | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var d))
+                {
+                    var factor = last == 'k' ? 1_000d : 1_000_000d;
+                    return (int)(d * factor);
+                }
+                return 0;
+            }
+            var cleaned = v.Replace(",", "").Trim();
+            if (int.TryParse(cleaned, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result))
+                return result;
+            if (double.TryParse(cleaned, NumberStyles.AllowDecimalPoint | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var d2))
+                return (int)d2;
+            return 0;
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     private static long ParseCoins(string value)
     {
-        return (long)(double.Parse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowThousands, System.Globalization.CultureInfo.InvariantCulture) * 10);
+        try
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return 0;
+            var v = value.Trim();
+            var last = char.ToLowerInvariant(v[v.Length - 1]);
+            if (last == 'k' || last == 'm')
+            {
+                var numberPart = v.Substring(0, v.Length - 1).Replace(",", "").Trim();
+                if (double.TryParse(numberPart, NumberStyles.AllowDecimalPoint | NumberStyles.AllowThousands, System.Globalization.CultureInfo.InvariantCulture, out var d))
+                {
+                    var factor = last == 'k' ? 1_000d : 1_000_000d;
+                    return (long)(d * factor * 10);
+                }
+                return 0;
+            }
+            var cleaned = v.Replace(",", "").Trim();
+            if (double.TryParse(cleaned, NumberStyles.AllowDecimalPoint | NumberStyles.AllowThousands, System.Globalization.CultureInfo.InvariantCulture, out var d2))
+                return (long)(d2 * 10);
+            return 0;
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     private static async Task AddCoinTransaction(UpdateArgs args, Transaction.TransactionType side, double price)
