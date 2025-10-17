@@ -87,6 +87,7 @@ public class Startup
         services.AddSingleton<IItemsApi>(context => new ItemsApi(Configuration["ITEMS_BASE_URL"]));
         services.AddSingleton<IAuctionsApi>(context => new AuctionsApi(Configuration["API_BASE_URL"]));
         services.AddSingleton<IPlayerApi>(context => new PlayerApi(Configuration["API_BASE_URL"]));
+        services.AddSingleton<IPricesApi>(context => new PricesApi(Configuration["API_BASE_URL"]));
         RegisterScyllaSession(services);
     }
 
