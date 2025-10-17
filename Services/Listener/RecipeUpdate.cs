@@ -108,20 +108,49 @@ public class RecipeUpdate : UpdateListener
 
     private async Task CheckAnvilRecipe(UpdateArgs args)
     {
-        var texts = args.msg.Chest.Items.Take(9 * 5).Where(i=>i.Tag != null).Select(i => i?.Description).ToList();
+        var texts = args.msg.Chest.Items.Take(9 * 5).Where(i => i.Tag != null).Select(i => i?.Description).ToList();
         if (texts.Count < 3 || args.msg.Chest.Items.Where(i => i.Tag != null).First().Tag != "ENCHANTED_BOOK")
             return;
         Console.WriteLine($"Checking book recipe with text: {string.Join("\n", texts)}");
     }
 
+    /// <summary>
+    /// Check if the player has Seal of the Family in their profile
+    /// will return true by default on errors as the primary use is to ignore uncertain npc prices
+    /// </summary>
+    /// <param name="uuid"></param>
+    /// <param name="args"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
     private async Task<bool> HasSealOfFamily(Guid uuid, UpdateArgs args)
     {
         var pricesApi = args.GetService<Api.Client.Api.IPricesApi>();
         var profileClient = new RestClient(args.GetService<IConfiguration>()["PROFILE_BASE_URL"] ?? throw new Exception("PROFILE_BASE_URL not configured"));
         var museumJson = await profileClient.ExecuteAsync(new RestRequest($"/api/profile/{uuid.ToString("n")}/current?maxAge={DateTime.UtcNow.AddDays(-1):yyyy-MM-ddTHH:mm:ssZ}"));
         var profile = JsonConvert.DeserializeObject<Api.Client.Model.Member>(museumJson.Content);
+        if (profile == null)
+        {
+            args.GetService<ILogger<RecipeUpdate>>()?.LogWarning("Profile for uuid {Uuid} returned null when checking seal of family.", uuid);
+            return true;
+        }
+
         var items = await pricesApi.ApiProfileItemsPostAsync(profile);
-        return items.Any(i => i.Value.Any(it => it.Tag == "SEAL_OF_THE_FAMILY"));
+        if (items == null)
+        {
+            args.GetService<ILogger<RecipeUpdate>>()?.LogWarning("Prices API returned null items for profile {Uuid} when checking seal of family.", uuid);
+            return true;
+        }
+
+        // Safely check nested collections for nulls
+        try
+        {
+            return items.Any(i => (i.Value?.Any(it => it != null && it.Tag == "SEAL_OF_THE_FAMILY") ?? false));
+        }
+        catch (System.Exception ex)
+        {
+            args.GetService<ILogger<RecipeUpdate>>()?.LogError(ex, "Error while checking seal of the family for uuid {Uuid}.", uuid);
+            return true;
+        }
     }
 
 

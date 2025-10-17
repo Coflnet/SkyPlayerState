@@ -130,7 +130,6 @@ public class CollectionListener : UpdateListener
                 if (diff != 0)
                 {
                     args.currentState.ItemsCollectedRecently[item.Key] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(item.Key, 0) + (int)diff;
-                    Console.WriteLine($"Item collected: {item.Key} x{diff} for player {args.currentState.PlayerId}");
                 }
             }
         }
