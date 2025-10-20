@@ -29,7 +29,7 @@ public class RngMeterUpdate : UpdateListener
         for (int i = 0; i < items.Count; i++)
         {
             var it = items[i];
-            if (it == null || string.IsNullOrWhiteSpace(it.ItemName))
+            if (it == null || string.IsNullOrWhiteSpace(it.ItemName) || it.ItemName == "§dRNG Meter")
                 continue;
             if (!string.IsNullOrEmpty(it.ItemName) && it.ItemName.Contains("Go Back"))
                 break;
