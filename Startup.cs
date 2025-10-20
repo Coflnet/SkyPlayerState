@@ -69,9 +69,10 @@ public class Startup
         services.AddSingleton<IShenStorage, ShenHistoryService>();
         services.AddSingleton<SkillService>();
         services.AddSingleton<SniperService>();
-        services.AddSingleton<ISniperApi>(di=> new SniperApi(Configuration["SNIPER_BASE_URL"]));
+        services.AddSingleton<ISniperApi>(di => new SniperApi(Configuration["SNIPER_BASE_URL"]));
         services.AddSingleton<TrackedProfitService>();
         services.AddSingleton<RecipeService>();
+        services.AddSingleton<RngMeterService>();
         services.AddSingleton<ItemDetails>();
         services.AddSingleton<StorageService>();
         services.AddSingleton<NBT>();

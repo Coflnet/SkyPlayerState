@@ -109,5 +109,15 @@ namespace Coflnet.Sky.PlayerState.Controllers
                 OpenedAt = item.OpenedAt
             }).ToList();
         }
+
+        [HttpGet]
+        [Route("rng-meter")]
+        public async Task<object> GetAllRngMeters([FromServices] RngMeterService rngService)
+        {
+            var all = await rngService.GetAll();
+            // group by chest name
+            var grouped = all.GroupBy(i => i.ChestName).ToDictionary(g => g.Key, g => g.OrderBy(i => i.ItemIndex).ToList());
+            return grouped;
+        }
     }
 }
