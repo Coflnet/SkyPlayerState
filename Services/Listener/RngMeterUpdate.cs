@@ -125,7 +125,7 @@ public class RngMeterService
                     item.Requirement = existing.Requirement;
                 if (item.ExpTarget == null)
                     item.ExpTarget = existing.ExpTarget;
-                if (string.IsNullOrEmpty(item.Lore))
+                if (string.IsNullOrEmpty(item.Lore) || item.Lore.StartsWith("Requires"))
                     item.Lore = existing.Lore;
             }
 
