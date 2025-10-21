@@ -26,12 +26,12 @@ public class RngMeterUpdate : UpdateListener
             return;
 
         // iterate items until the Go Back item
-        for (int i = 0; i < items.Count; i++)
+        for (int i = 0; i < 9 * 6; i++)
         {
             var it = items[i];
             if (it == null || string.IsNullOrWhiteSpace(it.ItemName) || it.ItemName == "§dRNG Meter")
                 continue;
-            if (!string.IsNullOrEmpty(it.ItemName) && it.ItemName.Contains("Go Back"))
+            if (!string.IsNullOrEmpty(it.ItemName) && (it.ItemName.Contains("Go Back") || it.ItemName == "§cClose"))
                 break;
 
             var cleanedDescription = it.Description == null ? null : Regex.Replace(it.Description, "§.", "");
