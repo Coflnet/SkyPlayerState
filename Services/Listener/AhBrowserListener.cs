@@ -51,8 +51,17 @@ public class AhBrowserListener : UpdateListener
             if (item.Description.Contains("Sold for"))
             {
                 var parts = item.Description.Split('\n');
+                var buyer = parts.Where(x => x.StartsWith("§7Buyer:")).FirstOrDefault()?.Replace("§7Buyer: ", "");
                 Console.WriteLine($"Item from {parts.Where(x => x.StartsWith("§7Seller:")).FirstOrDefault()?.Replace("§7Seller: ", "")} sold to: "
-                        + parts.Where(x => x.StartsWith("§7Buyer:")).FirstOrDefault()?.Replace("§7Buyer: ", ""));
+                        + buyer);
+                var clearedBuyer = buyer == null ? null : System.Text.RegularExpressions.Regex.Replace(buyer.Split(' ').Last(), "§[0-9a-f]", "").Trim();
+                var found = await args.GetService<IPlayerNameApi>().PlayerNameUuidNameGetAsync(clearedBuyer ?? ""); // trigger caching
+                if(string.IsNullOrEmpty(found) && clearedBuyer != null)
+                {
+                    await args.GetService<IPlayerApi>().ApiPlayerPlayerUuidNamePostAsync(clearedBuyer);
+                    Console.WriteLine("Cached missing buyer name " + clearedBuyer);
+                    continue;
+                }
             }
         }
     }
