@@ -119,7 +119,8 @@ namespace Coflnet.Sky.PlayerState.Controllers
             var grouped = all.GroupBy(i => i.ChestName)
                 .ToDictionary(g => g.Key,
                         g => g.OrderBy(i => i.ItemIndex)
-                            .Where(i => (i.ExpTarget ?? 0) > 0)
+                            .Where(i => i.ItemName != "§dRNG Meter")
+                            .TakeWhile(i => i.ItemName != "§cClose")
                             .ToList());
             return grouped;
         }
