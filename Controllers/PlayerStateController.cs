@@ -100,7 +100,7 @@ namespace Coflnet.Sky.PlayerState.Controllers
             var items = await service.GetStorageItems(playerId, profileId);
             if (items == null || items.Count == 0)
                 throw new CoflnetException("no_storage", $"No storage found for player {playerId} with profile {profileId}.");
-            
+
             return items.Select(item => new ChestView
             {
                 Name = item.ChestName,
@@ -116,7 +116,11 @@ namespace Coflnet.Sky.PlayerState.Controllers
         {
             var all = await rngService.GetAll();
             // group by chest name
-            var grouped = all.GroupBy(i => i.ChestName).ToDictionary(g => g.Key, g => g.OrderBy(i => i.ItemIndex).ToList());
+            var grouped = all.GroupBy(i => i.ChestName)
+                .ToDictionary(g => g.Key,
+                        g => g.OrderBy(i => i.ItemIndex)
+                            .Where(i => (i.ExpTarget ?? 0) > 0)
+                            .ToList());
             return grouped;
         }
     }
