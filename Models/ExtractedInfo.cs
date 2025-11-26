@@ -40,47 +40,49 @@ public class ExtractedInfo
     public ActivePet? ActivePet { get; set; } = null;
     [Key(14)]
     public List<PetState>? Pets { get; set; } = null;
-[MessagePackObject]
-public class PetState
-{
-    [Key(0)] public string? Name { get; set; }
-    [Key(1)] public string? Type { get; set; }
-    [Key(2)] public string? Tier { get; set; }
-    [Key(3)] public int Level { get; set; }
-    [Key(4)] public double Exp { get; set; }
-    [Key(5)] public bool IsActive { get; set; }
-    [Key(6)] public string? HeldItem { get; set; }
-    [Key(7)] public int CandyUsed { get; set; }
-    [Key(8)] public string? ColorCode { get; set; }
-    [Key(9)] public string? Tag { get; set; }
-    [Key(10)] public string? Uuid { get; set; }
-    [Key(11)] public double ProgressPercent { get; set; }
-    [Key(12)] public int TargetLevel { get; set; }
-    [Key(13)] public double CurrentExp { get; set; }
-    [Key(14)] public double ExpForLevel { get; set; }
-    [Key(15)] public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
-
-    public PetState() {}
-    public PetState(PetState other)
+    [Key(15)]
+    public Item? WeaponInHuntaxet { get; set; } = null;
+    [MessagePackObject]
+    public class PetState
     {
-        Name = other.Name;
-        Type = other.Type;
-        Tier = other.Tier;
-        Level = other.Level;
-        Exp = other.Exp;
-        IsActive = other.IsActive;
-        HeldItem = other.HeldItem;
-        CandyUsed = other.CandyUsed;
-        ColorCode = other.ColorCode;
-        Tag = other.Tag;
-        Uuid = other.Uuid;
-        ProgressPercent = other.ProgressPercent;
-        TargetLevel = other.TargetLevel;
-        CurrentExp = other.CurrentExp;
-        ExpForLevel = other.ExpForLevel;
-        LastUpdated = other.LastUpdated;
+        [Key(0)] public string? Name { get; set; }
+        [Key(1)] public string? Type { get; set; }
+        [Key(2)] public string? Tier { get; set; }
+        [Key(3)] public int Level { get; set; }
+        [Key(4)] public double Exp { get; set; }
+        [Key(5)] public bool IsActive { get; set; }
+        [Key(6)] public string? HeldItem { get; set; }
+        [Key(7)] public int CandyUsed { get; set; }
+        [Key(8)] public string? ColorCode { get; set; }
+        [Key(9)] public string? Tag { get; set; }
+        [Key(10)] public string? Uuid { get; set; }
+        [Key(11)] public double ProgressPercent { get; set; }
+        [Key(12)] public int TargetLevel { get; set; }
+        [Key(13)] public double CurrentExp { get; set; }
+        [Key(14)] public double ExpForLevel { get; set; }
+        [Key(15)] public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+
+        public PetState() { }
+        public PetState(PetState other)
+        {
+            Name = other.Name;
+            Type = other.Type;
+            Tier = other.Tier;
+            Level = other.Level;
+            Exp = other.Exp;
+            IsActive = other.IsActive;
+            HeldItem = other.HeldItem;
+            CandyUsed = other.CandyUsed;
+            ColorCode = other.ColorCode;
+            Tag = other.Tag;
+            Uuid = other.Uuid;
+            ProgressPercent = other.ProgressPercent;
+            TargetLevel = other.TargetLevel;
+            CurrentExp = other.CurrentExp;
+            ExpForLevel = other.ExpForLevel;
+            LastUpdated = other.LastUpdated;
+        }
     }
-}
     public ExtractedInfo()
     {
     }
