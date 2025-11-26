@@ -41,7 +41,7 @@ public class ExtractedInfo
     [Key(14)]
     public List<PetState>? Pets { get; set; } = null;
     [Key(15)]
-    public Item? WeaponInHuntaxet { get; set; } = null;
+    public Item? WeaponInHuntaxe { get; set; } = null;
     [MessagePackObject]
     public class PetState
     {

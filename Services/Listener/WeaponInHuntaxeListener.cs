@@ -17,6 +17,6 @@ public class WeaponInHuntaxeListener : UpdateListener
 
         var weaponItem = items[22]; // Huntaxe is always in slot 23 (index 22)
         Console.WriteLine($"Setting WeaponInHuntaxe for player {args.currentState.PlayerId} to {weaponItem.ItemName}");
-        args.currentState.ExtractedInfo.WeaponInHuntaxet = weaponItem;
+        args.currentState.ExtractedInfo.WeaponInHuntaxe = weaponItem;
     }
 }
