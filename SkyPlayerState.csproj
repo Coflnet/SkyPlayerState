@@ -20,7 +20,7 @@
     <PackageReference Include="Coflnet.Sky.Api.Client" Version="0.7.2" />
     <PackageReference Include="Coflnet.Sky.Settings.Client" Version="0.2.3" />
     <PackageReference Include="Coflnet.Sky.Sniper.Client" Version="0.13.0" />
-  <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="8.0.22" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="8.0.22" />
     <PackageReference Include="Coflnet.Sky.Bazaar.Client" Version="0.7.0" />
     <PackageReference Include="Coflnet.Sky.EventBroker.Client" Version="0.5.5" />
     <PackageReference Include="EFCore.Cassandra" Version="2.0.5" />
