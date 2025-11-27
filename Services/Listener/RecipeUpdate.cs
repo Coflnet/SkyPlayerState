@@ -61,6 +61,8 @@ public class RecipeUpdate : UpdateListener
                 if (match.Success)
                 {
                     var name = match.Groups["name"].Value.Trim();
+                    if (name.Contains('.'))
+                        continue; // npc purchase has no partial coins
                     // remove color codes from the name
                     name = Regex.Replace(name, @"§.", "");
                     var amountStr = match.Groups["amount"].Success ? match.Groups["amount"].Value : match.Groups["amount2"].Value;
