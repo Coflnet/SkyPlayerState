@@ -1,4 +1,4 @@
-VERSION=0.11.2
+VERSION=0.11.3
 PACKAGE_NAME=Coflnet.Sky.PlayerState.Client
 
 docker run --rm -v "${PWD}:/local" --network host -u $(id -u ${USER}):$(id -g ${USER})  openapitools/openapi-generator-cli generate \

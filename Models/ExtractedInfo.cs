@@ -42,6 +42,8 @@ public class ExtractedInfo
     public List<PetState>? Pets { get; set; } = null;
     [Key(15)]
     public Item? WeaponInHuntaxe { get; set; } = null;
+    [Key(16)]
+    public Item[]? HuntingToolkitItems { get; set; } = null;
     [MessagePackObject]
     public class PetState
     {
@@ -118,6 +120,20 @@ public class ExtractedInfo
             CostReductionPercent = extractedInfo.Composter.CostReductionPercent
         };
         ActivePet = extractedInfo.ActivePet == null ? null : new ActivePet(extractedInfo.ActivePet);
+        if (extractedInfo.Pets != null)
+        {
+            Pets = new List<PetState>();
+            foreach (var pet in extractedInfo.Pets)
+            {
+                Pets.Add(new PetState(pet));
+            }
+        }
+        else
+        {
+            Pets = null;
+        }
+        WeaponInHuntaxe = extractedInfo.WeaponInHuntaxe == null ? null : new Item(extractedInfo.WeaponInHuntaxe);
+        HuntingToolkitItems = extractedInfo.HuntingToolkitItems == null ? null : [.. extractedInfo.HuntingToolkitItems];
     }
 }
 
