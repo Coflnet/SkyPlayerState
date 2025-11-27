@@ -184,8 +184,12 @@ public class BazaarOrderListener : UpdateListener
                 price = ParseCoins(parts[3].Value);
                 side |= Transaction.TransactionType.RECEIVE;
                 var perPrice = ParseCoins(parts[4].Value);
+                var perPriceInCoins = perPrice / 10.0; // Convert from tenths to coins for comparison with PricePerUnit
                 await AddItemTransaction(args, side | Transaction.TransactionType.Move, amount, itemName);
-                var order = args.currentState.BazaarOffers.Where(o => o.ItemName == itemName && o.Amount == amount && o.PricePerUnit == perPrice).FirstOrDefault();
+                var order = args.currentState.BazaarOffers.Where(o => o.ItemName == itemName && o.Amount == amount && o.PricePerUnit == perPriceInCoins).FirstOrDefault();
+
+                // Track buy order for profit calculation
+                await RecordBuyOrderForProfit(args, itemName, amount, price);
                 if (order == null)
                 {
                     Console.WriteLine("No order found for " + itemName + " " + amount);
@@ -203,6 +207,8 @@ public class BazaarOrderListener : UpdateListener
                 side |= Transaction.TransactionType.REMOVE;
                 await AddCoinTransaction(args, Transaction.TransactionType.BazaarBuy | Transaction.TransactionType.Move, price);
 
+                // Track sell order and calculate profit
+                await RecordSellOrderForProfit(args, itemName, amount, price);
                 var order = args.currentState.BazaarOffers.Where(o => o.ItemName == itemName && o.Amount == amount).FirstOrDefault();
                 if (order == null)
                 {
@@ -212,6 +218,7 @@ public class BazaarOrderListener : UpdateListener
 
                 args.currentState.BazaarOffers.Remove(order);
                 await ProduceFillEvent(args, itemName, order);
+                
             }
         }
         if (msg.StartsWith("[Bazaar] Sold ") || msg.StartsWith("[Bazaar] Bought "))
@@ -304,6 +311,49 @@ public class BazaarOrderListener : UpdateListener
         catch (Exception e)
         {
             args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error removing order from order book");
+        }
+    }
+
+    private static async Task RecordBuyOrderForProfit(UpdateArgs args, string itemName, int amount, long price)
+    {
+        try
+        {
+            var profitTracker = args.GetService<IBazaarProfitTracker>();
+            var itemApi = args.GetService<IItemsApi>();
+            var searchResult = await itemApi.ItemsSearchTermGetAsync(itemName);
+            var tag = searchResult.First().Tag;
+            var playerUuid = args.currentState.McInfo.Uuid;
+            await profitTracker.RecordBuyOrder(playerUuid, tag, amount, price, args.msg.ReceivedAt);
+            args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
+                "Recorded bazaar buy order for {player}: {amount}x {item} at {price} coins",
+                playerUuid, amount, itemName, price / 10.0);
+        }
+        catch (Exception e)
+        {
+            args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error recording buy order for profit tracking");
+        }
+    }
+
+    private static async Task RecordSellOrderForProfit(UpdateArgs args, string itemName, int amount, long price)
+    {
+        try
+        {
+            var profitTracker = args.GetService<IBazaarProfitTracker>();
+            var itemApi = args.GetService<IItemsApi>();
+            var searchResult = await itemApi.ItemsSearchTermGetAsync(itemName);
+            var tag = searchResult.First().Tag;
+            var playerUuid = args.currentState.McInfo.Uuid;
+            var flip = await profitTracker.RecordSellOrder(playerUuid, tag, itemName, amount, price, args.msg.ReceivedAt);
+            if (flip != null)
+            {
+                args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
+                    "Recorded bazaar flip for {player}: {amount}x {item}, profit: {profit} coins",
+                    args.currentState.McInfo.Name, flip.Amount, flip.ItemName, flip.Profit / 10.0);
+            }
+        }
+        catch (Exception e)
+        {
+            args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error recording sell order for profit tracking");
         }
     }
 
