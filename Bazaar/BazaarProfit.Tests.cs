@@ -260,6 +260,122 @@ public class BazaarProfitTests
             It.IsAny<DateTime>()
         ), Times.Never);
     }
+
+    [Test]
+    public async Task SellMoreThanBoughtOnlyTracksActualBoughtAmount()
+    {
+        // Scenario: Buy 64x, then sell 128x
+        // Only 64 should be tracked as profit, remaining 64 has unknown buy price
+        
+        // Setup: A buy order for 64x Enchanted Cobblestone
+        _currentState.BazaarOffers.Add(new Offer
+        {
+            Amount = 64,
+            ItemName = "Enchanted Cobblestone",
+            PricePerUnit = 222.7, // 222.7 coins per unit
+            IsSell = false,
+            Created = DateTime.UtcNow - TimeSpan.FromHours(2)
+        });
+        
+        // Setup: A sell order for 128x Enchanted Cobblestone
+        _currentState.BazaarOffers.Add(new Offer
+        {
+            Amount = 128,
+            ItemName = "Enchanted Cobblestone",
+            PricePerUnit = 312.7,
+            IsSell = true,
+            Created = DateTime.UtcNow - TimeSpan.FromHours(1)
+        });
+
+        // First claim the buy order
+        var buyArgs = CreateArgs("[Bazaar] Claiming order...",
+            "[Bazaar] Claimed 64x Enchanted Cobblestone worth 14,253 coins bought for 222.7 each!");
+        await _listener.Process(buyArgs);
+
+        // Verify buy was recorded with amount 64
+        _profitTracker.Verify(p => p.RecordBuyOrder(
+            It.IsAny<Guid>(),
+            "ENCHANTED_COBBLESTONE",
+            64, // Only 64 items bought
+            It.IsAny<long>(),
+            It.IsAny<DateTime>()
+        ), Times.Once);
+
+        // Then claim the sell order
+        var sellArgs = CreateArgs("[Bazaar] Claiming order...",
+            "[Bazaar] Claimed 39,575 coins from selling 128x Enchanted Cobblestone at 312.7 each!");
+        await _listener.Process(sellArgs);
+
+        // Verify sell was recorded - the profit tracker should handle matching only available buy records
+        _profitTracker.Verify(p => p.RecordSellOrder(
+            It.IsAny<Guid>(),
+            "ENCHANTED_COBBLESTONE",
+            "Enchanted Cobblestone",
+            128, // Full sell amount passed, tracker handles matching
+            It.IsAny<long>(),
+            It.IsAny<DateTime>()
+        ), Times.Once);
+    }
+
+    [Test]
+    public async Task OrderFlippedRecordsVirtualBuyOrder()
+    {
+        // Scenario: Direct order flip where items are not claimed but directly converted to sell order
+        // Message: [Bazaar] Order Flipped! 64x Ancient Claw for 16,915 coins of total expected profit.
+        // Flow: Setup Buy -> Flip -> Claim Sell
+        // The flip creates a virtual buy record so the sell claim can calculate profit
+        
+        // Setup: An existing buy order that will be flipped (100 coins per unit = 6400 coins total)
+        _currentState.BazaarOffers.Add(new Offer
+        {
+            Amount = 64,
+            ItemName = "Ancient Claw",
+            PricePerUnit = 100.0, // 100 coins per unit
+            IsSell = false,
+            Created = DateTime.UtcNow - TimeSpan.FromHours(1)
+        });
+
+        var args = CreateArgs("[Bazaar] Order Flipped! 64x Ancient Claw for 16,915 coins of total expected profit.");
+        await _listener.Process(args);
+
+        // Verify the virtual buy order was recorded with the buy price from the original order
+        // buyPrice = 100.0 * 64 * 10 = 64000 (in tenths)
+        _profitTracker.Verify(p => p.RecordOrderFlip(
+            It.IsAny<Guid>(),
+            "ANCIENT_CLAW",
+            64,
+            64000, // 6400 coins * 10 (buy price in tenths)
+            169150, // 16,915 coins * 10 (expected profit in tenths)
+            It.IsAny<DateTime>()
+        ), Times.Once);
+    }
+
+    [Test]
+    public async Task OrderFlippedRemovesBuyOrderAndAddsSellOrder()
+    {
+        // Setup: An existing buy order that will be flipped
+        var buyOrder = new Offer
+        {
+            Amount = 64,
+            ItemName = "Ancient Claw",
+            PricePerUnit = 100.0, // 100 coins per unit = 6400 total buy
+            IsSell = false,
+            Created = DateTime.UtcNow - TimeSpan.FromHours(1)
+        };
+        _currentState.BazaarOffers.Add(buyOrder);
+
+        var args = CreateArgs("[Bazaar] Order Flipped! 64x Ancient Claw for 16,915 coins of total expected profit.");
+        await _listener.Process(args);
+
+        // Verify the buy order was removed from state
+        Assert.That(_currentState.BazaarOffers.Any(o => o.ItemName == "Ancient Claw" && !o.IsSell), Is.False,
+            "The original buy order should be removed after flipping");
+        
+        // Verify a sell order was added (flip creates a sell order)
+        var sellOrder = _currentState.BazaarOffers.FirstOrDefault(o => o.ItemName == "Ancient Claw" && o.IsSell);
+        Assert.That(sellOrder, Is.Not.Null, "A sell order should be created after flipping");
+        Assert.That(sellOrder!.Amount, Is.EqualTo(64), "Sell order should have same amount as buy order");
+    }
 }
 
 /// <summary>

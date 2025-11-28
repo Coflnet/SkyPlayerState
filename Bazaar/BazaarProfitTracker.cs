@@ -96,6 +96,18 @@ public interface IBazaarProfitTracker
     Task<BazaarFlip?> RecordSellOrder(Guid playerUuid, string itemTag, string itemName, int amount, long totalPrice, DateTime claimedAt);
     
     /// <summary>
+    /// Records a direct order flip (buy order converted directly to sell order without claiming items).
+    /// This creates a virtual buy record so the subsequent sell claim can calculate profit.
+    /// </summary>
+    /// <param name="playerUuid">Player UUID</param>
+    /// <param name="itemTag">Item tag</param>
+    /// <param name="amount">Amount of items</param>
+    /// <param name="buyPrice">Total buy price from the original buy order setup</param>
+    /// <param name="expectedProfit">Expected profit from the flip message</param>
+    /// <param name="flippedAt">When the flip occurred</param>
+    Task RecordOrderFlip(Guid playerUuid, string itemTag, int amount, long buyPrice, long expectedProfit, DateTime flippedAt);
+    
+    /// <summary>
     /// Gets all flips for a player
     /// </summary>
     Task<List<BazaarFlip>> GetFlips(Guid playerUuid, int limit = 100);
@@ -299,6 +311,31 @@ public class BazaarProfitTracker : IBazaarProfitTracker
             playerUuid, matchedAmount, itemTag, profit / 10.0);
 
         return flip;
+    }
+
+    public async Task RecordOrderFlip(Guid playerUuid, string itemTag, int amount, long buyPrice, long expectedProfit, DateTime flippedAt)
+    {
+        await EnsureTablesExist();
+
+        // A flip is essentially a virtual "claim buy" - we record the buy order so the subsequent
+        // sell claim can match against it and calculate profit
+        var record = new BazaarBuyRecord
+        {
+            PlayerUuid = playerUuid,
+            ItemTag = itemTag,
+            Amount = amount,
+            RemainingAmount = amount,
+            TotalPrice = buyPrice,
+            ClaimedAt = flippedAt.ToUniversalTime()
+        };
+
+        // Insert with TTL
+        var insert = _buyTable!.Insert(record);
+        insert.SetTTL((int)BuyOrderTtl.TotalSeconds);
+        await insert.ExecuteAsync();
+
+        _logger.LogInformation("Recorded virtual buy order from flip for {Player}: {Amount}x {Item} for {Price} coins (expected profit: {Profit} coins)", 
+            playerUuid, amount, itemTag, buyPrice / 10.0, expectedProfit / 10.0);
     }
 
     public async Task<List<BazaarFlip>> GetFlips(Guid playerUuid, int limit = 100)

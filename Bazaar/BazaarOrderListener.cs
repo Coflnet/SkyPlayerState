@@ -221,6 +221,56 @@ public class BazaarOrderListener : UpdateListener
                 
             }
         }
+        if (msg.Contains("Order Flipped!"))
+        {
+            // Direct order flip: [Bazaar] Order Flipped! 64x Ancient Claw for 16,915 coins of total expected profit.
+            // A flip is: Setup Buy -> Flip -> Claim Sell
+            // The flip acts as a virtual "Claim Buy" + "Setup Sell", so we need to record the buy order
+            // from the original setup so the later sell claim can calculate profit
+            var parts = Regex.Match(msg, @"Order Flipped! ([\d,]+)x (.*) for ([\d,\.]+) coins of total expected profit").Groups;
+            if (parts.Count > 3)
+            {
+                amount = ParseInt(parts[1].Value);
+                itemName = parts[2].Value;
+                var expectedProfit = ParseCoins(parts[3].Value);
+
+                // Find the original buy order to get the buy price
+                var buyOrder = args.currentState.BazaarOffers
+                    .Where(o => o.ItemName == itemName && o.Amount == amount && !o.IsSell)
+                    .FirstOrDefault();
+
+                if (buyOrder != null)
+                {
+                    // Calculate total buy price from the order
+                    var buyPrice = (long)(buyOrder.PricePerUnit * buyOrder.Amount * 10); // Convert to tenths
+
+                    // Record the virtual buy order (so sell claim can match against it)
+                    await RecordOrderFlipForProfit(args, itemName, amount, buyPrice, expectedProfit);
+
+                    // Remove the buy order and add a sell order (the flip creates a sell order)
+                    args.currentState.BazaarOffers.Remove(buyOrder);
+                    
+                    // Add a sell order to state - the sell price can be calculated from buy + expected profit
+                    var sellPrice = buyPrice + expectedProfit;
+                    var sellOrder = new Offer
+                    {
+                        Amount = amount,
+                        ItemName = itemName,
+                        PricePerUnit = Math.Round((double)sellPrice / amount) / 10,
+                        IsSell = true,
+                        Created = args.msg.ReceivedAt
+                    };
+                    args.currentState.BazaarOffers.Add(sellOrder);
+
+                    await ProduceFillEvent(args, itemName, buyOrder);
+                }
+                else
+                {
+                    Console.WriteLine($"No buy order found for flip: {amount}x {itemName}");
+                }
+            }
+            return;
+        }
         if (msg.StartsWith("[Bazaar] Sold ") || msg.StartsWith("[Bazaar] Bought "))
         {
             var parts = Regex.Match(msg, @"(Sold|Bought) ([\d,]+)x (.*) for ([\d,]+)").Groups;
@@ -354,6 +404,26 @@ public class BazaarOrderListener : UpdateListener
         catch (Exception e)
         {
             args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error recording sell order for profit tracking");
+        }
+    }
+
+    private static async Task RecordOrderFlipForProfit(UpdateArgs args, string itemName, int amount, long buyPrice, long expectedProfit)
+    {
+        try
+        {
+            var profitTracker = args.GetService<IBazaarProfitTracker>();
+            var itemApi = args.GetService<IItemsApi>();
+            var searchResult = await itemApi.ItemsSearchTermGetAsync(itemName);
+            var tag = searchResult.First().Tag;
+            var playerUuid = args.currentState.McInfo.Uuid;
+            await profitTracker.RecordOrderFlip(playerUuid, tag, amount, buyPrice, expectedProfit, args.msg.ReceivedAt);
+            args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
+                "Recorded virtual buy order from flip for {player}: {amount}x {item}, buy price: {buyPrice} coins, expected profit: {profit} coins",
+                args.currentState.McInfo.Name, amount, itemName, buyPrice / 10.0, expectedProfit / 10.0);
+        }
+        catch (Exception e)
+        {
+            args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error recording order flip for profit tracking");
         }
     }
 
