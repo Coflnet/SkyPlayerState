@@ -27,13 +27,15 @@ public class BazaarProfitController : ControllerBase
     /// Gets the list of bazaar flips (completed buy-sell cycles) for a player
     /// </summary>
     /// <param name="playerUuid">The player UUID</param>
+    /// <param name="from">Optional start of time range (inclusive). Defaults to 7 days ago if omitted.</param>
+    /// <param name="to">Optional end of time range (inclusive). Defaults to now if omitted.</param>
     /// <param name="limit">Maximum number of flips to return (default 100)</param>
     /// <returns>List of completed bazaar flips with profit information</returns>
     [HttpGet]
     [Route("flips/{playerUuid}")]
-    public async Task<List<BazaarFlip>> GetFlips(Guid playerUuid, int limit = 100)
+    public async Task<List<BazaarFlip>> GetFlips(Guid playerUuid, DateTime? from = null, DateTime? to = null, int limit = 100)
     {
-        return await _profitTracker.GetFlips(playerUuid, limit);
+        return await _profitTracker.GetFlips(playerUuid, from, to, limit);
     }
 
     /// <summary>
@@ -54,13 +56,15 @@ public class BazaarProfitController : ControllerBase
     /// Gets a summary of bazaar profit for a player
     /// </summary>
     /// <param name="playerUuid">The player UUID</param>
+    /// <param name="from">Optional start of time range (inclusive). Defaults to 7 days ago if omitted.</param>
+    /// <param name="to">Optional end of time range (inclusive). Defaults to now if omitted.</param>
     /// <param name="limit">Maximum number of flips to analyze (default 100)</param>
     /// <returns>Summary of profit from bazaar flips</returns>
     [HttpGet]
     [Route("summary/{playerUuid}")]
-    public async Task<BazaarProfitSummary> GetProfitSummary(Guid playerUuid, int limit = 100)
+    public async Task<BazaarProfitSummary> GetProfitSummary(Guid playerUuid, DateTime? from = null, DateTime? to = null, int limit = 100)
     {
-        var flips = await _profitTracker.GetFlips(playerUuid, limit);
+        var flips = await _profitTracker.GetFlips(playerUuid, from, to, limit);
         var outstanding = await _profitTracker.GetOutstandingOrders(playerUuid);
         
         var totalProfit = 0L;

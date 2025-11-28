@@ -108,9 +108,9 @@ public interface IBazaarProfitTracker
     Task RecordOrderFlip(Guid playerUuid, string itemTag, int amount, long buyPrice, long expectedProfit, DateTime flippedAt);
     
     /// <summary>
-    /// Gets all flips for a player
+    /// Gets flips for a player in a time range. If `from`/`to` are omitted the last 7 days are returned.
     /// </summary>
-    Task<List<BazaarFlip>> GetFlips(Guid playerUuid, int limit = 100);
+    Task<List<BazaarFlip>> GetFlips(Guid playerUuid, DateTime? from = null, DateTime? to = null, int limit = 100);
     
     /// <summary>
     /// Gets outstanding (unsold) buy orders for a player
@@ -338,31 +338,47 @@ public class BazaarProfitTracker : IBazaarProfitTracker
             playerUuid, amount, itemTag, buyPrice / 10.0, expectedProfit / 10.0);
     }
 
-    public async Task<List<BazaarFlip>> GetFlips(Guid playerUuid, int limit = 100)
+    public async Task<List<BazaarFlip>> GetFlips(Guid playerUuid, DateTime? from = null, DateTime? to = null, int limit = 100)
     {
         await EnsureTablesExist();
-        
-        // Query current year and previous year to ensure recent flips are included
-        var currentYear = DateTime.UtcNow.Year;
-        var results = new List<BazaarFlip>();
-        
-        // Query current year
-        var currentYearFlips = await _flipTable!
-            .Where(f => f.PlayerUuid == playerUuid && f.Year == currentYear)
-            .Take(limit)
-            .ExecuteAsync();
-        results.AddRange(currentYearFlips);
-        
-        // If we need more, query previous year
-        if (results.Count < limit)
+
+        // Default to last 7 days when no range is provided
+        var end = to?.ToUniversalTime() ?? DateTime.UtcNow;
+        var start = from?.ToUniversalTime() ?? end.AddDays(-7);
+
+        // Ensure start <= end
+        if (start > end)
         {
-            var previousYearFlips = await _flipTable!
-                .Where(f => f.PlayerUuid == playerUuid && f.Year == currentYear - 1)
-                .Take(limit - results.Count)
-                .ExecuteAsync();
-            results.AddRange(previousYearFlips);
+            var tmp = start;
+            start = end;
+            end = tmp;
         }
-        
+
+        var results = new List<BazaarFlip>();
+
+        // Query all years that intersect the requested range (partitioning by year)
+        var startYear = start.Year;
+        var endYear = end.Year;
+
+        for (var year = startYear; year <= endYear; year++)
+        {
+            if (results.Count >= limit) break;
+
+            var yearFlips = await _flipTable!
+                .Where(f => f.PlayerUuid == playerUuid && f.Year == year)
+                .ExecuteAsync();
+
+            // Filter by actual SoldAt range in memory
+            foreach (var f in yearFlips)
+            {
+                if (f.SoldAt.ToUniversalTime() >= start && f.SoldAt.ToUniversalTime() <= end)
+                {
+                    results.Add(f);
+                    if (results.Count >= limit) break;
+                }
+            }
+        }
+
         return results.OrderByDescending(f => f.SoldAt).Take(limit).ToList();
     }
 
