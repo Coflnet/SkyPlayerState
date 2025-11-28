@@ -152,7 +152,7 @@ public class BazaarProfitTests
     public async Task ClaimSellOrderCalculatesProfit()
     {
         // Set up the mock to return a flip result
-        var expectedFlip = new BazaarFlip
+        var expectedFlip = new CompletedBazaarFlip
         {
             PlayerUuid = Guid.NewGuid(),
             ItemTag = "COAL",
@@ -386,7 +386,7 @@ public class BazaarProfitTrackerTests
     [Test]
     public void BazaarFlipCalculatesProfitCorrectly()
     {
-        var flip = new BazaarFlip
+        var flip = new CompletedBazaarFlip
         {
             BuyPrice = 1000, // 100 coins
             SellPrice = 1500, // 150 coins

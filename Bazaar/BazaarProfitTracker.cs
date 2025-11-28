@@ -43,7 +43,7 @@ public class BazaarBuyRecord
 /// <summary>
 /// Represents a completed bazaar flip (buy then sell for profit)
 /// </summary>
-public class BazaarFlip
+public class CompletedBazaarFlip
 {
     /// <summary>
     /// Player UUID who made the flip
@@ -93,7 +93,7 @@ public interface IBazaarProfitTracker
     /// <summary>
     /// Records a claimed sell order and calculates profit by matching with buy orders
     /// </summary>
-    Task<BazaarFlip?> RecordSellOrder(Guid playerUuid, string itemTag, string itemName, int amount, long totalPrice, DateTime claimedAt);
+    Task<CompletedBazaarFlip?> RecordSellOrder(Guid playerUuid, string itemTag, string itemName, int amount, long totalPrice, DateTime claimedAt);
     
     /// <summary>
     /// Records a direct order flip (buy order converted directly to sell order without claiming items).
@@ -110,7 +110,7 @@ public interface IBazaarProfitTracker
     /// <summary>
     /// Gets flips for a player in a time range. If `from`/`to` are omitted the last 7 days are returned.
     /// </summary>
-    Task<List<BazaarFlip>> GetFlips(Guid playerUuid, DateTime? from = null, DateTime? to = null, int limit = 100);
+    Task<List<CompletedBazaarFlip>> GetFlips(Guid playerUuid, DateTime? from = null, DateTime? to = null, int limit = 100);
     
     /// <summary>
     /// Gets outstanding (unsold) buy orders for a player
@@ -123,7 +123,7 @@ public class BazaarProfitTracker : IBazaarProfitTracker
     private readonly ISession _session;
     private readonly ILogger<BazaarProfitTracker> _logger;
     private Table<BazaarBuyRecord>? _buyTable;
-    private Table<BazaarFlip>? _flipTable;
+    private Table<CompletedBazaarFlip>? _flipTable;
     private static readonly TimeSpan BuyOrderTtl = TimeSpan.FromDays(14);
 
     public BazaarProfitTracker(ISession session, ILogger<BazaarProfitTracker> logger)
@@ -152,7 +152,7 @@ public class BazaarProfitTracker : IBazaarProfitTracker
 
         // Flip records table - partitioned by player and year to avoid overflow
         var flipMapping = new MappingConfiguration()
-            .Define(new Map<BazaarFlip>()
+            .Define(new Map<CompletedBazaarFlip>()
                 .TableName("bazaar_flips")
                 .PartitionKey(t => t.PlayerUuid, t => t.Year)
                 .ClusteringKey(t => t.SoldAt, SortOrder.Descending)
@@ -163,7 +163,7 @@ public class BazaarProfitTracker : IBazaarProfitTracker
                 .Column(t => t.SellPrice, cm => cm.WithName("sell_price"))
                 .Column(t => t.Profit, cm => cm.WithName("profit"))
             );
-        _flipTable = new Table<BazaarFlip>(_session, flipMapping);
+        _flipTable = new Table<CompletedBazaarFlip>(_session, flipMapping);
         await _flipTable.CreateIfNotExistsAsync();
 
         // Set TTL for buy records table (2 weeks)
@@ -202,7 +202,7 @@ public class BazaarProfitTracker : IBazaarProfitTracker
             playerUuid, amount, itemTag, totalPrice / 10.0);
     }
 
-    public async Task<BazaarFlip?> RecordSellOrder(Guid playerUuid, string itemTag, string itemName, int amount, long totalPrice, DateTime claimedAt)
+    public async Task<CompletedBazaarFlip?> RecordSellOrder(Guid playerUuid, string itemTag, string itemName, int amount, long totalPrice, DateTime claimedAt)
     {
         await EnsureTablesExist();
 
@@ -292,7 +292,7 @@ public class BazaarProfitTracker : IBazaarProfitTracker
         // Calculate profit
         long profit = totalPrice - totalBuyPrice;
         
-        var flip = new BazaarFlip
+        var flip = new CompletedBazaarFlip
         {
             PlayerUuid = playerUuid,
             Year = claimedAt.Year,
@@ -338,7 +338,7 @@ public class BazaarProfitTracker : IBazaarProfitTracker
             playerUuid, amount, itemTag, buyPrice / 10.0, expectedProfit / 10.0);
     }
 
-    public async Task<List<BazaarFlip>> GetFlips(Guid playerUuid, DateTime? from = null, DateTime? to = null, int limit = 100)
+    public async Task<List<CompletedBazaarFlip>> GetFlips(Guid playerUuid, DateTime? from = null, DateTime? to = null, int limit = 100)
     {
         await EnsureTablesExist();
 
@@ -354,7 +354,7 @@ public class BazaarProfitTracker : IBazaarProfitTracker
             end = tmp;
         }
 
-        var results = new List<BazaarFlip>();
+        var results = new List<CompletedBazaarFlip>();
 
         // Query all years that intersect the requested range (partitioning by year)
         var startYear = start.Year;

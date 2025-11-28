@@ -33,7 +33,7 @@ public class BazaarProfitController : ControllerBase
     /// <returns>List of completed bazaar flips with profit information</returns>
     [HttpGet]
     [Route("flips/{playerUuid}")]
-    public async Task<List<BazaarFlip>> GetFlips(Guid playerUuid, DateTime? from = null, DateTime? to = null, int limit = 100)
+    public async Task<List<CompletedBazaarFlip>> GetFlips(Guid playerUuid, DateTime? from = null, DateTime? to = null, int limit = 100)
     {
         return await _profitTracker.GetFlips(playerUuid, from, to, limit);
     }
