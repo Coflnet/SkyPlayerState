@@ -44,6 +44,8 @@ public class ExtractedInfo
     public Item? WeaponInHuntaxe { get; set; } = null;
     [Key(16)]
     public Item[]? HuntingToolkitItems { get; set; } = null;
+    [Key(17)]
+    public PlayerElectionVote? PlayerElectionVote { get; set; } = null;
     [MessagePackObject]
     public class PetState
     {
@@ -134,6 +136,11 @@ public class ExtractedInfo
         }
         WeaponInHuntaxe = extractedInfo.WeaponInHuntaxe == null ? null : new Item(extractedInfo.WeaponInHuntaxe);
         HuntingToolkitItems = extractedInfo.HuntingToolkitItems == null ? null : [.. extractedInfo.HuntingToolkitItems];
+        PlayerElectionVote = extractedInfo.PlayerElectionVote == null ? null : new PlayerElectionVote
+        {
+            VotedFor = extractedInfo.PlayerElectionVote.VotedFor,
+            VoteCount = extractedInfo.PlayerElectionVote.VoteCount
+        };
     }
 }
 
@@ -211,5 +218,14 @@ public class ForgeItem
     public DateTime ForgeEnd;
     [Key(2)]
     public string Tag = string.Empty;
+}
+
+[MessagePackObject]
+public class PlayerElectionVote
+{
+    [Key(0)]
+    public string VotedFor { get; set; } = string.Empty;
+    [Key(1)]
+    public int VoteCount { get; set; }
 }
 #nullable restore

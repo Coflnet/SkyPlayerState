@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Coflnet.Sky.PlayerState.Models;
 using Coflnet.Sky.PlayerState.Tests;
+using Moq;
 using NUnit.Framework;
 
 namespace Coflnet.Sky.PlayerState.Services;
@@ -78,7 +79,12 @@ public class MayorAuraListenerTests
     public async Task Process_MayorAuraChest_StoresFundraisingData()
     {
         // Arrange
-        var service = new MayorAuraService();
+        FundraisingEntry? capturedEntry = null;
+        var service = new Mock<IMayorAuraService>();
+        service.Setup(x => x.StoreFundraising(It.IsAny<FundraisingEntry>()))
+            .Returns(Task.CompletedTask)
+            .Callback<FundraisingEntry>(e => capturedEntry = e);
+
         var args = new MockedUpdateArgs()
         {
             currentState = new StateObject(),
@@ -99,7 +105,7 @@ public class MayorAuraListenerTests
                 }
             }
         };
-        args.AddService<IMayorAuraService>(service);
+        args.AddService<IMayorAuraService>(service.Object);
 
         var listener = new MayorAuraListener();
 
@@ -107,17 +113,17 @@ public class MayorAuraListenerTests
         await listener.Process(args);
 
         // Assert
-        var history = await service.GetFundraisingHistory();
-        Assert.That(history, Has.Length.EqualTo(1));
-        Assert.That(history[0].TotalCoinsRaised, Is.EqualTo(9052941873L));
-        Assert.That(history[0].Timestamp, Is.EqualTo(new DateTime(2025, 11, 30, 22, 56, 0, DateTimeKind.Utc)));
+        service.Verify(x => x.StoreFundraising(It.IsAny<FundraisingEntry>()), Times.Once);
+        Assert.That(capturedEntry, Is.Not.Null);
+        Assert.That(capturedEntry!.TotalCoinsRaised, Is.EqualTo(9052941873L));
+        Assert.That(capturedEntry.Timestamp, Is.EqualTo(new DateTime(2025, 11, 30, 22, 56, 0, DateTimeKind.Utc)));
     }
 
     [Test]
     public async Task Process_NotMayorAuraChest_DoesNotStore()
     {
         // Arrange
-        var service = new MayorAuraService();
+        var service = new Mock<IMayorAuraService>();
         var args = new MockedUpdateArgs()
         {
             currentState = new StateObject(),
@@ -131,7 +137,7 @@ public class MayorAuraListenerTests
                 }
             }
         };
-        args.AddService<IMayorAuraService>(service);
+        args.AddService<IMayorAuraService>(service.Object);
 
         var listener = new MayorAuraListener();
 
@@ -139,36 +145,42 @@ public class MayorAuraListenerTests
         await listener.Process(args);
 
         // Assert
-        var history = await service.GetFundraisingHistory();
-        Assert.That(history, Has.Length.EqualTo(0));
+        service.Verify(x => x.StoreFundraising(It.IsAny<FundraisingEntry>()), Times.Never);
     }
 
     [Test]
-    public async Task Process_MultipleUpdates_DeduplicatesByMinute()
+    public async Task Process_MultipleUpdates_StoresEachEntry()
     {
         // Arrange
-        var service = new MayorAuraService();
+        var storedEntries = new List<FundraisingEntry>();
+        var service = new Mock<IMayorAuraService>();
+        service.Setup(x => x.StoreFundraising(It.IsAny<FundraisingEntry>()))
+            .Returns(Task.CompletedTask)
+            .Callback<FundraisingEntry>(e => storedEntries.Add(e));
+
         var listener = new MayorAuraListener();
 
         // First update at 22:56:18
-        var args1 = CreateMayorAuraArgs(service, new DateTime(2025, 11, 30, 22, 56, 18, DateTimeKind.Utc), 9000000000L);
+        var args1 = CreateMayorAuraArgs(service.Object, new DateTime(2025, 11, 30, 22, 56, 18, DateTimeKind.Utc), 9000000000L);
         await listener.Process(args1);
 
         // Second update at 22:56:45 (same minute, different amount)
-        var args2 = CreateMayorAuraArgs(service, new DateTime(2025, 11, 30, 22, 56, 45, DateTimeKind.Utc), 9050000000L);
+        var args2 = CreateMayorAuraArgs(service.Object, new DateTime(2025, 11, 30, 22, 56, 45, DateTimeKind.Utc), 9050000000L);
         await listener.Process(args2);
 
         // Third update at 22:57:10 (different minute)
-        var args3 = CreateMayorAuraArgs(service, new DateTime(2025, 11, 30, 22, 57, 10, DateTimeKind.Utc), 9100000000L);
+        var args3 = CreateMayorAuraArgs(service.Object, new DateTime(2025, 11, 30, 22, 57, 10, DateTimeKind.Utc), 9100000000L);
         await listener.Process(args3);
 
         // Assert
-        var history = await service.GetFundraisingHistory();
-        Assert.That(history, Has.Length.EqualTo(2)); // Two distinct minutes
-        Assert.That(history[0].Timestamp, Is.EqualTo(new DateTime(2025, 11, 30, 22, 56, 0, DateTimeKind.Utc)));
-        Assert.That(history[0].TotalCoinsRaised, Is.EqualTo(9050000000L)); // Updated value from second call
-        Assert.That(history[1].Timestamp, Is.EqualTo(new DateTime(2025, 11, 30, 22, 57, 0, DateTimeKind.Utc)));
-        Assert.That(history[1].TotalCoinsRaised, Is.EqualTo(9100000000L));
+        Assert.That(storedEntries, Has.Count.EqualTo(3));
+        // First two entries should have same timestamp (same minute)
+        Assert.That(storedEntries[0].Timestamp, Is.EqualTo(new DateTime(2025, 11, 30, 22, 56, 0, DateTimeKind.Utc)));
+        Assert.That(storedEntries[0].TotalCoinsRaised, Is.EqualTo(9000000000L));
+        Assert.That(storedEntries[1].Timestamp, Is.EqualTo(new DateTime(2025, 11, 30, 22, 56, 0, DateTimeKind.Utc)));
+        Assert.That(storedEntries[1].TotalCoinsRaised, Is.EqualTo(9050000000L));
+        Assert.That(storedEntries[2].Timestamp, Is.EqualTo(new DateTime(2025, 11, 30, 22, 57, 0, DateTimeKind.Utc)));
+        Assert.That(storedEntries[2].TotalCoinsRaised, Is.EqualTo(9100000000L));
     }
 
     private static MockedUpdateArgs CreateMayorAuraArgs(IMayorAuraService service, DateTime receivedAt, long coinsRaised)

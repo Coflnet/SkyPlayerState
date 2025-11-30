@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Cassandra;
@@ -8,54 +9,54 @@ using Cassandra.Mapping;
 namespace Coflnet.Sky.PlayerState.Services;
 
 /// <summary>
-/// Cassandra implementation of Mayor Aura fundraising data storage
+/// Cassandra implementation of Player Election voting data storage
 /// </summary>
-public class MayorAuraService : IMayorAuraService
+public class PlayerElectionService : IPlayerElectionService
 {
-    private readonly Table<FundraisingDbEntry> _fundraisingTable;
+    private readonly Table<PlayerElectionDbEntry> _electionTable;
 
-    public MayorAuraService(ISession session)
+    public PlayerElectionService(ISession session)
     {
         var mapping = new MappingConfiguration().Define(
-            new Map<FundraisingDbEntry>()
-                .TableName("mayor_aura_fundraising")
+            new Map<PlayerElectionDbEntry>()
+                .TableName("player_election_votes")
                 .PartitionKey(x => x.Day)
                 .ClusteringKey(x => x.Timestamp)
                 .Column(x => x.Day, cm => cm.WithName("day"))
                 .Column(x => x.Timestamp, cm => cm.WithName("timestamp"))
-                .Column(x => x.TotalCoinsRaised, cm => cm.WithName("total_coins_raised"))
+                .Column(x => x.Votes, cm => cm.WithName("votes"))
         );
-        _fundraisingTable = new Table<FundraisingDbEntry>(session, mapping);
-        _fundraisingTable.CreateIfNotExists();
+        _electionTable = new Table<PlayerElectionDbEntry>(session, mapping);
+        _electionTable.CreateIfNotExists();
     }
 
-    public async Task StoreFundraising(FundraisingEntry entry)
+    public async Task StoreVotes(PlayerElectionEntry entry)
     {
-        var dbEntry = new FundraisingDbEntry
+        var dbEntry = new PlayerElectionDbEntry
         {
             Day = entry.Timestamp.Date,
             Timestamp = entry.Timestamp,
-            TotalCoinsRaised = entry.TotalCoinsRaised
+            Votes = entry.Votes
         };
-        await _fundraisingTable.Insert(dbEntry).ExecuteAsync();
+        await _electionTable.Insert(dbEntry).ExecuteAsync();
     }
 
-    public async Task<FundraisingEntry[]> GetFundraisingHistory()
+    public async Task<PlayerElectionEntry[]> GetVotingHistory()
     {
         // Get last 30 days of data - use IN clause for partition key
         var days = Enumerable.Range(0, 30)
             .Select(i => DateTime.UtcNow.Date.AddDays(-i))
             .ToList();
         
-        var entries = await _fundraisingTable
+        var entries = await _electionTable
             .Where(x => days.Contains(x.Day))
             .ExecuteAsync();
         
         return entries
-            .Select(e => new FundraisingEntry
+            .Select(e => new PlayerElectionEntry
             {
                 Timestamp = e.Timestamp,
-                TotalCoinsRaised = e.TotalCoinsRaised
+                Votes = e.Votes ?? new Dictionary<string, int>()
             })
             .OrderBy(e => e.Timestamp)
             .ToArray();
@@ -63,11 +64,11 @@ public class MayorAuraService : IMayorAuraService
 }
 
 /// <summary>
-/// Database entity for fundraising entries
+/// Database entity for player election entries
 /// </summary>
-public class FundraisingDbEntry
+public class PlayerElectionDbEntry
 {
     public DateTime Day { get; set; }
     public DateTime Timestamp { get; set; }
-    public long TotalCoinsRaised { get; set; }
+    public Dictionary<string, int>? Votes { get; set; }
 }
