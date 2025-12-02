@@ -78,6 +78,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         AddHandler<AttributeMenuListener>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<MayorAuraListener>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<PlayerElectionListener>(UpdateMessage.UpdateKind.INVENTORY);
+        AddHandler<MythologicalRitualListener>(UpdateMessage.UpdateKind.INVENTORY);
         this.persistenceService = persistenceService;
         this.activitySource = activitySource;
     }

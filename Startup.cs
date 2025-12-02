@@ -75,6 +75,7 @@ public class Startup
         services.AddSingleton<IBazaarProfitTracker, BazaarProfitTracker>();
         services.AddSingleton<IMayorAuraService, MayorAuraService>();
         services.AddSingleton<IPlayerElectionService, PlayerElectionService>();
+        services.AddSingleton<IMythologicalRitualService, MythologicalRitualService>();
         services.AddSingleton<RecipeService>();
         services.AddSingleton<RngMeterService>();
         services.AddSingleton<ItemDetails>();
