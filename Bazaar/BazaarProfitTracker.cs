@@ -345,6 +345,8 @@ public class BazaarProfitTracker : IBazaarProfitTracker
         // Default to last 7 days when no range is provided
         var end = to?.ToUniversalTime() ?? DateTime.UtcNow;
         var start = from?.ToUniversalTime() ?? end.AddDays(-7);
+        if(start < new DateTime(2025, 1, 1)) // no tracked data before 2025
+            start = new DateTime(2025, 1, 1);
 
         // Ensure start <= end
         if (start > end)
