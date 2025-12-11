@@ -64,8 +64,9 @@ public class BazaarProfitController : ControllerBase
     [Route("summary/{playerUuid}")]
     public async Task<BazaarProfitSummary> GetProfitSummary(Guid playerUuid, DateTime? from = null, DateTime? to = null, int limit = 100)
     {
+        var outstandingTask = _profitTracker.GetOutstandingOrders(playerUuid);
         var flips = await _profitTracker.GetFlips(playerUuid, from, to, limit);
-        var outstanding = await _profitTracker.GetOutstandingOrders(playerUuid);
+        var outstanding = await outstandingTask;
         
         var totalProfit = 0L;
         var totalBought = 0L;
