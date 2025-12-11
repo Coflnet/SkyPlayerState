@@ -137,11 +137,12 @@ public class BazaarProfitTracker : IBazaarProfitTracker
         if (_buyTable != null && _flipTable != null)
             return;
 
-        // Buy records table - partitioned by player+item for efficient querying
+        // Buy records table - partitioned by player only (at most a few hundred orders per player per day)
         var buyMapping = new MappingConfiguration()
             .Define(new Map<BazaarBuyRecord>()
-                .TableName("bazaar_buy_records")
-                .PartitionKey(t => t.PlayerUuid, t => t.ItemTag)
+                .TableName("bazaar_buy_records2")
+                .PartitionKey(t => t.PlayerUuid)
+                .ClusteringKey(t => t.ItemTag, SortOrder.Ascending)
                 .ClusteringKey(t => t.ClaimedAt, SortOrder.Ascending)
                 .Column(t => t.Amount, cm => cm.WithName("amount"))
                 .Column(t => t.RemainingAmount, cm => cm.WithName("remaining_amount"))
@@ -254,7 +255,7 @@ public class BazaarProfitTracker : IBazaarProfitTracker
             {
                 // Delete the record
                 await _buyTable!
-                    .Where(r => r.PlayerUuid == playerUuid && r.ItemTag == itemTag && r.ClaimedAt == record.ClaimedAt)
+                    .Where(r => r.PlayerUuid == playerUuid && r.ItemTag == record.ItemTag && r.ClaimedAt == record.ClaimedAt)
                     .Delete()
                     .ExecuteAsync();
             }
@@ -267,7 +268,7 @@ public class BazaarProfitTracker : IBazaarProfitTracker
                 {
                     // Record should have expired, delete it
                     await _buyTable!
-                        .Where(r => r.PlayerUuid == playerUuid && r.ItemTag == itemTag && r.ClaimedAt == record.ClaimedAt)
+                        .Where(r => r.PlayerUuid == playerUuid && r.ItemTag == record.ItemTag && r.ClaimedAt == record.ClaimedAt)
                         .Delete()
                         .ExecuteAsync();
                     continue;
@@ -275,11 +276,11 @@ public class BazaarProfitTracker : IBazaarProfitTracker
 
                 // Delete and re-insert with updated amount and correct TTL
                 await _buyTable!
-                    .Where(r => r.PlayerUuid == playerUuid && r.ItemTag == itemTag && r.ClaimedAt == record.ClaimedAt)
+                    .Where(r => r.PlayerUuid == playerUuid && r.ItemTag == record.ItemTag && r.ClaimedAt == record.ClaimedAt)
                     .Delete()
                     .ExecuteAsync();
                 
-                var insert = _buyTable.Insert(record);
+                var insert = _buyTable!.Insert(record);
                 insert.SetTTL((int)remainingTtl.TotalSeconds);
                 await insert.ExecuteAsync();
             }
@@ -388,33 +389,13 @@ public class BazaarProfitTracker : IBazaarProfitTracker
     {
         await EnsureTablesExist();
         
-        // We need to query all items for this player, but Cassandra requires partition key
-        // Since we partition by (PlayerUuid, ItemTag), we need to use ALLOW FILTERING or a different approach
-        // For simplicity, we'll use a separate table or accept the limitation
-        // Here we use a workaround by maintaining a secondary index or accepting that
-        // the caller needs to know which items to query
+        // With playerUuid as partition key, we can efficiently query all records for a player
+        var records = (await _buyTable!
+            .Where(r => r.PlayerUuid == playerUuid)
+            .ExecuteAsync())
+            .Where(r => r.RemainingAmount > 0)
+            .ToList();
         
-        // Alternative: Use a statement with ALLOW FILTERING (not ideal for large datasets)
-        var statement = new SimpleStatement(
-            $"SELECT * FROM bazaar_buy_records WHERE playeruuid = ? ALLOW FILTERING", 
-            playerUuid);
-        
-        var result = await _session.ExecuteAsync(statement);
-        var records = new List<BazaarBuyRecord>();
-        
-        foreach (var row in result)
-        {
-            records.Add(new BazaarBuyRecord
-            {
-                PlayerUuid = row.GetValue<Guid>("playeruuid"),
-                ItemTag = row.GetValue<string>("itemtag"),
-                Amount = row.GetValue<int>("amount"),
-                RemainingAmount = row.GetValue<int>("remaining_amount"),
-                TotalPrice = row.GetValue<long>("total_price"),
-                ClaimedAt = row.GetValue<DateTime>("claimedat")
-            });
-        }
-        
-        return records.Where(r => r.RemainingAmount > 0).ToList();
+        return records;
     }
 }
