@@ -301,6 +301,9 @@ public class BazaarOrderListener : UpdateListener
                         Created = args.msg.ReceivedAt
                     };
                     args.currentState.BazaarOffers.Add(sellOrder);
+                    args.GetService<ILogger<BazaarOrderListener>>()
+                        .LogInformation("Processed flipped order for {user}: {amount}x {item} bought at {buyPrice} for expected profit {expectedProfit}, created sell order at {sellPrice}",
+                            args.currentState.McInfo.Name, amount, itemName, buyPrice, expectedProfit, sellPrice);
 
                     await ProduceFillEvent(args, itemName, buyOrder);
                 }
