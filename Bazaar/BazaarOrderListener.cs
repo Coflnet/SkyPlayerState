@@ -310,47 +310,58 @@ public class BazaarOrderListener : UpdateListener
                 else
                 {
                     // RACE CONDITION: Chest GUI update removed buy order before flip message arrived
-                    // Strategy 1: Check recent chest views (last 3 views) for previous bazaar order state
-                    // When flipping, there are at most 2 other chest screens in between
-                    Offer? foundBuyOrder = null;
-                    var recentBazaarViews = args.currentState.RecentViews
-                        .Where(v => v.Name == "Your Bazaar Orders" || v.Name == "Co-op Bazaar Orders")
-                        .Take(3)
-                        .ToList();
+                    // Strategy 1: Check vanishing orders cache (tracked by BazaarListener before state replacement)
+                    long? buyPriceFromCache = null;
+                    var playerUuid = args.currentState.McInfo?.Uuid ?? Guid.Empty;
                     
-                    foreach (var view in recentBazaarViews)
+                    if (BazaarListener.TryGetVanishingOrder(playerUuid, itemName, amount, out var vanishingPrice))
                     {
-                        // Parse offers from the chest view
-                        var offersInView = view.Items.Take(45)
-                            .Where(item => item?.Description != null && 
-                                         item.ItemName != null && 
-                                         item.Description.Contains("§7Price per unit: §6") &&
-                                         !item.ItemName.Contains("Go Back"))
-                            .Select(item => {
-                                try {
-                                    return BazaarListener.ParseOfferFromItem(item);
-                                } catch {
-                                    return null;
-                                }
-                            })
-                            .Where(o => o != null)
+                        buyPriceFromCache = vanishingPrice;
+                        Console.WriteLine($"Found vanishing buy order for flip: {amount}x {itemName} from vanishing orders cache");
+                    }
+                    
+                    // Strategy 2: Search through recent chest views for previous bazaar order state
+                    if (buyPriceFromCache == null)
+                    {
+                        var recentBazaarViews = args.currentState.RecentViews
+                            .Where(v => v.Name == "Your Bazaar Orders" || v.Name == "Co-op Bazaar Orders")
+                            .Take(3)
                             .ToList();
                         
-                        // Look for the buy order in this view
-                        foundBuyOrder = offersInView
-                            .FirstOrDefault(o => o.ItemName == itemName && o.Amount == amount && !o.IsSell);
-                        
-                        if (foundBuyOrder != null)
+                        foreach (var view in recentBazaarViews)
                         {
-                            Console.WriteLine($"Found buy order for flip in recent view (view: {view.Name})");
-                            break;
+                            // Parse offers from the chest view
+                            var offersInView = view.Items.Take(45)
+                                .Where(item => item?.Description != null && 
+                                             item.ItemName != null && 
+                                             item.Description.Contains("§7Price per unit: §6") &&
+                                             !item.ItemName.Contains("Go Back"))
+                                .Select(item => {
+                                    try {
+                                        return BazaarListener.ParseOfferFromItem(item);
+                                    } catch {
+                                        return null;
+                                    }
+                                })
+                                .Where(o => o != null)
+                                .ToList();
+                            
+                            // Look for the buy order in this view
+                            var foundBuyOrder = offersInView
+                                .FirstOrDefault(o => o!.ItemName == itemName && o.Amount == amount && !o.IsSell);
+                            
+                            if (foundBuyOrder != null)
+                            {
+                                buyPriceFromCache = (long)(foundBuyOrder.PricePerUnit * foundBuyOrder.Amount * 10);
+                                Console.WriteLine($"Found buy order for flip in recent view (view: {view.Name})");
+                                break;
+                            }
                         }
                     }
                     
-                    // Strategy 2: Fallback to in-memory cache for recently filled buy orders
-                    if (foundBuyOrder == null)
+                    // Strategy 3: Fallback to in-memory cache for recently filled buy orders
+                    if (buyPriceFromCache == null)
                     {
-                        var playerUuid = args.currentState.McInfo.Uuid;
                         var cacheKey = (playerUuid, itemName, amount);
                         if (_recentFlips.TryGetValue(cacheKey, out var cachedData))
                         {
@@ -359,15 +370,8 @@ public class BazaarOrderListener : UpdateListener
                             // Verify the cached data isn't too old (max 60 seconds)
                             if ((args.msg.ReceivedAt - fillTime).TotalSeconds <= 60)
                             {
+                                buyPriceFromCache = cachedBuyPrice;
                                 Console.WriteLine($"Found cached buy order for flip: {amount}x {itemName} (filled {(args.msg.ReceivedAt - fillTime).TotalSeconds:F1}s ago)");
-                                foundBuyOrder = new Offer
-                                {
-                                    Amount = amount,
-                                    ItemName = itemName,
-                                    PricePerUnit = (double)cachedBuyPrice / amount / 10,
-                                    IsSell = false,
-                                    Created = fillTime
-                                };
                                 
                                 // Clean up cache entry (already used)
                                 _recentFlips.TryRemove(cacheKey, out _);
@@ -379,16 +383,13 @@ public class BazaarOrderListener : UpdateListener
                         }
                     }
                     
-                    if (foundBuyOrder != null)
+                    if (buyPriceFromCache != null)
                     {
-                        // Calculate total buy price from the found order
-                        var buyPrice = (long)(foundBuyOrder.PricePerUnit * foundBuyOrder.Amount * 10);
-                        
                         // Record the virtual buy order using the found buy price
-                        await RecordOrderFlipForProfit(args, itemName, amount, buyPrice, expectedProfit);
+                        await RecordOrderFlipForProfit(args, itemName, amount, buyPriceFromCache.Value, expectedProfit);
 
                         // Add sell order to state (same as normal flip)
-                        var sellPrice = buyPrice + expectedProfit;
+                        var sellPrice = buyPriceFromCache.Value + expectedProfit;
                         var sellOrder = new Offer
                         {
                             Amount = amount,
@@ -401,7 +402,7 @@ public class BazaarOrderListener : UpdateListener
                     }
                     else
                     {
-                        Console.WriteLine($"No buy order found for flip: {amount}x {itemName} in state, recent views, or cache for {args.currentState.McInfo.Name}");
+                        Console.WriteLine($"No buy order found for flip: {amount}x {itemName} in state, vanishing orders, recent views, or cache for {args.currentState.McInfo?.Name ?? args.currentState.PlayerId}");
                     }
                 }
             }

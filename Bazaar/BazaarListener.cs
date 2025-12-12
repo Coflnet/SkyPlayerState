@@ -13,6 +13,16 @@ namespace Coflnet.Sky.PlayerState.Bazaar;
 
 public class BazaarListener : UpdateListener
 {
+    /// <summary>
+    /// Tracks buy orders that vanish between chest updates.
+    /// When chest GUI shows orders have been removed, we store them here
+    /// so Order Flip messages can recover the buy price.
+    /// Key: (PlayerUuid, ItemName, Amount)
+    /// Value: (BuyPrice, VanishTime)
+    /// </summary>
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, string, int), (long, DateTime)> 
+        _vanishingOrders = new();
+
     public override async Task Process(UpdateArgs args)
     {
         if (args.currentState.Settings?.DisableBazaarTracking ?? false)
@@ -67,6 +77,10 @@ public class BazaarListener : UpdateListener
             }
         }
         Console.WriteLine($"Found {offers.Count} bazaar offers for {args.currentState.PlayerId}");
+        
+        // Track vanishing buy orders before replacing state
+        TrackVanishingOrders(args, offers);
+        
         args.currentState.BazaarOffers = offers;
 
         if (orderLookup.SelectMany(o => o).Count() == offers.Count)
@@ -93,6 +107,72 @@ public class BazaarListener : UpdateListener
         catch (Exception e)
         {
             args.GetService<ILogger<BazaarListener>>().LogError(e, "Error updating bazaar notifications");
+        }
+    }
+
+    /// <summary>
+    /// Tracks buy orders that are vanishing (present in old state but not in new offers)
+    /// </summary>
+    private void TrackVanishingOrders(UpdateArgs args, List<Offer> newOffers)
+    {
+        var playerUuid = args.currentState.McInfo?.Uuid;
+        if (playerUuid == null || playerUuid == Guid.Empty)
+            return;
+
+        var newOffersLookup = newOffers.ToHashSet(new OfferComparer());
+        var vanishingBuyOrders = args.currentState.BazaarOffers
+            .Where(o => !o.IsSell && !newOffersLookup.Contains(o));
+
+        foreach (var order in vanishingBuyOrders)
+        {
+            var key = (playerUuid.Value, order.ItemName, (int)order.Amount);
+            _vanishingOrders[key] = ((long)order.PricePerUnit, DateTime.UtcNow);
+        }
+
+        // Cleanup old entries (older than 2 minutes)
+        if (_vanishingOrders.Count > 1000)
+        {
+            var cutoff = DateTime.UtcNow.AddMinutes(-2);
+            var oldKeys = _vanishingOrders.Where(kvp => kvp.Value.Item2 < cutoff)
+                .Select(kvp => kvp.Key)
+                .ToList();
+            foreach (var key in oldKeys)
+            {
+                _vanishingOrders.TryRemove(key, out _);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets a vanishing buy order from the cache
+    /// </summary>
+    public static bool TryGetVanishingOrder(Guid playerUuid, string itemName, int amount, out long buyPrice)
+    {
+        buyPrice = 0;
+        if (_vanishingOrders.TryGetValue((playerUuid, itemName, amount), out var cached))
+        {
+            // Check if not too old (2 minutes max)
+            if ((DateTime.UtcNow - cached.Item2).TotalMinutes < 2)
+            {
+                buyPrice = cached.Item1;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private class OfferComparer : IEqualityComparer<Offer>
+    {
+        public bool Equals(Offer? x, Offer? y)
+        {
+            if (ReferenceEquals(x, y)) return true;
+            if (x == null || y == null) return false;
+            return x.ItemName == y.ItemName && x.Amount == y.Amount && x.IsSell == y.IsSell;
+        }
+
+        public int GetHashCode(Offer obj)
+        {
+            return HashCode.Combine(obj.ItemName, obj.Amount, obj.IsSell);
         }
     }
 
