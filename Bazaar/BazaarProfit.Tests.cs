@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Coflnet.Sky.Bazaar.Client.Api;
 using Coflnet.Sky.Items.Client.Api;
 using Coflnet.Sky.PlayerState.Models;
 using Coflnet.Sky.PlayerState.Services;
@@ -20,6 +21,7 @@ public class BazaarProfitTests
     private Mock<ITransactionService> _transactionService = null!;
     private Mock<IBazaarProfitTracker> _profitTracker = null!;
     private Mock<IItemsApi> _itemsApi = null!;
+    private Mock<IOrderBookApi> _orderBookApi = null!;
     private int _invokeCount;
 
     [SetUp]
@@ -32,11 +34,12 @@ public class BazaarProfitTests
             .Callback(() => _invokeCount++);
         _profitTracker = new Mock<IBazaarProfitTracker>();
         _itemsApi = new Mock<IItemsApi>();
+        _orderBookApi = new Mock<IOrderBookApi>();
         _itemsApi.Setup(i => i.ItemsSearchTermIdGetAsync(It.IsAny<string>(), 0, default)).ReturnsAsync(5);
         _itemsApi.Setup(i => i.ItemsSearchTermGetAsync(It.IsAny<string>(), null, 0, default))
             .ReturnsAsync((string term, string _, int _, System.Threading.CancellationToken _) => new List<Items.Client.Model.SearchResult>
             {
-                new() { Tag = term.ToUpper().Replace(" ", "_") }
+                new() { Tag = term.ToUpper().Replace(" ", "_"), Flags = new Items.Client.Model.ItemFlags?(Items.Client.Model.ItemFlags.BAZAAR) }
             });
         _invokeCount = 0;
     }
@@ -57,6 +60,7 @@ public class BazaarProfitTests
         args.AddService<IItemsApi>(_itemsApi.Object);
         args.AddService<ITransactionService>(_transactionService.Object);
         args.AddService<IBazaarProfitTracker>(_profitTracker.Object);
+        args.AddService<IOrderBookApi>(_orderBookApi.Object);
         args.AddService<ILogger<BazaarOrderListener>>(NullLogger<BazaarOrderListener>.Instance);
         
         return args;

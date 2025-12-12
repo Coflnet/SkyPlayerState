@@ -376,7 +376,7 @@ public class BazaarOrderListener : UpdateListener
         var itemApi = args.GetService<IItemsApi>();
         var searchResult = await itemApi.ItemsSearchTermGetAsync(itemName);
         var tag = searchResult.OrderByDescending(s => (itemName.Equals(s.Text ?? "", StringComparison.OrdinalIgnoreCase) ? 2 : 0) 
-            + (s.Flags.Value.HasFlag(Items.Client.Model.ItemFlags.BAZAAR) ? 1 :0)).First().Tag;
+            + (s.Flags.HasValue && s.Flags.Value.HasFlag(Items.Client.Model.ItemFlags.BAZAAR) ? 1 :0)).First().Tag;
         return tag;
     }
 

@@ -200,7 +200,8 @@ public class BazaarOrderTests
                 "[Bazaar] Claimed 303.7 coins from selling 64x Coal at 4.8 each!");
         itemsApi.Setup(i => i.ItemsSearchTermGetAsync(It.IsAny<string>(), null, 0, default))
             .ReturnsAsync(() => new List<Items.Client.Model.SearchResult>(){new(){
-                Tag = "COAL"
+                Tag = "COAL",
+                Flags = Items.Client.Model.ItemFlags.BAZAAR
             }});
         await listener.Process(args);
 
