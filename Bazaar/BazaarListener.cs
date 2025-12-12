@@ -34,7 +34,7 @@ public class BazaarListener : UpdateListener
 
             try
             {
-                Offer offer = ParseOffer(item);
+                Offer offer = ParseOfferFromItem(item);
                 var key = OrderKey(offer);
                 if (orderLookup.Contains(key))
                 {
@@ -87,7 +87,7 @@ public class BazaarListener : UpdateListener
                 if (currentLookup.Contains(notification.Message.Reference))
                     continue;
                 await service.ScheduleUserIdIdDeleteAsync(args.msg.UserId, notification.Id);
-                args.GetService<ILogger<BazaarListener>>().LogInformation("Removed bazaar notification {id}", notification.Id);
+                args.GetService<ILogger<BazaarListener>>().LogInformation("Removed bazaar notification {id} for {playername}", notification.Id, args.currentState.PlayerId);
             }
         }
         catch (Exception e)
@@ -107,7 +107,10 @@ public class BazaarListener : UpdateListener
         return ((o.IsSell ? "s" : "b") + o.Amount + o.PricePerUnit + Regex.Replace(o.ItemName, "(§.)*", "")).Truncate(32);
     }
 
-    private static Offer ParseOffer(Models.Item item)
+    /// <summary>
+    /// Parses a bazaar offer from a chest item
+    /// </summary>
+    public static Offer ParseOfferFromItem(Models.Item item)
     {
         var parts = item.Description!.Split("\n");
 
