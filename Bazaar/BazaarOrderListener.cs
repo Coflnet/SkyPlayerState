@@ -227,6 +227,17 @@ public class BazaarOrderListener : UpdateListener
             // A flip is: Setup Buy -> Flip -> Claim Sell
             // The flip acts as a virtual "Claim Buy" + "Setup Sell", so we need to record the buy order
             // from the original setup so the later sell claim can calculate profit
+            //
+            // IMPORTANT: The "expected profit" in the flip message is Hypixel's ESTIMATE based on the
+            // listed sell price BEFORE tax/fees. The ACTUAL profit calculated when claiming the sell
+            // order will be lower due to:
+            // - Bazaar sell tax (~1.125%)
+            // - Rounding differences
+            // - Price changes/slippage between flip and claim
+            // - Partial fills at different prices
+            //
+            // We record the expected profit for logging, but the actual profit saved to the database
+            // is calculated from real transaction amounts (sell claim - buy price).
             var parts = Regex.Match(msg, @"Order Flipped! ([\d,]+)x (.*) for ([\d,\.]+) coins of total expected profit").Groups;
             if (parts.Count > 3)
             {

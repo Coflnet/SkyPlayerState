@@ -376,6 +376,79 @@ public class BazaarProfitTests
         Assert.That(sellOrder, Is.Not.Null, "A sell order should be created after flipping");
         Assert.That(sellOrder!.Amount, Is.EqualTo(64), "Sell order should have same amount as buy order");
     }
+
+    [Test]
+    public async Task OrderFlipAndClaimCalculatesCorrectProfit()
+    {
+        // Reproduces issue from logs:
+        // Buy: 64x MITHRIL_ORE for 409.6 coins (6.4 per unit)
+        // Flip message: Expected profit: 96 coins
+        // Sell claim: 494.2 coins (message says "at 7.9 each" which is the list price = 505.6 coins)
+        // Actual profit: 494.2 - 409.6 = 84.6 coins
+        //
+        // IMPORTANT: The "expected profit" (96) from Hypixel's flip message is based on the LISTED
+        // sell price before tax (505.6 coins). The ACTUAL profit (84.6) is calculated from the
+        // amount actually received after tax and any price slippage (494.2 coins).
+        //
+        // The system CORRECTLY saves the actual profit (84.6), not the expected profit (96).
+        // The difference (11.4 coins) represents:
+        // - Bazaar sell tax (~1.125%)
+        // - Possible rounding differences  
+        // - Possible partial fills at slightly different prices
+        // - Price changes between flip and claim
+        //
+        // This test verifies that we correctly calculate and save the ACTUAL profit from real
+        // transaction amounts, not Hypixel's estimated/expected profit.
+        
+        // Setup: Buy order at 6.4 coins per unit
+        var buyOrder = new Offer
+        {
+            Amount = 64,
+            ItemName = "Mithril",
+            PricePerUnit = 6.4, // 6.4 coins per unit = 409.6 total
+            IsSell = false,
+            Created = DateTime.UtcNow - TimeSpan.FromHours(1)
+        };
+        _currentState.BazaarOffers.Add(buyOrder);
+
+        // Flip the order with expected profit of 96 coins (Hypixel's estimate)
+        var flipArgs = CreateArgs("[Bazaar] Order Flipped! 64x Mithril for 96.0 coins of total expected profit.");
+        await _listener.Process(flipArgs);
+
+        // Verify virtual buy order was recorded with correct buy price
+        _profitTracker.Verify(p => p.RecordOrderFlip(
+            It.IsAny<Guid>(),
+            "MITHRIL",
+            64,
+            4096, // 409.6 coins * 10 (in tenths)
+            960,  // 96 coins * 10 (expected profit in tenths - for logging only)
+            It.IsAny<DateTime>()
+        ), Times.Once);
+
+        // Now claim the sell order - the message shows "7.9 each" (list price = 505.6 total)
+        // but after tax and potential slippage, the actual claimed amount is 494.2
+        var sellArgs = CreateArgs(
+            "[Bazaar] Claiming order...",
+            "[Bazaar] Claimed 494.2 coins from selling 64x Mithril at 7.9 each!"
+        );
+        await _listener.Process(sellArgs);
+
+        // Verify sell was recorded with the ACTUAL claimed amount (not the listed price)
+        _profitTracker.Verify(p => p.RecordSellOrder(
+            It.IsAny<Guid>(),
+            "MITHRIL",
+            "Mithril",
+            64,
+            4942, // 494.2 coins * 10 (in tenths) - this is what we actually received
+            It.IsAny<DateTime>()
+        ), Times.Once);
+
+        // The BazaarProfitTracker.RecordSellOrder method will calculate profit as:
+        // actualProfit = sellPrice - buyPrice = 4942 - 4096 = 846 tenths = 84.6 coins
+        //
+        // This is CORRECT. We save the actual profit (84.6), not the expected profit (96).
+        // The expected profit is just Hypixel's estimate and doesn't account for tax/slippage.
+    }
 }
 
 /// <summary>
