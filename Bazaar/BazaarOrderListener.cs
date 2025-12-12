@@ -67,7 +67,7 @@ public class BazaarOrderListener : UpdateListener
             price = ParseCoins(parts[3].Value);
             if (isSell)
             {
-                price = (long)(price / (1-0.01125) - 0.1); // include tax (estimate)
+                price = (long)(price / (1 - 0.01125) - 0.1); // include tax (estimate)
                 Console.WriteLine($"Adjusted price for tax {price} ({(double)price / amount / 10} per unit) for {amount}x {itemName}");
             }
             if (price > 10000)
@@ -218,7 +218,7 @@ public class BazaarOrderListener : UpdateListener
 
                 args.currentState.BazaarOffers.Remove(order);
                 await ProduceFillEvent(args, itemName, order);
-                
+
             }
         }
         if (msg.Contains("Order Flipped!"))
@@ -260,7 +260,7 @@ public class BazaarOrderListener : UpdateListener
 
                     // Remove the buy order and add a sell order (the flip creates a sell order)
                     args.currentState.BazaarOffers.Remove(buyOrder);
-                    
+
                     // Add a sell order to state - the sell price can be calculated from buy + expected profit
                     var sellPrice = buyPrice + expectedProfit;
                     var sellOrder = new Offer
@@ -337,7 +337,7 @@ public class BazaarOrderListener : UpdateListener
         try
         {
             var orderBookApi = args.GetService<IOrderBookApi>();
-string tag = await GetTagForName(args, itemName);
+            string tag = await GetTagForName(args, itemName);
             await orderBookApi.AddOrderAsync(new()
             {
                 Amount = amount,
@@ -375,7 +375,8 @@ string tag = await GetTagForName(args, itemName);
     {
         var itemApi = args.GetService<IItemsApi>();
         var searchResult = await itemApi.ItemsSearchTermGetAsync(itemName);
-        var tag = searchResult.OrderByDescending(s=>itemName.Equals(s.Text ?? "", StringComparison.OrdinalIgnoreCase) ? 1 : 0).First().Tag;
+        var tag = searchResult.OrderByDescending(s => (itemName.Equals(s.Text ?? "", StringComparison.OrdinalIgnoreCase) ? 2 : 0) 
+            + (s.Flags.Value.HasFlag(Items.Client.Model.ItemFlags.BAZAAR) ? 1 :0)).First().Tag;
         return tag;
     }
 
@@ -384,7 +385,7 @@ string tag = await GetTagForName(args, itemName);
         try
         {
             var profitTracker = args.GetService<IBazaarProfitTracker>();
-string tag = await GetTagForName(args, itemName);
+            string tag = await GetTagForName(args, itemName);
             var playerUuid = args.currentState.McInfo.Uuid;
             await profitTracker.RecordBuyOrder(playerUuid, tag, amount, price, args.msg.ReceivedAt);
             args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
@@ -402,7 +403,7 @@ string tag = await GetTagForName(args, itemName);
         try
         {
             var profitTracker = args.GetService<IBazaarProfitTracker>();
-string tag = await GetTagForName(args, itemName);
+            string tag = await GetTagForName(args, itemName);
             var playerUuid = args.currentState.McInfo.Uuid;
             var flip = await profitTracker.RecordSellOrder(playerUuid, tag, itemName, amount, price, args.msg.ReceivedAt);
             if (flip != null)
@@ -423,7 +424,7 @@ string tag = await GetTagForName(args, itemName);
         try
         {
             var profitTracker = args.GetService<IBazaarProfitTracker>();
-string tag = await GetTagForName(args, itemName);
+            string tag = await GetTagForName(args, itemName);
             var playerUuid = args.currentState.McInfo.Uuid;
             await profitTracker.RecordOrderFlip(playerUuid, tag, amount, buyPrice, expectedProfit, args.msg.ReceivedAt);
             args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
