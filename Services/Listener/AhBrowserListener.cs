@@ -56,10 +56,17 @@ public class AhBrowserListener : UpdateListener
                         + buyer);
                 var clearedBuyer = buyer == null ? null : System.Text.RegularExpressions.Regex.Replace(buyer.Split(' ').Last(), "§[0-9a-f]", "").Trim();
                 var found = await args.GetService<IPlayerNameApi>().PlayerNameUuidNameGetAsync(clearedBuyer ?? ""); // trigger caching
-                if(string.IsNullOrEmpty(found) && clearedBuyer != null)
+                if (string.IsNullOrEmpty(found) && clearedBuyer != null)
                 {
-                    await args.GetService<IPlayerApi>().ApiPlayerPlayerUuidNamePostAsync(clearedBuyer);
-                    Console.WriteLine("Cached missing buyer name " + clearedBuyer);
+                    try
+                    {
+                        await args.GetService<IPlayerApi>().ApiPlayerPlayerUuidNamePostAsync(clearedBuyer);
+                        Console.WriteLine("Cached missing buyer name " + clearedBuyer);
+                    }
+                    catch (System.Exception e)
+                    {
+                        args.GetService<ILogger<AhBrowserListener>>().LogError(e, "Failed to cache missing buyer name " + clearedBuyer);
+                    }
                     continue;
                 }
             }
