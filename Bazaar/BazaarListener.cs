@@ -126,7 +126,10 @@ public class BazaarListener : UpdateListener
         foreach (var order in vanishingBuyOrders)
         {
             var key = (playerUuid.Value, order.ItemName, (int)order.Amount);
-            _vanishingOrders[key] = ((long)order.PricePerUnit, DateTime.UtcNow);
+            // Store total buy price in tenths of coins (price per unit * amount * 10)
+            // This matches the format used in RecordOrderFlip and normal order processing
+            var totalBuyPriceInTenths = (long)(order.PricePerUnit * order.Amount * 10);
+            _vanishingOrders[key] = (totalBuyPriceInTenths, DateTime.UtcNow);
         }
 
         // Cleanup old entries (older than 2 minutes)
@@ -146,6 +149,11 @@ public class BazaarListener : UpdateListener
     /// <summary>
     /// Gets a vanishing buy order from the cache
     /// </summary>
+    /// <param name="playerUuid">The player's UUID</param>
+    /// <param name="itemName">The item name</param>
+    /// <param name="amount">The amount of items</param>
+    /// <param name="buyPrice">Total buy price in tenths of coins (price * amount * 10)</param>
+    /// <returns>True if order found and not expired</returns>
     public static bool TryGetVanishingOrder(Guid playerUuid, string itemName, int amount, out long buyPrice)
     {
         buyPrice = 0;

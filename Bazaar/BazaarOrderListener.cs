@@ -281,8 +281,8 @@ public class BazaarOrderListener : UpdateListener
 
                 if (buyOrder != null)
                 {
-                    // Calculate total buy price from the order
-                    var buyPrice = (long)(buyOrder.PricePerUnit * buyOrder.Amount * 10); // Convert to tenths
+                    // Calculate total buy price in tenths of coins
+                    var buyPrice = CalculateTotalBuyPrice(buyOrder);
 
                     // Record the virtual buy order (so sell claim can match against it)
                     await RecordOrderFlipForProfit(args, itemName, amount, buyPrice, expectedProfit);
@@ -310,18 +310,22 @@ public class BazaarOrderListener : UpdateListener
                 else
                 {
                     // RACE CONDITION: Chest GUI update removed buy order before flip message arrived
-                    // Strategy 1: Check vanishing orders cache (tracked by BazaarListener before state replacement)
-                    long? buyPriceFromCache = null;
+                    // We use a three-tier recovery strategy to find the buy price:
+                    // 1. Vanishing orders cache (most reliable - captured at exact moment of removal)
+                    // 2. Recent chest views (parse previous bazaar screens)
+                    // 3. In-memory cache (legacy fallback for recently filled orders)
+                    long? totalBuyPriceInTenths = null;
                     var playerUuid = args.currentState.McInfo?.Uuid ?? Guid.Empty;
                     
+                    // Strategy 1: Check vanishing orders cache
                     if (BazaarListener.TryGetVanishingOrder(playerUuid, itemName, amount, out var vanishingPrice))
                     {
-                        buyPriceFromCache = vanishingPrice;
-                        Console.WriteLine($"Found vanishing buy order for flip: {amount}x {itemName} from vanishing orders cache");
+                        totalBuyPriceInTenths = vanishingPrice;
+                        Console.WriteLine($"Found vanishing buy order for flip: {amount}x {itemName} (buy price: {vanishingPrice / 10.0:F1} coins)");
                     }
                     
                     // Strategy 2: Search through recent chest views for previous bazaar order state
-                    if (buyPriceFromCache == null)
+                    if (totalBuyPriceInTenths == null)
                     {
                         var recentBazaarViews = args.currentState.RecentViews
                             .Where(v => v.Name == "Your Bazaar Orders" || v.Name == "Co-op Bazaar Orders")
@@ -352,15 +356,15 @@ public class BazaarOrderListener : UpdateListener
                             
                             if (foundBuyOrder != null)
                             {
-                                buyPriceFromCache = (long)(foundBuyOrder.PricePerUnit * foundBuyOrder.Amount * 10);
-                                Console.WriteLine($"Found buy order for flip in recent view (view: {view.Name})");
+                                totalBuyPriceInTenths = CalculateTotalBuyPrice(foundBuyOrder);
+                                Console.WriteLine($"Found buy order for flip in recent view: {amount}x {itemName} (buy price: {totalBuyPriceInTenths.Value / 10.0:F1} coins)");
                                 break;
                             }
                         }
                     }
                     
                     // Strategy 3: Fallback to in-memory cache for recently filled buy orders
-                    if (buyPriceFromCache == null)
+                    if (totalBuyPriceInTenths == null)
                     {
                         var cacheKey = (playerUuid, itemName, amount);
                         if (_recentFlips.TryGetValue(cacheKey, out var cachedData))
@@ -370,8 +374,8 @@ public class BazaarOrderListener : UpdateListener
                             // Verify the cached data isn't too old (max 60 seconds)
                             if ((args.msg.ReceivedAt - fillTime).TotalSeconds <= 60)
                             {
-                                buyPriceFromCache = cachedBuyPrice;
-                                Console.WriteLine($"Found cached buy order for flip: {amount}x {itemName} (filled {(args.msg.ReceivedAt - fillTime).TotalSeconds:F1}s ago)");
+                                totalBuyPriceInTenths = cachedBuyPrice;
+                                Console.WriteLine($"Found cached buy order for flip: {amount}x {itemName} (buy price: {cachedBuyPrice / 10.0:F1} coins, filled {(args.msg.ReceivedAt - fillTime).TotalSeconds:F1}s ago)");
                                 
                                 // Clean up cache entry (already used)
                                 _recentFlips.TryRemove(cacheKey, out _);
@@ -383,26 +387,32 @@ public class BazaarOrderListener : UpdateListener
                         }
                     }
                     
-                    if (buyPriceFromCache != null)
+                    if (totalBuyPriceInTenths != null)
                     {
-                        // Record the virtual buy order using the found buy price
-                        await RecordOrderFlipForProfit(args, itemName, amount, buyPriceFromCache.Value, expectedProfit);
+                        // Record the virtual buy order using the recovered buy price
+                        await RecordOrderFlipForProfit(args, itemName, amount, totalBuyPriceInTenths.Value, expectedProfit);
 
                         // Add sell order to state (same as normal flip)
-                        var sellPrice = buyPriceFromCache.Value + expectedProfit;
+                        var totalSellPriceInTenths = totalBuyPriceInTenths.Value + expectedProfit;
                         var sellOrder = new Offer
                         {
                             Amount = amount,
                             ItemName = itemName,
-                            PricePerUnit = Math.Round((double)sellPrice / amount) / 10,
+                            PricePerUnit = Math.Round((double)totalSellPriceInTenths / amount) / 10,
                             IsSell = true,
                             Created = args.msg.ReceivedAt
                         };
                         args.currentState.BazaarOffers.Add(sellOrder);
+                        
+                        args.GetService<ILogger<BazaarOrderListener>>()
+                            .LogInformation("Recovered and processed flipped order for {user}: {amount}x {item} bought at {buyPrice} coins for expected profit {expectedProfit} coins",
+                                args.currentState.McInfo?.Name ?? args.currentState.PlayerId, amount, itemName, totalBuyPriceInTenths.Value / 10.0, expectedProfit / 10.0);
                     }
                     else
                     {
                         Console.WriteLine($"No buy order found for flip: {amount}x {itemName} in state, vanishing orders, recent views, or cache for {args.currentState.McInfo?.Name ?? args.currentState.PlayerId}");
+                        args.GetService<ILogger<BazaarOrderListener>>()
+                            .LogWarning("Failed to recover buy price for flip: {amount}x {item} for {user}", amount, itemName, args.currentState.McInfo?.Name ?? args.currentState.PlayerId);
                     }
                 }
             }
@@ -480,6 +490,15 @@ public class BazaarOrderListener : UpdateListener
         {
             args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error adding order to order book");
         }
+    }
+
+    /// <summary>
+    /// Calculates total buy price in tenths of coins from an offer
+    /// </summary>
+    /// <returns>Total price in tenths of coins (price per unit * amount * 10)</returns>
+    private static long CalculateTotalBuyPrice(Offer order)
+    {
+        return (long)(order.PricePerUnit * order.Amount * 10);
     }
 
     private static async Task ProduceFillEvent(UpdateArgs args, string itemName, Offer order)
