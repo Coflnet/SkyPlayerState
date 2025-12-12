@@ -309,6 +309,72 @@ public class BazaarOrderTests
         Assert.That(0, Is.EqualTo(invokeCount));
     }
 
+    /// <summary>
+    /// Race condition: When claiming a sell order, the BazaarListener may have already
+    /// processed a chest update that removed the order from state before the chat message
+    /// is processed by BazaarOrderListener.
+    /// 
+    /// Timeline from logs:
+    /// 1. 19:30:16.222 - Chest update with 4 offers (including Coal sell order)
+    /// 2. 19:30:17.938 - Chest update with 3 offers (Coal already claimed/removed from GUI)
+    /// 3. 19:30:18.168 - Chat: "Claimed 1,548.4 coins from selling 160x Coal at 9.9 each!"
+    /// 
+    /// The BazaarListener processes the second chest update and removes the Coal order
+    /// before BazaarOrderListener can track the claim.
+    /// </summary>
+    [Test]
+    public async Task ClaimSellOrderWhenOrderAlreadyRemovedByChestUpdate()
+    {
+        // Initially the order exists
+        var createTime = DateTime.Now - TimeSpan.FromMinutes(5);
+        currentState.BazaarOffers.Add(new Offer()
+        {
+            Amount = 160,
+            ItemName = "Coal",
+            PricePerUnit = 9.9,
+            IsSell = true,
+            Created = createTime,
+        });
+
+        // Simulate BazaarListener processing a chest update that no longer contains the order
+        // (order was claimed in GUI but chat message not yet processed)
+        var bazaarListener = new BazaarListener();
+        var chestArgs = CreateArgs();
+        chestArgs.msg.Chest = JsonConvert.DeserializeObject<ChestView>("""
+        {
+            "Name": "Co-op Bazaar Orders",
+            "Items": [
+                {"ItemName": "§6§lSELL §aAgatha's Coupon", "Tag": "AGATHA_COUPON", "Description": "§8Worth 5M coins\n\n§7Offer amount: §a300§7x\n\n§8Expired!\n\n§7Price per unit: §617,000.0 coins\n\n§7By: §b[MVP§4+§b] Ekwav\n\n§eClick to view options!", "Count": 1},
+                {"ItemName": "§aGo Back", "Tag": null, "Description": "§7To Bazaar", "Count": 1}
+            ]
+        }
+        """);
+        chestArgs.AddService<ILogger<BazaarListener>>(NullLoggerFactory.Instance.CreateLogger<BazaarListener>());
+        await bazaarListener.Process(chestArgs);
+
+        // Order should be removed by BazaarListener (simulating race condition)
+        Assert.That(currentState.BazaarOffers.Count, Is.EqualTo(1), "BazaarListener should have updated offers from chest");
+        Assert.That(currentState.BazaarOffers.Any(o => o.ItemName == "Coal"), Is.False, "Coal order should be removed");
+
+        // Now process the claim chat message - order is no longer in state
+        itemsApi.Setup(i => i.ItemsSearchTermGetAsync(It.IsAny<string>(), null, 0, default))
+            .ReturnsAsync(() => new List<Items.Client.Model.SearchResult>(){new(){
+                Tag = "COAL",
+                Flags = Items.Client.Model.ItemFlags.BAZAAR
+            }});
+        var claimArgs = CreateArgs("[Bazaar] Claiming order...",
+                "[Bazaar] Claimed 1,548.4 coins from selling 160x Coal at 9.9 each!");
+        await listener.Process(claimArgs);
+
+        // Should still record the coin transaction even if order not found
+        transactionService.Verify(t => t.AddTransactions(It.Is<Transaction>(t =>
+            t.Type == (Transaction.TransactionType.BAZAAR | Transaction.TransactionType.RECEIVE | Transaction.TransactionType.Move)
+            && t.Amount == 15484
+            && t.ItemId == TradeDetect.IdForCoins
+            )
+        ), Times.Once, "Coin transaction should be recorded even when order is missing from state");
+    }
+
     private MockedUpdateArgs CreateArgs(params string[] msgs)
     {
         var args = new MockedUpdateArgs()

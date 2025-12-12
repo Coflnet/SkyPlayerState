@@ -14,6 +14,17 @@ namespace Coflnet.Sky.PlayerState.Bazaar;
 
 public class BazaarOrderListener : UpdateListener
 {
+    /// <summary>
+    /// In-memory cache to bridge the race condition gap between chest GUI updates and chat messages.
+    /// Tracks recently flipped orders (item + amount + buy price) for 60 seconds.
+    /// When a flip message arrives but the buy order is already removed from state,
+    /// we can retrieve the buy price from this cache to create the virtual buy record.
+    /// Key: (PlayerUuid, ItemName, Amount)
+    /// Value: (BuyPrice, FlipTime)
+    /// </summary>
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, string, int), (long, DateTime)> 
+        _recentFlips = new();
+
     public override async Task Process(UpdateArgs args)
     {
         if (args.currentState.Settings?.DisableBazaarTracking ?? false)
@@ -190,6 +201,24 @@ public class BazaarOrderListener : UpdateListener
 
                 // Track buy order for profit calculation
                 await RecordBuyOrderForProfit(args, itemName, amount, price);
+                
+                // Cache this buy order for potential flip (race condition mitigation)
+                // Store: PlayerUuid, ItemName, Amount -> (BuyPrice, FillTime)
+                var playerUuid = args.currentState.McInfo.Uuid;
+                var cacheKey = (playerUuid, itemName, amount);
+                _recentFlips[cacheKey] = (price, args.msg.ReceivedAt);
+                
+                // Cleanup: Remove entries older than 60 seconds (only if cache is getting large)
+                if (_recentFlips.Count > 1000)
+                {
+                    var cutoff = args.msg.ReceivedAt.AddSeconds(-60);
+                    var expiredKeys = _recentFlips.Where(kvp => kvp.Value.Item2 < cutoff).Select(kvp => kvp.Key).ToList();
+                    foreach (var key in expiredKeys)
+                    {
+                        _recentFlips.TryRemove(key, out _);
+                    }
+                }
+                
                 if (order == null)
                 {
                     Console.WriteLine("No order found for " + itemName + " " + amount);
@@ -277,7 +306,46 @@ public class BazaarOrderListener : UpdateListener
                 }
                 else
                 {
-                    Console.WriteLine($"No buy order found for flip: {amount}x {itemName}");
+                    // RACE CONDITION: Chest GUI update removed buy order before flip message arrived
+                    // Check in-memory cache for recently filled buy orders
+                    var playerUuid = args.currentState.McInfo.Uuid;
+                    var cacheKey = (playerUuid, itemName, amount);
+                    if (_recentFlips.TryGetValue(cacheKey, out var cachedData))
+                    {
+                        var (buyPrice, fillTime) = cachedData;
+                        
+                        // Verify the cached data isn't too old (max 60 seconds)
+                        if ((args.msg.ReceivedAt - fillTime).TotalSeconds <= 60)
+                        {
+                            Console.WriteLine($"Found cached buy order for flip: {amount}x {itemName} (filled {(args.msg.ReceivedAt - fillTime).TotalSeconds:F1}s ago)");
+                            
+                            // Record the virtual buy order using cached buy price
+                            await RecordOrderFlipForProfit(args, itemName, amount, buyPrice, expectedProfit);
+
+                            // Add sell order to state (same as normal flip)
+                            var sellPrice = buyPrice + expectedProfit;
+                            var sellOrder = new Offer
+                            {
+                                Amount = amount,
+                                ItemName = itemName,
+                                PricePerUnit = Math.Round((double)sellPrice / amount) / 10,
+                                IsSell = true,
+                                Created = args.msg.ReceivedAt
+                            };
+                            args.currentState.BazaarOffers.Add(sellOrder);
+                            
+                            // Clean up cache entry (already used)
+                            _recentFlips.TryRemove(cacheKey, out _);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Cached buy order for {amount}x {itemName} is too old ({(args.msg.ReceivedAt - fillTime).TotalSeconds:F1}s), ignoring");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"No buy order found for flip: {amount}x {itemName}");
+                    }
                 }
             }
             return;

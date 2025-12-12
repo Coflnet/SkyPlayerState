@@ -52,7 +52,7 @@ public class BazaarProfitTests
             msg = new UpdateMessage
             {
                 ChatBatch = msgs.ToList(),
-                UserId = "test-user",
+                UserId = "12345678-1234-1234-1234-123456789012",
                 ReceivedAt = DateTime.UtcNow
             }
         };
@@ -518,5 +518,250 @@ public class BazaarProfitTrackerTests
 
         Assert.That(buyPriceForSold, Is.EqualTo(5000)); // 500 coins
         Assert.That(profit, Is.EqualTo(2500)); // 250 coins profit
+    }
+}
+
+/// <summary>
+/// Tests for race condition in Order Flip where chest GUI update removes the buy order
+/// before the "Order Flipped!" chat message is processed, preventing virtual buy record creation
+/// </summary>
+public class BazaarOrderFlipRaceConditionTests
+{
+    private BazaarOrderListener _listener = null!;
+    private StateObject _currentState = null!;
+    private Mock<ITransactionService> _transactionService = null!;
+    private Mock<IBazaarProfitTracker> _profitTracker = null!;
+    private Mock<IItemsApi> _itemsApi = null!;
+    private Mock<IOrderBookApi> _orderBookApi = null!;
+
+    [SetUp]
+    public void Setup()
+    {
+        _listener = new BazaarOrderListener();
+        _currentState = new StateObject();
+        _transactionService = new Mock<ITransactionService>();
+        _profitTracker = new Mock<IBazaarProfitTracker>();
+        _itemsApi = new Mock<IItemsApi>();
+        _orderBookApi = new Mock<IOrderBookApi>();
+        _itemsApi.Setup(i => i.ItemsSearchTermIdGetAsync(It.IsAny<string>(), 0, default)).ReturnsAsync(5);
+        _itemsApi.Setup(i => i.ItemsSearchTermGetAsync(It.IsAny<string>(), null, 0, default))
+            .ReturnsAsync((string term, string _, int _, System.Threading.CancellationToken _) => new List<Items.Client.Model.SearchResult>
+            {
+                new() { Tag = term.ToUpper().Replace(" ", "_"), Flags = new Items.Client.Model.ItemFlags?(Items.Client.Model.ItemFlags.BAZAAR) }
+            });
+    }
+
+    private MockedUpdateArgs CreateArgs(params string[] msgs)
+    {
+        var args = new MockedUpdateArgs
+        {
+            currentState = _currentState,
+            msg = new UpdateMessage
+            {
+                ChatBatch = msgs.ToList(),
+                UserId = "12345678-1234-1234-1234-123456789012",
+                ReceivedAt = DateTime.UtcNow
+            }
+        };
+        
+        args.AddService<IItemsApi>(_itemsApi.Object);
+        args.AddService<ITransactionService>(_transactionService.Object);
+        args.AddService<IBazaarProfitTracker>(_profitTracker.Object);
+        args.AddService<IOrderBookApi>(_orderBookApi.Object);
+        args.AddService<ILogger<BazaarOrderListener>>(NullLogger<BazaarOrderListener>.Instance);
+        
+        return args;
+    }
+
+    /// <summary>
+    /// THE CRITICAL RACE CONDITION TEST:
+    /// 
+    /// Sequence from the log file:
+    /// 1. User creates buy order for 160x Coal at 3.6 coins each
+    /// 2. Buy order fills (Coal received)
+    /// 3. User flips the order → "Order Flipped!" message
+    /// 4. **RACE**: Chest GUI update (showing new state without the buy order) processes BEFORE flip message
+    /// 5. Buy order is removed from state
+    /// 6. Flip message arrives but buy order is gone → RecordOrderFlipForProfit is NEVER called
+    /// 7. No virtual buy record is created
+    /// 8. Later, sell order is claimed → RecordSellOrder finds no buy records → flip not tracked
+    /// 
+    /// FIX: Keep a temporary in-memory cache of recently claimed buy orders (last 60 seconds)
+    /// to bridge the gap when state has been updated but messages are still processing.
+    /// </summary>
+    [Test]
+    public async Task OrderFlipRaceCondition_BuyOrderRemovedByChestUpdateBeforeFlipMessage_FixedWithCache()
+    {
+        // Step 1: Simulate buy order being claimed (this populates the cache)
+        _currentState.BazaarOffers.Add(new Offer
+        {
+            Amount = 160,
+            ItemName = "Coal",
+            PricePerUnit = 3.6,
+            IsSell = false,
+            Created = DateTime.UtcNow - TimeSpan.FromMinutes(1)
+        });
+
+        var claimBuyArgs = CreateArgs("[Bazaar] Claiming order...",
+            "[Bazaar] Claimed 160x Coal worth 576 coins bought for 3.6 each!");
+        
+        await _listener.Process(claimBuyArgs);
+
+        // Buy order is recorded
+        _profitTracker.Verify(p => p.RecordBuyOrder(
+            It.IsAny<Guid>(),
+            "COAL",
+            160,
+            5760,
+            It.IsAny<DateTime>()
+        ), Times.Once);
+
+        // Step 2: Chest GUI update removes the buy order from state (race condition)
+        _currentState.BazaarOffers.Clear();
+
+        // Step 3: "Order Flipped!" message arrives with empty state
+        var flipArgs = CreateArgs("[Bazaar] Order Flipped! 160x Coal for 96.0 coins of total expected profit.");
+        
+        await _listener.Process(flipArgs);
+
+        // Step 4: Verify that RecordOrderFlip WAS called (FIXED with cache)
+        _profitTracker.Verify(p => p.RecordOrderFlip(
+            It.IsAny<Guid>(),
+            "COAL",
+            160,
+            5760, // Buy price from cache
+            960,  // Expected profit
+            It.IsAny<DateTime>()
+        ), Times.Once); // ✓ FIX WORKS!
+
+        // Virtual buy record is created, so later sell claim will match and track the flip
+    }
+
+    /// <summary>
+    /// Original test showing the bug - when no cache entry exists (old behavior)
+    /// </summary>
+    [Test]
+    public async Task OrderFlipRaceCondition_BuyOrderRemovedByChestUpdateBeforeFlipMessage()
+    {
+        // Step 1: Setup - NO buy order in state (already removed by chest GUI update)
+        // This simulates the chest GUI being processed first
+        _currentState.BazaarOffers.Clear();
+
+        // Step 2: "Order Flipped!" message arrives, but buy order is already gone
+        var args = CreateArgs("[Bazaar] Order Flipped! 160x Coal for 96.0 coins of total expected profit.");
+        
+        await _listener.Process(args);
+
+        // Step 3: Verify that RecordOrderFlip was NOT called (current buggy behavior)
+        // because the buy order was not found in state
+        _profitTracker.Verify(p => p.RecordOrderFlip(
+            It.IsAny<Guid>(),
+            "COAL",
+            160,
+            It.IsAny<long>(),
+            960, // 96 coins * 10
+            It.IsAny<DateTime>()
+        ), Times.Never); // BUG: Never called!
+
+        // This demonstrates the race condition - no virtual buy record is created,
+        // so when the sell order is claimed later, there's nothing to match against
+    }
+
+    /// <summary>
+    /// Test showing the happy path: when flip message arrives while buy order
+    /// is still in state, RecordOrderFlip IS called and virtual buy record is created.
+    /// </summary>
+    [Test]
+    public async Task OrderFlipHappyPath_BuyOrderStillInState()
+    {
+        // Setup: Buy order exists in state (normal case)
+        _currentState.BazaarOffers.Add(new Offer
+        {
+            Amount = 160,
+            ItemName = "Coal",
+            PricePerUnit = 3.6, // 3.6 coins per unit = 576 total
+            IsSell = false,
+            Created = DateTime.UtcNow - TimeSpan.FromMinutes(1)
+        });
+
+        // "Order Flipped!" message arrives
+        var args = CreateArgs("[Bazaar] Order Flipped! 160x Coal for 96.0 coins of total expected profit.");
+        
+        await _listener.Process(args);
+
+        // Verify RecordOrderFlip WAS called (happy path)
+        _profitTracker.Verify(p => p.RecordOrderFlip(
+            It.IsAny<Guid>(),
+            "COAL",
+            160,
+            5760, // 576 coins * 10 (buy price)
+            960,  // 96 coins * 10 (expected profit)
+            It.IsAny<DateTime>()
+        ), Times.Once);
+
+        // Buy order should be removed from state
+        Assert.That(_currentState.BazaarOffers.Any(o => o.ItemName == "Coal" && !o.IsSell), Is.False);
+        
+        // Sell order should be added to state
+        Assert.That(_currentState.BazaarOffers.Any(o => o.ItemName == "Coal" && o.IsSell), Is.True);
+    }
+
+    /// <summary>
+    /// Test demonstrating the complete flow with the race condition:
+    /// Flip happens but no virtual buy record created → sell claim finds no buy records
+    /// </summary>
+    [Test]
+    public async Task CompleteRaceConditionFlow_FlipThenClaimWithNoBuyRecord()
+    {
+        // Setup: RecordSellOrder returns null (simulating no buy records found)
+        _profitTracker.Setup(p => p.RecordSellOrder(
+            It.IsAny<Guid>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<int>(),
+            It.IsAny<long>(),
+            It.IsAny<DateTime>()
+        )).ReturnsAsync((CompletedBazaarFlip?)null);
+
+        // Step 1: Flip happens with buy order already removed (race condition)
+        _currentState.BazaarOffers.Clear();
+        var flipArgs = CreateArgs("[Bazaar] Order Flipped! 160x Coal for 96.0 coins of total expected profit.");
+        await _listener.Process(flipArgs);
+
+        // RecordOrderFlip was NOT called due to race condition
+        _profitTracker.Verify(p => p.RecordOrderFlip(
+            It.IsAny<Guid>(),
+            "COAL",
+            It.IsAny<int>(),
+            It.IsAny<long>(),
+            It.IsAny<long>(),
+            It.IsAny<DateTime>()
+        ), Times.Never);
+
+        // Step 2: Later, sell order is claimed
+        _currentState.BazaarOffers.Add(new Offer
+        {
+            Amount = 160,
+            ItemName = "Coal",
+            PricePerUnit = 9.9,
+            IsSell = true,
+            Created = DateTime.UtcNow
+        });
+
+        var claimArgs = CreateArgs("[Bazaar] Claiming order...",
+            "[Bazaar] Claimed 1,548.4 coins from selling 160x Coal at 9.9 each!");
+        await _listener.Process(claimArgs);
+
+        // RecordSellOrder IS called, but returns null (no buy records to match)
+        _profitTracker.Verify(p => p.RecordSellOrder(
+            It.IsAny<Guid>(),
+            "COAL",
+            "Coal",
+            160,
+            15484,
+            It.IsAny<DateTime>()
+        ), Times.Once);
+
+        // Result: Flip is not tracked! This is the bug documented in the log file.
     }
 }
