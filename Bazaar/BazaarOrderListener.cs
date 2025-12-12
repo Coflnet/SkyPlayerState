@@ -289,6 +289,9 @@ public class BazaarOrderListener : UpdateListener
 
                     // Remove the buy order and add a sell order (the flip creates a sell order)
                     args.currentState.BazaarOffers.Remove(buyOrder);
+                    
+                    // Cancel the expiry notification for this buy order
+                    await CancelOrderNotification(args, buyOrder);
 
                     // Add a sell order to state - the sell price can be calculated from buy + expected profit
                     var sellPrice = buyPrice + expectedProfit;
@@ -391,6 +394,17 @@ public class BazaarOrderListener : UpdateListener
                     {
                         // Record the virtual buy order using the recovered buy price
                         await RecordOrderFlipForProfit(args, itemName, amount, totalBuyPriceInTenths.Value, expectedProfit);
+                        
+                        // Cancel the expiry notification for this buy order (create a temporary offer for the notification key)
+                        var buyOrderForNotification = new Offer
+                        {
+                            ItemName = itemName,
+                            Amount = amount,
+                            IsSell = false,
+                            PricePerUnit = totalBuyPriceInTenths.Value / amount / 10.0,
+                            Created = DateTime.UtcNow // Doesn't matter for notification key
+                        };
+                        await CancelOrderNotification(args, buyOrderForNotification);
 
                         // Add sell order to state (same as normal flip)
                         var totalSellPriceInTenths = totalBuyPriceInTenths.Value + expectedProfit;
@@ -499,6 +513,40 @@ public class BazaarOrderListener : UpdateListener
     private static long CalculateTotalBuyPrice(Offer order)
     {
         return (long)(order.PricePerUnit * order.Amount * 10);
+    }
+
+    /// <summary>
+    /// Cancels the bazaar expiry notification for an order that was flipped or filled
+    /// </summary>
+    private static async Task CancelOrderNotification(UpdateArgs args, Offer order)
+    {
+        try
+        {
+            if (args.msg.UserId == null)
+                return; // Not logged in, no notifications to cancel
+
+            var scheduleApi = args.GetService<IScheduleApi>();
+            var orderKey = BazaarListener.OrderKey(order);
+            
+            // Get all notifications and find the one matching this order
+            var notifications = await scheduleApi.ScheduleUserIdGetAsync(args.msg.UserId);
+            var orderNotification = notifications.FirstOrDefault(n => 
+                n?.Message?.SourceType?.StartsWith("BazaarExpire") == true && 
+                n.Message.Reference == orderKey);
+            
+            if (orderNotification != null)
+            {
+                await scheduleApi.ScheduleUserIdIdDeleteAsync(args.msg.UserId, orderNotification.Id);
+                args.GetService<ILogger<BazaarOrderListener>>()
+                    .LogInformation("Cancelled bazaar expiry notification for flipped order: {item} {amount} for {user}",
+                        order.ItemName, order.Amount, args.currentState.McInfo?.Name ?? args.currentState.PlayerId);
+            }
+        }
+        catch (Exception e)
+        {
+            args.GetService<ILogger<BazaarOrderListener>>()
+                .LogError(e, "Error cancelling bazaar notification for {item} {amount}", order.ItemName, order.Amount);
+        }
     }
 
     private static async Task ProduceFillEvent(UpdateArgs args, string itemName, Offer order)
