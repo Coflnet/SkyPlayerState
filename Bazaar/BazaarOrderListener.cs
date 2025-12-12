@@ -326,9 +326,7 @@ public class BazaarOrderListener : UpdateListener
         try
         {
             var orderBookApi = args.GetService<IOrderBookApi>();
-            var itemApi = args.GetService<IItemsApi>();
-            var searchResult = await itemApi.ItemsSearchTermGetAsync(itemName);
-            var tag = searchResult.First().Tag;
+string tag = await GetTagForName(args, itemName);
             await orderBookApi.AddOrderAsync(new()
             {
                 Amount = amount,
@@ -352,9 +350,7 @@ public class BazaarOrderListener : UpdateListener
         try
         {
             var orderApi = args.GetService<IOrderBookApi>();
-            var itemApi = args.GetService<IItemsApi>();
-            var searchResult = await itemApi.ItemsSearchTermGetAsync(itemName);
-            var tag = searchResult.First().Tag;
+            string tag = await GetTagForName(args, itemName);
             await orderApi.RemoveOrderAsync(tag, args.msg.UserId, order.Created);
             args.GetService<ILogger<BazaarOrderListener>>().LogInformation("Removed order from order book for {user} {item} {amount} {price}", args.currentState.McInfo.Name, tag, order.Amount, order.PricePerUnit);
         }
@@ -364,14 +360,20 @@ public class BazaarOrderListener : UpdateListener
         }
     }
 
+    private static async Task<string> GetTagForName(UpdateArgs args, string itemName)
+    {
+        var itemApi = args.GetService<IItemsApi>();
+        var searchResult = await itemApi.ItemsSearchTermGetAsync(itemName);
+        var tag = searchResult.OrderByDescending(s=>itemName.Equals(s.Text ?? "", StringComparison.OrdinalIgnoreCase) ? 1 : 0).First().Tag;
+        return tag;
+    }
+
     private static async Task RecordBuyOrderForProfit(UpdateArgs args, string itemName, int amount, long price)
     {
         try
         {
             var profitTracker = args.GetService<IBazaarProfitTracker>();
-            var itemApi = args.GetService<IItemsApi>();
-            var searchResult = await itemApi.ItemsSearchTermGetAsync(itemName);
-            var tag = searchResult.First().Tag;
+string tag = await GetTagForName(args, itemName);
             var playerUuid = args.currentState.McInfo.Uuid;
             await profitTracker.RecordBuyOrder(playerUuid, tag, amount, price, args.msg.ReceivedAt);
             args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
@@ -389,9 +391,7 @@ public class BazaarOrderListener : UpdateListener
         try
         {
             var profitTracker = args.GetService<IBazaarProfitTracker>();
-            var itemApi = args.GetService<IItemsApi>();
-            var searchResult = await itemApi.ItemsSearchTermGetAsync(itemName);
-            var tag = searchResult.First().Tag;
+string tag = await GetTagForName(args, itemName);
             var playerUuid = args.currentState.McInfo.Uuid;
             var flip = await profitTracker.RecordSellOrder(playerUuid, tag, itemName, amount, price, args.msg.ReceivedAt);
             if (flip != null)
@@ -412,9 +412,7 @@ public class BazaarOrderListener : UpdateListener
         try
         {
             var profitTracker = args.GetService<IBazaarProfitTracker>();
-            var itemApi = args.GetService<IItemsApi>();
-            var searchResult = await itemApi.ItemsSearchTermGetAsync(itemName);
-            var tag = searchResult.First().Tag;
+string tag = await GetTagForName(args, itemName);
             var playerUuid = args.currentState.McInfo.Uuid;
             await profitTracker.RecordOrderFlip(playerUuid, tag, amount, buyPrice, expectedProfit, args.msg.ReceivedAt);
             args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
