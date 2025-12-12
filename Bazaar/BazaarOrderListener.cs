@@ -200,7 +200,7 @@ public class BazaarOrderListener : UpdateListener
             }
             else
             {
-                var parts = Regex.Match(msg, @"Claimed ([.\d,]+) coins from (.*) ([\d,]+)x (.*) at ").Groups;
+                var parts = Regex.Match(msg, @"Claimed ([\.\d,]+) coins from (.*) ([\d,]+)x (.*) at ").Groups;
                 amount = ParseInt(parts[3].Value);
                 itemName = parts[4].Value;
                 price = ParseCoins(parts[1].Value);
@@ -411,6 +411,11 @@ public class BazaarOrderListener : UpdateListener
                 args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
                     "Recorded bazaar flip for {player}: {amount}x {item}, profit: {profit} coins",
                     args.currentState.McInfo.Name, flip.Amount, flip.ItemName, flip.Profit / 10.0);
+            } else
+            {
+                args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
+                    "Recorded bazaar sell order for {player}: {amount}x {item} at {price} coins",
+                    args.currentState.McInfo.Name, amount, itemName, price / 10.0);
             }
         }
         catch (Exception e)
