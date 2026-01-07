@@ -72,4 +72,73 @@ public class CassandraCompareTests
         var cassandraItem2 = JsonConvert.DeserializeObject<CassandraItem>(JsonConvert.SerializeObject(new CassandraItem(item)));
         Assert.That(compare.Equals(cassandraItem, cassandraItem2));
     }
+
+    [Test]
+    public void PetWithDifferentPetInfo()
+    {
+        var compare = new CassandraItemCompare() as IEqualityComparer<CassandraItem>;
+        var petInfo = new
+        {
+            type = "TIGER",
+            active = false,
+            exp = 16970753.571252737,
+            tier = "LEGENDARY",
+            hideInfo = false,
+            heldItem = "CROCHET_TIGER_PLUSHIE",
+            candyUsed = 0,
+            uuid = "2329d640-e2a5-403e-b340-aa744ae561a9",
+            uniqueId = "18f993b4-775b-418b-83b3-29a3909aeb9b",
+            hideRightClick = false,
+            noMove = false,
+            extraData = new { },
+            petSoulbound = false
+        };
+        var item = new Item()
+        {
+            Tag = "PET_TIGER",
+            ExtraAttributes = new Dictionary<string, object>() { 
+                { "uuid", "2329d640-e2a5-403e-b340-aa744ae561a9" },
+                { "uid", "aa744ae561a9" },
+                { "petInfo", petInfo },
+                { "timestamp", 1767815196139 },
+                { "tier", 5 }
+            }
+        };
+        var cassandraItem1 = new CassandraItem(item);
+
+        // Create a second pet with different volatile petInfo fields
+        var petInfo2 = new
+        {
+            type = "TIGER",
+            active = true,  // Different
+            exp = 17000000.0,  // Different
+            tier = "LEGENDARY",
+            hideInfo = true,  // Different
+            heldItem = "CROCHET_TIGER_PLUSHIE",
+            candyUsed = 0,
+            uuid = "2329d640-e2a5-403e-b340-aa744ae561a9",
+            uniqueId = "different-id",  // Different
+            hideRightClick = true,  // Different
+            noMove = true,  // Different
+            extraData = new { },
+            petSoulbound = false
+        };
+        var item2 = new Item()
+        {
+            Tag = "PET_TIGER",
+            ExtraAttributes = new Dictionary<string, object>() { 
+                { "uuid", "2329d640-e2a5-403e-b340-aa744ae561a9" },
+                { "uid", "aa744ae561a9" },
+                { "petInfo", petInfo2 },
+                { "timestamp", 1767815196139 },
+                { "tier", 5 }
+            }
+        };
+        var cassandraItem2 = new CassandraItem(item2);
+        
+        // Should be equal despite different petInfo volatile fields
+        Assert.That(compare.Equals(cassandraItem1, cassandraItem2), "Pets with same UUID/Tag but different petInfo volatile fields should be equal");
+        // Hashcodes should also match
+        Assert.That(compare.GetHashCode(cassandraItem1), Is.EqualTo(compare.GetHashCode(cassandraItem2)));
+    }
 }

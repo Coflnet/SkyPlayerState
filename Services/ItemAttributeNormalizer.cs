@@ -55,6 +55,17 @@ public static class ItemAttributeNormalizer
         foreach (var key in VolatileAttributeKeys)
             attrs.Remove(key);
 
+        // Handle petInfo nested dictionary
+        if (attrs.TryGetValue("petInfo", out var petInfoGeneric) && petInfoGeneric is Dictionary<string, object> petInfo)
+        {
+            petInfo.Remove("active");
+            petInfo.Remove("noMove");
+            petInfo.Remove("uniqueId");
+            petInfo.Remove("exp");
+            petInfo.Remove("hideInfo");
+            petInfo.Remove("hideRightClick");
+        }
+
         // Remove personal_deletor and *_data fields
         var keysToRemove = attrs.Keys.Where(k => k.EndsWith("_data") || k.StartsWith("personal_deletor_")).ToList();
         foreach (var key in keysToRemove)

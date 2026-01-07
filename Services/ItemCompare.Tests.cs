@@ -122,5 +122,66 @@ public class ItemCompareTests
         // Items should be considered equal because drill_fuel is volatile and should be ignored
         Assert.That(comparer.Equals(a, b), "Items with same UUID/Tag but different drill_fuel should be equal");
     }
+    [Test]
+    public void ComparePetWithDifferentPetInfo()
+    {
+        var comparer = new ItemCompare();
+        var petInfoA = new Dictionary<string, object>()
+        {
+            { "type", "TIGER" },
+            { "active", false },
+            { "exp", 16970753.571252737 },
+            { "tier", "LEGENDARY" },
+            { "hideInfo", false },
+            { "heldItem", "CROCHET_TIGER_PLUSHIE" },
+            { "candyUsed", 0 },
+            { "uuid", "2329d640-e2a5-403e-b340-aa744ae561a9" },
+            { "uniqueId", "18f993b4-775b-418b-83b3-29a3909aeb9b" },
+            { "hideRightClick", false },
+            { "noMove", false },
+            { "extraData", new Dictionary<string, object>() },
+            { "petSoulbound", false }
+        };
+        var petInfoB = new Dictionary<string, object>()
+        {
+            { "type", "TIGER" },
+            { "active", true },  // Different
+            { "exp", 17000000.0 },  // Different
+            { "tier", "LEGENDARY" },
+            { "hideInfo", true },  // Different
+            { "heldItem", "CROCHET_TIGER_PLUSHIE" },
+            { "candyUsed", 0 },
+            { "uuid", "2329d640-e2a5-403e-b340-aa744ae561a9" },
+            { "uniqueId", "different-unique-id" },  // Different
+            { "hideRightClick", true },  // Different
+            { "noMove", true },  // Different
+            { "extraData", new Dictionary<string, object>() },
+            { "petSoulbound", false }
+        };
+        var a = new Item()
+        {
+            Tag = "PET_TIGER",
+            ExtraAttributes = new() { 
+                { "uuid", "2329d640-e2a5-403e-b340-aa744ae561a9" },
+                { "uid", "aa744ae561a9" },
+                { "petInfo", petInfoA },
+                { "timestamp", 1767815196139 },
+                { "tier", 5 }
+            }
+        };
+        var b = new Item()
+        {
+            Tag = "PET_TIGER",
+            ExtraAttributes = new() { 
+                { "uuid", "2329d640-e2a5-403e-b340-aa744ae561a9" },
+                { "uid", "aa744ae561a9" },
+                { "petInfo", petInfoB },
+                { "timestamp", 1767815196139 },
+                { "tier", 5 }
+            }
+        };
+        // Items should be considered equal because petInfo volatile fields (active, exp, uniqueId, hideInfo, hideRightClick, noMove) should be ignored
+        Assert.That(comparer.Equals(a, b), "Pets with same UUID/Tag but different petInfo volatile fields should be equal");
+    }
 }
 #nullable restore
