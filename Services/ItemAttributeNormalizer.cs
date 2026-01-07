@@ -36,6 +36,16 @@ public static class ItemAttributeNormalizer
             return null;
         
         var result = new Dictionary<string, object>(attrs);
+        
+        // Convert any nested JObjects to dictionaries for consistent comparison
+        foreach (var key in result.Keys.ToList())
+        {
+            if (result[key] is JObject jobj)
+            {
+                result[key] = jobj.ToObject<Dictionary<string, object>>() ?? new Dictionary<string, object>();
+            }
+        }
+        
         RemoveVolatileKeys(result);
         return result;
     }
@@ -55,21 +65,45 @@ public static class ItemAttributeNormalizer
         foreach (var key in VolatileAttributeKeys)
             attrs.Remove(key);
 
-        // Handle petInfo nested dictionary
-        if (attrs.TryGetValue("petInfo", out var petInfoGeneric) && petInfoGeneric is Dictionary<string, object> petInfo)
+        // Handle petInfo nested object - deeply clean volatile fields from within it
+        if (attrs.TryGetValue("petInfo", out var petInfoGeneric))
         {
-            petInfo.Remove("active");
-            petInfo.Remove("noMove");
-            petInfo.Remove("uniqueId");
-            petInfo.Remove("exp");
-            petInfo.Remove("hideInfo");
-            petInfo.Remove("hideRightClick");
+            if (petInfoGeneric is Dictionary<string, object> petInfo)
+            {
+                RemoveVolatilePetInfoKeys(petInfo);
+            }
+            else if (petInfoGeneric is JObject petInfoJObj)
+            {
+                RemoveVolatilePetInfoKeysFromJObject(petInfoJObj);
+            }
+            // For other types, we need to normalize them as well
+            // This handles the case where Newtonsoft creates intermediate types
         }
 
         // Remove personal_deletor and *_data fields
         var keysToRemove = attrs.Keys.Where(k => k.EndsWith("_data") || k.StartsWith("personal_deletor_")).ToList();
         foreach (var key in keysToRemove)
             attrs.Remove(key);
+    }
+
+    private static void RemoveVolatilePetInfoKeys(Dictionary<string, object> petInfo)
+    {
+        petInfo.Remove("active");
+        petInfo.Remove("noMove");
+        petInfo.Remove("uniqueId");
+        petInfo.Remove("exp");
+        petInfo.Remove("hideInfo");
+        petInfo.Remove("hideRightClick");
+    }
+
+    private static void RemoveVolatilePetInfoKeysFromJObject(JObject petInfo)
+    {
+        petInfo.Remove("active");
+        petInfo.Remove("noMove");
+        petInfo.Remove("uniqueId");
+        petInfo.Remove("exp");
+        petInfo.Remove("hideInfo");
+        petInfo.Remove("hideRightClick");
     }
 
     private static void RemoveVolatileKeysFromJObject(JObject obj)

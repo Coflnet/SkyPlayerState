@@ -183,5 +183,76 @@ public class ItemCompareTests
         // Items should be considered equal because petInfo volatile fields (active, exp, uniqueId, hideInfo, hideRightClick, noMove) should be ignored
         Assert.That(comparer.Equals(a, b), "Pets with same UUID/Tag but different petInfo volatile fields should be equal");
     }
+    [Test]
+    public void ComparePetElephantJsonDeserialized()
+    {
+        var comparer = new ItemCompare();
+        // Test with the actual elephant example, simulating JSON deserialization
+        var elephantJson = @"{
+            ""Id"": null,
+            ""ItemName"": ""§7[Lvl 100] §6Elephant"",
+            ""Tag"": ""PET_ELEPHANT"",
+            ""ExtraAttributes"": {
+                ""petInfo"": {
+                    ""type"": ""ELEPHANT"",
+                    ""active"": false,
+                    ""exp"": 76125859.9067213,
+                    ""tier"": ""LEGENDARY"",
+                    ""hideInfo"": false,
+                    ""heldItem"": ""GREEN_BANDANA"",
+                    ""candyUsed"": 1,
+                    ""uuid"": ""90af59fc-0194-4771-971f-1bccb72475ea"",
+                    ""uniqueId"": ""c596c258-b399-4ce6-8518-8fbf06b210c4"",
+                    ""hideRightClick"": false,
+                    ""noMove"": false,
+                    ""extraData"": {},
+                    ""petSoulbound"": false
+                },
+                ""uid"": ""1bccb72475ea"",
+                ""uuid"": ""90af59fc-0194-4771-971f-1bccb72475ea"",
+                ""timestamp"": 1767819354974,
+                ""tier"": 5
+            },
+            ""Enchantments"": null,
+            ""Color"": null,
+            ""Count"": 1
+        }";
+        
+        var elephantJson2 = @"{
+            ""Id"": null,
+            ""ItemName"": ""§7[Lvl 100] §6Elephant"",
+            ""Tag"": ""PET_ELEPHANT"",
+            ""ExtraAttributes"": {
+                ""petInfo"": {
+                    ""type"": ""ELEPHANT"",
+                    ""active"": true,
+                    ""exp"": 76200000.0,
+                    ""tier"": ""LEGENDARY"",
+                    ""hideInfo"": true,
+                    ""heldItem"": ""GREEN_BANDANA"",
+                    ""candyUsed"": 1,
+                    ""uuid"": ""90af59fc-0194-4771-971f-1bccb72475ea"",
+                    ""uniqueId"": ""different-unique-id"",
+                    ""hideRightClick"": true,
+                    ""noMove"": true,
+                    ""extraData"": {},
+                    ""petSoulbound"": false
+                },
+                ""uid"": ""1bccb72475ea"",
+                ""uuid"": ""90af59fc-0194-4771-971f-1bccb72475ea"",
+                ""timestamp"": 1767819354974,
+                ""tier"": 5
+            },
+            ""Enchantments"": null,
+            ""Color"": null,
+            ""Count"": 1
+        }";
+        
+        var a = Newtonsoft.Json.JsonConvert.DeserializeObject<Item>(elephantJson)!;
+        var b = Newtonsoft.Json.JsonConvert.DeserializeObject<Item>(elephantJson2)!;
+        
+        // Items should be considered equal despite different petInfo volatile fields
+        Assert.That(comparer.Equals(a, b), "Elephants with same UUID/Tag but different petInfo volatile fields should be equal");
+    }
 }
 #nullable restore
