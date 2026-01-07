@@ -81,5 +81,46 @@ public class ItemCompareTests
             };
         }
     }
+    [Test]
+    public void CompareDrillWithDifferentFuel()
+    {
+        var comparer = new ItemCompare();
+        var a = new Item()
+        {
+            Tag = "MITHRIL_DRILL_2",
+            ExtraAttributes = new() { 
+                { "rarity_upgrades", 1 }, 
+                { "drill_part_upgrade_module", "goblin_omelette" }, 
+                { "drill_part_engine", "mithril_drill_engine" }, 
+                { "drill_fuel", 6464 },
+                { "modifier", "fleet" }, 
+                { "uid", "9b43ab629e84" }, 
+                { "drill_part_fuel_tank", "mithril_fuel_tank" }, 
+                { "uuid", "b528528d-ce3d-4daa-9ad8-9b43ab629e84" }, 
+                { "timestamp", 1766804897464 }, 
+                { "tier", 4 } 
+            },
+            Enchantments = new() { { "efficiency", 5 }, { "fortune", 3 }, { "ultimate_flowstate", 3 }, { "experience", 3 } }
+        };
+        var b = new Item()
+        {
+            Tag = "MITHRIL_DRILL_2",
+            ExtraAttributes = new() { 
+                { "rarity_upgrades", 1 }, 
+                { "drill_part_fuel_tank", "mithril_fuel_tank" }, 
+                { "uuid", "b528528d-ce3d-4daa-9ad8-9b43ab629e84" }, 
+                { "drill_fuel", 6532 },
+                { "drill_part_upgrade_module", "goblin_omelette" }, 
+                { "drill_part_engine", "mithril_drill_engine" }, 
+                { "uid", "9b43ab629e84" }, 
+                { "modifier", "fleet" }, 
+                { "timestamp", 1766804897464 }, 
+                { "tier", 4 } 
+            },
+            Enchantments = new() { { "efficiency", 5 }, { "experience", 3 }, { "fortune", 3 }, { "ultimate_flowstate", 3 } }
+        };
+        // Items should be considered equal because drill_fuel is volatile and should be ignored
+        Assert.That(comparer.Equals(a, b), "Items with same UUID/Tag but different drill_fuel should be equal");
+    }
 }
 #nullable restore

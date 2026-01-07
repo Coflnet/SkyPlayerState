@@ -22,7 +22,9 @@ public class ItemCompare : IEqualityComparer<Item>
 
     private bool AttributeMatch(Item x, Item y)
     {
-        var matches = x.ExtraAttributes == null && y.ExtraAttributes == null || x.ExtraAttributes != null && y.ExtraAttributes != null && x.ExtraAttributes.Count == y.ExtraAttributes.Count && !x.ExtraAttributes.Except(y.ExtraAttributes, internalComparer).Any();
+        var xNorm = ItemAttributeNormalizer.NormalizeDictionary(x.ExtraAttributes);
+        var yNorm = ItemAttributeNormalizer.NormalizeDictionary(y.ExtraAttributes);
+        var matches = xNorm == null && yNorm == null || xNorm != null && yNorm != null && xNorm.Count == yNorm.Count && !xNorm.Except(yNorm, internalComparer).Any();
         if (matches)
             return true;
         return false;

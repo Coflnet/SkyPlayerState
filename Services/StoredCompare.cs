@@ -20,37 +20,7 @@ public class CassandraItemCompare : IEqualityComparer<CassandraItem>
     private static JObject Normalize(CassandraItem? x)
     {
         var left = JsonConvert.DeserializeObject<JObject>(x?.ExtraAttributesJson ?? "{}");
-        left!.Remove("drill_fuel");
-        left.Remove("compact_blocks");
-        left.Remove("bottle_of_jyrre_seconds");
-        left.Remove("bottle_of_jyrre_last_update");
-        left.Remove("builder's_ruler_data");
-        left.Remove("champion_combat_xp");
-        left.Remove("farmed_cultivating");
-        left.Remove("mined_crops");
-        if(left.TryGetValue("petInfo", out var petInfoGeneric) && petInfoGeneric is JObject petInfo)
-        {
-            petInfo.Remove("active");
-            petInfo.Remove("noMove");
-            petInfo.Remove("uniqueId");
-            petInfo.Remove("exp");
-            petInfo.Remove("noMove");
-            petInfo.Remove("hideInfo");
-            petInfo.Remove("hideRightClick");
-            left.Remove("timestamp");
-            left.Remove("tier");
-        }
-        foreach (var item in left.Properties().ToList())
-        {
-            if (item.Value.Type == JTokenType.Integer && item.Value.Value<long>() > 20)
-                left.Remove(item.Name);
-            // also for float 
-            if (item.Value.Type == JTokenType.Float)
-                left.Remove(item.Name);
-            if(item.Name.EndsWith("_data") || item.Name.StartsWith("personal_deletor_"))
-                left.Remove(item.Name);
-        }
-        return left;
+        return ItemAttributeNormalizer.NormalizeJObject(left!);
     }
 
     int IEqualityComparer<CassandraItem>.GetHashCode(CassandraItem obj)
@@ -60,13 +30,13 @@ public class CassandraItemCompare : IEqualityComparer<CassandraItem>
         foreach (var item in left)
         {
             hash = hash * 23 + item.Key.GetHashCode();
-            if (item.Value.Type == JTokenType.Integer)
+            if (item.Value?.Type == JTokenType.Integer)
                 hash = hash * 23 + unchecked((int)item.Value.Value<long>());
-            else if (item.Value.Type == JTokenType.Float)
+            else if (item.Value?.Type == JTokenType.Float)
                 hash = hash * 23 + item.Value.Value<double>().GetHashCode();
-            else if (item.Value.Type == JTokenType.String)
+            else if (item.Value?.Type == JTokenType.String)
                 hash = hash * 23 + item.Value.Value<string>()?.GetHashCode() ?? 0;
-            else
+            else if (item.Value != null)
                 // for nested objects
                 hash = hash * 23 + item.Value.ToString().GetHashCode();
         }
