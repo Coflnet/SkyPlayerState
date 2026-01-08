@@ -44,6 +44,18 @@ public static class ItemAttributeNormalizer
             {
                 result[key] = jobj.ToObject<Dictionary<string, object>>() ?? new Dictionary<string, object>();
             }
+            // Also recursively normalize nested dictionaries
+            else if (result[key] is Dictionary<string, object> nestedDict)
+            {
+                // For nested dicts that might contain JObjects, convert them
+                foreach (var nestedKey in nestedDict.Keys.ToList())
+                {
+                    if (nestedDict[nestedKey] is JObject nestedJObj)
+                    {
+                        nestedDict[nestedKey] = nestedJObj.ToObject<Dictionary<string, object>>() ?? new Dictionary<string, object>();
+                    }
+                }
+            }
         }
         
         RemoveVolatileKeys(result);

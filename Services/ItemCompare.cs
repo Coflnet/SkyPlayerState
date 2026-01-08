@@ -13,11 +13,14 @@ public class ItemCompare : IEqualityComparer<Item>
     private ElementComparer internalComparer = new();
     public bool Equals(Item? x, Item? y)
     {
-        return x != null && y != null &&
-            (AttributeMatch(x, y))
-           && EnchantMatch(x, y)
-           && x.Color == y.Color
-           && x.Tag == y.Tag;
+        if (x == null || y == null) return x == y;
+        
+        var attrMatch = AttributeMatch(x, y);
+        var enchMatch = EnchantMatch(x, y);
+        var colorMatch = x.Color == y.Color;
+        var tagMatch = x.Tag == y.Tag;
+        
+        return attrMatch && enchMatch && colorMatch && tagMatch;
     }
 
     private bool AttributeMatch(Item x, Item y)
@@ -44,48 +47,66 @@ public class ItemCompare : IEqualityComparer<Item>
 
     public class ElementComparer : IEqualityComparer<KeyValuePair<string, object>>
     {
-        public bool Equals(KeyValuePair<string, object> x, KeyValuePair<string, object> y)
+    public bool Equals(KeyValuePair<string, object> x, KeyValuePair<string, object> y)
+    {
+        // Handle case where both values are dictionaries - compare their contents
+        if (x.Value is Dictionary<string, object> xDict && y.Value is Dictionary<string, object> yDict)
         {
-            if (x.Value is IEnumerable<KeyValuePair<object, object>> dumb)
-                x = new(x.Key, dumb.Select(a => new KeyValuePair<string, object>(a.Key.ToString()!, a.Value)));
-            if (y.Value is IEnumerable<KeyValuePair<object, object>> dumb2)
-                y = new(y.Key, dumb2.Select(a => new KeyValuePair<string, object>(a.Key.ToString()!, a.Value)));
-
-            if (x.Value is IEnumerable<object> jx && y.Value is IEnumerable<object> jy)
+            if (xDict.Count != yDict.Count) return false;
+            
+            foreach (var key in xDict.Keys)
             {
-                var combined = jx.Zip(jy);
-                foreach (var item in combined)
+                if (!yDict.TryGetValue(key, out var yVal)) return false;
+                
+                var xVal = xDict[key];
+                
+                // Recursively handle nested dictionaries
+                if (!Equals(new KeyValuePair<string, object>(key, xVal), new KeyValuePair<string, object>(key, yVal)))
                 {
-                    var second = item.Second;
-                    var first = item.First;
-                    if (item.Second is Dictionary<object, object> dict)
-                        second = dict.ToDictionary(x => x.Key.ToString()!, x => x.Value);
-                    if (item.First is Dictionary<object, object> dict2)
-                        first = dict2.ToDictionary(x => x.Key.ToString()!, x => x.Value);
-                    if (item.First is KeyValuePair<string, object> el1 && second is KeyValuePair<string, object> el2)
-                    {
-                        if (!Equals(el1, el2))
-                            return false;
-                    }
-                    else if (item.First is Dictionary<string, object> list1 && second is Dictionary<string, object> list2)
-                    {
-                        if (!this.Equal(list1, list2))
-                            return false;
-                    }
-                    else if (!Equals(item.First, item.Second))
+                    return false;
+                }
+            }
+            return true;
+        }
+        
+        if (x.Value is IEnumerable<KeyValuePair<object, object>> dumb)
+            x = new(x.Key, dumb.Select(a => new KeyValuePair<string, object>(a.Key.ToString()!, a.Value)));
+        if (y.Value is IEnumerable<KeyValuePair<object, object>> dumb2)
+            y = new(y.Key, dumb2.Select(a => new KeyValuePair<string, object>(a.Key.ToString()!, a.Value)));
+
+        if (x.Value is IEnumerable<object> jx && y.Value is IEnumerable<object> jy)
+        {
+            var combined = jx.Zip(jy);
+            foreach (var item in combined)
+            {
+                var second = item.Second;
+                var first = item.First;
+                if (item.Second is Dictionary<object, object> dict)
+                    second = dict.ToDictionary(x => x.Key.ToString()!, x => x.Value);
+                if (item.First is Dictionary<object, object> dict2)
+                    first = dict2.ToDictionary(x => x.Key.ToString()!, x => x.Value);
+                if (item.First is KeyValuePair<string, object> el1 && second is KeyValuePair<string, object> el2)
+                {
+                    if (!Equals(el1, el2))
                         return false;
                 }
-                return true;
+                else if (item.First is Dictionary<string, object> list1 && second is Dictionary<string, object> list2)
+                {
+                    if (!this.Equal(list1, list2))
+                        return false;
+                }
+                else if (!Equals(item.First, item.Second))
+                    return false;
             }
-
-            return x.Key == y.Key && (x.Value.Equals(y.Value)
-                || x.Value is IEnumerable<KeyValuePair<string, object>> xi && y.Value is IEnumerable<KeyValuePair<string, object>> yi && this.Equal(xi, yi)
-                || x.Value is IEnumerable<object> xe && y.Value is IEnumerable<object> ye && Enumerable.SequenceEqual<object>(xe, ye)
-                || IsNumeric(x.Value) && Convert.ToInt64(x.Value) == Convert.ToInt64(y.Value)
-            );
+            return true;
         }
 
-        private static bool IsNumeric(object x)
+        return x.Key == y.Key && (x.Value.Equals(y.Value)
+            || x.Value is IEnumerable<KeyValuePair<string, object>> xi && y.Value is IEnumerable<KeyValuePair<string, object>> yi && this.Equal(xi, yi)
+            || x.Value is IEnumerable<object> xe && y.Value is IEnumerable<object> ye && Enumerable.SequenceEqual<object>(xe, ye)
+            || IsNumeric(x.Value) && Convert.ToInt64(x.Value) == Convert.ToInt64(y.Value)
+        );
+    }        private static bool IsNumeric(object x)
         {
             return x is byte || x is short || x is int || x is long || x is ushort || x is uint || x is ulong || x is double || x is float;
         }

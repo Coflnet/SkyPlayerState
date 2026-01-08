@@ -72,6 +72,47 @@ public class ItemIdAssignUpdateTest
     }
 
     [Test]
+    public async Task PetCassandraToKafkaConversion()
+    {
+        // This simulates real data flow: item stored in Cassandra with id, then consumed from Kafka without id
+        var kafkaJsonString = """
+        {"Id":null,"ItemName":"§7[Lvl 100] §6Hound","Tag":"PET_HOUND","ExtraAttributes":{"petInfo":{"type":"HOUND","active":false,"exp":44349889.503324755,"tier":"LEGENDARY","hideInfo":false,"heldItem":"DWARF_TURTLE_SHELMET","candyUsed":0,"uuid":"7652a510-0c0d-4d88-af53-59d50a6a72e9","uniqueId":"63f70e93-1b40-4b38-a2d2-a4bc316cd4bd","hideRightClick":false,"noMove":false,"extraData":{},"petSoulbound":false},"uid":"59d50a6a72e9","uuid":"7652a510-0c0d-4d88-af53-59d50a6a72e9","timestamp":1767870006897,"tier":5},"Enchantments":null,"Color":null,"Description":"§8Combat Pet\n\n§7True Defense: §f+10\n§7Strength: §c+40\n§7Bonus Attack Speed: §e+25%\n§7Ferocity: §c+5\n§7Speed: §f+10\n\n§6Scavenger\n§7§7Gain §a+100 §7coins per monster kill\n\n§6Finder\n§7§7Increases the chance for monsters\n§7to drop their armor by §a30%§7.\n\n§6Pack Slayer\n§7§7Gain §b1.5x §7Combat XP §7against §aWolves§7.\n\n§6Held Item: §9Dwarf Turtle Shelmet\n§7Grants §f+10❂ True Defense §7and\n§7makes the pet's owner immune to\n§7knockback.\n\n§b§lMAX LEVEL\n§8▸ 44,349,889 XP\n\n§7§eRight-click to add this pet to your\n§epet menu!\n\n§6§lLEGENDARY","Count":1}
+        """;
+
+        var kafkaItem = JsonConvert.DeserializeObject<Item>(kafkaJsonString)!;
+        var cassandraItem = new CassandraItem(kafkaItem);
+        cassandraItem.Id = Random.Shared.Next(1000000, 9999999);
+        
+        var retrievedFromDb = cassandraItem.ToTransfer();
+        
+        // Normalize both items: convert JTokens to native types
+        var normalized = new Item(retrievedFromDb);
+        foreach (var kvp in retrievedFromDb.ExtraAttributes!.Keys.ToList())
+        {
+            if (retrievedFromDb.ExtraAttributes[kvp] is JToken token)
+                normalized.ExtraAttributes![kvp] = CassandraItem.ConvertJTokenToNative(token);
+        }
+        
+        // Also normalize the new Kafka item to convert JObjects to Dictionaries
+        var newKafkaItem = JsonConvert.DeserializeObject<Item>(kafkaJsonString)!;
+        if (newKafkaItem.ExtraAttributes != null)
+        {
+            foreach (var kvp in newKafkaItem.ExtraAttributes.Keys.ToList())
+            {
+                if (newKafkaItem.ExtraAttributes[kvp] is JToken token)
+                    newKafkaItem.ExtraAttributes[kvp] = CassandraItem.ConvertJTokenToNative(token);
+            }
+        }
+        
+        var comparer = new ItemCompare();
+        comparer.Equals(newKafkaItem, normalized).Should().BeTrue("Pet should match after Cassandra->Kafka conversion");
+
+        var listener = new ItemIdAssignUpdate();
+        var result = listener.Join([newKafkaItem], [normalized]).First();
+        result.Id.Should().Be(cassandraItem.Id, "Pet should receive the stored ID from Cassandra");
+    }
+
+    [Test]
     public async Task StoredDarkClaymore()
     {
         var json = """
@@ -119,12 +160,12 @@ public class ItemIdAssignUpdateTest
         }
         """;
 
-        var existing = new CassandraItem(JsonConvert.DeserializeObject<Item>(json)).ToTransfer();
+        var existing = new CassandraItem(JsonConvert.DeserializeObject<Item>(json)!).ToTransfer();
         var copy = new Item(existing);
         foreach (var kvp in existing.ExtraAttributes!.Keys)
         {
             if (existing.ExtraAttributes[kvp] is JToken token)
-                copy.ExtraAttributes[kvp] = CassandraItem.ConvertJTokenToNative(token);
+                copy.ExtraAttributes![kvp] = CassandraItem.ConvertJTokenToNative(token);
         }
         var newItem = MessagePackSerializer.Deserialize<Item>(MessagePackSerializer.Serialize(copy));
         existing.Id = Random.Shared.Next(1, 1000000);
@@ -137,6 +178,37 @@ public class ItemIdAssignUpdateTest
         Assert.That(sum.Id, Is.EqualTo(existing.Id));
     }
 
+
+    private bool AreDictEqual(Dictionary<string, object>? d1, Dictionary<string, object>? d2)
+    {
+        if (d1 == null && d2 == null) return true;
+        if (d1 == null || d2 == null) return false;
+        if (d1.Count != d2.Count) return false;
+        
+        foreach (var key in d1.Keys)
+        {
+            if (!d2.ContainsKey(key)) return false;
+            
+            var v1 = d1[key];
+            var v2 = d2[key];
+            
+            if (v1 is Dictionary<string, object> nestedD1 && v2 is Dictionary<string, object> nestedD2)
+            {
+                if (!AreDictEqual(nestedD1, nestedD2)) return false;
+            }
+            else if (!object.Equals(v1, v2))
+            {
+                if (v1 != null && v2 != null)
+                {
+                    var v1Str = $"{v1} ({v1.GetType().Name})";
+                    var v2Str = $"{v2} ({v2.GetType().Name})";
+                    Console.WriteLine($"Dict value mismatch at key '{key}': {v1Str} vs {v2Str}");
+                }
+                return false;
+            }
+        }
+        return true;
+    }
 
     private MockedUpdateArgs CreateArgs(params Item[] items)
     {

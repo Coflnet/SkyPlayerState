@@ -16,15 +16,24 @@ public class ItemIdAssignUpdate : UpdateListener
     {
         var service = args.GetService<IItemsService>();
         var collection = args.msg.Chest.Items;
+        
+        // Normalize items: convert JObjects to Dictionaries so they can be compared with stored items
+        // This is necessary because Kafka deserialization creates JObject instances for nested structures,
+        // while Cassandra retrieval converts them to Dictionaries
+        foreach (var item in collection)
+        {
+            NormalizeItem(item);
+        }
+        
         var chestName = args.msg.Chest.Name;
         var toSearchFor = collection.Where(i => CanGetAnIdByStoring(i, chestName)).ToHashSet();
         var localPresent = new Dictionary<Item, Item>(args.currentState.RecentViews.SelectMany(s => s.Items)
                 .Where(i => i.Id != null)
                 .GroupBy(e => e, comparer)
                 .Select(e => e.First()).ToDictionary(e => e, comparer), comparer);
-        var foundLocal = toSearchFor.Select(s => localPresent.GetValueOrDefault(s)).Where(s => s != null).ToList();
-        var toSearchInDb = toSearchFor.Except(foundLocal, comparer).ToList();
-        var itemsWithIds = toSearchInDb.Count > 0 ? await service.FindOrCreate(toSearchInDb) : new List<Item>();
+        var foundLocal = toSearchFor.Select(s => localPresent.GetValueOrDefault(s)).Where(s => s != null).ToList()!;
+        var toSearchInDb = toSearchFor.Except(foundLocal, (IEqualityComparer<Item?>)comparer).ToList();
+        var itemsWithIds = toSearchInDb.Count > 0 ? await service.FindOrCreate(toSearchInDb!) : new List<Item>();
 
         if (toSearchFor.Count > 0)
             Console.WriteLine("to search: " + toSearchFor.Count + " found local: " + foundLocal.Count + " from db: " + itemsWithIds.Count + " present: " + localPresent.Count);
@@ -33,7 +42,21 @@ public class ItemIdAssignUpdate : UpdateListener
         Activity.Current?.AddTag("from db", itemsWithIds.Count.ToString());
         Activity.Current?.AddTag("present", localPresent.Count.ToString());
         Activity.Current?.AddTag("chest", chestName);
-        args.msg.Chest.Items = Join(collection, itemsWithIds.Concat(foundLocal)).ToList();
+        args.msg.Chest.Items = Join(collection, itemsWithIds.Concat(foundLocal)!).ToList();
+    }
+
+    private static void NormalizeItem(Item item)
+    {
+        if (item.ExtraAttributes == null) return;
+        
+        foreach (var key in item.ExtraAttributes.Keys.ToList())
+        {
+            // Convert JToken/JObject to native .NET types
+            if (item.ExtraAttributes[key] is Newtonsoft.Json.Linq.JToken token)
+            {
+                item.ExtraAttributes[key] = CassandraItem.ConvertJTokenToNative(token);
+            }
+        }
     }
 
     private static bool CanGetAnIdByStoring(Item i, string chestName)
@@ -53,7 +76,7 @@ public class ItemIdAssignUpdate : UpdateListener
     private static bool IsDungeonItem(Item i)
     {
         // eg. REVIVE_STONE
-        return i.ExtraAttributes.ContainsKey("dontSaveToProfile");
+        return i.ExtraAttributes?.ContainsKey("dontSaveToProfile") ?? false;
     }
 
     private static bool IsBazaar(string chestName)
