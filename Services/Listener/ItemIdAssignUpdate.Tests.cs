@@ -74,42 +74,155 @@ public class ItemIdAssignUpdateTest
     [Test]
     public async Task PetCassandraToKafkaConversion()
     {
-        // This simulates real data flow: item stored in Cassandra with id, then consumed from Kafka without id
-        var kafkaJsonString = """
-        {"Id":null,"ItemName":"§7[Lvl 100] §6Hound","Tag":"PET_HOUND","ExtraAttributes":{"petInfo":{"type":"HOUND","active":false,"exp":44349889.503324755,"tier":"LEGENDARY","hideInfo":false,"heldItem":"DWARF_TURTLE_SHELMET","candyUsed":0,"uuid":"7652a510-0c0d-4d88-af53-59d50a6a72e9","uniqueId":"63f70e93-1b40-4b38-a2d2-a4bc316cd4bd","hideRightClick":false,"noMove":false,"extraData":{},"petSoulbound":false},"uid":"59d50a6a72e9","uuid":"7652a510-0c0d-4d88-af53-59d50a6a72e9","timestamp":1767870006897,"tier":5},"Enchantments":null,"Color":null,"Description":"§8Combat Pet\n\n§7True Defense: §f+10\n§7Strength: §c+40\n§7Bonus Attack Speed: §e+25%\n§7Ferocity: §c+5\n§7Speed: §f+10\n\n§6Scavenger\n§7§7Gain §a+100 §7coins per monster kill\n\n§6Finder\n§7§7Increases the chance for monsters\n§7to drop their armor by §a30%§7.\n\n§6Pack Slayer\n§7§7Gain §b1.5x §7Combat XP §7against §aWolves§7.\n\n§6Held Item: §9Dwarf Turtle Shelmet\n§7Grants §f+10❂ True Defense §7and\n§7makes the pet's owner immune to\n§7knockback.\n\n§b§lMAX LEVEL\n§8▸ 44,349,889 XP\n\n§7§eRight-click to add this pet to your\n§epet menu!\n\n§6§lLEGENDARY","Count":1}
+        // This simulates the REAL data flow:
+        // 1. Pet comes from Kafka with ID (first time)
+        // 2. Pet is stored in Cassandra with ID
+        // 3. Later, pet comes from Kafka again (different exp, different timestamp) WITHOUT ID
+        // 4. System should match the new pet with stored pet and assign the ID
+        
+        // Original pet JSON (simulating first arrival via Kafka)
+        var originalPetJson = """
+        {"Id":null,"ItemName":"§7[Lvl 100] §6Hound","Tag":"PET_HOUND","ExtraAttributes":{"petInfo":{"type":"HOUND","active":false,"exp":44349889.503324755,"tier":"LEGENDARY","hideInfo":false,"heldItem":"DWARF_TURTLE_SHELMET","candyUsed":0,"uuid":"7652a510-0c0d-4d88-af53-59d50a6a72e9","uniqueId":"63f70e93-1b40-4b38-a2d2-a4bc316cd4bd","hideRightClick":false,"noMove":false,"extraData":{},"petSoulbound":false},"uid":"59d50a6a72e9","uuid":"7652a510-0c0d-4d88-af53-59d50a6a72e9","timestamp":1767870006897,"tier":5},"Enchantments":null,"Color":null,"Description":"§8Combat Pet...","Count":1}
         """;
 
-        var kafkaItem = JsonConvert.DeserializeObject<Item>(kafkaJsonString)!;
-        var cassandraItem = new CassandraItem(kafkaItem);
-        cassandraItem.Id = Random.Shared.Next(1000000, 9999999);
+        // Later pet JSON (simulating later arrival via Kafka with different exp/timestamp but same pet)
+        var laterPetJson = """
+        {"Id":null,"ItemName":"§7[Lvl 100] §6Hound","Tag":"PET_HOUND","ExtraAttributes":{"petInfo":{"type":"HOUND","active":true,"exp":44350000.0,"tier":"LEGENDARY","hideInfo":true,"heldItem":"DWARF_TURTLE_SHELMET","candyUsed":0,"uuid":"7652a510-0c0d-4d88-af53-59d50a6a72e9","uniqueId":"different-unique-id","hideRightClick":true,"noMove":true,"extraData":{},"petSoulbound":false},"uid":"59d50a6a72e9","uuid":"7652a510-0c0d-4d88-af53-59d50a6a72e9","timestamp":9999999999999,"tier":5},"Enchantments":null,"Color":null,"Description":"§8Combat Pet...","Count":1}
+        """;
+
+        // Step 1: Simulate original pet arriving - JSON deserialization creates JObjects
+        var originalPet = JsonConvert.DeserializeObject<Item>(originalPetJson)!;
         
+        // IMPORTANT: In real Kafka flow, items are normalized BEFORE MessagePack serialization
+        // because MessagePack can't serialize JObject/JProperty
+        NormalizeItemForTest(originalPet);
+        
+        // Simulate MessagePack serialization/deserialization (which happens in Kafka consumer)
+        var originalPetBytes = MessagePackSerializer.Serialize(originalPet);
+        var originalPetAfterKafka = MessagePackSerializer.Deserialize<Item>(originalPetBytes);
+        
+        // Store in Cassandra
+        var cassandraItem = new CassandraItem(originalPetAfterKafka);
+        var storedId = Random.Shared.Next(1000000, 9999999);
+        cassandraItem.Id = storedId;
+        
+        // Step 2: Simulate retrieving the stored pet from Cassandra
         var retrievedFromDb = cassandraItem.ToTransfer();
+        Assert.That(retrievedFromDb.Id, Is.EqualTo(storedId), "Retrieved item should have the stored ID");
         
-        // Normalize both items: convert JTokens to native types
-        var normalized = new Item(retrievedFromDb);
-        foreach (var kvp in retrievedFromDb.ExtraAttributes!.Keys.ToList())
-        {
-            if (retrievedFromDb.ExtraAttributes[kvp] is JToken token)
-                normalized.ExtraAttributes![kvp] = CassandraItem.ConvertJTokenToNative(token);
-        }
+        // Step 3: Simulate a NEW pet arriving from Kafka (different exp, different volatile fields)
+        var newPet = JsonConvert.DeserializeObject<Item>(laterPetJson)!;
         
-        // Also normalize the new Kafka item to convert JObjects to Dictionaries
-        var newKafkaItem = JsonConvert.DeserializeObject<Item>(kafkaJsonString)!;
-        if (newKafkaItem.ExtraAttributes != null)
+        // Normalize before MessagePack
+        NormalizeItemForTest(newPet);
+        
+        // Simulate MessagePack serialization/deserialization
+        var newPetBytes = MessagePackSerializer.Serialize(newPet);
+        var newPetAfterKafka = MessagePackSerializer.Deserialize<Item>(newPetBytes);
+        
+        // Step 4: Test comparison
+        var comparer = new ItemCompare();
+        
+        // Debug: Print normalized attribute types for both items
+        Console.WriteLine("=== New Pet ExtraAttributes ===");
+        foreach (var kvp in newPetAfterKafka.ExtraAttributes ?? new Dictionary<string, object>())
         {
-            foreach (var kvp in newKafkaItem.ExtraAttributes.Keys.ToList())
+            Console.WriteLine($"  {kvp.Key}: {kvp.Value?.GetType().FullName}");
+            if (kvp.Value is Dictionary<string, object> dict)
             {
-                if (newKafkaItem.ExtraAttributes[kvp] is JToken token)
-                    newKafkaItem.ExtraAttributes[kvp] = CassandraItem.ConvertJTokenToNative(token);
+                foreach (var inner in dict)
+                    Console.WriteLine($"    {inner.Key}: {inner.Value?.GetType().Name} = {inner.Value}");
             }
         }
         
-        var comparer = new ItemCompare();
-        comparer.Equals(newKafkaItem, normalized).Should().BeTrue("Pet should match after Cassandra->Kafka conversion");
+        Console.WriteLine("=== Retrieved Pet ExtraAttributes ===");
+        foreach (var kvp in retrievedFromDb.ExtraAttributes ?? new Dictionary<string, object>())
+        {
+            Console.WriteLine($"  {kvp.Key}: {kvp.Value?.GetType().FullName}");
+            if (kvp.Value is Dictionary<string, object> dict)
+            {
+                foreach (var inner in dict)
+                    Console.WriteLine($"    {inner.Key}: {inner.Value?.GetType().Name} = {inner.Value}");
+            }
+        }
+        
+        // Check hash codes match (required for dictionary lookups)
+        var hash1 = comparer.GetHashCode(newPetAfterKafka);
+        var hash2 = comparer.GetHashCode(retrievedFromDb);
+        Assert.That(hash1, Is.EqualTo(hash2), $"Hash codes should match for same pet. NewPet hash: {hash1}, StoredPet hash: {hash2}");
+        
+        // Check tags match
+        Assert.That(newPetAfterKafka.Tag, Is.EqualTo(retrievedFromDb.Tag), "Tags should match");
+        
+        // Test the comparison
+        var areEqual = comparer.Equals(newPetAfterKafka, retrievedFromDb);
+        Assert.That(areEqual, Is.True, "Pets should be equal after normalization");
 
+        // Step 5: Test the full Join method
         var listener = new ItemIdAssignUpdate();
-        var result = listener.Join([newKafkaItem], [normalized]).First();
-        result.Id.Should().Be(cassandraItem.Id, "Pet should receive the stored ID from Cassandra");
+        var result = listener.Join([newPetAfterKafka], [retrievedFromDb]).First();
+        Assert.That(result.Id, Is.EqualTo(storedId), $"Pet should receive the stored ID {storedId}");
+    }
+
+    private static void NormalizeItemForTest(Item item)
+    {
+        if (item.ExtraAttributes == null) return;
+        
+        foreach (var key in item.ExtraAttributes.Keys.ToList())
+        {
+            if (item.ExtraAttributes[key] is JToken token)
+            {
+                item.ExtraAttributes[key] = CassandraItem.ConvertJTokenToNative(token);
+            }
+        }
+    }
+
+    [Test]
+    public async Task EndermanPetFromUserReport()
+    {
+        // This is the exact pet JSON from the user report
+        var endermanPetJson = """
+        {"Id":null,"ItemName":"§7[Lvl 58] §6Enderman","Tag":"PET_ENDERMAN","ExtraAttributes":{"petInfo":{"type":"ENDERMAN","active":false,"exp":1145890.0442327096,"tier":"LEGENDARY","hideInfo":false,"heldItem":"PET_ITEM_COMBAT_SKILL_BOOST_RARE","candyUsed":0,"uuid":"f965c6c0-4fae-455a-9f1c-56906d77a27e","uniqueId":"39a86cfa-c4ad-4ab2-b45b-3063feff3833","hideRightClick":false,"noMove":false,"extraData":{},"petSoulbound":false},"uid":"56906d77a27e","uuid":"f965c6c0-4fae-455a-9f1c-56906d77a27e","timestamp":1767878617047,"tier":5},"Enchantments":null,"Color":null,"Description":"§8Combat Pet...","Count":1}
+        """;
+        
+        // Simulate full flow
+        var pet = JsonConvert.DeserializeObject<Item>(endermanPetJson)!;
+        NormalizeItemForTest(pet);  // Normalize before MessagePack
+        var petBytes = MessagePackSerializer.Serialize(pet);
+        var petAfterKafka = MessagePackSerializer.Deserialize<Item>(petBytes);
+        
+        // Store in Cassandra
+        var cassandraItem = new CassandraItem(petAfterKafka);
+        var storedId = 12345678L;
+        cassandraItem.Id = storedId;
+        
+        // Retrieve from Cassandra
+        var retrievedFromDb = cassandraItem.ToTransfer();
+        
+        // Simulate NEW arrival of same pet with different volatile fields
+        var laterPetJson = """
+        {"Id":null,"ItemName":"§7[Lvl 58] §6Enderman","Tag":"PET_ENDERMAN","ExtraAttributes":{"petInfo":{"type":"ENDERMAN","active":true,"exp":1145999.0,"tier":"LEGENDARY","hideInfo":true,"heldItem":"PET_ITEM_COMBAT_SKILL_BOOST_RARE","candyUsed":0,"uuid":"f965c6c0-4fae-455a-9f1c-56906d77a27e","uniqueId":"different-id","hideRightClick":true,"noMove":true,"extraData":{},"petSoulbound":false},"uid":"56906d77a27e","uuid":"f965c6c0-4fae-455a-9f1c-56906d77a27e","timestamp":9999999999,"tier":5},"Enchantments":null,"Color":null,"Description":"§8Combat Pet...","Count":1}
+        """;
+        
+        var newPet = JsonConvert.DeserializeObject<Item>(laterPetJson)!;
+        NormalizeItemForTest(newPet);  // Normalize before MessagePack
+        var newPetBytes = MessagePackSerializer.Serialize(newPet);
+        var newPetAfterKafka = MessagePackSerializer.Deserialize<Item>(newPetBytes);
+        
+        var comparer = new ItemCompare();
+        
+        // Test hash equality (required for dictionary lookups)
+        Assert.That(comparer.GetHashCode(newPetAfterKafka), Is.EqualTo(comparer.GetHashCode(retrievedFromDb)), 
+            "Hash codes must match for same UUID");
+        
+        // Test Equals
+        Assert.That(comparer.Equals(newPetAfterKafka, retrievedFromDb), Is.True, 
+            "Same pet with different volatile fields should be equal");
+        
+        // Test Join
+        var listener = new ItemIdAssignUpdate();
+        var result = listener.Join([newPetAfterKafka], [retrievedFromDb]).First();
+        Assert.That(result.Id, Is.EqualTo(storedId), "Pet should get the stored ID");
     }
 
     [Test]

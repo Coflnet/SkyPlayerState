@@ -37,29 +37,74 @@ public static class ItemAttributeNormalizer
         
         var result = new Dictionary<string, object>(attrs);
         
-        // Convert any nested JObjects to dictionaries for consistent comparison
+        // Convert any nested JObjects and Dictionary<object, object> to Dictionary<string, object>
         foreach (var key in result.Keys.ToList())
         {
-            if (result[key] is JObject jobj)
-            {
-                result[key] = jobj.ToObject<Dictionary<string, object>>() ?? new Dictionary<string, object>();
-            }
-            // Also recursively normalize nested dictionaries
-            else if (result[key] is Dictionary<string, object> nestedDict)
-            {
-                // For nested dicts that might contain JObjects, convert them
-                foreach (var nestedKey in nestedDict.Keys.ToList())
-                {
-                    if (nestedDict[nestedKey] is JObject nestedJObj)
-                    {
-                        nestedDict[nestedKey] = nestedJObj.ToObject<Dictionary<string, object>>() ?? new Dictionary<string, object>();
-                    }
-                }
-            }
+            result[key] = NormalizeValue(result[key]);
         }
         
         RemoveVolatileKeys(result);
         return result;
+    }
+    
+    /// <summary>
+    /// Recursively normalizes a value, converting JObjects and Dictionary{object, object} to Dictionary{string, object}.
+    /// </summary>
+    private static object NormalizeValue(object value)
+    {
+        if (value is JObject jobj)
+        {
+            // Convert JObject to Dictionary<string, object> and recursively normalize
+            var dict = jobj.ToObject<Dictionary<string, object>>() ?? new Dictionary<string, object>();
+            foreach (var key in dict.Keys.ToList())
+            {
+                dict[key] = NormalizeValue(dict[key]);
+            }
+            return dict;
+        }
+        else if (value is Dictionary<object, object> objDict)
+        {
+            // Convert Dictionary<object, object> to Dictionary<string, object> - this is what MessagePack creates
+            var dict = new Dictionary<string, object>();
+            foreach (var kvp in objDict)
+            {
+                dict[kvp.Key?.ToString() ?? ""] = NormalizeValue(kvp.Value);
+            }
+            return dict;
+        }
+        else if (value is Dictionary<string, object> strDict)
+        {
+            // Recursively normalize nested dictionaries
+            foreach (var key in strDict.Keys.ToList())
+            {
+                strDict[key] = NormalizeValue(strDict[key]);
+            }
+            return strDict;
+        }
+        else if (value is JArray jarray)
+        {
+            // Convert JArray to List<object> with normalized elements
+            var result = new List<object>();
+            foreach (var item in jarray)
+            {
+                result.Add(NormalizeValue(item));
+            }
+            return result;
+        }
+        else if (value is JValue jval)
+        {
+            return jval.Value ?? value;
+        }
+        else if (value is IList<object> list)
+        {
+            // Normalize list elements
+            for (int i = 0; i < list.Count; i++)
+            {
+                list[i] = NormalizeValue(list[i]);
+            }
+            return list;
+        }
+        return value;
     }
 
     /// <summary>
