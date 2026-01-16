@@ -65,6 +65,7 @@ public class BitService : IBitService
             .ExecuteAsync();
         
         return entries
+            .Where(e=>e.ItemTag != "GOD_POTION") // original god potion can't be purchased anymore
             .Select(e => new BitTagMapping
             {
                 ShopName = e.ShopType,
