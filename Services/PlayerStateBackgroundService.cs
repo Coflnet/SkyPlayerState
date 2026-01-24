@@ -177,7 +177,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
                 backOff = false;
             }
             KeepStateCountInCheck();
-        }, stoppingToken, 25);
+        }, stoppingToken, 50);
         var retrieved = new UpdateMessage();
     }
 
