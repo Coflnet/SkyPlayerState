@@ -48,6 +48,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         AddHandler<SettingsListener>(UpdateMessage.UpdateKind.Setting);
         // handlers are executed in this order
         AddHandler<ChatHistoryUpdate>(UpdateMessage.UpdateKind.CHAT);
+        AddHandler<CoinCounterListener>(UpdateMessage.UpdateKind.CHAT);
         AddHandler<ProfileAndNameUpdate>(UpdateMessage.UpdateKind.CHAT | UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<BazaarOrderListener>(UpdateMessage.UpdateKind.CHAT);
         AddHandler<TradeLimitsUpdate>(UpdateMessage.UpdateKind.CHAT);
@@ -94,7 +95,13 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         catch (System.Exception)
         {
             var scope = scopeFactory.CreateAsyncScope();
-            handler = (T)Activator.CreateInstance(typeof(T), scope.ServiceProvider.GetRequiredService<ILogger<T>>());
+            var sp = scope.ServiceProvider;
+            // Try to resolve the listener from DI, otherwise create with ActivatorUtilities
+            var resolved = sp.GetService(typeof(T));
+            if (resolved != null)
+                handler = (T)resolved;
+            else
+                handler = (T)ActivatorUtilities.CreateInstance(sp, typeof(T));
         }
         foreach (var item in Enum.GetValues<UpdateMessage.UpdateKind>())
         {

@@ -52,8 +52,6 @@ public class StateObject
     public ExtractedInfo ExtractedInfo = new();
     [Key(10)]
     public StateSettings Settings = new();
-    [Key(11)]
-    public LimitsSummary Limits = new();
     [Key(12)]
     public Dictionary<string, int> ItemsCollectedRecently = new();
     [IgnoreMember]
@@ -98,27 +96,7 @@ public class StateObject
     }
 }
 
-[MessagePackObject]
-public class LimitsSummary
-{
-    [Key(0)]
-    public Queue<Limit> Bazaar { get; set; } = new();
-    [Key(1)]
-    public Queue<Limit> AuctionHouse { get; set; } = new();
-    [Key(2)]
-    public Queue<Limit> Trade { get; set; } = new();
 
-    [MessagePackObject]
-    public class Limit
-    {
-        [Key(0)]
-        public long Amount { get; set; }
-        [Key(1)]
-        public DateTime Time { get; set; }
-        [Key(2)]
-        public string Message { get; set; }
-    }
-}
 
 [MessagePackObject]
 public class McInfo

@@ -58,10 +58,9 @@ namespace Coflnet.Sky.PlayerState.Controllers
         }
         [HttpGet]
         [Route("{playerId}/limits")]
-        public async Task<LimitsSummary> GetLimits(string playerId)
+        public async Task<CoinCounter> GetLimits(string playerId, [FromServices] ICoinCounterService counterService, DateTime? date = null)
         {
-            var data = await service.GetStateObject(playerId);
-            return data?.Limits;
+            return await counterService.GetCounter(playerId, date ?? DateTime.UtcNow);
         }
         [HttpGet("{playerId}/skills")]
         public async Task<SkillService.Skill[]> GetSkills(Guid playerId, [FromServices] SkillService service)
