@@ -186,6 +186,7 @@ public class BazaarOrderListener : UpdateListener
                     var orderApi = args.GetService<IOrderBookApi>();
                     string tag = await GetTagForName(args, itemName);
                     await orderApi.RemoveOrderAsync(tag, args.msg.UserId, order.Created);
+                    args.GetService<ILogger<BazaarOrderListener>>().LogInformation("Eremoved order from {user} {item}", args.msg.UserId, itemName);
                 }
                 catch (Exception e)
                 {
