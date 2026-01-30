@@ -217,7 +217,7 @@ public class BazaarListener : UpdateListener
             ItemTag = item.Tag,
             Amount = ParseInt(amount),
             PricePerUnit = double.Parse(pricePerUnit, System.Globalization.CultureInfo.InvariantCulture),
-            ItemName = item.ItemName.Substring("§6§lSELL ".Length),
+            ItemName = Regex.Replace(item.ItemName.Substring("§6§lSELL ".Length), "(§.)*", ""),
             Created = item.Description.Contains("Expired") ? default : DateTime.Now,
             Customers = customers
         };
