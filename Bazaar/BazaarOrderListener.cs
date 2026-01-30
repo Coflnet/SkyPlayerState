@@ -177,7 +177,21 @@ public class BazaarOrderListener : UpdateListener
 
             var order = args.currentState.BazaarOffers.Where(o => o.ItemName == itemName && o.Amount == amount).FirstOrDefault();
             if (order != null)
+            {
                 args.currentState.BazaarOffers.Remove(order);
+                
+                // Notify bazaar service that the order was removed
+                try
+                {
+                    var orderApi = args.GetService<IOrderBookApi>();
+                    string tag = await GetTagForName(args, itemName);
+                    await orderApi.RemoveOrderAsync(tag, args.msg.UserId, order.Created);
+                }
+                catch (Exception e)
+                {
+                    args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error removing cancelled order from order book for {item}", itemName);
+                }
+            }
             else
                 Console.WriteLine("No order found for " + itemName + " " + amount + " to cancel " + JsonConvert.SerializeObject(args.currentState.BazaarOffers));
             await AddItemTransaction(args, side, amount, itemName);
