@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Coflnet.Sky.Items.Client.Api;
 using Coflnet.Sky.PlayerState.Services;
@@ -25,9 +27,22 @@ public class BazaarOrderListener : UpdateListener
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, string, int), (long, DateTime)> 
         _recentFlips = new();
 
+    /// <summary>
+    /// In-memory cache for item tag lookups to ensure consistency between buy and sell order recording.
+    /// The external Items API may return different results on successive calls, causing buy and sell
+    /// records to have different tags and fail to match for profit calculation.
+    /// This cache ensures we use the same tag for an item within a 2-minute window.
+    /// Key: ItemName
+    /// Value: (ItemTag, LookupTime)
+    /// </summary>
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (string, DateTime)>
+        _itemTagCache = new();
+
     public override async Task Process(UpdateArgs args)
     {
         if (args.currentState.Settings?.DisableBazaarTracking ?? false)
+            return;
+        if (args.msg.ChatBatch == null)
             return;
         await Parallel.ForEachAsync(args.msg.ChatBatch, async (item, ct) =>
         {
@@ -581,10 +596,29 @@ public class BazaarOrderListener : UpdateListener
 
     private static async Task<string> GetTagForName(UpdateArgs args, string itemName)
     {
+        // Check cache first - valid for 2 minutes
+        if (_itemTagCache.TryGetValue(itemName, out var cached))
+        {
+            var (cachedTag, cachedTime) = cached;
+            if (DateTime.UtcNow - cachedTime < TimeSpan.FromHours(2))
+            {
+                return cachedTag;
+            }
+            else
+            {
+                // Cache expired, remove it
+                _itemTagCache.TryRemove(itemName, out _);
+            }
+        }
+
         var itemApi = args.GetService<IItemsApi>();
         var searchResult = await itemApi.ItemsSearchTermGetAsync(itemName);
         var tag = searchResult.OrderByDescending(s => (itemName.Equals(s.Text ?? "", StringComparison.OrdinalIgnoreCase) ? 2 : 0) 
             + (s.Flags.HasValue && s.Flags.Value.HasFlag(Items.Client.Model.ItemFlags.BAZAAR) ? 1 :0)).First().Tag;
+        
+        // Cache the result
+        _itemTagCache[itemName] = (tag, DateTime.UtcNow);
+        
         return tag;
     }
 

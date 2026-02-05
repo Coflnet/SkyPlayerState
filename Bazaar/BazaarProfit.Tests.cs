@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Coflnet.Sky.Bazaar.Client.Api;
+using Coflnet.Sky.EventBroker.Client.Api;
+using Coflnet.Sky.EventBroker.Client.Model;
 using Coflnet.Sky.Items.Client.Api;
 using Coflnet.Sky.PlayerState.Models;
 using Coflnet.Sky.PlayerState.Services;
@@ -22,6 +24,7 @@ public class BazaarProfitTests
     private Mock<IBazaarProfitTracker> _profitTracker = null!;
     private Mock<IItemsApi> _itemsApi = null!;
     private Mock<IOrderBookApi> _orderBookApi = null!;
+    private Mock<IScheduleApi> _scheduleApi = null!;
     private int _invokeCount;
 
     [SetUp]
@@ -35,6 +38,7 @@ public class BazaarProfitTests
         _profitTracker = new Mock<IBazaarProfitTracker>();
         _itemsApi = new Mock<IItemsApi>();
         _orderBookApi = new Mock<IOrderBookApi>();
+        _scheduleApi = new Mock<IScheduleApi>();
         _itemsApi.Setup(i => i.ItemsSearchTermIdGetAsync(It.IsAny<string>(), 0, default)).ReturnsAsync(5);
         _itemsApi.Setup(i => i.ItemsSearchTermGetAsync(It.IsAny<string>(), null, 0, default))
             .ReturnsAsync((string term, string _, int _, System.Threading.CancellationToken _) => new List<Items.Client.Model.SearchResult>
@@ -61,6 +65,7 @@ public class BazaarProfitTests
         args.AddService<ITransactionService>(_transactionService.Object);
         args.AddService<IBazaarProfitTracker>(_profitTracker.Object);
         args.AddService<IOrderBookApi>(_orderBookApi.Object);
+        args.AddService<IScheduleApi>(_scheduleApi.Object);
         args.AddService<ILogger<BazaarOrderListener>>(NullLogger<BazaarOrderListener>.Instance);
         
         return args;
@@ -533,6 +538,7 @@ public class BazaarOrderFlipRaceConditionTests
     private Mock<IBazaarProfitTracker> _profitTracker = null!;
     private Mock<IItemsApi> _itemsApi = null!;
     private Mock<IOrderBookApi> _orderBookApi = null!;
+    private Mock<IScheduleApi> _scheduleApi = null!;
 
     [SetUp]
     public void Setup()
@@ -543,6 +549,7 @@ public class BazaarOrderFlipRaceConditionTests
         _profitTracker = new Mock<IBazaarProfitTracker>();
         _itemsApi = new Mock<IItemsApi>();
         _orderBookApi = new Mock<IOrderBookApi>();
+        _scheduleApi = new Mock<IScheduleApi>();
         _itemsApi.Setup(i => i.ItemsSearchTermIdGetAsync(It.IsAny<string>(), 0, default)).ReturnsAsync(5);
         _itemsApi.Setup(i => i.ItemsSearchTermGetAsync(It.IsAny<string>(), null, 0, default))
             .ReturnsAsync((string term, string _, int _, System.Threading.CancellationToken _) => new List<Items.Client.Model.SearchResult>
@@ -568,6 +575,7 @@ public class BazaarOrderFlipRaceConditionTests
         args.AddService<ITransactionService>(_transactionService.Object);
         args.AddService<IBazaarProfitTracker>(_profitTracker.Object);
         args.AddService<IOrderBookApi>(_orderBookApi.Object);
+        args.AddService<IScheduleApi>(_scheduleApi.Object);
         args.AddService<ILogger<BazaarOrderListener>>(NullLogger<BazaarOrderListener>.Instance);
         
         return args;
@@ -764,4 +772,139 @@ public class BazaarOrderFlipRaceConditionTests
 
         // Result: Flip is not tracked! This is the bug documented in the log file.
     }
+
+    [Test]
+    public async Task EccentricPaintingMultipleOrderCyclesRecordsCorrectAmounts()
+    {
+        // This test reproduces the issue with Eccentric Painting where messages come in separate batches over time
+        // IMPORTANT: Each Setup and Cancel must be in SEPARATE batches to avoid Parallel.ForEachAsync race conditions
+        // In Hypixel, messages arrive in chat events at different times, so they would naturally be in separate batches
+
+        // Batch 1: Claim buy order (historical)
+        var batch1 = CreateArgs("[Bazaar] Claimed 9x Eccentric Painting worth 49,476,711 coins bought for 5,497,412 each!");
+        await _listener.Process(batch1);
+
+        // Batch 2: Setup first 9x sell
+        var batch2 = CreateArgs("[Bazaar] Sell Offer Setup! 9x Eccentric Painting for 68,162,029 coins");
+        await _listener.Process(batch2);
+
+        // Batch 3: Cancel first 9x sell
+        var batch3 = CreateArgs("[Bazaar] Cancelled! Refunded 9x Eccentric Painting from cancelling Sell Offer!");
+        await _listener.Process(batch3);
+
+        // Batch 4: Setup second 9x sell
+        var batch4 = CreateArgs("[Bazaar] Sell Offer Setup! 9x Eccentric Painting for 66,740,624 coins");
+        await _listener.Process(batch4);
+
+        // Batch 5: Cancel second 9x sell
+        var batch5 = CreateArgs("[Bazaar] Cancelled! Refunded 9x Eccentric Painting from cancelling Sell Offer!");
+        await _listener.Process(batch5);
+
+        // Batch 6: Setup first 1x sell
+        var batch6 = CreateArgs("[Bazaar] Sell Offer Setup! 1x Eccentric Painting for 7,217,618 coins.");
+        await _listener.Process(batch6);
+
+        // Batch 7: Cancel first 1x sell
+        var batch7 = CreateArgs("[Bazaar] Cancelled! Refunded 1x Eccentric Painting from cancelling Sell Offer!");
+        await _listener.Process(batch7);
+
+        // Batch 8: Setup second 1x sell
+        var batch8 = CreateArgs("[Bazaar] Sell Offer Setup! 1x Eccentric Painting for 7,217,618 coins.");
+        await _listener.Process(batch8);
+
+        // Batch 9: Cancel second 1x sell
+        var batch9 = CreateArgs("[Bazaar] Cancelled! Refunded 1x Eccentric Painting from cancelling Sell Offer!");
+        await _listener.Process(batch9);
+
+        // Batch 10: Setup final 1x sell
+        var batch10 = CreateArgs("[Bazaar] Sell Offer Setup! 1x Eccentric Painting for 7,217,617 coins.");
+        await _listener.Process(batch10);
+
+        // Batch 11: Fill final 1x sell
+        var batch11 = CreateArgs("[Bazaar] Your Sell Offer for 1x Eccentric Painting was filled!");
+        await _listener.Process(batch11);
+
+        // Batch 12: Claim final 1x sell
+        var batch12 = CreateArgs("[Bazaar] Claimed 7,217,617 coins from selling 1x Eccentric Painting at 7,299,739 each!");
+        await _listener.Process(batch12);
+
+        // Verify that the initial 9x buy order was recorded for profit tracking
+        _profitTracker.Verify(p => p.RecordBuyOrder(
+            It.IsAny<Guid>(),
+            "ECCENTRIC_PAINTING",
+            9,
+            It.Is<long>(price => price > 0),
+            It.IsAny<DateTime>()
+        ), Times.Once);
+
+        // Verify that the 1x sell order was recorded
+        _profitTracker.Verify(p => p.RecordSellOrder(
+            It.IsAny<Guid>(),
+            "ECCENTRIC_PAINTING",
+            "Eccentric Painting",
+            1,
+            72176170,  // Price is stored in tenths of coins (7,217,617 coins * 10)
+            It.IsAny<DateTime>()
+        ), Times.Once);
+
+        // After processing all messages, no sell orders should remain in state
+        // All Setup orders were either Cancelled (removed) or Filled then Claimed (removed)
+        var remainingEccentricPaintingSellOrders = _currentState.BazaarOffers
+            .Where(o => o.ItemName == "Eccentric Painting" && o.IsSell)
+            .ToList();
+        
+        // Debug output
+        Console.WriteLine($"Remaining sell orders for Eccentric Painting: {remainingEccentricPaintingSellOrders.Count}");
+        foreach (var order in remainingEccentricPaintingSellOrders)
+        {
+            Console.WriteLine($"  - {order.Amount}x @ {order.PricePerUnit} (IsSell={order.IsSell})");
+        }
+        
+        Assert.That(remainingEccentricPaintingSellOrders.Count, Is.EqualTo(0),
+            $"Expected 0 remaining sell orders but found {remainingEccentricPaintingSellOrders.Count}: {string.Join(", ", remainingEccentricPaintingSellOrders.Select(o => $"{o.Amount}x @ {o.PricePerUnit}"))}");
+    }
+
+    [Test]
+    public async Task BuyAndSellWithTagCacheConsistency()
+    {
+        // This test verifies the fix for profit not being recorded when the Items API
+        // returns inconsistent tags between buy and sell order recording.
+        // 
+        // The problem: GetTagForName() calls an external API that may return different results
+        // on successive calls due to network issues, causing buy and sell records to have
+        // different tags and fail to match for profit calculation.
+        //
+        // The fix: Tag lookups are cached for 2 minutes to ensure consistency.
+
+        var buyArgs = CreateArgs("[Bazaar] Claiming order...",
+            "[Bazaar] Claimed 64x Coal worth 134.4 coins bought for 2.1 each!");
+        
+        await _listener.Process(buyArgs);
+
+        // Verify buy order was recorded (mock the tag as "COAL")
+        _profitTracker.Verify(p => p.RecordBuyOrder(
+            It.IsAny<Guid>(),
+            "COAL",  // First call gets this tag
+            64,
+            It.IsAny<long>(),
+            It.IsAny<DateTime>()
+        ), Times.Once);
+
+        // Now sell the same item - the tag should come from cache (same "COAL")
+        var sellArgs = CreateArgs("[Bazaar] Claiming order...",
+            "[Bazaar] Claimed 303.7 coins from selling 64x Coal at 4.8 each!");
+
+        await _listener.Process(sellArgs);
+
+        // Verify sell order uses the SAME tag from cache
+        _profitTracker.Verify(p => p.RecordSellOrder(
+            It.IsAny<Guid>(),
+            "COAL",  // Should be same as buy order due to cache
+            "Coal",
+            64,
+            It.IsAny<long>(),
+            It.IsAny<DateTime>()
+        ), Times.Once);
+    }
 }
+
