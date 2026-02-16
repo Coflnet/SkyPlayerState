@@ -91,8 +91,8 @@ public class CoinCounterParser
     /// <returns>A tuple of (year, dayOfYear)</returns>
     public static (int year, int dayOfYear) GetDayKey(DateTime timestamp)
     {
-        // Adjust for 6am UTC reset
-        var adjustedTime = timestamp.AddHours(-6);
+        // according to latest documentation its actually UTC 0
+        var adjustedTime = timestamp.AddHours(0);
         return (adjustedTime.Year, adjustedTime.DayOfYear);
     }
 }
