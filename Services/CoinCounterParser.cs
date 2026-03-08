@@ -91,7 +91,7 @@ public class CoinCounterParser
     /// <returns>A tuple of (year, dayOfYear)</returns>
     public static (int year, int dayOfYear) GetDayKey(DateTime timestamp)
     {
-        // according to latest documentation its actually UTC 0
+        // day boundary is at UTC midnight
         var adjustedTime = timestamp.AddHours(0);
         return (adjustedTime.Year, adjustedTime.DayOfYear);
     }

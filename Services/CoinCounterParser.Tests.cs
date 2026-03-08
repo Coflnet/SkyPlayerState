@@ -158,12 +158,12 @@ public class CoinCounterParserTests
     [Test]
     public void TestDayKeyCalculation()
     {
-        // Test at 5:59 AM UTC (should be previous day)
+        // Test at 5:59 AM UTC (reset is at UTC midnight, so still the current day)
         var beforeReset = new DateTime(2024, 1, 15, 5, 59, 0, DateTimeKind.Utc);
         var (year1, day1) = CoinCounterParser.GetDayKey(beforeReset);
         
         ClassicAssert.AreEqual(2024, year1);
-        ClassicAssert.AreEqual(14, day1); // Should be day 14, not 15
+        ClassicAssert.AreEqual(15, day1); // Should be day 15 with midnight reset
         
         // Test at 6:00 AM UTC (should be current day)
         var atReset = new DateTime(2024, 1, 15, 6, 0, 0, DateTimeKind.Utc);
