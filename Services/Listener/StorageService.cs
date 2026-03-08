@@ -39,7 +39,19 @@ public class StorageService
 
     public async Task<List<StorageItem>> GetStorageItems(Guid playerId, Guid profileId)
     {
-        return (await storageTable.Where(i => i.PlayerId == playerId && i.ProfileId == profileId).ExecuteAsync()).ToList();
+        var all = (await storageTable.Where(i => i.PlayerId == playerId && i.ProfileId == profileId).ExecuteAsync()).ToList();
+        var lookingAtChestDupplicates = all.Where(i => i.ChestName != "Chest" && i.ChestName != "Large Chest" && i.ChestName != "Chest Storage" && i.ChestName != "Medium Shelves" && !i.ChestName.Contains("Chest+"))
+            .GroupBy(i => i.ChestName)
+            .Where(g => g.Count() > 1)
+            .SelectMany(g => g.OrderByDescending(i => i.Position == null).OrderByDescending(i => i.OpenedAt).Skip(1))
+            .ToHashSet();
+        foreach (var dupplicate in lookingAtChestDupplicates)
+        {
+            Console.WriteLine($"Deleting storage item for player {dupplicate.PlayerId} in chest {dupplicate.ChestName} at position {dupplicate.Position} opened at {dupplicate.OpenedAt}");
+            await storageTable.Where(i => i.PlayerId == dupplicate.PlayerId && i.ProfileId == dupplicate.ProfileId && i.ChestName == dupplicate.ChestName && i.SerializedPosition == dupplicate.SerializedPosition).Delete().ExecuteAsync();
+            all.Remove(dupplicate);
+        }
+        return all;
     }
 
     public class StorageItem
