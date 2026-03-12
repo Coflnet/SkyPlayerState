@@ -66,6 +66,8 @@ public class BitService : IBitService
         
         return entries
             .Where(e=>e.ItemTag != "GOD_POTION") // original god potion can't be purchased anymore
+            .GroupBy(e => e.ItemTag ) // deduplicate renamed item shop names/availability in multiple
+            .Select(g => g.OrderByDescending(e => e.LastUpdated).First())
             .Select(e => new BitTagMapping
             {
                 ShopName = e.ShopType,
