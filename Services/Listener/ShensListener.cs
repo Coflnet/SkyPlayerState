@@ -39,7 +39,7 @@ public partial class ShensListener : UpdateListener
             Year = CurrentMinecraftYear(args.msg.ReceivedAt),
             Reporter = args.msg.PlayerId,
             ReportTime = args.msg.ReceivedAt,
-            Offers = items.ToDictionary(x => x.tag, x => x.Item2)
+            Offers = items.GroupBy(x => x.tag).ToDictionary(g => g.Key, g => g.Last().Item2)
         };
         await args.GetService<IShenStorage>().Store(shenHistory);
     }
