@@ -1,7 +1,7 @@
 VERSION=0.13.1
 PACKAGE_NAME=Coflnet.Sky.PlayerState.Client
 
-docker run --rm -v "${PWD}:/local" --network host -u $(id -u ${USER}):$(id -g ${USER})  openapitools/openapi-generator-cli generate \
+docker run --rm -v "${PWD}:/local" --network host -u $(id -u ${USER}):$(id -g ${USER}) openapitools/openapi-generator-cli generate \
 -i http://localhost:5025/swagger/v1/swagger.json \
 -g csharp \
 -o /local/out --additional-properties=packageName=$PACKAGE_NAME,packageVersion=$VERSION,licenseId=MIT,targetFramework=net8.0,library=restsharp

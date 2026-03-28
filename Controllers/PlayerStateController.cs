@@ -92,6 +92,28 @@ namespace Coflnet.Sky.PlayerState.Controllers
         {
             return await service.GetHistoryForPlayer(playerId, before, count);
         }
+
+        /// <summary>
+        /// Get aggregated item collection rates across all players at a location
+        /// </summary>
+        [HttpGet]
+        [Route("aggregate/{location}")]
+        [ResponseCache(Duration = 300)]
+        public async Task<List<LocationItemAggregate>> GetLocationAggregates(string location, [FromServices] MethodAggregateService service, int days = 7)
+        {
+            return await service.GetLocationAggregates(location, days);
+        }
+
+        /// <summary>
+        /// Get average item rates at a location for specific items
+        /// </summary>
+        [HttpGet]
+        [Route("aggregate/{location}/rates")]
+        [ResponseCache(Duration = 300)]
+        public async Task<Dictionary<string, double>> GetAverageRates(string location, [FromQuery] string[] items, [FromServices] MethodAggregateService service, int days = 7)
+        {
+            return await service.GetAverageRates(location, items, days);
+        }
         [HttpGet]
         [Route("{playerId}/storage")]
         public async Task<List<ChestView>> GetStorage(Guid playerId, Guid profileId, [FromServices] StorageService service)

@@ -71,6 +71,7 @@ public class Startup
         services.AddSingleton<SniperService>();
         services.AddSingleton<ISniperApi>(di => new SniperApi(Configuration["SNIPER_BASE_URL"]));
         services.AddSingleton<TrackedProfitService>();
+        services.AddSingleton<MethodAggregateService>();
         services.AddSingleton<IBazaarProfitTracker, BazaarProfitTracker>();
         services.AddSingleton<IMayorAuraService, MayorAuraService>();
         services.AddSingleton<IBitService, BitService>();

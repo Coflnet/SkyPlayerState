@@ -206,7 +206,7 @@ public class CollectionListener : UpdateListener
                 var price = cleanPrices.GetValueOrDefault(c.Key);
                 return price * c.Value;
             }).Sum();
-            await args.GetService<TrackedProfitService>().AddPeriod(new()
+            var period = new TrackedProfitService.Period()
             {
                 EndTime = DateTime.UtcNow,
                 StartTime = args.currentState.ExtractedInfo.LastLocationChange,
@@ -215,7 +215,16 @@ public class CollectionListener : UpdateListener
                 Server = args.currentState.ExtractedInfo.CurrentServer,
                 ItemsCollected = new Dictionary<string, int>(args.currentState.ItemsCollectedRecently),
                 Profit = profit
-            });
+            };
+            await args.GetService<TrackedProfitService>().AddPeriod(period);
+            try
+            {
+                await args.GetService<MethodAggregateService>().RecordPeriod(period);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to record method aggregate: {ex.Message}");
+            }
             args.SendDebugMessage("You collected a total of " + profit + " coins worth of items in " + previousLocation + " " + string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}")));
             Console.WriteLine($"Profit summary for {args.currentState.PlayerId} at {previousLocation}: {profit} coins from {string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}"))}");
         }
