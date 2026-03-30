@@ -1,7 +1,7 @@
 using Coflnet.Sky.PlayerState.Models;
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
-using FluentAssertions;
+using AwesomeAssertions;
 using NUnit.Framework;
 
 namespace Coflnet.Sky.PlayerState.Services;

@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Coflnet.Sky.Core.Migrations;
 using Coflnet.Sky.PlayerState.Tests;
 using Confluent.Kafka;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Newtonsoft.Json;

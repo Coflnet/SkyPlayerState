@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Coflnet.Sky.PlayerState.Tests;
-using FluentAssertions;
+using AwesomeAssertions;
 using Newtonsoft.Json;
 using NUnit.Framework;
 

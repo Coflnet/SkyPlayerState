@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 using Coflnet.Sky.PlayerState.Models;
-using FluentAssertions;
+using AwesomeAssertions;
 using NUnit.Framework;
 
 namespace Coflnet.Sky.PlayerState.Bazaar;

@@ -6,7 +6,7 @@ using NUnit.Framework;
 using Moq;
 using Newtonsoft.Json;
 using Coflnet.Sky.PlayerState.Tests;
-using FluentAssertions;
+using AwesomeAssertions;
 using MessagePack;
 using Newtonsoft.Json.Linq;
 
