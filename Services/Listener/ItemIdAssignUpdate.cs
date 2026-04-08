@@ -35,8 +35,6 @@ public class ItemIdAssignUpdate : UpdateListener
         var toSearchInDb = toSearchFor.Except(foundLocal, (IEqualityComparer<Item?>)comparer).ToList();
         var itemsWithIds = toSearchInDb.Count > 0 ? await service.FindOrCreate(toSearchInDb!) : new List<Item>();
 
-        if (toSearchFor.Count > 0)
-            Console.WriteLine("to search: " + toSearchFor.Count + " found local: " + foundLocal.Count + " from db: " + itemsWithIds.Count + " present: " + localPresent.Count);
         Activity.Current?.AddTag("to search", toSearchFor.Count.ToString());
         Activity.Current?.AddTag("found local", foundLocal.Count.ToString());
         Activity.Current?.AddTag("from db", itemsWithIds.Count.ToString());
