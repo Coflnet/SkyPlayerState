@@ -13,6 +13,10 @@ namespace Coflnet.Sky.PlayerState.Bazaar;
 
 public class BazaarListener : UpdateListener
 {
+    private static readonly Prometheus.Counter bazaarOrdersTrackedCount = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_bazaar_orders_tracked_total",
+        "Total number of bazaar orders tracked from chest updates.");
+
     /// <summary>
     /// Tracks buy orders that vanish between chest updates.
     /// When chest GUI shows orders have been removed, we store them here
@@ -77,6 +81,7 @@ public class BazaarListener : UpdateListener
             }
         }
         Console.WriteLine($"Found {offers.Count} bazaar offers for {args.currentState.PlayerId}");
+        bazaarOrdersTrackedCount.Inc(offers.Count);
         
         // Track vanishing buy orders before replacing state
         TrackVanishingOrders(args, offers);

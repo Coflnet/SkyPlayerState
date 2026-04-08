@@ -12,6 +12,10 @@ namespace Coflnet.Sky.PlayerState.Services;
 public class ItemIdAssignUpdate : UpdateListener
 {
     private ItemCompare comparer = new();
+    private static readonly Prometheus.Counter itemIdSearchCount = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_itemid_search_total",
+        "Total number of item-id searches performed.");
+
     public override async Task Process(UpdateArgs args)
     {
         var service = args.GetService<IItemsService>();
@@ -27,6 +31,7 @@ public class ItemIdAssignUpdate : UpdateListener
         
         var chestName = args.msg.Chest.Name;
         var toSearchFor = collection.Where(i => CanGetAnIdByStoring(i, chestName)).ToHashSet();
+        itemIdSearchCount.Inc(toSearchFor.Count);
         var localPresent = new Dictionary<Item, Item>(args.currentState.RecentViews.SelectMany(s => s.Items)
                 .Where(i => i.Id != null)
                 .GroupBy(e => e, comparer)

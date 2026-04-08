@@ -210,6 +210,9 @@ public class RecipeUpdate : UpdateListener
 
 public class RecipeService
 {
+    private static readonly Prometheus.Counter recipeUpdateCount = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_recipe_update_total",
+        "Total number of recipe updates saved.");
     private Table<Recipe> recipes;
     private Table<NpcCost> npcCosts;
     private ILogger<RecipeService> logger;
@@ -251,6 +254,7 @@ public class RecipeService
         try
         {
             await recipes.Insert(recipe).ExecuteAsync();
+            recipeUpdateCount.Inc();
         }
         catch (System.Exception e)
         {

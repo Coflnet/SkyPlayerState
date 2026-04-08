@@ -23,6 +23,12 @@ public class PersistenceService : IPersistenceService
 {
     ICassandraService cassandraService;
     private ILogger<PersistenceService> logger;
+    private static readonly Prometheus.Counter stateSaveCount = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_state_save_total",
+        "Total number of player state saves.");
+    private static readonly Prometheus.Counter stateSaveSkippedUnchangedCount = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_state_save_skipped_unchanged_total",
+        "Total number of skipped state saves because nothing changed.");
     private ConcurrentDictionary<string, DateTime> lastSaveLock = new();
     private ConcurrentDictionary<string, byte[]> savedHashList = new();
     private ConcurrentDictionary<string, Task> saveTasks = new();
@@ -86,7 +92,7 @@ public class PersistenceService : IPersistenceService
         hash = GetHash(inventory);
         if (DidNothingChange(stateObject, hash))
         {
-            Console.WriteLine($"\nNothing changed for {stateObject.PlayerId}, skipping save.");
+            stateSaveSkippedUnchangedCount.Inc();
             return;
         }
         // allow only one save every 5 seconds
@@ -114,6 +120,7 @@ public class PersistenceService : IPersistenceService
         try
         {
             await table.Insert(inventory).ExecuteAsync().ConfigureAwait(false);
+            stateSaveCount.Inc();
             logger.LogInformation("Saved state object for player {playerId}", stateObject.PlayerId);
             savedHashList[stateObject.PlayerId] = hash;
         }

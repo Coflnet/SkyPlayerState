@@ -120,6 +120,9 @@ public interface IBazaarProfitTracker
 
 public class BazaarProfitTracker : IBazaarProfitTracker
 {
+    private static readonly Prometheus.Counter bazaarProfitTrackedCount = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_bazaar_profit_tracked_total",
+        "Total number of bazaar profit flips tracked.");
     private readonly ISession _session;
     private readonly ILogger<BazaarProfitTracker> _logger;
     private Table<BazaarBuyRecord>? _buyTable;
@@ -307,6 +310,7 @@ public class BazaarProfitTracker : IBazaarProfitTracker
         };
 
         await _flipTable!.Insert(flip).ExecuteAsync();
+        bazaarProfitTrackedCount.Inc();
 
         _logger.LogInformation("Recorded flip for {Player}: {Amount}x {Item}, profit: {Profit} coins", 
             playerUuid, matchedAmount, itemTag, profit / 10.0);
