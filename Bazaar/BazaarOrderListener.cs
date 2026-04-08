@@ -334,6 +334,9 @@ public class BazaarOrderListener : UpdateListener
                         Created = args.msg.ReceivedAt
                     };
                     args.currentState.BazaarOffers.Add(sellOrder);
+
+                    await AddOrderToOrderBook(args, itemName, amount, sellPrice, true);
+
                     args.GetService<ILogger<BazaarOrderListener>>()
                         .LogInformation("Processed flipped order for {user}: {amount}x {item} bought at {buyPrice} for expected profit {expectedProfit}, created sell order at {sellPrice}",
                             args.currentState.McInfo.Name, amount, itemName, buyPrice, expectedProfit, sellPrice);
@@ -447,6 +450,8 @@ public class BazaarOrderListener : UpdateListener
                             Created = args.msg.ReceivedAt
                         };
                         args.currentState.BazaarOffers.Add(sellOrder);
+
+                        await AddOrderToOrderBook(args, itemName, amount, totalSellPriceInTenths, true);
                         
                         args.GetService<ILogger<BazaarOrderListener>>()
                             .LogInformation("Recovered and processed flipped order for {user}: {amount}x {item} bought at {buyPrice} coins for expected profit {expectedProfit} coins",
@@ -516,6 +521,21 @@ public class BazaarOrderListener : UpdateListener
 
         try
         {
+            await AddOrderToOrderBook(args, itemName, amount, price, side.HasFlag(Transaction.TransactionType.REMOVE));
+        }
+        catch (Exception e)
+        {
+            args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error adding order to order book");
+        }
+    }
+
+    private static async Task AddOrderToOrderBook(UpdateArgs args, string itemName, int amount, long price, bool isSell)
+    {
+        try
+        {
+            if (args.msg.UserId == null || amount == 0)
+                return;
+
             var orderBookApi = args.GetService<IOrderBookApi>();
             string tag = await GetTagForName(args, itemName);
             await orderBookApi.AddOrderAsync(new()
@@ -524,7 +544,7 @@ public class BazaarOrderListener : UpdateListener
                 UserId = args.msg.UserId,
                 ItemId = tag,
                 PricePerUnit = (double)price / amount / 10,
-                IsSell = side.HasFlag(Transaction.TransactionType.REMOVE),
+                IsSell = isSell,
                 Timestamp = args.msg.ReceivedAt,
                 PlayerName = args.currentState.McInfo.Name
             });

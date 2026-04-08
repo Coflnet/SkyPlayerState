@@ -458,6 +458,78 @@ public class BazaarProfitTests
         // This is CORRECT. We save the actual profit (84.6), not the expected profit (96).
         // The expected profit is just Hypixel's estimate and doesn't account for tax/slippage.
     }
+
+    [Test]
+    public async Task OrderFlippedSubmitsSellOrderToOrderBook()
+    {
+        // Buy order exists in state when flip message arrives (normal / happy path).
+        // Expected: the resulting sell order is POSTed to SkyBazaar via AddOrderAsync with IsSell = true.
+        _currentState.BazaarOffers.Add(new Offer
+        {
+            Amount = 64,
+            ItemName = "Ancient Claw",
+            PricePerUnit = 100.0, // 100 coins per unit = 6400 total buy
+            IsSell = false,
+            Created = DateTime.UtcNow - TimeSpan.FromHours(1)
+        });
+
+        var args = CreateArgs("[Bazaar] Order Flipped! 64x Ancient Claw for 16,915 coins of total expected profit.");
+        await _listener.Process(args);
+
+        // sellPrice = buyPrice + expectedProfit = 64000 + 169150 = 233150 tenths = 2331.5 coins total
+        // PricePerUnit sent = 233150 / 64 / 10 ≈ 364.3 coins
+        _orderBookApi.Verify(o => o.AddOrderAsync(
+            It.Is<Coflnet.Sky.Bazaar.Client.Model.OrderEntry>(order =>
+                order.IsSell == true &&
+                order.Amount == 64 &&
+                order.ItemId == "ANCIENT_CLAW" &&
+                order.UserId == "12345678-1234-1234-1234-123456789012"),
+            0, default), Times.Once,
+            "AddOrderAsync must be called with IsSell=true when a flip sell order is created");
+    }
+
+    [Test]
+    public async Task OrderFlippedRaceCondition_RecoveredBuyPrice_SubmitsSellOrderToOrderBook()
+    {
+        // Simulates the race condition: buy order is claimed and cached, chest GUI removes it
+        // from state, THEN the flip message arrives. The sell order must still reach SkyBazaar.
+
+        // Step 1: claim buy order so it enters the in-memory cache
+        _currentState.BazaarOffers.Add(new Offer
+        {
+            Amount = 1024,
+            ItemName = "Seeds",
+            PricePerUnit = 1.2,   // 1.2 coins per unit = 1228.8 coins total
+            IsSell = false,
+            Created = DateTime.UtcNow - TimeSpan.FromMinutes(1)
+        });
+        var claimArgs = CreateArgs(
+            "[Bazaar] Claiming order...",
+            "[Bazaar] Claimed 1024x Seeds worth 1228.8 coins bought for 1.2 each!");
+        await _listener.Process(claimArgs);
+
+        // Step 2: chest GUI update clears state (race condition)
+        _currentState.BazaarOffers.Clear();
+
+        // Step 3: flip message arrives with empty state — buy price recovered from cache
+        var flipArgs = CreateArgs("[Bazaar] Order Flipped! 1024x Seeds for 225.28 coins of total expected profit.");
+        await _listener.Process(flipArgs);
+
+        // RecordOrderFlip should have been called (buy price recovered from cache)
+        _profitTracker.Verify(p => p.RecordOrderFlip(
+            It.IsAny<Guid>(), "SEEDS", 1024, It.IsAny<long>(), It.IsAny<long>(), It.IsAny<DateTime>()),
+            Times.Once);
+
+        // AddOrderAsync must be called for the sell order even in the race-recovery path
+        _orderBookApi.Verify(o => o.AddOrderAsync(
+            It.Is<Coflnet.Sky.Bazaar.Client.Model.OrderEntry>(order =>
+                order.IsSell == true &&
+                order.Amount == 1024 &&
+                order.ItemId == "SEEDS" &&
+                order.UserId == "12345678-1234-1234-1234-123456789012"),
+            0, default), Times.Once,
+            "AddOrderAsync must be called with IsSell=true even when buy price is recovered from cache");
+    }
 }
 
 /// <summary>
