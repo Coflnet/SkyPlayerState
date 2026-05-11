@@ -2,6 +2,11 @@ using System;
 
 namespace Coflnet.Sky.PlayerState.Models;
 
+public static class SpecialTransactionItemIds
+{
+    public const long Coins = 1_000_001;
+}
+
 public class Transaction
 {
     public Guid PlayerUuid { get; set; }

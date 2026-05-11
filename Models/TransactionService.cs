@@ -60,6 +60,35 @@ public class TransactionService : ITransactionService, ICassandraService
     private static Prometheus.Counter insertCount = Prometheus.Metrics.CreateCounter("sky_playerstate_transaction_insert", "How many inserts were made");
     private static Prometheus.Counter insertFailed = Prometheus.Metrics.CreateCounter("sky_playerstate_transaction_insert_fail", "How many inserts failed");
 
+    internal static bool ShouldStoreInItemTransactions(Transaction transaction)
+    {
+        return transaction.ItemId != SpecialTransactionItemIds.Coins;
+    }
+
+    internal static List<Transaction> NormalizeTransactionsForStorage(IEnumerable<Transaction> transactions)
+    {
+        return transactions
+            .GroupBy(t => new { t.PlayerUuid, t.ItemId, t.TimeStamp })
+            .Select(group =>
+            {
+                var groupedTransactions = group.ToList();
+                if (groupedTransactions.Count == 1)
+                    return groupedTransactions[0];
+
+                var first = groupedTransactions[0];
+                return new Transaction()
+                {
+                    Amount = groupedTransactions.Sum(t => t.Amount),
+                    ItemId = group.Key.ItemId,
+                    PlayerUuid = group.Key.PlayerUuid,
+                    ProfileUuid = first.ProfileUuid,
+                    TimeStamp = group.Key.TimeStamp,
+                    Type = first.Type
+                };
+            })
+            .ToList();
+    }
+
 
     public async Task AddTransactions(params Transaction[] transactions)
     {
@@ -70,36 +99,27 @@ public class TransactionService : ITransactionService, ICassandraService
         var session = await GetSession();
         var table = GetPlayerTable(session);
         var itemTable = GetItemTable(session);
-        var count = transactions.Count();
+        var normalizedTransactions = NormalizeTransactionsForStorage(transactions);
+        var count = normalizedTransactions.Count;
         if (count == 0)
             return;
         Console.WriteLine("adding transactions " + count);
-        await Task.WhenAll(transactions.GroupBy(t => new { t.PlayerUuid, t.ItemId, t.TimeStamp }).Select(g =>
-        {
-            if (g.Count() > 1)
-            {
-                return new Transaction()
-                {
-                    Amount = g.Sum(t => t.Amount),
-                    ItemId = g.Key.ItemId,
-                    PlayerUuid = g.Key.PlayerUuid,
-                    ProfileUuid = g.First().ProfileUuid,
-                    TimeStamp = g.Key.TimeStamp,
-                    Type = g.First().Type
-                };
-            }
-            return g.First();
-        }).Select(async transaction =>
+        await Task.WhenAll(normalizedTransactions.Select(async transaction =>
         {
             var maxTries = 5;
             for (int i = 0; i < maxTries; i++)
                 try
                 {
                     var statement = table.Insert(new PlayerTransaction(transaction));
-                    var itemInsert = session.ExecuteAsync(itemTable.Insert(new ItemTransaction(transaction)));
                     statement.SetConsistencyLevel(ConsistencyLevel.Quorum);
-                    await session.ExecuteAsync(statement);
-                    await itemInsert;
+                    var playerInsert = session.ExecuteAsync(statement);
+                    var itemInsert = Task.CompletedTask;
+                    if (ShouldStoreInItemTransactions(transaction))
+                    {
+                        itemInsert = session.ExecuteAsync(itemTable.Insert(new ItemTransaction(transaction)));
+                    }
+
+                    await Task.WhenAll(playerInsert, itemInsert);
                     insertCount.Inc();
                     return;
                 }
