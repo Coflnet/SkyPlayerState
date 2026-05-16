@@ -509,24 +509,32 @@ public class BazaarOrderListener : UpdateListener
 
     private static async Task RegisterUserEvents(UpdateArgs args, Transaction.TransactionType side, int amount, string itemName, long price, Offer order)
     {
-        var scheduleApi = args.GetService<IScheduleApi>();
-        await scheduleApi.ScheduleUserIdPostAsync(args.msg.UserId, DateTime.UtcNow + TimeSpan.FromDays(7), new()
+        var scheduleTask = Task.Run(async () =>
         {
-            Summary = "Bazaar order expired",
-            Message = $"Your bazaar order for {itemName} expired",
-            Reference = BazaarListener.OrderKey(order),
-            SourceType = "BazaarExpire",
-            SourceSubId = itemName
+            var scheduleApi = args.GetService<IScheduleApi>();
+            await scheduleApi.ScheduleUserIdPostAsync(args.msg.UserId, DateTime.UtcNow + TimeSpan.FromDays(7), new()
+            {
+                Summary = "Bazaar order expired",
+                Message = $"Your bazaar order for {itemName} expired",
+                Reference = BazaarListener.OrderKey(order),
+                SourceType = "BazaarExpire",
+                SourceSubId = itemName
+            });
         });
 
-        try
+        var orderBookTask = Task.Run(async () =>
         {
-            await AddOrderToOrderBook(args, itemName, amount, price, side.HasFlag(Transaction.TransactionType.REMOVE));
-        }
-        catch (Exception e)
-        {
-            args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error adding order to order book");
-        }
+            try
+            {
+                await AddOrderToOrderBook(args, itemName, amount, price, side.HasFlag(Transaction.TransactionType.REMOVE));
+            }
+            catch (Exception e)
+            {
+                args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error adding order to order book");
+            }
+        });
+
+        await Task.WhenAll(scheduleTask, orderBookTask);
     }
 
     private static async Task AddOrderToOrderBook(UpdateArgs args, string itemName, int amount, long price, bool isSell)
@@ -601,16 +609,49 @@ public class BazaarOrderListener : UpdateListener
 
     private static async Task ProduceFillEvent(UpdateArgs args, string itemName, Offer order)
     {
+        string tag;
+        try
+        {
+            tag = await GetTagForName(args, itemName);
+        }
+        catch (Exception e)
+        {
+            args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error resolving item tag for filled bazaar order {item}", itemName);
+            return;
+        }
+
         try
         {
             var orderApi = args.GetService<IOrderBookApi>();
-            string tag = await GetTagForName(args, itemName);
+            await orderApi.MarkOrderFilledAsync(tag, args.msg.UserId, order.PricePerUnit, (int)order.Amount);
             await orderApi.RemoveOrderAsync(tag, args.msg.UserId, order.Created);
-            args.GetService<ILogger<BazaarOrderListener>>().LogInformation("Removed order from order book for {user} {item} {amount} {price}", args.currentState.McInfo.Name, tag, order.Amount, order.PricePerUnit);
+            args.GetService<ILogger<BazaarOrderListener>>().LogInformation("Marked filled and removed order from order book for {user} {item} {amount} {price}", args.currentState.McInfo.Name, tag, order.Amount, order.PricePerUnit);
         }
         catch (Exception e)
         {
             args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error removing order from order book");
+        }
+
+        try
+        {
+            await args.GetService<BazaarSignalPublisher>().PublishAsync(new Models.BazaarSignalEvent
+            {
+                Type = Models.BazaarSignalTypes.OrderFilled,
+                ItemTag = tag,
+                ItemName = itemName,
+                UserId = args.msg.UserId,
+                MinecraftUuid = args.currentState.McInfo.Uuid.ToString(),
+                MinecraftName = args.currentState.McInfo.Name,
+                OrderSide = order.IsSell ? Models.BazaarSignalSides.SellOffer : Models.BazaarSignalSides.BuyOrder,
+                Amount = (int)order.Amount,
+                PricePerUnit = order.PricePerUnit,
+                Timestamp = args.msg.ReceivedAt,
+                Source = "SkyUserState"
+            });
+        }
+        catch (Exception e)
+        {
+            args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error publishing bazaar fill signal for {item}", itemName);
         }
     }
 
