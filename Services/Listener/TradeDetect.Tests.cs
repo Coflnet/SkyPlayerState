@@ -30,7 +30,7 @@ public class TradeDetectTests
             //b.AddConsole();
         }).CreateLogger<TradeDetect>();
         var service = new TradeDetect(logger);
-        var inventory = JsonConvert.DeserializeObject<UpdateMessage>(Inventory)!.Chest;
+        var inventory = JsonConvert.DeserializeObject<UpdateMessage>(Inventory)!.Chest!;
         var args = GetUpdateArgs(ChatUpdate);
         var transactionService = new Mock<ITransactionService>();
         var nameService = new Mock<IPlayerNameApi>();
@@ -50,6 +50,42 @@ public class TradeDetectTests
             && t.First().ItemId == beefId
             && t.Last().ItemId == TradeDetect.IdForCoins && t.Last().Amount == 20000
         )), Times.Once);
+    }
+
+    [Test]
+    public async Task ExpandsTradePartnerNameFromTabList()
+    {
+        var logger = NullLogger<TradeDetect>.Instance;
+        var service = new TradeDetect(logger);
+        var inventory = JsonConvert.DeserializeObject<UpdateMessage>(Inventory)!.Chest!;
+        inventory.Name = "You                  AscendantS";
+        foreach (var item in inventory.Items.Where(item => item?.Description?.Contains("Trading with ") ?? false))
+        {
+            item.Description = item.Description!.Replace("VakarisRu", "AscendantS");
+        }
+
+        var args = GetUpdateArgs("""{"Kind":1,"ReceivedAt":"2023-11-19T12:34:39.5832977Z","Chest":null,"ChatBatch":[" + 2k coins"," - 13x Raw Beef"],"PlayerId":"Ekwav","SessionId":"KXZ2q2ifkCBlthrFrcdUzg=="}""");
+        var transactionService = new Mock<ITransactionService>();
+        var nameService = new Mock<IPlayerNameApi>();
+        var tradeService = new Mock<ITradeService>();
+        var itemDetails = new ItemDetails(null);
+        nameService.Setup(s => s.PlayerNameUuidNameGetAsync("AscendantShadow", 0, default)).ReturnsAsync(Guid.Empty.ToString());
+        args.AddService(transactionService.Object);
+        args.AddService(nameService.Object);
+        args.AddService(tradeService.Object);
+        args.AddService(itemDetails);
+        args.currentState.RecentViews.Enqueue(inventory);
+        args.currentState.LastTab = new[]
+        {
+            "§b[MVP§c+§b] AscendantShadow",
+            "§7RandomPlayer"
+        };
+        itemDetails.TagLookup["RAW_BEEF"] = Random.Shared.Next(10, 10000);
+
+        await service.Process(args);
+
+        nameService.Verify(s => s.PlayerNameUuidNameGetAsync("AscendantShadow", 0, default), Times.Once);
+        tradeService.Verify(s => s.ProduceTrade(It.Is<TradeModel>(trade => trade.OtherSide == "AscendantShadow")), Times.Once);
     }
 
     private MockedUpdateArgs GetUpdateArgs(string json)

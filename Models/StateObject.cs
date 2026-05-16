@@ -40,18 +40,20 @@ public class StateObject
     [Key(5)]
     public McInfo McInfo = new();
     [Key(6)]
-    public string PlayerId;
+    public string PlayerId = string.Empty;
     /// <summary>
     /// List of profiles the one at index 0 is used as active profile
     /// </summary>
     [Key(7)]
-    public List<Profile> Profiles;
+    public List<Profile> Profiles = new();
     [Key(8)]
     public List<Offer> BazaarOffers = new();
     [Key(9)]
     public ExtractedInfo ExtractedInfo = new();
     [Key(10)]
     public StateSettings Settings = new();
+    [Key(11)]
+    public string[] LastTab = Array.Empty<string>();
     [Key(12)]
     public Dictionary<string, int> ItemsCollectedRecently = new();
     [IgnoreMember]
@@ -90,6 +92,8 @@ public class StateObject
             BazaarOffers = new List<Offer>(other.BazaarOffers);
         if(other.ExtractedInfo != null)
             ExtractedInfo = new ExtractedInfo(other.ExtractedInfo);
+        if (other.LastTab != null)
+            LastTab = (string[])other.LastTab.Clone();
         if (other.ItemsCollectedRecently != null)
             ItemsCollectedRecently = new Dictionary<string, int>(other.ItemsCollectedRecently);
         Settings = other.Settings;
@@ -104,7 +108,7 @@ public class McInfo
     [Key(0)]
     public Guid Uuid;
     [Key(1)]
-    public string Name;
+    public string Name = string.Empty;
 }
 [MessagePackObject]
 public class Profile
@@ -112,7 +116,7 @@ public class Profile
     [Key(0)]
     public Guid Uuid;
     [Key(1)]
-    public string Name;
+    public string Name = string.Empty;
 }
 [MessagePackObject]
 public class PurseUpdate

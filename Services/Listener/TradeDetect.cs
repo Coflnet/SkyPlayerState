@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using Coflnet.Sky.PlayerState.Models;
 using System.Linq;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Coflnet.Sky.PlayerName.Client.Api;
 
@@ -10,9 +11,11 @@ namespace Coflnet.Sky.PlayerState.Services;
 public class TradeDetect : UpdateListener
 {
     public const int IdForCoins = (int)SpecialTransactionItemIds.Coins;
+    private static readonly Regex MinecraftFormattingRegex = new("§.", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex UsernameRegex = new(@"\b[A-Za-z0-9_]{3,16}\b", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     public ILogger<TradeDetect> logger;
     private static CoinParser parser = new();
-    private Core.ItemDetails itemDetails;
+    private Core.ItemDetails? itemDetails;
 
     public TradeDetect(ILogger<TradeDetect> logger)
     {
@@ -31,7 +34,9 @@ public class TradeDetect : UpdateListener
         }
         if (args.msg.Kind == UpdateMessage.UpdateKind.CHAT)
         {
-            var lastMessage = args.msg.ChatBatch.Last();
+            var lastMessage = args.msg.ChatBatch?.LastOrDefault();
+            if (lastMessage == null)
+                return;
             if (!lastMessage.StartsWith(" + ") && !lastMessage.StartsWith(" - "))
                 return;
 
@@ -41,10 +46,10 @@ public class TradeDetect : UpdateListener
             return;
         }
         var chest = args.msg.Chest;
-        if (chest.Name == null || !chest.Name.StartsWith("You                  "))
+        if (chest?.Name == null || !chest.Name.StartsWith("You                  "))
             return; // not a trade
-        var otherSide = args.msg.Chest.Name.Substring(21);
-        Console.WriteLine("Got trade menu with " + args.msg.Chest.Name.Substring(21));
+        var otherSide = ExtractTradePartnerNameFromChest(chest.Name);
+        Console.WriteLine("Got trade menu with " + otherSide);
     }
 
     private async Task StoreTrade(UpdateArgs args)
@@ -78,7 +83,8 @@ public class TradeDetect : UpdateListener
         // other player
         try
         {
-            await AddOtherSideOfTrade(args, spent, received, timestamp, transactions, tradeView);
+            var playerName = ResolveOtherSideName(args, tradeView);
+            await AddOtherSideOfTrade(args, spent, received, timestamp, transactions, playerName);
         }
         catch (Exception e)
         {
@@ -98,7 +104,7 @@ public class TradeDetect : UpdateListener
         try
         {
             var tradeService = args.GetService<ITradeService>();
-            var playerName = tradeView.Name.Substring(21).Trim();
+            var playerName = ResolveOtherSideName(args, tradeView);
             var trademodel = new TradeModel()
             {
                 UserId = args.msg.UserId,
@@ -115,6 +121,93 @@ public class TradeDetect : UpdateListener
             logger.LogError(e, "Producing player trade");
         }
 
+    }
+
+    private string ResolveOtherSideName(UpdateArgs args, ChestView tradeView)
+    {
+        var candidate = TryExtractTradePartnerNameFromChat(args.msg.ChatBatch)
+            ?? TryExtractTradePartnerNameFromStatusItem(tradeView)
+            ?? ExtractTradePartnerNameFromChest(tradeView.Name);
+
+        return ExpandTradePartnerName(candidate, args.currentState.LastTab);
+    }
+
+    internal static string ExtractTradePartnerNameFromChest(string? chestName)
+    {
+        if (string.IsNullOrWhiteSpace(chestName))
+            return string.Empty;
+        if (!chestName.StartsWith("You"))
+            return chestName.Trim();
+
+        return chestName.AsSpan(3).TrimStart().ToString().Trim();
+    }
+
+    internal static string ExpandTradePartnerName(string? playerName, IEnumerable<string>? tabEntries)
+    {
+        var cleanedName = StripMinecraftFormatting(playerName).Trim();
+        if (string.IsNullOrWhiteSpace(cleanedName) || tabEntries == null)
+            return cleanedName;
+
+        var candidates = tabEntries
+            .SelectMany(ExtractPlayerNamesFromTabEntry)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var exactMatch = candidates.FirstOrDefault(name => name.Equals(cleanedName, StringComparison.OrdinalIgnoreCase));
+        if (exactMatch != null)
+            return exactMatch;
+
+        var prefixMatches = candidates
+            .Where(name => name.StartsWith(cleanedName, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (prefixMatches.Count == 1)
+            return prefixMatches[0];
+
+        return cleanedName;
+    }
+
+    private static IEnumerable<string> ExtractPlayerNamesFromTabEntry(string? tabEntry)
+    {
+        if (string.IsNullOrWhiteSpace(tabEntry))
+            return Enumerable.Empty<string>();
+
+        var cleanedEntry = StripMinecraftFormatting(tabEntry);
+        return UsernameRegex.Matches(cleanedEntry).Select(match => match.Value);
+    }
+
+    private static string? TryExtractTradePartnerNameFromChat(IEnumerable<string>? chatBatch)
+    {
+        if (chatBatch == null)
+            return null;
+
+        var completedLine = chatBatch
+            .Select(StripMinecraftFormatting)
+            .FirstOrDefault(line => line.StartsWith("Trade completed with ", StringComparison.Ordinal));
+        if (completedLine == null)
+            return null;
+
+        return completedLine["Trade completed with ".Length..].Trim().TrimEnd('!', '.');
+    }
+
+    private static string? TryExtractTradePartnerNameFromStatusItem(ChestView tradeView)
+    {
+        var statusLine = tradeView.Items
+            .Where(item => !string.IsNullOrWhiteSpace(item?.Description))
+            .SelectMany(item => item!.Description!.Split('\n'))
+            .Select(StripMinecraftFormatting)
+            .FirstOrDefault(line => line.StartsWith("Trading with ", StringComparison.Ordinal));
+        if (statusLine == null)
+            return null;
+
+        return statusLine["Trading with ".Length..].Trim().TrimEnd('!', '.');
+    }
+
+    private static string StripMinecraftFormatting(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        return MinecraftFormattingRegex.Replace(value, string.Empty);
     }
 
     public static void ParseTradeWindow(ChestView? tradeView, out List<Item> spent, out List<Item> received)
@@ -152,10 +245,9 @@ public class TradeDetect : UpdateListener
         service.StoreUuidToItemMapping(itemUuidAndItemId);
     }
 
-    private async Task AddOtherSideOfTrade(UpdateArgs args, List<Item> spent, List<Item> received, DateTime timestamp, List<Transaction> transactions, ChestView chest)
+    private async Task AddOtherSideOfTrade(UpdateArgs args, List<Item> spent, List<Item> received, DateTime timestamp, List<Transaction> transactions, string playerName)
     {
         var nameService = args.GetService<IPlayerNameApi>();
-        var playerName = chest.Name.Substring(21);
         var uuidString = await nameService.PlayerNameUuidNameGetAsync(playerName);
         logger.LogInformation($"other side of trade is {playerName} {uuidString}");
         var uuid = Guid.Parse(uuidString.Trim('"'));
@@ -203,6 +295,6 @@ public class TradeDetect : UpdateListener
     {
         if (parser.IsCoins(item))
             return IdForCoins;
-        return itemDetails.GetItemIdForTag(item.Tag);
+        return itemDetails!.GetItemIdForTag(item.Tag);
     }
 }
