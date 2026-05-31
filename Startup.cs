@@ -172,22 +172,29 @@ public class Startup
             var cluster = builder.Build();
             var session = cluster.Connect(null);
             var defaultKeyspace = cluster.Configuration.ClientOptions.DefaultKeyspace;
-            try
+            if (!string.IsNullOrEmpty(defaultKeyspace))
             {
-                session.CreateKeyspaceIfNotExists(defaultKeyspace, new Dictionary<string, string>()
+                var keyspaceExists = session.Execute(new SimpleStatement(
+                    "SELECT keyspace_name FROM system_schema.keyspaces WHERE keyspace_name = ?",
+                    defaultKeyspace)).Any();
+
+                if (!keyspaceExists)
                 {
-                    {"class", Configuration["CASSANDRA:REPLICATION_CLASS"]},
-                    {"replication_factor", Configuration["CASSANDRA:REPLICATION_FACTOR"]}
-                });
-                session.ChangeKeyspace(defaultKeyspace);
-                Console.WriteLine("Created cassandra keyspace");
-            }
-            catch (UnauthorizedException)
-            {
-                Console.WriteLine("User unauthorized to create keyspace, trying to connect directly");
-            }
-            finally
-            {
+                    try
+                    {
+                        session.CreateKeyspaceIfNotExists(defaultKeyspace, new Dictionary<string, string>()
+                        {
+                            {"class", Configuration["CASSANDRA:REPLICATION_CLASS"]},
+                            {"replication_factor", Configuration["CASSANDRA:REPLICATION_FACTOR"]}
+                        });
+                        Console.WriteLine("Created cassandra keyspace");
+                    }
+                    catch (Exception exception)
+                    {
+                        Console.WriteLine($"Startup migration for keyspace {defaultKeyspace} failed: {exception.Message}");
+                    }
+                }
+
                 session.ChangeKeyspace(defaultKeyspace);
             }
             return session;

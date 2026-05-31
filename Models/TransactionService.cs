@@ -41,20 +41,22 @@ public class UuidToItemMapping
 public class TransactionService : ITransactionService, ICassandraService
 {
     ISession _session;
-    ISession _oldSession;
-    private SemaphoreSlim sessionOpenLock = new SemaphoreSlim(1);
-    private IConfiguration config;
-    private ILogger<TransactionService> logger;
-    private Table<PlayerTransaction> _table;
-    private Table<UuidToItemMapping> itemMappingTable;
+    ISession? _oldSession;
+    private readonly SemaphoreSlim sessionOpenLock = new SemaphoreSlim(1);
+    private readonly IConfiguration config;
+    private readonly ILogger<TransactionService> logger;
+    private readonly Table<PlayerTransaction> _table;
+    private readonly Table<UuidToItemMapping> itemMappingTable;
 
     public TransactionService(ILogger<TransactionService> logger, IConfiguration config, ISession session)
     {
         this.logger = logger;
         this.config = config;
         this._session = session;
+        _table = GetPlayerTable(_session);
+        itemMappingTable = GetItemMappingTable(_session);
 
-        _table = Create(_session).Result;
+        EnsureSchemaCreated(_session).GetAwaiter().GetResult();
     }
 
     private static Prometheus.Counter insertCount = Prometheus.Metrics.CreateCounter("sky_playerstate_transaction_insert", "How many inserts were made");
@@ -135,24 +137,54 @@ public class TransactionService : ITransactionService, ICassandraService
     }
 
 
-    private async Task<Table<PlayerTransaction>> Create(ISession session)
+    private async Task EnsureSchemaCreated(ISession session)
     {
-        var table = GetPlayerTable(session);
         var itemTable = GetItemTable(session);
         var rawitemTable = GetSplitItemsTable(session);
+
+        // drop table
+        //session.Execute("DROP TABLE IF EXISTS items");
+        await CreateTableIfMissing(session, "transactions", () => _table.CreateIfNotExistsAsync());
+        await CreateTableIfMissing(session, "itemtransaction", () => itemTable.CreateIfNotExistsAsync());
+        await CreateTableIfMissing(session, "split_items", () => rawitemTable.CreateIfNotExistsAsync());
+        await CreateTableIfMissing(session, "uuidtoitemmapping", () => itemMappingTable.CreateIfNotExistsAsync());
+    }
+
+    private async Task CreateTableIfMissing(ISession session, string tableName, Func<Task> create)
+    {
+        if (await TableExists(session, tableName))
+        {
+            logger.LogDebug("Skipping startup migration for table {TableName}; schema already exists.", tableName);
+            return;
+        }
+
+        try
+        {
+            await create();
+            logger.LogInformation("Created table {TableName} during startup migration.", tableName);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Startup migration for table {TableName} failed; continuing without applying it.", tableName);
+        }
+    }
+
+    private static async Task<bool> TableExists(ISession session, string tableName)
+    {
+        var result = await session.ExecuteAsync(new SimpleStatement(
+            "SELECT table_name FROM system_schema.tables WHERE keyspace_name = ? AND table_name = ?",
+            session.Keyspace,
+            tableName.ToLowerInvariant()));
+        return result.Any();
+    }
+
+    private static Table<UuidToItemMapping> GetItemMappingTable(ISession session)
+    {
         var mapping = new MappingConfiguration()
             .Define(new Map<UuidToItemMapping>()
             .PartitionKey(t => t.ItemUuid)
             .ClusteringKey(new Tuple<string, SortOrder>("ItemId", SortOrder.Descending)));
-        itemMappingTable = new Table<UuidToItemMapping>(session, mapping);
-
-        // drop table
-        //session.Execute("DROP TABLE IF EXISTS items");
-        await table.CreateIfNotExistsAsync();
-        await itemTable.CreateIfNotExistsAsync();
-        await rawitemTable.CreateIfNotExistsAsync();
-        await itemMappingTable.CreateIfNotExistsAsync();
-        return table;
+        return new Table<UuidToItemMapping>(session, mapping, "uuidtoitemmapping");
     }
 
     public static Table<PlayerTransaction> GetPlayerTable(ISession session)
@@ -255,9 +287,6 @@ public class TransactionService : ITransactionService, ICassandraService
 
     private async Task<Table<PlayerTransaction>> GetPlayerTable()
     {
-        if (_table != null)
-            return _table;
-        await GetSession();
         return _table;
     }
 
