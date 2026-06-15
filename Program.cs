@@ -1,8 +1,8 @@
-using Coflnet.Security.OpenBao;
 global using System;
+using Coflnet.Security.OpenBao;
+using Coflnet.Sky.Core;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
-using OpenTelemetry.Logs;
 
 namespace Coflnet.Sky.PlayerState
 {
@@ -19,16 +19,12 @@ namespace Coflnet.Sky.PlayerState
                 .ConfigureAppConfiguration((_, config) => config.AddOpenBaoFromEnvironment())
                 .ConfigureLogging((context, logging) =>
                 {
-                    logging.AddOpenTelemetry(options =>
-                    {
-                        options.IncludeFormattedMessage = true;
-                        options.IncludeScopes = true;
-                        var endpoint = context.Configuration["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"];
-                        if (!string.IsNullOrEmpty(endpoint))
-                            options.AddOtlpExporter(o => o.Endpoint = new Uri(endpoint));
-                        else
-                            options.AddOtlpExporter();
-                    });
+                    // Shared OTel logging configuration from Coflnet.Sky.Core.
+                    // Bridges ILogger -> OTLP (HttpProtobuf) with trace-log correlation,
+                    // k8s pod attributes, and DEV_LOGGING console fallback.
+                    logging.AddOpenTelemetryLogging(
+                        context.Configuration,
+                        context.Configuration["JAEGER_SERVICE_NAME"] ?? "sky-player-state");
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
