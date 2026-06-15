@@ -1,4 +1,5 @@
 global using System;
+using Coflnet.Core;
 using Coflnet.Security.OpenBao;
 using Coflnet.Sky.Core;
 using Microsoft.AspNetCore.Hosting;
@@ -19,7 +20,7 @@ namespace Coflnet.Sky.PlayerState
                 .ConfigureAppConfiguration((_, config) => config.AddOpenBaoFromEnvironment())
                 .ConfigureLogging((context, logging) =>
                 {
-                    // Shared OTel logging configuration from Coflnet.Sky.Core.
+                    // Shared OTel logging configuration from Coflnet.Core.
                     // Bridges ILogger -> OTLP (HttpProtobuf) with trace-log correlation,
                     // k8s pod attributes, and DEV_LOGGING console fallback.
                     logging.AddOpenTelemetryLogging(
