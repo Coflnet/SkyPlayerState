@@ -12,6 +12,7 @@ namespace Coflnet.Sky.PlayerState.Services;
 
 public class CollectionListener : UpdateListener
 {
+    private const string MithrilPowderTag = "MITHRIL_POWDER";
     private Dictionary<string, string> NametoTagLookup;
     /// <inheritdoc/>
     public override async Task Process(UpdateArgs args)
@@ -24,6 +25,10 @@ public class CollectionListener : UpdateListener
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.INVENTORY)
         {
             HandleInventory(args);
+        }
+        if (args.msg.Kind == Models.UpdateMessage.UpdateKind.Tab)
+        {
+            HandleTab(args);
         }
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.CHAT)
         {
@@ -40,6 +45,65 @@ public class CollectionListener : UpdateListener
                     args.currentState.ItemsCollectedRecently["SHARD_CHAMELEON"] = args.currentState.ItemsCollectedRecently.GetValueOrDefault("SHARD_CHAMELEON", 0) + 1;
             }
         }
+    }
+
+    private static void HandleTab(UpdateArgs args)
+    {
+        var mithrilPowder = ParseMithrilPowderFromTab(args.msg.Tab);
+        if (!mithrilPowder.HasValue)
+            return;
+
+        TrackMithrilPowder(args, mithrilPowder.Value);
+    }
+
+    internal static int? ParseMithrilPowderFromTab(IEnumerable<string>? tab)
+    {
+        if (tab == null)
+            return null;
+
+        foreach (var rawLine in tab)
+        {
+            var line = StripFormatting(rawLine);
+            if (string.IsNullOrWhiteSpace(line) || !line.Contains("Mithril Powder", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var labelMatch = Regex.Match(line, @"Mithril Powder\s*:\s*([\d,]+)", RegexOptions.IgnoreCase);
+            if (labelMatch.Success && TryParseNumber(labelMatch.Groups[1].Value, out var byLabel))
+                return byLabel;
+
+            var reverseMatch = Regex.Match(line, @"([\d,]+)\s*Mithril Powder", RegexOptions.IgnoreCase);
+            if (reverseMatch.Success && TryParseNumber(reverseMatch.Groups[1].Value, out var byReverse))
+                return byReverse;
+        }
+
+        return null;
+    }
+
+    internal static void TrackMithrilPowder(UpdateArgs args, int currentMithrilPowder)
+    {
+        if (currentMithrilPowder < 0)
+            return;
+
+        var previousMithrilPowder = args.currentState.ExtractedInfo.MithrilPowder;
+        if (previousMithrilPowder > 0 && currentMithrilPowder > previousMithrilPowder)
+        {
+            var diff = currentMithrilPowder - previousMithrilPowder;
+            args.currentState.ItemsCollectedRecently[MithrilPowderTag] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(MithrilPowderTag, 0) + diff;
+        }
+
+        args.currentState.ExtractedInfo.MithrilPowder = currentMithrilPowder;
+    }
+
+    private static bool TryParseNumber(string value, out int parsed)
+    {
+        return int.TryParse(value.Replace(",", ""), out parsed);
+    }
+
+    private static string StripFormatting(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+        return Regex.Replace(value, "§.", string.Empty);
     }
 
     private async Task HandleShardCatch(UpdateArgs args, string uploadedLine)

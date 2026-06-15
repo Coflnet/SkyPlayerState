@@ -46,6 +46,8 @@ public class ExtractedInfo
     public Item[]? HuntingToolkitItems { get; set; } = null;
     [Key(17)]
     public PlayerElectionVote? PlayerElectionVote { get; set; } = null;
+    [Key(18)]
+    public int MithrilPowder { get; set; }
     [MessagePackObject]
     public class PetState
     {
@@ -141,6 +143,7 @@ public class ExtractedInfo
             VotedFor = extractedInfo.PlayerElectionVote.VotedFor,
             VoteCount = extractedInfo.PlayerElectionVote.VoteCount
         };
+        MithrilPowder = extractedInfo.MithrilPowder;
     }
 }
 
