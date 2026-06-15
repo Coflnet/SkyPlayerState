@@ -23,9 +23,11 @@ namespace Coflnet.Sky.PlayerState
                     {
                         options.IncludeFormattedMessage = true;
                         options.IncludeScopes = true;
-                        // Uses standard OTEL env vars for endpoint resolution:
-                        // OTEL_EXPORTER_OTLP_LOGS_ENDPOINT → OTEL_EXPORTER_OTLP_ENDPOINT → default localhost:4318
-                        options.AddOtlpExporter();
+                        var endpoint = context.Configuration["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"];
+                        if (!string.IsNullOrEmpty(endpoint))
+                            options.AddOtlpExporter(o => o.Endpoint = new Uri(endpoint));
+                        else
+                            options.AddOtlpExporter();
                     });
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
