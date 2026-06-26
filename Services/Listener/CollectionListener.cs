@@ -19,8 +19,13 @@ public class CollectionListener : UpdateListener
     // bottleneck. Cache the merged lookup and refresh it at most once per interval.
     private Dictionary<string, double> cachedCleanPrices;
     private DateTime cleanPricesFetchedAt = DateTime.MinValue;
+    private DateTime cleanPricesRetryAfter = DateTime.MinValue;
     private readonly System.Threading.SemaphoreSlim cleanPricesLock = new(1, 1);
     private static readonly TimeSpan CleanPricesCacheDuration = TimeSpan.FromMinutes(2);
+    // when a refresh fails, wait this long before hitting the (failing) dependency again
+    // instead of retrying on every single scoreboard message
+    private static readonly TimeSpan CleanPricesFailureBackoff = TimeSpan.FromSeconds(15);
+    private static readonly Dictionary<string, double> EmptyCleanPrices = new();
     /// <inheritdoc/>
     public override async Task Process(UpdateArgs args)
     {
@@ -242,21 +247,37 @@ public class CollectionListener : UpdateListener
             // double check now that we hold the lock so only one caller refreshes
             if (cachedCleanPrices != null && DateTime.UtcNow - cleanPricesFetchedAt < CleanPricesCacheDuration)
                 return cachedCleanPrices;
-            var cleanPrices = new Dictionary<string, double>();
-            var ahPrices = await args.GetService<ISniperApi>().ApiSniperPricesCleanGetAsync();
-            var bazaarPrices = await args.GetService<IBazaarApi>().GetAllPricesAsync();
-            foreach (var item in bazaarPrices)
+            // a recent refresh failed; serve stale/empty rather than hammering a failing dependency
+            // (and rather than throwing, which would fail the entire state update and trigger backoff)
+            if (DateTime.UtcNow < cleanPricesRetryAfter)
+                return cachedCleanPrices ?? EmptyCleanPrices;
+            try
             {
-                cleanPrices[item.ProductId] = (int)item.SellPrice;
+                var cleanPrices = new Dictionary<string, double>();
+                var ahPrices = await args.GetService<ISniperApi>().ApiSniperPricesCleanGetAsync();
+                var bazaarPrices = await args.GetService<IBazaarApi>().GetAllPricesAsync();
+                foreach (var item in bazaarPrices)
+                {
+                    cleanPrices[item.ProductId] = (int)item.SellPrice;
+                }
+                foreach (var item in ahPrices)
+                {
+                    if (item.Value > 0)
+                        cleanPrices[item.Key] = item.Value;
+                }
+                cachedCleanPrices = cleanPrices;
+                cleanPricesFetchedAt = DateTime.UtcNow;
+                return cachedCleanPrices;
             }
-            foreach (var item in ahPrices)
+            catch (Exception e)
             {
-                if (item.Value > 0)
-                    cleanPrices[item.Key] = item.Value;
+                // Degrade gracefully: a failing price service must not fail location-profit tracking
+                // for every player. Serve the last known prices (or nothing) and back off.
+                cleanPricesRetryAfter = DateTime.UtcNow + CleanPricesFailureBackoff;
+                Logger.LogError(e, "failed to refresh clean prices, serving {count} stale entries until {retryAfter:O}",
+                    cachedCleanPrices?.Count ?? 0, cleanPricesRetryAfter);
+                return cachedCleanPrices ?? EmptyCleanPrices;
             }
-            cachedCleanPrices = cleanPrices;
-            cleanPricesFetchedAt = DateTime.UtcNow;
-            return cachedCleanPrices;
         }
         finally
         {

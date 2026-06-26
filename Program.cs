@@ -16,6 +16,10 @@ namespace Coflnet.Sky.PlayerState
         {
             BufferConsoleOutput();
             Console.WriteLine("uuid: " + new Guid("9b5f43a35815412f837f99944af4faf8"));
+            // ILogger output is shipped to Loki via OTLP (see AddOpenTelemetryLogging), not stdout.
+            // `kubectl logs` only shows this boot banner; query application logs in Loki, e.g.:
+            //   {service_name="sky-player-state"} | detected_level="Error"
+            Console.WriteLine("[logs] application logs go to Loki, not stdout. Query: {service_name=\"sky-player-state\"} (Grafana > Explore > Loki)");
             CreateHostBuilder(args).Build().Run();
         }
 
