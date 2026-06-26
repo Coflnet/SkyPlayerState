@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using Newtonsoft.Json;
 using Cassandra.Data.Linq;
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace Coflnet.Sky.PlayerState.Services
 {
@@ -19,12 +20,14 @@ namespace Coflnet.Sky.PlayerState.Services
     public class ItemsService : IItemsService
     {
         private readonly ICassandraService cassandraService;
+        private readonly ILogger<ItemsService> logger;
         private static CassandraItemCompare cassandraCompare = new();
         private Prometheus.Counter cassandraInsertCount = Prometheus.Metrics.CreateCounter("sky_playerstate_cassandra_insert", "How many items were inserted");
 
-        public ItemsService(ICassandraService cassandraService)
+        public ItemsService(ICassandraService cassandraService, ILogger<ItemsService> logger)
         {
             this.cassandraService = cassandraService;
+            this.logger = logger;
         }
 
         public async Task<Item?> GetAsync(long id) =>
@@ -52,11 +55,11 @@ namespace Coflnet.Sky.PlayerState.Services
             Activity.Current?.AddTag("tags", string.Join(",", tags));
             foreach (var item in toCreate.Where(c => c.Tag.Contains("LAPIS_ARMOR_H")))
             {
-                Console.WriteLine("yay " + JsonConvert.SerializeObject(item, Formatting.Indented));
+                logger.LogDebug("yay {item}", JsonConvert.SerializeObject(item, Formatting.Indented));
             }
             foreach (var item in found.Where(c => c.Tag.Contains("LAPIS_ARMOR_He")))
             {
-                Console.WriteLine("exists " + JsonConvert.SerializeObject(item, Formatting.Indented));
+                logger.LogDebug("exists {item}", JsonConvert.SerializeObject(item, Formatting.Indented));
             }
             await Task.WhenAll(toCreate.Select(i =>
             {
@@ -64,18 +67,18 @@ namespace Coflnet.Sky.PlayerState.Services
                 {
                     i.Id = ThreadSaveIdGenerator.NextId;
                     cassandraInsertCount.Inc();
-                    Console.WriteLine("Inserting " + i.ItemName + " " + i.Id);
+                    logger.LogInformation("Inserting {itemName} {id}", i.ItemName, i.Id);
                     return table.Insert(i).ExecuteAsync();
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine(e + " " + JsonConvert.SerializeObject(i));
+                    logger.LogError(e, "failed to insert item {item}", JsonConvert.SerializeObject(i));
                     return Task.CompletedTask;
                 }
             }));
             if (found.Count > 30)
             {
-                await YeetBadData(table, found);
+                await YeetBadData(table, found, logger);
             }
             return found.Concat(toCreate).Select(s => s.ToTransfer()).ToList();
             /*
@@ -89,9 +92,9 @@ namespace Coflnet.Sky.PlayerState.Services
             */
         }
 
-        private static async Task YeetBadData(Table<CassandraItem> table, List<CassandraItem> found)
+        private static async Task YeetBadData(Table<CassandraItem> table, List<CassandraItem> found, ILogger logger = null)
         {
-            (IGrouping<(string Tag, Guid ItemId, int hash), CassandraItem> biggest, List<long?> matchingIds) = FindBadItems(found);
+            (IGrouping<(string Tag, Guid ItemId, int hash), CassandraItem> biggest, List<long?> matchingIds) = FindBadItems(found, logger);
             if (matchingIds.Count == 0)
             {
                 return;
@@ -99,19 +102,19 @@ namespace Coflnet.Sky.PlayerState.Services
             await Task.WhenAll(matchingIds.Select(i => table.Where(o => o.Id == i && o.ItemId == biggest.Key.ItemId && o.Tag == biggest.Key.Tag).Delete().ExecuteAsync()));
         }
 
-        public static (IGrouping<(string Tag, Guid ItemId, int code), CassandraItem> biggest, List<long?> matchingIds) FindBadItems(List<CassandraItem> found)
+        public static (IGrouping<(string Tag, Guid ItemId, int code), CassandraItem> biggest, List<long?> matchingIds) FindBadItems(List<CassandraItem> found, ILogger logger = null)
         {
             var biggest = found.GroupBy(f => (f.Tag, f.ItemId, (cassandraCompare as IEqualityComparer<CassandraItem>).GetHashCode(f))).OrderByDescending(g => g.Count()).First();
             var elements = biggest.OrderBy(biggest => biggest.Id).Skip(1).ToList();
             if (biggest.Count() <= 2)
             {
                 if (found.Count > 90)
-                    Console.WriteLine($"Found {found.Count} items with tag {biggest.Key.Tag} and uuid {biggest.Key.ItemId} deleting {biggest.Count()}");
+                    logger?.LogWarning("Found {count} items with tag {tag} and uuid {uuid} deleting {deleting}", found.Count, biggest.Key.Tag, biggest.Key.ItemId, biggest.Count());
                 return (biggest, new List<long?>());
             }
             var matchingElement = elements.Skip(Random.Shared.Next(0, biggest.Count() - 1)).First();
             var matchingIds = elements.Where(e => cassandraCompare.Equals(e, matchingElement)).Select(e => e.Id).ToList();
-            Console.WriteLine($"Found {found.Count} items with tag {biggest.Key.Tag} and uuid {biggest.Key.ItemId} deleting {matchingIds.Count} from {biggest.Count()}");
+            logger?.LogWarning("Found {count} items with tag {tag} and uuid {uuid} deleting {deleting} from {total}", found.Count, biggest.Key.Tag, biggest.Key.ItemId, matchingIds.Count, biggest.Count());
             return (biggest, matchingIds);
         }
 

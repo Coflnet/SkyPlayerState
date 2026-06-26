@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi;
 using Prometheus;
 using Coflnet.Sky.EventBroker.Client.Api;
@@ -137,21 +138,22 @@ public class Startup
     {
         services.AddSingleton<ISession>(p =>
         {
-            Console.WriteLine("Connecting to Scylla...");
+            var logger = p.GetRequiredService<ILogger<Startup>>();
+            logger.LogInformation("Connecting to Scylla...");
             var builder = Cluster.Builder().AddContactPoints(Configuration["SCYLLA:HOSTS"].Split(","))
                 .WithLoadBalancingPolicy(new TokenAwarePolicy(new DCAwareRoundRobinPolicy()))
                 .WithCredentials(Configuration["SCYLLA:USER"], Configuration["SCYLLA:PASSWORD"])
                 .WithDefaultKeyspace(Configuration["SCYLLA:KEYSPACE"]);
 
-            Console.WriteLine("Connecting to servers " + Configuration["SCYLLA:HOSTS"]);
-            Console.WriteLine("Using keyspace " + Configuration["SCYLLA:KEYSPACE"]);
-            Console.WriteLine("Using replication class " + Configuration["SCYLLA:REPLICATION_CLASS"]);
-            Console.WriteLine("Using replication factor " + Configuration["SCYLLA:REPLICATION_FACTOR"]);
-            Console.WriteLine("Using user " + Configuration["SCYLLA:USER"]);
-            Console.WriteLine("Using password " + Configuration["SCYLLA:PASSWORD"].Truncate(2) + "...");
+            logger.LogDebug("Connecting to servers {hosts}", Configuration["SCYLLA:HOSTS"]);
+            logger.LogDebug("Using keyspace {keyspace}", Configuration["SCYLLA:KEYSPACE"]);
+            logger.LogDebug("Using replication class {replicationClass}", Configuration["SCYLLA:REPLICATION_CLASS"]);
+            logger.LogDebug("Using replication factor {replicationFactor}", Configuration["SCYLLA:REPLICATION_FACTOR"]);
+            logger.LogDebug("Using user {user}", Configuration["SCYLLA:USER"]);
+            logger.LogDebug("Using password {password}...", Configuration["SCYLLA:PASSWORD"].Truncate(2));
             var certificatePaths = Configuration["SCYLLA:X509Certificate_PATHS"];
-            Console.WriteLine("Using certificate paths " + certificatePaths);
-            Console.WriteLine("Using certificate password " + Configuration["SCYLLA:X509Certificate_PASSWORD"].Truncate(2) + "...");
+            logger.LogDebug("Using certificate paths {certificatePaths}", certificatePaths);
+            logger.LogDebug("Using certificate password {certificatePassword}...", Configuration["SCYLLA:X509Certificate_PASSWORD"].Truncate(2));
             var validationCertificatePath = Configuration["SCYLLA:X509Certificate_VALIDATION_PATH"];
             if (!string.IsNullOrEmpty(certificatePaths))
             {
@@ -187,11 +189,11 @@ public class Startup
                             {"class", Configuration["CASSANDRA:REPLICATION_CLASS"]},
                             {"replication_factor", Configuration["CASSANDRA:REPLICATION_FACTOR"]}
                         });
-                        Console.WriteLine("Created cassandra keyspace");
+                        logger.LogInformation("Created cassandra keyspace");
                     }
                     catch (Exception exception)
                     {
-                        Console.WriteLine($"Startup migration for keyspace {defaultKeyspace} failed: {exception.Message}");
+                        logger.LogError(exception, "Startup migration for keyspace {keyspace} failed", defaultKeyspace);
                     }
                 }
 

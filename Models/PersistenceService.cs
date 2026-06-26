@@ -84,8 +84,20 @@ public class PersistenceService : IPersistenceService
         await SaveStateObject(stateObject, false);
     }
 
+    private static readonly TimeSpan saveThrottle = TimeSpan.FromSeconds(8);
+
     public async Task SaveStateObject(StateObject stateObject, bool recursive)
     {
+        // Throttle BEFORE serializing. Building the Inventory deep-copies the whole state,
+        // MessagePack serializes + LZ4 compresses and SHA256-hashes it, which is expensive
+        // to run on every single update. An actual save happens at most once per
+        // saveThrottle per player, so if one ran recently (or is pending) just make sure a
+        // delayed save is queued (it serializes the latest state when it fires) and bail.
+        if (!recursive && lastSaveLock.ContainsKey(stateObject.PlayerId))
+        {
+            QueueDelayedSave(stateObject);
+            return;
+        }
         var table = await GetPlayerTable();
         var inventory = new Inventory(stateObject);
         byte[] hash;
@@ -95,26 +107,14 @@ public class PersistenceService : IPersistenceService
             stateSaveSkippedUnchangedCount.Inc();
             return;
         }
-        // allow only one save every 5 seconds
+        // allow only one save every saveThrottle
         // start new thread to wait if necessary
         // skip if more than one thread is waiting
-        var waitTime = TimeSpan.FromSeconds(8);
-        if (!lastSaveLock.TryAdd(stateObject.PlayerId, (DateTime.Now + waitTime)))
+        if (!lastSaveLock.TryAdd(stateObject.PlayerId, (DateTime.Now + saveThrottle)))
         {
             if (recursive)
                 return;
-            _ = saveTasks.AddOrUpdate(stateObject.PlayerId, (key) => Task.Run(async () =>
-            {
-                await Task.Delay(waitTime);
-                lastSaveLock.TryRemove(stateObject.PlayerId, out var _);
-                await SaveStateObject(stateObject, true);
-                saveTasks.TryRemove(stateObject.PlayerId, out var _);
-                await Task.Delay(waitTime);
-                if (lastSaveLock.TryRemove(stateObject.PlayerId, out var _))
-                {
-                    logger.LogDebug("Removed lock for {playerId}", stateObject.PlayerId);
-                }
-            }), (key, value) => value);
+            QueueDelayedSave(stateObject);
             return;
         }
         try
@@ -128,6 +128,22 @@ public class PersistenceService : IPersistenceService
         {
             logger.LogError(e, "Failed to save state object for {playerId}", stateObject.PlayerId);
         }
+    }
+
+    private void QueueDelayedSave(StateObject stateObject)
+    {
+        _ = saveTasks.AddOrUpdate(stateObject.PlayerId, (key) => Task.Run(async () =>
+        {
+            await Task.Delay(saveThrottle);
+            lastSaveLock.TryRemove(stateObject.PlayerId, out var _);
+            await SaveStateObject(stateObject, true);
+            saveTasks.TryRemove(stateObject.PlayerId, out var _);
+            await Task.Delay(saveThrottle);
+            if (lastSaveLock.TryRemove(stateObject.PlayerId, out var _))
+            {
+                logger.LogDebug("Removed lock for {playerId}", stateObject.PlayerId);
+            }
+        }), (key, value) => value);
     }
 
     private static byte[] GetHash(Inventory inventory)

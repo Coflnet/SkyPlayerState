@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Cassandra.Data.Linq;
 using Coflnet.Sky.PlayerState.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Coflnet.Sky.PlayerState.Services;
 
@@ -28,7 +29,7 @@ public class HeartOfTheListener : UpdateListener
         if(parsedTier > targetHeart.Tier)
         {
             targetHeart.Tier = parsedTier;
-            Console.WriteLine($"Updated {args.msg.Chest.Name} tier to {targetHeart.Tier} for player {args.currentState.PlayerId}");
+            Logger.LogInformation("Updated {chestName} tier to {tier} for player {playerId}", args.msg.Chest.Name, targetHeart.Tier, args.currentState.PlayerId);
         }
 
         var mithrilPowder = ParseMithrilPowderFromHeartOfThe(args.msg.Chest);

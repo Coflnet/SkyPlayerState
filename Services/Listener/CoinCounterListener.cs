@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Coflnet.Sky.PlayerState.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Coflnet.Sky.PlayerState.Services;
 
@@ -32,7 +33,7 @@ public class CoinCounterListener : UpdateListener
                         type.Value,
                         amount);
 
-                    Console.WriteLine($"[CoinCounter] {args.msg.PlayerId}: {type.Value} +{amount} coins");
+                    Logger.LogDebug("[CoinCounter] {playerId}: {type} +{amount} coins", args.msg.PlayerId, type.Value, amount);
                 }
             }
         }

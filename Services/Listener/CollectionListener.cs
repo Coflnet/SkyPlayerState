@@ -119,7 +119,7 @@ public class CollectionListener : UpdateListener
         var match = Regex.Match(uploadedLine, @"You (caught|received) (a|x\d) (.*) Shards?(!| for)");
         if (!match.Success)
         {
-            Console.WriteLine($"Failed to match shard catch: {uploadedLine}");
+            Logger.LogDebug("Failed to match shard catch: {line}", uploadedLine);
             return;
         }
         var shardName = match.Groups[3].Value.Trim();
@@ -149,20 +149,20 @@ public class CollectionListener : UpdateListener
                     var tag = NametoTagLookup.GetValueOrDefault(itemName);
                     if (tag == null)
                     {
-                        Console.WriteLine($"Item not found in lookup: {itemName}");
+                        Logger.LogDebug("Item not found in lookup: {itemName}", itemName);
                         continue;
                     }
                     args.currentState.ItemsCollectedRecently[tag] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(tag, 0) + count;
-                    Console.WriteLine($"Item collected from stash: {itemName} x{count} for player {args.currentState.PlayerId}");
+                    Logger.LogDebug("Item collected from stash: {itemName} x{count} for player {playerId}", itemName, count, args.currentState.PlayerId);
                 }
                 else
                 {
-                    Console.WriteLine($"Failed to parse item count from chat: {match.Groups[1].Value}");
+                    Logger.LogWarning("Failed to parse item count from chat: {value}", match.Groups[1].Value);
                 }
             }
             else
             {
-                Console.WriteLine($"Failed to match item from chat: {item}");
+                Logger.LogDebug("Failed to match item from chat: {item}", item);
             }
         }
     }
@@ -180,7 +180,7 @@ public class CollectionListener : UpdateListener
                 || previousInventory.Name == "Create BIN Auction"))
             {
                 // if the previous inventory is a storage, we don't want to track items collected
-                Console.WriteLine($"Skipping item collection tracking for storage chest {previousInventory.Name} for player {args.currentState.PlayerId}");
+                args.GetService<ILogger<CollectionListener>>().LogDebug("Skipping item collection tracking for storage chest {chestName} for player {playerId}", previousInventory.Name, args.currentState.PlayerId);
                 return;
             }
         }
@@ -319,10 +319,10 @@ public class CollectionListener : UpdateListener
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to record method aggregate: {ex.Message}");
+                Logger.LogError(ex, "Failed to record method aggregate");
             }
             args.SendDebugMessage("You collected a total of " + profit + " coins worth of items in " + previousLocation + " " + string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}")));
-            Console.WriteLine($"Profit summary for {args.currentState.PlayerId} at {previousLocation}: {profit} coins from {string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}"))}");
+            Logger.LogInformation("Profit summary for {playerId} at {location}: {profit} coins from {items}", args.currentState.PlayerId, previousLocation, profit, string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}")));
         }
         args.currentState.ItemsCollectedRecently.Clear();
         args.currentState.ExtractedInfo.LastLocationChange = DateTime.UtcNow;

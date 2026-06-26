@@ -62,7 +62,7 @@ public class BazaarOrderListener : UpdateListener
     /// <returns></returns>
     private static async Task HandleUpdate(string msg, UpdateArgs args)
     {
-        Console.WriteLine(msg);
+        args.GetService<ILogger<BazaarOrderListener>>().LogDebug("Handling bazaar message: {message}", msg);
         var side = Transaction.TransactionType.BAZAAR;
         var amount = 0;
         var itemName = "";
@@ -78,14 +78,14 @@ public class BazaarOrderListener : UpdateListener
             var match = Regex.Match(msg, @"([\d,]+)x\s+(.+?)\s+for\s+([\d\.,kKmM]+)\s+coins", RegexOptions.CultureInvariant);
             if (!match.Success)
             {
-                Console.WriteLine("No setup match found for: " + msg);
+                args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No setup match found for: {message}", msg);
                 return;
             }
             var parts = match.Groups;
             var amountStr = parts[1].Value;
             if (string.IsNullOrWhiteSpace(amountStr))
             {
-                Console.WriteLine("No amount captured in setup: " + msg);
+                args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No amount captured in setup: {message}", msg);
                 return;
             }
             amount = ParseInt(amountStr);
@@ -94,12 +94,12 @@ public class BazaarOrderListener : UpdateListener
             if (isSell)
             {
                 price = (long)(price / (1 - 0.01125) - 0.1); // include tax (estimate)
-                Console.WriteLine($"Adjusted price for tax {price} ({(double)price / amount / 10} per unit) for {amount}x {itemName}");
+                args.GetService<ILogger<BazaarOrderListener>>().LogDebug("Adjusted price for tax {price} ({perUnit} per unit) for {amount}x {item}", price, (double)price / amount / 10, amount, itemName);
             }
             if (price > 10000)
             {
                 // hypixel doesn't display the decimal price anymore, we got to parse it from the item in previous gui
-                Console.WriteLine($"Found from message {price} ({(double)price / amount / 10} per unit) for {amount}x {itemName}");
+                args.GetService<ILogger<BazaarOrderListener>>().LogDebug("Found from message {price} ({perUnit} per unit) for {amount}x {item}", price, (double)price / amount / 10, amount, itemName);
                 var lastView = args.currentState.RecentViews.LastOrDefault(v => v.Name.Contains("Confirm"));
                 if (lastView != null)
                 {
@@ -111,21 +111,21 @@ public class BazaarOrderListener : UpdateListener
                         {
                             var perUnit = ParseCoins(itemMatch[1].Value);
                             price = (long)(perUnit * amount);
-                            Console.WriteLine($"Found from item {price} ({(double)price / amount / 10} per unit) for {amount}x {itemName}");
+                            args.GetService<ILogger<BazaarOrderListener>>().LogDebug("Found from item {price} ({perUnit} per unit) for {amount}x {item}", price, (double)price / amount / 10, amount, itemName);
                         }
                         else
                         {
-                            Console.WriteLine("No price match found in " + JsonConvert.SerializeObject(lastView.Items.Take(9 * 3).Where(i => i.Tag != null)) + " from " + args.msg.PlayerId);
+                            args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No price match found in {items} from {player}", JsonConvert.SerializeObject(lastView.Items.Take(9 * 3).Where(i => i.Tag != null)), args.msg.PlayerId);
                         }
                     }
                     else
                     {
-                        Console.WriteLine("No order item found in " + JsonConvert.SerializeObject(lastView.Items));
+                        args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No order item found in {items}", JsonConvert.SerializeObject(lastView.Items));
                     }
                 }
                 else
                 {
-                    Console.WriteLine("No last view found");
+                    args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No last view found");
                 }
             }
             var order = new Offer()
@@ -159,7 +159,7 @@ public class BazaarOrderListener : UpdateListener
             var order = args.currentState.BazaarOffers.Where(o => o.ItemName == itemName && o.Amount == amount).FirstOrDefault();
             if (order == null)
             {
-                Console.WriteLine("No order found for " + itemName + " " + amount);
+                args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No order found for {item} {amount}", itemName, amount);
                 return;
             }
             order.Customers.Add(new Fill()
@@ -209,7 +209,7 @@ public class BazaarOrderListener : UpdateListener
                 }
             }
             else
-                Console.WriteLine("No order found for " + itemName + " " + amount + " to cancel " + JsonConvert.SerializeObject(args.currentState.BazaarOffers));
+                args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No order found for {item} {amount} to cancel {offers}", itemName, amount, JsonConvert.SerializeObject(args.currentState.BazaarOffers));
             await AddItemTransaction(args, side, amount, itemName);
             return;
         }
@@ -218,7 +218,7 @@ public class BazaarOrderListener : UpdateListener
             var isBuy = msg.Contains("bought");
             if (isBuy)
             {
-                Console.WriteLine("Claimed buy order");
+                args.GetService<ILogger<BazaarOrderListener>>().LogDebug("Claimed buy order");
                 var parts = Regex.Match(msg, @"Claimed ([.\d,]+)x (.*) worth ([.\d,]+) coins bought for ([.\d,]+) each").Groups;
                 amount = ParseInt(parts[1].Value);
                 itemName = parts[2].Value;
@@ -251,7 +251,7 @@ public class BazaarOrderListener : UpdateListener
                 
                 if (order == null)
                 {
-                    Console.WriteLine("No order found for " + itemName + " " + amount);
+                    args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No order found for {item} {amount}", itemName, amount);
                     return;
                 }
                 args.currentState.BazaarOffers.Remove(order);
@@ -271,7 +271,7 @@ public class BazaarOrderListener : UpdateListener
                 var order = args.currentState.BazaarOffers.Where(o => o.ItemName == itemName && o.Amount == amount).FirstOrDefault();
                 if (order == null)
                 {
-                    Console.WriteLine("No order found for " + itemName + " " + amount);
+                    args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No order found for {item} {amount}", itemName, amount);
                     return;
                 }
 
@@ -357,7 +357,7 @@ public class BazaarOrderListener : UpdateListener
                     if (BazaarListener.TryGetVanishingOrder(playerUuid, itemName, amount, out var vanishingPrice))
                     {
                         totalBuyPriceInTenths = vanishingPrice;
-                        Console.WriteLine($"Found vanishing buy order for flip: {amount}x {itemName} (buy price: {vanishingPrice / 10.0:F1} coins)");
+                        args.GetService<ILogger<BazaarOrderListener>>().LogInformation("Found vanishing buy order for flip: {amount}x {item} (buy price: {buyPrice} coins)", amount, itemName, vanishingPrice / 10.0);
                     }
                     
                     // Strategy 2: Search through recent chest views for previous bazaar order state
@@ -393,7 +393,7 @@ public class BazaarOrderListener : UpdateListener
                             if (foundBuyOrder != null)
                             {
                                 totalBuyPriceInTenths = CalculateTotalBuyPrice(foundBuyOrder);
-                                Console.WriteLine($"Found buy order for flip in recent view: {amount}x {itemName} (buy price: {totalBuyPriceInTenths.Value / 10.0:F1} coins)");
+                                args.GetService<ILogger<BazaarOrderListener>>().LogInformation("Found buy order for flip in recent view: {amount}x {item} (buy price: {buyPrice} coins)", amount, itemName, totalBuyPriceInTenths.Value / 10.0);
                                 break;
                             }
                         }
@@ -411,14 +411,14 @@ public class BazaarOrderListener : UpdateListener
                             if ((args.msg.ReceivedAt - fillTime).TotalSeconds <= 60)
                             {
                                 totalBuyPriceInTenths = cachedBuyPrice;
-                                Console.WriteLine($"Found cached buy order for flip: {amount}x {itemName} (buy price: {cachedBuyPrice / 10.0:F1} coins, filled {(args.msg.ReceivedAt - fillTime).TotalSeconds:F1}s ago)");
+                                args.GetService<ILogger<BazaarOrderListener>>().LogInformation("Found cached buy order for flip: {amount}x {item} (buy price: {buyPrice} coins, filled {secondsAgo}s ago)", amount, itemName, cachedBuyPrice / 10.0, (args.msg.ReceivedAt - fillTime).TotalSeconds);
                                 
                                 // Clean up cache entry (already used)
                                 _recentFlips.TryRemove(cacheKey, out _);
                             }
                             else
                             {
-                                Console.WriteLine($"Cached buy order for {amount}x {itemName} is too old ({(args.msg.ReceivedAt - fillTime).TotalSeconds:F1}s), ignoring");
+                                args.GetService<ILogger<BazaarOrderListener>>().LogWarning("Cached buy order for {amount}x {item} is too old ({secondsAgo}s), ignoring", amount, itemName, (args.msg.ReceivedAt - fillTime).TotalSeconds);
                             }
                         }
                     }
@@ -459,7 +459,7 @@ public class BazaarOrderListener : UpdateListener
                     }
                     else
                     {
-                        Console.WriteLine($"No buy order found for flip: {amount}x {itemName} in state, vanishing orders, recent views, or cache for {args.currentState.McInfo?.Name ?? args.currentState.PlayerId}");
+                        args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No buy order found for flip: {amount}x {item} in state, vanishing orders, recent views, or cache for {user}", amount, itemName, args.currentState.McInfo?.Name ?? args.currentState.PlayerId);
                         args.GetService<ILogger<BazaarOrderListener>>()
                             .LogWarning("Failed to recover buy price for flip: {amount}x {item} for {user}", amount, itemName, args.currentState.McInfo?.Name ?? args.currentState.PlayerId);
                     }

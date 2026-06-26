@@ -32,14 +32,14 @@ public class AhBrowserListener : UpdateListener
             if (item.Description.Contains("05h 59m 5") || item.Description.Contains("Can buy in"))
             {
                 if (item.Description.Contains("Refreshing"))
-                    Console.WriteLine("found listing with no username: " + item.ItemName);
+                    Logger.LogWarning("found listing with no username: {itemName}", item.ItemName);
                 var sellerName = item.Description.Split('\n')
                         .Where(x => x.StartsWith("§7Seller:"))
                         .FirstOrDefault()?.Replace("§7Seller: §7", "")
                         .Split(' ').Last(); // skip rank prefix
                 if (sellerName == null)
                 {
-                    Console.WriteLine("found listing with no username: " + item.Description);
+                    Logger.LogWarning("found listing with no username: {description}", item.Description);
                     continue;
                 }
                 var nameService = args.GetService<IPlayerNameApi>();
@@ -52,8 +52,8 @@ public class AhBrowserListener : UpdateListener
             {
                 var parts = item.Description.Split('\n');
                 var buyer = parts.Where(x => x.StartsWith("§7Buyer:")).FirstOrDefault()?.Replace("§7Buyer: ", "");
-                Console.WriteLine($"Item from {parts.Where(x => x.StartsWith("§7Seller:")).FirstOrDefault()?.Replace("§7Seller: ", "")} sold to: "
-                        + buyer);
+                Logger.LogDebug("Item from {seller} sold to: {buyer}",
+                        parts.Where(x => x.StartsWith("§7Seller:")).FirstOrDefault()?.Replace("§7Seller: ", ""), buyer);
                 var clearedBuyer = buyer == null ? null : System.Text.RegularExpressions.Regex.Replace(buyer.Split(' ').Last(), "§[0-9a-f]", "").Trim();
                 var found = await args.GetService<IPlayerNameApi>().PlayerNameUuidNameGetAsync(clearedBuyer ?? ""); // trigger caching
                 if (string.IsNullOrEmpty(found) && clearedBuyer != null)
@@ -61,11 +61,11 @@ public class AhBrowserListener : UpdateListener
                     try
                     {
                         await args.GetService<IPlayerApi>().ApiPlayerPlayerUuidNamePostAsync(clearedBuyer);
-                        Console.WriteLine("Cached missing buyer name " + clearedBuyer);
+                        Logger.LogInformation("Cached missing buyer name {name}", clearedBuyer);
                     }
                     catch (System.Exception e)
                     {
-                        args.GetService<ILogger<AhBrowserListener>>().LogError(e, "Failed to cache missing buyer name " + clearedBuyer);
+                        Logger.LogError(e, "Failed to cache missing buyer name {name}", clearedBuyer);
                     }
                     continue;
                 }

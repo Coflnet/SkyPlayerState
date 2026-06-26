@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using Coflnet.Sky.PlayerName.Client.Api;
+using Microsoft.Extensions.Logging;
 
 namespace Coflnet.Sky.PlayerState.Services;
 
@@ -21,15 +22,15 @@ public class ProfileAndNameUpdate : UpdateListener
                 {
                     state.McInfo.Uuid = Guid.Parse(uuid.Trim('"'));
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    Console.WriteLine($"could not parse uuid for {args.msg.PlayerId}: '{uuid}'");
+                    Logger.LogError(ex, "could not parse uuid for {playerId}: '{uuid}'", args.msg.PlayerId, uuid);
                     throw;
                 }
                 state.McInfo.Name = args.msg.PlayerId;
             }
             else
-                Console.WriteLine($"could not find uuid for {args.msg.PlayerId}");
+                Logger.LogWarning("could not find uuid for {playerId}", args.msg.PlayerId);
         }
         // TODO find profile
     }

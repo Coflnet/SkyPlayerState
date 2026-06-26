@@ -2,6 +2,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Coflnet.Sky.PlayerState.Models;
 using Coflnet.Sky.PlayerState.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Coflnet.Sky.PlayerState.Bazaar;
 
@@ -36,7 +37,7 @@ public class ForgeListener : UpdateListener
             int minutes = timeMatch.Groups[3].Success ? int.Parse(timeMatch.Groups[3].Value) : 0;
             int seconds = timeMatch.Groups[4].Success ? int.Parse(timeMatch.Groups[4].Value) : 0;
             var parsed = DateTime.Now.AddDays(days).AddHours(hours).AddMinutes(minutes).AddSeconds(seconds);
-            Console.WriteLine($"Parsed forge item time: {parsed} for item {i.ItemName}");
+            Logger.LogDebug("Parsed forge item time: {time} for item {item}", parsed, i.ItemName);
             return parsed;
         }
         else if (i.Tag == null)
@@ -47,7 +48,7 @@ public class ForgeListener : UpdateListener
         }
         else
         {
-            Console.WriteLine($"Failed to parse time from description: {i.Description} for item {i.ItemName}");
+            Logger.LogWarning("Failed to parse time from description: {description} for item {item}", i.Description, i.ItemName);
             // Fallback if no time is found, could be an error or a default value
             return DateTime.Now.AddMinutes(30);
         }

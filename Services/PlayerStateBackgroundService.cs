@@ -31,6 +31,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
     public IServiceScopeFactory scopeFactory { private set; get; }
     private IConfiguration config;
     private ILogger<PlayerStateBackgroundService> logger;
+    private ILoggerFactory loggerFactory;
     private Prometheus.Counter consumeCount = Prometheus.Metrics.CreateCounter("sky_playerstate_conume", "How many messages were consumed");
 
     public ConcurrentDictionary<string, StateObject> States = new();
@@ -40,11 +41,12 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
     private ConcurrentDictionary<UpdateMessage.UpdateKind, List<UpdateListener>> Handlers = new();
 
     public PlayerStateBackgroundService(
-        IServiceScopeFactory scopeFactory, IConfiguration config, ILogger<PlayerStateBackgroundService> logger, IPersistenceService persistenceService, ActivitySource activitySource)
+        IServiceScopeFactory scopeFactory, IConfiguration config, ILogger<PlayerStateBackgroundService> logger, IPersistenceService persistenceService, ActivitySource activitySource, ILoggerFactory loggerFactory)
     {
         this.scopeFactory = scopeFactory;
         this.config = config;
         this.logger = logger;
+        this.loggerFactory = loggerFactory;
         AddHandler<SettingsListener>(UpdateMessage.UpdateKind.Setting);
         // handlers are executed in this order
         AddHandler<ChatHistoryUpdate>(UpdateMessage.UpdateKind.CHAT);
@@ -104,6 +106,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
             else
                 handler = (T)ActivatorUtilities.CreateInstance(sp, typeof(T));
         }
+        handler.SetLogger(loggerFactory.CreateLogger(typeof(T)));
         foreach (var item in Enum.GetValues<UpdateMessage.UpdateKind>())
         {
             if (kinds != UpdateMessage.UpdateKind.UNKOWN && (item == UpdateMessage.UpdateKind.UNKOWN || !kinds.HasFlag(item)))

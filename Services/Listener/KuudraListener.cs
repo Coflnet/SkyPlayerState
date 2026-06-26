@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Coflnet.Sky.Commands.MC;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
 namespace Coflnet.Sky.PlayerState.Services;
@@ -60,7 +61,7 @@ public class KuudraListener : UpdateListener
         }
         else
             args.SendMessage($"Kuudra chest is worth {coinSum - keyWorth:N0} coins");
-        Console.WriteLine($"Got kuudra paid chest {args.msg.PlayerId} {type} {JsonConvert.SerializeObject(args.msg.Chest.Items.Take(30))}");
+        Logger.LogDebug("Got kuudra paid chest {playerId} {type} {items}", args.msg.PlayerId, type, JsonConvert.SerializeObject(args.msg.Chest.Items.Take(30)));
     }
 
     public static string GetTag(Models.Item essence)
@@ -75,7 +76,7 @@ public class KuudraListener : UpdateListener
         var kuudra = args.msg.Scoreboard.Any(s => s.StartsWith(" ⏣ Kuudra's Hollow"));
         if (!kuudra)
             return;
-        Console.WriteLine($"Started kuudra {args.msg.PlayerId} {string.Join(" ", args.msg.Scoreboard)}");
+        Logger.LogInformation("Started kuudra {playerId} {scoreboard}", args.msg.PlayerId, string.Join(" ", args.msg.Scoreboard));
         args.currentState.ExtractedInfo.KuudraStart = DateTime.UtcNow;
         args.SendMessage("Started kuudra run", source: "KuudraListener");
     }

@@ -6,6 +6,7 @@ using Cassandra.Data.Linq;
 using Cassandra.Mapping;
 using Coflnet.Sky.PlayerState.Models;
 using MessagePack;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
 namespace Coflnet.Sky.PlayerState.Services;
@@ -14,9 +15,11 @@ public class StorageService
 {
     static MessagePackSerializerOptions options = MessagePackSerializerOptions.Standard.WithCompression(MessagePackCompression.Lz4Block);
     private Table<StorageItem> storageTable;
+    private readonly ILogger<StorageService> logger;
 
-    public StorageService(ISession session)
+    public StorageService(ISession session, ILogger<StorageService> logger)
     {
+        this.logger = logger;
         var mapping = new MappingConfiguration().Define(new Map<StorageItem>()
             .PartitionKey(t => t.PlayerId, t => t.ProfileId)
             .ClusteringKey(t => t.ChestName)
@@ -47,7 +50,7 @@ public class StorageService
             .ToHashSet();
         foreach (var dupplicate in lookingAtChestDupplicates)
         {
-            Console.WriteLine($"Deleting storage item for player {dupplicate.PlayerId} in chest {dupplicate.ChestName} at position {dupplicate.Position} opened at {dupplicate.OpenedAt}");
+            logger.LogWarning("Deleting storage item for player {playerId} in chest {chestName} at position {position} opened at {openedAt}", dupplicate.PlayerId, dupplicate.ChestName, dupplicate.Position, dupplicate.OpenedAt);
             await storageTable.Where(i => i.PlayerId == dupplicate.PlayerId && i.ProfileId == dupplicate.ProfileId && i.ChestName == dupplicate.ChestName && i.SerializedPosition == dupplicate.SerializedPosition).Delete().ExecuteAsync();
             all.Remove(dupplicate);
         }

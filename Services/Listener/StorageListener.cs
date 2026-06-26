@@ -2,6 +2,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Coflnet.Sky.Bazaar.Client.Api;
 using Coflnet.Sky.Sniper.Client.Api;
+using Microsoft.Extensions.Logging;
 
 namespace Coflnet.Sky.PlayerState.Services;
 
@@ -29,7 +30,7 @@ public class StorageListener : UpdateListener
             OpenedAt = chestView.OpenedAt,
             PlayerId = args.currentState.McInfo.Uuid
         });
-        Console.WriteLine($"Saved storage item for player {args.currentState.PlayerId} in chest {chestView.Name}, items: {itemsToStore} at position {chestView.Position}");
+        Logger.LogInformation("Saved storage item for player {playerId} in chest {chestName}, items: {itemCount} at position {position}", args.currentState.PlayerId, chestView.Name, itemsToStore, chestView.Position);
     }
 
     public static bool IsNotStorage(Models.ChestView chestView)

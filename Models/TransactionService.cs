@@ -105,7 +105,7 @@ public class TransactionService : ITransactionService, ICassandraService
         var count = normalizedTransactions.Count;
         if (count == 0)
             return;
-        Console.WriteLine("adding transactions " + count);
+        logger.LogInformation("adding transactions {count}", count);
         await Task.WhenAll(normalizedTransactions.Select(async transaction =>
         {
             var maxTries = 5;

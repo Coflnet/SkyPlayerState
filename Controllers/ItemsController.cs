@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using Coflnet.Sky.PlayerState.Services;
 using Newtonsoft.Json;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace Coflnet.Sky.PlayerState.Controllers
 {
@@ -14,9 +15,13 @@ namespace Coflnet.Sky.PlayerState.Controllers
     public class ItemsController : ControllerBase
     {
         private readonly IItemsService _booksService;
+        private readonly ILogger<ItemsController> logger;
 
-        public ItemsController(IItemsService booksService) =>
+        public ItemsController(IItemsService booksService, ILogger<ItemsController> logger)
+        {
             _booksService = booksService;
+            this.logger = logger;
+        }
 
         [HttpPost]
         [Route("mock")]
@@ -31,7 +36,7 @@ namespace Coflnet.Sky.PlayerState.Controllers
                 ExtraAttributes = data// BsonDocument.Parse(sourceData) //new() { { "exp", 5 }, { "attr", new List<string>() { "kk", "bb" }.ToArray() } }
             };
             
-            Console.WriteLine(JsonConvert.SerializeObject(newItem.ExtraAttributes));
+            logger.LogDebug("{extraAttributes}", JsonConvert.SerializeObject(newItem.ExtraAttributes));
             var items = await _booksService.FindOrCreate(new Item[] { newItem });
 
             return CreatedAtAction(nameof(Get), new

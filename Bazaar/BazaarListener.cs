@@ -80,7 +80,7 @@ public class BazaarListener : UpdateListener
                     .LogError(e, "Error parsing bazaar offer: {0} {chest} {user}", JsonConvert.SerializeObject(item), args.msg.Chest.Name, args.currentState.PlayerId);
             }
         }
-        Console.WriteLine($"Found {offers.Count} bazaar offers for {args.currentState.PlayerId}");
+        Logger.LogInformation("Found {count} bazaar offers for {player}", offers.Count, args.currentState.PlayerId);
         bazaarOrdersTrackedCount.Inc(offers.Count);
         
         // Track vanishing buy orders before replacing state

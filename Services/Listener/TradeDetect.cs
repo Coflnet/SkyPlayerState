@@ -29,7 +29,7 @@ public class TradeDetect : UpdateListener
             itemDetails = args.GetService<Core.ItemDetails>();
         if (args.msg.PlayerId == "Core" || (args.currentState.Settings?.DisableTradeTracking ?? false))
         {
-            Console.WriteLine("trade tracking blocked for " + args.currentState.PlayerId);
+            Logger.LogDebug("trade tracking blocked for {playerId}", args.currentState.PlayerId);
             return;
         }
         if (args.msg.Kind == UpdateMessage.UpdateKind.CHAT)
@@ -40,7 +40,7 @@ public class TradeDetect : UpdateListener
             if (!lastMessage.StartsWith(" + ") && !lastMessage.StartsWith(" - "))
                 return;
 
-            Console.WriteLine("trade completed by " + args.currentState.PlayerId);
+            Logger.LogInformation("trade completed by {playerId}", args.currentState.PlayerId);
             await StoreTrade(args);
 
             return;
@@ -49,7 +49,7 @@ public class TradeDetect : UpdateListener
         if (chest?.Name == null || !chest.Name.StartsWith("You                  "))
             return; // not a trade
         var otherSide = ExtractTradePartnerNameFromChest(chest.Name);
-        Console.WriteLine("Got trade menu with " + otherSide);
+        Logger.LogDebug("Got trade menu with {otherSide}", otherSide);
     }
 
     private async Task StoreTrade(UpdateArgs args)
@@ -63,11 +63,11 @@ public class TradeDetect : UpdateListener
         ParseTradeWindow(tradeView, out var spent, out var received);
         foreach (var item in spent)
         {
-            Console.WriteLine("sent " + item.ItemName);
+            Logger.LogDebug("sent {itemName}", item.ItemName);
         }
         foreach (var item in received)
         {
-            Console.WriteLine("got " + item.ItemName);
+            Logger.LogDebug("got {itemName}", item.ItemName);
         }
         var timestamp = DateTime.UtcNow;
         var transactions = new List<Transaction>();

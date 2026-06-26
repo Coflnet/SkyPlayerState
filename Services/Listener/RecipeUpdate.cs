@@ -37,10 +37,10 @@ public class RecipeUpdate : UpdateListener
         var items = args.msg.Chest.Items.Take(9 * 5).Where(i => i.Tag != null);
         if (await HasSealOfFamily(args.currentState.McInfo.Uuid, args))
         {
-            Console.WriteLine("Seal of the family detected, skipping npc cost extraction for " + args.msg.Chest.Name + " for player " + args.msg.PlayerId);
+            Logger.LogWarning("Seal of the family detected, skipping npc cost extraction for {chestName} for player {playerId}", args.msg.Chest.Name, args.msg.PlayerId);
             return; // prices are uncertain with seal of the family, skip this update
         }
-        Console.WriteLine("Extracting npc cost from " + args.msg.Chest.Name + JsonConvert.SerializeObject(items, Formatting.Indented));
+        Logger.LogDebug("Extracting npc cost from {chestName} {items}", args.msg.Chest.Name, JsonConvert.SerializeObject(items, Formatting.Indented));
         foreach (var item in items)
         {
             // Parse costs from the item's description
@@ -100,7 +100,7 @@ public class RecipeUpdate : UpdateListener
                     LastUpdatedBy = args.msg.UserId + "-" + args.msg.PlayerId
                 };
                 await args.GetService<RecipeService>().Save(npcCost);
-                Console.WriteLine($"NPC cost update {npcCost.NpcName} {npcCost.ItemTag} {JsonConvert.SerializeObject(npcCost.Costs)}");
+                Logger.LogInformation("NPC cost update {npcName} {itemTag} {costs}", npcCost.NpcName, npcCost.ItemTag, JsonConvert.SerializeObject(npcCost.Costs));
                 alreadyProcessed.Add(args.msg.Chest.Name);
             }
             else
@@ -113,7 +113,7 @@ public class RecipeUpdate : UpdateListener
         var texts = args.msg.Chest.Items.Take(9 * 5).Where(i => i.Tag != null).Select(i => i?.Description).ToList();
         if (texts.Count < 3 || args.msg.Chest.Items.Where(i => i.Tag != null).First().Tag != "ENCHANTED_BOOK")
             return;
-        Console.WriteLine($"Checking book recipe with text: {string.Join("\n", texts)}");
+        Logger.LogDebug("Checking book recipe with text: {text}", string.Join("\n", texts));
     }
 
     /// <summary>
@@ -168,7 +168,7 @@ public class RecipeUpdate : UpdateListener
         var requirements = args.msg.Chest.Items[32].Description?.Split('\n').Where(l => l.Contains("Requires")).ToList();
         if (requirements == null)
             return;// supercraft item not available some mod may block it, ignore this sample
-        Console.WriteLine($"Recipe update {args.msg.Chest.Name} {JsonConvert.SerializeObject(ingredients)} {JsonConvert.SerializeObject(requirements)}");
+        Logger.LogInformation("Recipe update {chestName} {ingredients} {requirements}", args.msg.Chest.Name, JsonConvert.SerializeObject(ingredients), JsonConvert.SerializeObject(requirements));
         var recipe = new Recipe
         {
             Tag = args.msg.Chest.Items[25].Tag,
@@ -198,7 +198,7 @@ public class RecipeUpdate : UpdateListener
             var name = item.ItemName;
             // extract the exp from "§7Click on this item in your inventory to\n§7add it to your §9Museum§7!\n\n§7Reward: §b+5 SkyBlock XP"
             var exp = Regex.Match(item.Description, @"§7Reward: §b\+(\d+) SkyBlock XP").Groups[1].Value;
-            Console.WriteLine($"Museum update {name} {exp}");
+            args.GetService<ILogger<RecipeUpdate>>().LogDebug("Museum update {name} {exp}", name, exp);
             if (exp == "")
                 continue;
             existing[name] = int.Parse(exp);

@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Coflnet.Sky.PlayerState.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Coflnet.Sky.PlayerState.Bazaar;
 
@@ -38,7 +39,7 @@ public class KatChatListener : UpdateListener
                     var timeString = match.Groups["time"].Value;
                     if (timeString.Contains("hour"))
                     {
-                        Console.WriteLine($"Time string contains 'hour': {timeString}");
+                        Logger.LogWarning("Time string contains 'hour': {timeString}", timeString);
                         return;
                     }
                     args.currentState.ExtractedInfo.KatStatus.KatEnd = DateTime.Now.Add(ParseTime(timeString));
@@ -51,7 +52,7 @@ public class KatChatListener : UpdateListener
                 {
                     args.currentState.ExtractedInfo.KatStatus ??= new();
                     args.currentState.ExtractedInfo.KatStatus.ItemName = match.Groups["item"].Value;
-                    Console.WriteLine($"Found Kat item in line: {line} - {args.currentState.ExtractedInfo.KatStatus.ItemName}");
+                    Logger.LogInformation("Found Kat item in line: {line} - {item}", line, args.currentState.ExtractedInfo.KatStatus.ItemName);
                     args.currentState.ExtractedInfo.KatStatus.IsKatActive = true;
                 }
             }
@@ -60,38 +61,38 @@ public class KatChatListener : UpdateListener
                 var match = Regex.Match(line, @"\[NPC\] Kat: You can pick it up in (?<time>.+)\.");
                 if (match.Success)
                 {
-                    Console.WriteLine($"Found Kat end time in line: {line}");
+                    Logger.LogInformation("Found Kat end time in line: {line}", line);
                     var timeString = match.Groups["time"].Value;
                     args.currentState.ExtractedInfo.KatStatus.KatEnd = DateTime.Now.Add(ParseTime(timeString));
                 }
                 else
                 {
-                    Console.WriteLine($"Failed to parse time from line: {line}");
+                    Logger.LogWarning("Failed to parse time from line: {line}", line);
                 }
             }
             if (line.StartsWith("[NPC] Kat: If you have any other pets you'd like to upgrade")) // done & collect message
             {
                 args.currentState.ExtractedInfo.KatStatus ??= new();
                 args.currentState.ExtractedInfo.KatStatus.IsKatActive = false;
-                Console.WriteLine($"Kat upgrade completed for player {args.currentState.PlayerId}");
+                Logger.LogInformation("Kat upgrade completed for player {player}", args.currentState.PlayerId);
             }
         }
 
-        static TimeSpan ParseTime(string timeString)
+        TimeSpan ParseTime(string timeString)
         {
             var timeSpan = TimeSpan.Zero;
             var dayMatch = Regex.Match(timeString, @"(\d+)\s*day");
             var hourMatch = Regex.Match(timeString, @"(\d+)\s*hour");
             var minMatch = Regex.Match(timeString, @"(\d+)\s*minute");
             var secMatch = Regex.Match(timeString, @"(\d+)\s*second");
-            Console.WriteLine($"Parsing time string: {timeString}");
+            Logger.LogDebug("Parsing time string: {timeString}", timeString);
             if (dayMatch.Success)
                 timeSpan = timeSpan.Add(TimeSpan.FromDays(int.Parse(dayMatch.Groups[1].Value)));
             if (hourMatch.Success)
                 timeSpan = timeSpan.Add(TimeSpan.FromHours(int.Parse(hourMatch.Groups[1].Value)));
             if (minMatch.Success)
             {
-                Console.WriteLine($"Found minutes in time string: {timeString} - {minMatch.Groups[1].Value}");
+                Logger.LogDebug("Found minutes in time string: {timeString} - {minutes}", timeString, minMatch.Groups[1].Value);
                 timeSpan = timeSpan.Add(TimeSpan.FromMinutes(int.Parse(minMatch.Groups[1].Value)));
             }
             if (secMatch.Success)

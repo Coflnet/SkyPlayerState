@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Coflnet.Sky.PlayerState.Services;
 
@@ -19,7 +20,7 @@ public class HuntingListener : UpdateListener
         if (chest.Name.Contains("Huntaxe"))
         {
             var weaponItem = items[22]; // Huntaxe is always in slot 23 (index 22)
-            Console.WriteLine($"Setting WeaponInHuntaxe for player {args.currentState.PlayerId} to {weaponItem.ItemName}");
+            Logger.LogInformation("Setting WeaponInHuntaxe for player {playerId} to {itemName}", args.currentState.PlayerId, weaponItem.ItemName);
             args.currentState.ExtractedInfo.WeaponInHuntaxe = weaponItem;
         }
         if (!chest.Name.StartsWith("Hunting Toolkit"))
