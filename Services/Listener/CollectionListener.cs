@@ -14,6 +14,13 @@ public class CollectionListener : UpdateListener
 {
     private const string MithrilPowderTag = "MITHRIL_POWDER";
     private Dictionary<string, string> NametoTagLookup;
+    // Clean item prices are global (identical for every player), so fetching the
+    // full sniper + bazaar price lists per location change was the main processing
+    // bottleneck. Cache the merged lookup and refresh it at most once per interval.
+    private Dictionary<string, double> cachedCleanPrices;
+    private DateTime cleanPricesFetchedAt = DateTime.MinValue;
+    private readonly System.Threading.SemaphoreSlim cleanPricesLock = new(1, 1);
+    private static readonly TimeSpan CleanPricesCacheDuration = TimeSpan.FromMinutes(2);
     /// <inheritdoc/>
     public override async Task Process(UpdateArgs args)
     {
@@ -221,7 +228,43 @@ public class CollectionListener : UpdateListener
         return previousInventory.Name.Contains("Confirm");
     }
 
-    private static async Task HandleScoreboard(UpdateArgs args)
+    /// <summary>
+    /// Returns the merged clean price lookup (bazaar sell price overlaid with auction prices),
+    /// refreshing the cached copy at most once per <see cref="CleanPricesCacheDuration"/>.
+    /// </summary>
+    private async Task<Dictionary<string, double>> GetCleanPrices(UpdateArgs args)
+    {
+        if (cachedCleanPrices != null && DateTime.UtcNow - cleanPricesFetchedAt < CleanPricesCacheDuration)
+            return cachedCleanPrices;
+        await cleanPricesLock.WaitAsync();
+        try
+        {
+            // double check now that we hold the lock so only one caller refreshes
+            if (cachedCleanPrices != null && DateTime.UtcNow - cleanPricesFetchedAt < CleanPricesCacheDuration)
+                return cachedCleanPrices;
+            var cleanPrices = new Dictionary<string, double>();
+            var ahPrices = await args.GetService<ISniperApi>().ApiSniperPricesCleanGetAsync();
+            var bazaarPrices = await args.GetService<IBazaarApi>().GetAllPricesAsync();
+            foreach (var item in bazaarPrices)
+            {
+                cleanPrices[item.ProductId] = (int)item.SellPrice;
+            }
+            foreach (var item in ahPrices)
+            {
+                if (item.Value > 0)
+                    cleanPrices[item.Key] = item.Value;
+            }
+            cachedCleanPrices = cleanPrices;
+            cleanPricesFetchedAt = DateTime.UtcNow;
+            return cachedCleanPrices;
+        }
+        finally
+        {
+            cleanPricesLock.Release();
+        }
+    }
+
+    private async Task HandleScoreboard(UpdateArgs args)
     {
         // 07/14/15
         var currentDate = DateTime.UtcNow.ToString("MM/dd/yy");
@@ -246,24 +289,13 @@ public class CollectionListener : UpdateListener
         args.currentState.ExtractedInfo.CurrentLocation = currentLocation;
     }
 
-    private static async Task StoreLocationProfit(UpdateArgs args, string previousLocation)
+    private async Task StoreLocationProfit(UpdateArgs args, string previousLocation)
     {
         var profit = 0L;
         var collected = args.currentState.ItemsCollectedRecently;
         if (collected.Count > 0)
         {
-            var cleanPrices = new Dictionary<string, double>();
-            var ahPrices = await args.GetService<ISniperApi>().ApiSniperPricesCleanGetAsync();
-            var bazaarPrices = await args.GetService<IBazaarApi>().GetAllPricesAsync();
-            foreach (var item in bazaarPrices)
-            {
-                cleanPrices[item.ProductId] = (int)item.SellPrice;
-            }
-            foreach (var item in ahPrices)
-            {
-                if (item.Value > 0)
-                    cleanPrices[item.Key] = item.Value;
-            }
+            var cleanPrices = await GetCleanPrices(args);
 
             profit = (long)collected.Select(c =>
             {
