@@ -51,9 +51,11 @@ public class MethodAggregateService
 
         var dayBucket = period.EndTime.Date;
 
-        foreach (var (tag, count) in period.ItemsCollected)
+        // Each tag is independent, so run the read-then-write round-trips concurrently
+        // instead of sequentially - this is on the player-update hot path.
+        await Task.WhenAll(period.ItemsCollected.Where(e => e.Value > 0).Select(async e =>
         {
-            if (count <= 0) continue;
+            var (tag, count) = (e.Key, e.Value);
 
             // Read-then-write to accumulate (Cassandra LWT would be more correct
             // but expensive; eventual consistency is fine for estimates)
@@ -70,7 +72,7 @@ public class MethodAggregateService
             aggregate.SampleCount += 1;
 
             await aggregateTable!.Insert(aggregate).SetTTL(TTL_SECONDS).ExecuteAsync();
-        }
+        }));
     }
 
     private async Task<LocationItemAggregate> GetAggregate(string location, string itemTag, DateTime dayBucket)
