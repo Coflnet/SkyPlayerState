@@ -214,14 +214,16 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
             logger.LogInformation("testing cassandra connection");
             await transactionService.GetItemTransactions(0, 1);
             logger.LogInformation("Cassandra connection works");
-            var bootstrapServers = config["KAFKA_HOST"];
-            using var adminClient = new AdminClientBuilder(new AdminClientConfig { BootstrapServers = bootstrapServers }).Build();
+            // Use the shared Kafka client config (brokers + SASL + TLS from KAFKA:* / OpenBao),
+            // not the bare KAFKA_HOST default which points at the unresolvable "kafka" host and
+            // carries no auth - that blocked startup before the consumer ever started.
+            using var adminClient = new AdminClientBuilder(Kafka.KafkaCreator.GetClientConfig(config)).Build();
             try
             {
                 // increase the number of partitions for the topic "my-topic"
                 adminClient.CreatePartitionsAsync(new PartitionsSpecification[] { new PartitionsSpecification(){
                     Topic = config["TOPICS:STATE_UPDATE"],
-                    IncreaseTo = 10
+                    IncreaseTo = 6
                 } }).Wait();
             }
             catch (Exception e)
