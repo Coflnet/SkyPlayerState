@@ -56,9 +56,14 @@ public class StateObject
     public string[] LastTab = Array.Empty<string>();
     [Key(12)]
     public Dictionary<string, int> ItemsCollectedRecently = new();
+    // [IgnoreMember] only excludes these from MessagePack (cassandra/redis). The api also serializes
+    // StateObject with System.Text.Json (IncludeFields = true), which chokes on the SemaphoreSlim's
+    // native handle ("IntPtr ... not supported"), so GetFullState needs [JsonIgnore] too.
     [IgnoreMember]
+    [System.Text.Json.Serialization.JsonIgnore]
     public SemaphoreSlim Lock = new SemaphoreSlim(1);
     [IgnoreMember]
+    [System.Text.Json.Serialization.JsonIgnore]
     public DateTime LastAccess { get; internal set; }
 
     public StateObject()
