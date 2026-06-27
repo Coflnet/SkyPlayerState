@@ -19,6 +19,14 @@ public abstract class UpdateListener
     internal void SetLogger(ILogger logger) => Logger = logger ?? NullLogger.Instance;
 
     /// <summary>
+    /// Optional listeners enrich the state but nothing downstream depends on them. When one throws
+    /// its failure is logged and counted but the update keeps processing the remaining handlers and
+    /// still persists the state - so a bug in an optional enrichment can never stop a player's whole
+    /// state from being saved. Core listeners (default) keep the all-or-nothing retry/drop behaviour.
+    /// </summary>
+    public virtual bool Optional => false;
+
+    /// <summary>
     /// Process an update
     /// </summary>
     /// <param name="args"></param>

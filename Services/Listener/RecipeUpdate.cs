@@ -19,6 +19,10 @@ namespace Coflnet.Sky.PlayerState.Services;
 
 public class RecipeUpdate : UpdateListener
 {
+    // recipe/npc-cost extraction only enriches shared pricing data; nothing in the player's own state
+    // depends on it, so a failure here must never abort the update or block persistence.
+    public override bool Optional => true;
+
     private readonly HashSet<string> alreadyProcessed = new HashSet<string>();
     /// <inheritdoc/>
     public override async Task Process(UpdateArgs args)
@@ -129,7 +133,20 @@ public class RecipeUpdate : UpdateListener
         var pricesApi = args.GetService<Api.Client.Api.IPricesApi>();
         var profileClient = new RestClient(args.GetService<IConfiguration>()["PROFILE_BASE_URL"] ?? throw new Exception("PROFILE_BASE_URL not configured"));
         var museumJson = await profileClient.ExecuteAsync(new RestRequest($"/api/profile/{uuid.ToString("n")}/current?maxAge={DateTime.UtcNow.AddDays(-1):yyyy-MM-ddTHH:mm:ssZ}"));
-        var profile = JsonConvert.DeserializeObject<Api.Client.Model.Member>(museumJson.Content);
+        Api.Client.Model.Member profile;
+        try
+        {
+            profile = JsonConvert.DeserializeObject<Api.Client.Model.Member>(museumJson.Content);
+        }
+        catch (System.Exception ex)
+        {
+            // The generated Member model marks some fields (e.g. rift.inventory.wardrobe_equipped_slot)
+            // as required; profiles that never touched that content fail to deserialize. This must not
+            // abort the whole inventory update (which would skip persisting the player's state), so fall
+            // back to the documented default of "true" - it only suppresses uncertain npc price extraction.
+            args.GetService<ILogger<RecipeUpdate>>()?.LogWarning(ex, "Could not deserialize profile for uuid {Uuid} when checking seal of family, assuming present.", uuid);
+            return true;
+        }
         if (profile == null)
         {
             args.GetService<ILogger<RecipeUpdate>>()?.LogWarning("Profile for uuid {Uuid} returned null when checking seal of family.", uuid);

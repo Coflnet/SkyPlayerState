@@ -34,6 +34,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
     private ILoggerFactory loggerFactory;
     private Prometheus.Counter consumeCount = Prometheus.Metrics.CreateCounter("sky_playerstate_conume", "How many messages were consumed");
     private Prometheus.Counter droppedCount = Prometheus.Metrics.CreateCounter("sky_playerstate_dropped", "How many messages were dropped after exhausting retries");
+    private static readonly Prometheus.Counter optionalHandlerFailedCount = Prometheus.Metrics.CreateCounter("sky_playerstate_optional_handler_failed", "How many times an optional handler threw and was skipped (state still saved), by handler.", new Prometheus.CounterConfiguration { LabelNames = new[] { "handler" } });
 
     public ConcurrentDictionary<string, StateObject> States = new();
     private IPersistenceService persistenceService;
@@ -313,7 +314,19 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
             {
                 using var procSpan = activitySource.StartActivity("Process", ActivityKind.Consumer);
                 procSpan?.SetTag("handler", item.GetType().Name);
-                await item.Process(args);
+                try
+                {
+                    await item.Process(args);
+                }
+                catch (Exception e) when (item.Optional)
+                {
+                    // optional enrichment failed - log, count and carry on so the remaining handlers
+                    // still run and the state is still persisted. Core handlers are NOT caught here:
+                    // their failure propagates to the retry/drop path below (manual-intervention signal).
+                    optionalHandlerFailedCount.WithLabels(item.GetType().Name).Inc();
+                    procSpan?.SetTag("optional_failed", true);
+                    logger.LogWarning(e, "optional handler {handler} failed for {player} on {kind}, continuing", item.GetType().Name, msg.PlayerId, msg.Kind);
+                }
             }
             _ = Task.Run(async () =>
             {
