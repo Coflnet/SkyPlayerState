@@ -156,6 +156,39 @@ public class CoinCounterParserTests
     }
 
     [Test]
+    public void GetCoinAmountWithColorCode()
+    {
+        var coinParser = new CoinParser();
+        var item = new Item { ItemName = "§67M coins" };
+
+        ClassicAssert.IsTrue(coinParser.IsCoins(item));
+        // 7,000,000 returned as 70,000,000 (multiplies by 10)
+        ClassicAssert.AreEqual(70000000, coinParser.GetCoinAmount(item));
+    }
+
+    [Test]
+    public void GetCoinAmountWithoutColorCode()
+    {
+        // regression: name arriving without a "§x" prefix used to strip the digits via Substring(2, ...)
+        var coinParser = new CoinParser();
+        var item = new Item { ItemName = "7M coins" };
+
+        ClassicAssert.IsTrue(coinParser.IsCoins(item));
+        ClassicAssert.AreEqual(70000000, coinParser.GetCoinAmount(item));
+    }
+
+    [Test]
+    public void GetCoinAmountEmptyAmountDoesNotThrow()
+    {
+        // regression: an empty amount must not throw and crash the whole state update
+        var coinParser = new CoinParser();
+        var item = new Item { ItemName = "§6 coins" };
+
+        ClassicAssert.AreEqual(0, coinParser.GetCoinAmount(item));
+        ClassicAssert.AreEqual(0, Core.CoinParser.ParseCoinAmount(""));
+    }
+
+    [Test]
     public void TestDayKeyCalculation()
     {
         // Test at 5:59 AM UTC (reset is at UTC midnight, so still the current day)
