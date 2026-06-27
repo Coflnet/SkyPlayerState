@@ -182,6 +182,51 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         var retrieved = new UpdateMessage();
     }
 
+    /// <summary>
+    /// Called by the host on shutdown (planned restarts are the common case). The consumer is
+    /// stopped first via base.StopAsync so <see cref="States"/> stops mutating, then every
+    /// in-memory state is force-saved to cassandra - otherwise state that hasn't reached its 8s
+    /// save window (and the in-memory delayed-save queue) would be lost on restart.
+    /// </summary>
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        // stop consuming first so no new updates land while we flush
+        await base.StopAsync(cancellationToken);
+        var total = States.Count;
+        logger.LogInformation("Shutdown: flushing {count} in-memory player states to cassandra", total);
+        var sw = Stopwatch.StartNew();
+        var flushed = 0;
+        // bound concurrency so the flush burst doesn't overwhelm cassandra
+        using var throttler = new SemaphoreSlim(20);
+        await Task.WhenAll(States.Values.Select(async state =>
+        {
+            await throttler.WaitAsync();
+            try
+            {
+                // honour the per-player lock so we don't serialize a state mid-update
+                await state.Lock.WaitAsync(cancellationToken);
+                try
+                {
+                    await persistenceService.ForceSave(state);
+                    Interlocked.Increment(ref flushed);
+                }
+                finally
+                {
+                    state.Lock.Release();
+                }
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "failed to flush state for {playerId} on shutdown", state.PlayerId);
+            }
+            finally
+            {
+                throttler.Release();
+            }
+        }));
+        logger.LogInformation("Shutdown: flushed {flushed}/{total} states in {ms}ms", flushed, total, sw.ElapsedMilliseconds);
+    }
+
     private void KeepStateCountInCheck()
     {
         if (States.Count < 200)

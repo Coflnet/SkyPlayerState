@@ -18,6 +18,7 @@ public interface IPersistenceService
 {
     Task<StateObject> GetStateObject(string playerId);
     Task SaveStateObject(StateObject stateObject);
+    Task ForceSave(StateObject stateObject);
 }
 
 public class PersistenceService : IPersistenceService
@@ -195,6 +196,26 @@ public class PersistenceService : IPersistenceService
         {
             logger.LogError(e, "Failed to save state object for {playerId}", stateObject.PlayerId);
         }
+    }
+
+    /// <summary>
+    /// Persists immediately, bypassing the 8s throttle and the delayed-save queue. Used for graceful
+    /// shutdown so in-memory state that hasn't reached its save window yet isn't lost on a planned
+    /// restart. Still skips the write when nothing changed since the last save.
+    /// </summary>
+    public async Task ForceSave(StateObject stateObject)
+    {
+        var table = await GetPlayerTable();
+        var inventory = new Inventory(stateObject);
+        var hash = GetHash(inventory);
+        if (DidNothingChange(stateObject, hash))
+        {
+            stateSaveSkippedUnchangedCount.Inc();
+            return;
+        }
+        await table.Insert(inventory).ExecuteAsync().ConfigureAwait(false);
+        stateSaveCount.Inc();
+        savedHashList[stateObject.PlayerId] = hash;
     }
 
     private void QueueDelayedSave(StateObject stateObject)

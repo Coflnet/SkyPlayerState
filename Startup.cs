@@ -41,6 +41,10 @@ public class Startup
     // This method gets called by the runtime. Use this method to add services to the container.
     public void ConfigureServices(IServiceCollection services)
     {
+        // give the background service room to flush all in-memory states to cassandra on a
+        // planned restart before the host force-stops it. Kept below the k8s
+        // terminationGracePeriodSeconds (30s) so the process can exit cleanly before SIGKILL.
+        services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(25));
         services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.IncludeFields = true);
         services.AddSwaggerGen(c =>
         {
