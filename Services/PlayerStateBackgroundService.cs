@@ -33,6 +33,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
     private ILogger<PlayerStateBackgroundService> logger;
     private ILoggerFactory loggerFactory;
     private Prometheus.Counter consumeCount = Prometheus.Metrics.CreateCounter("sky_playerstate_conume", "How many messages were consumed");
+    private Prometheus.Counter droppedCount = Prometheus.Metrics.CreateCounter("sky_playerstate_dropped", "How many messages were dropped after exhausting retries");
 
     public ConcurrentDictionary<string, StateObject> States = new();
     private IPersistenceService persistenceService;
@@ -135,7 +136,6 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         };
         await TestCassandraConnection();
 
-        var backOff = false;
         await Kafka.KafkaConsumer.ConsumeBatch<UpdateMessage>(consumerConfig, new string[] { config["TOPICS:STATE_UPDATE"] }, async batch =>
         {
             if (batch.Max(b => b.ReceivedAt) < DateTime.UtcNow - TimeSpan.FromHours(1))
@@ -168,18 +168,15 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
             }
             logger.LogInformation("Consuming batch of {0} messages", batch.Count());
             using var span = activitySource.StartActivity("Batch", ActivityKind.Consumer);
-            await Task.WhenAny(Task.WhenAll(batch.Select(async update =>
+            // Await the whole batch so offsets are only committed (by the consumer, after this
+            // returns) once every message has actually been processed - no commit-before-done.
+            // Per-message failures are retried inside Update and dropped there after 3 attempts,
+            // so a single failing/poison message no longer stalls or backs off the whole pipeline.
+            await Task.WhenAll(batch.Select(async update =>
             {
-                backOff = await Update(update);
+                await Update(update);
                 consumeCount.Inc();
-            })), Task.Delay(TimeSpan.FromSeconds(0.7)));
-
-            if (backOff)
-            {
-                logger.LogWarning("Backoff cause error");
-                await Task.Delay(8000);
-                backOff = false;
-            }
+            }));
             KeepStateCountInCheck();
         }, stoppingToken, 50);
         var retrieved = new UpdateMessage();
@@ -296,7 +293,14 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
             state.Lock.Release();
         }
         if (error && attempt < 3) // after finally to avoid semaphore lock
-            await Update(msg, attempt + 1);
+            return await Update(msg, attempt + 1);
+        if (error)
+        {
+            // exhausted retries: drop the message so it can't stall the partition, but make the
+            // loss observable via a metric (alerted on) and a log line instead of silently skipping.
+            droppedCount.Inc();
+            logger.LogError("Dropping update for {player} on {kind} after {attempts} failed attempts", msg.PlayerId, msg.Kind, attempt + 1);
+        }
         return error;
     }
 
