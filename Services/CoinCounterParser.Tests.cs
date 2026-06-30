@@ -188,6 +188,16 @@ public class CoinCounterParserTests
         ClassicAssert.AreEqual(0, Core.CoinParser.ParseCoinAmount(""));
     }
 
+    [TestCase("M")]
+    [TestCase("k")]
+    [TestCase("B")]
+    [TestCase("garbage")]
+    public void ParseCoinAmountBareOrInvalidReturnsZero(string input)
+    {
+        // regression: a lone suffix or non-numeric text must return 0 instead of throwing
+        ClassicAssert.AreEqual(0, Core.CoinParser.ParseCoinAmount(input));
+    }
+
     [Test]
     public void TestDayKeyCalculation()
     {
