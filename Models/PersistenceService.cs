@@ -32,6 +32,9 @@ public class PersistenceService : IPersistenceService
     private static readonly Prometheus.Counter stateSaveSkippedUnchangedCount = Prometheus.Metrics.CreateCounter(
         "sky_playerstate_state_save_skipped_unchanged_total",
         "Total number of skipped state saves because nothing changed.");
+    private static readonly Prometheus.Counter stateSaveSkippedAnonymousCount = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_state_save_skipped_anonymous_total",
+        "Total number of skipped persistence operations for anonymous/unidentified players.");
     private static readonly Prometheus.Counter redisSyncCount = Prometheus.Metrics.CreateCounter(
         "sky_playerstate_redis_sync_total",
         "Total number of player states synced to redis for near-real-time reads.");
@@ -90,6 +93,9 @@ public class PersistenceService : IPersistenceService
 
     public async Task<StateObject> GetStateObject(string playerId)
     {
+        // Anonymous states are never persisted, so there is nothing to load - hand back a fresh state.
+        if (StateObject.IsAnonymous(playerId))
+            return new StateObject() { PlayerId = playerId };
         // Redis-first: the pod owning this player's kafka partition pushes its live state here
         // within the last second, so this serves near-real-time inventory from any pod without
         // waiting on the 8s cassandra save. Cassandra remains the durable fallback below.
@@ -125,6 +131,8 @@ public class PersistenceService : IPersistenceService
     /// </summary>
     private async Task SyncToRedis(StateObject stateObject)
     {
+        if (StateObject.IsAnonymous(stateObject.PlayerId))
+            return;
         var now = DateTime.UtcNow;
         if (redisNextSync.TryGetValue(stateObject.PlayerId, out var next) && now < next)
             return;
@@ -152,6 +160,13 @@ public class PersistenceService : IPersistenceService
 
     public async Task SaveStateObject(StateObject stateObject, bool recursive)
     {
+        // Anonymous/unidentified states have no valid partition key (and would all collide on one
+        // shared bucket). Skip every persistence path for them, including the redis mirror below.
+        if (StateObject.IsAnonymous(stateObject.PlayerId))
+        {
+            stateSaveSkippedAnonymousCount.Inc();
+            return;
+        }
         // Near-real-time mirror to redis (own 1s throttle), independent of the 8s cassandra save
         // below. Driven off the same per-update call site so every processed update keeps redis warm.
         if (!recursive)
@@ -205,6 +220,11 @@ public class PersistenceService : IPersistenceService
     /// </summary>
     public async Task ForceSave(StateObject stateObject)
     {
+        if (StateObject.IsAnonymous(stateObject.PlayerId))
+        {
+            stateSaveSkippedAnonymousCount.Inc();
+            return;
+        }
         var table = await GetPlayerTable();
         var inventory = new Inventory(stateObject);
         var hash = GetHash(inventory);

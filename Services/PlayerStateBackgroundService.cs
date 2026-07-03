@@ -280,8 +280,10 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
 
     private async Task<bool> Update(UpdateMessage msg, int attempt = 0)
     {
-        if (msg.PlayerId == null)
-            msg.PlayerId = "!anonym";
+        // null OR empty/whitespace: no identifiable player on the message. Funnel both into the
+        // anonymous sentinel so an empty string can never reach Cassandra as an empty partition key.
+        if (string.IsNullOrWhiteSpace(msg.PlayerId))
+            msg.PlayerId = StateObject.AnonymousId;
         if (msg.PlayerId == "Ekwav")
         {
             // dump for debug
@@ -298,14 +300,21 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         try
         {
             await state.Lock.WaitAsync();
-            if (state.PlayerId == null)
+            // A freshly created StateObject has an empty PlayerId (the field defaults to string.Empty),
+            // so check for null OR empty here - otherwise the id is never stamped and prior state is
+            // never loaded, which surfaces downstream as a "Key may not be empty" save error.
+            if (string.IsNullOrEmpty(state.PlayerId))
             {
                 state.PlayerId = msg.PlayerId;
-                var loaded = await persistenceService.GetStateObject(msg.PlayerId);
-                loaded.Lock = state.Lock;
-                loaded.PlayerId = state.PlayerId;
-                state = loaded;
-                States[msg.PlayerId] = state;
+                // Anonymous states are never persisted, so skip the (shared) load entirely.
+                if (!StateObject.IsAnonymous(msg.PlayerId))
+                {
+                    var loaded = await persistenceService.GetStateObject(msg.PlayerId);
+                    loaded.Lock = state.Lock;
+                    loaded.PlayerId = state.PlayerId;
+                    state = loaded;
+                    States[msg.PlayerId] = state;
+                }
             }
             using var span = activitySource.StartActivity("Update", ActivityKind.Consumer);
             span?.SetTag("playerId", msg.PlayerId);

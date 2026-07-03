@@ -42,6 +42,16 @@ public class StateObject
     [Key(6)]
     public string PlayerId = string.Empty;
     /// <summary>
+    /// Sentinel player id used for updates that carry no identifiable player (no uuid).
+    /// These are not tied to a real account and must never be persisted.
+    /// </summary>
+    public const string AnonymousId = "!anonym";
+    /// <summary>
+    /// True when the id is missing or the shared anonymous sentinel. Such states share a single
+    /// bucket across unrelated sessions and have no valid partition key, so they are not persisted.
+    /// </summary>
+    public static bool IsAnonymous(string playerId) => string.IsNullOrWhiteSpace(playerId) || playerId == AnonymousId;
+    /// <summary>
     /// List of profiles the one at index 0 is used as active profile
     /// </summary>
     [Key(7)]
