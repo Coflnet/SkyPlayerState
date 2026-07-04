@@ -482,8 +482,14 @@ public class BazaarOrderListener : UpdateListener
 
         if (side == Transaction.TransactionType.BAZAAR)
             return; // no order affecting message
-        if (itemName == null)
-            throw new ArgumentNullException(nameof(itemName), $"in {msg} no item name was found");
+        if (string.IsNullOrEmpty(itemName))
+        {
+            // A flag (e.g. RECEIVE from a loose "Buy Order" substring match) was set by an
+            // informational message like "The Buy Orders for this item changed too much!" but no
+            // item was parsed. Not an order affecting message, so nothing to record.
+            args.GetService<ILogger<BazaarOrderListener>>().LogDebug("No item name parsed for bazaar message, ignoring: {message}", msg);
+            return;
+        }
         var itemTransactionTask = AddItemTransaction(args, side, amount, itemName);
         if (price != 0)
         {
@@ -714,6 +720,7 @@ public class BazaarOrderListener : UpdateListener
                 args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
                     "Recorded bazaar flip for {player}: {amount}x {item}, profit: {profit} coins",
                     args.currentState.McInfo.Name, flip.Amount, flip.ItemName, flip.Profit / 10.0);
+                UnlockBazaarEmblems(args, flip.Profit);
             } else
             {
                 args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
@@ -724,6 +731,31 @@ public class BazaarOrderListener : UpdateListener
         catch (Exception e)
         {
             args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error recording sell order for profit tracking");
+        }
+    }
+
+    /// <summary>
+    /// Unlocks the bazaar related emblems for a just completed flip.
+    /// Profit is in tenths of coins (coins * 10), matching <see cref="CompletedBazaarFlip.Profit"/>.
+    /// </summary>
+    private static void UnlockBazaarEmblems(UpdateArgs args, long profit)
+    {
+        try
+        {
+            // 100M coins of profit, stored in tenths of a coin
+            const long whaleThreshold = 100_000_000L * 10;
+            var emblems = args.GetService<IEmblemService>();
+            if (profit > 0)
+                emblems.Unlock(args.currentState, EmblemIds.BazaarFlipProfit);
+            else if (profit < 0)
+                emblems.Unlock(args.currentState, EmblemIds.BazaarFlipLoss);
+            if (profit >= whaleThreshold)
+                emblems.Unlock(args.currentState, EmblemIds.Whale);
+        }
+        catch (Exception e)
+        {
+            // never let emblem bookkeeping break flip tracking
+            args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error unlocking bazaar emblems");
         }
     }
 
