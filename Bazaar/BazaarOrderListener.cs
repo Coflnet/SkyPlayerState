@@ -720,7 +720,7 @@ public class BazaarOrderListener : UpdateListener
                 args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
                     "Recorded bazaar flip for {player}: {amount}x {item}, profit: {profit} coins",
                     args.currentState.McInfo.Name, flip.Amount, flip.ItemName, flip.Profit / 10.0);
-                UnlockBazaarEmblems(args, flip.Profit);
+                UnlockBazaarAchievements(args, flip.Profit);
             } else
             {
                 args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
@@ -735,27 +735,27 @@ public class BazaarOrderListener : UpdateListener
     }
 
     /// <summary>
-    /// Unlocks the bazaar related emblems for a just completed flip.
+    /// Unlocks the bazaar related achievements for a just completed flip.
     /// Profit is in tenths of coins (coins * 10), matching <see cref="CompletedBazaarFlip.Profit"/>.
     /// </summary>
-    private static void UnlockBazaarEmblems(UpdateArgs args, long profit)
+    private static void UnlockBazaarAchievements(UpdateArgs args, long profit)
     {
         try
         {
             // 100M coins of profit, stored in tenths of a coin
             const long whaleThreshold = 100_000_000L * 10;
-            var emblems = args.GetService<IEmblemService>();
+            var achievements = args.GetService<IAchievementService>();
             if (profit > 0)
-                emblems.Unlock(args.currentState, EmblemIds.BazaarFlipProfit);
+                achievements.Unlock(args.currentState, Achievement.BazaarFlipProfit);
             else if (profit < 0)
-                emblems.Unlock(args.currentState, EmblemIds.BazaarFlipLoss);
+                achievements.Unlock(args.currentState, Achievement.BazaarFlipLoss);
             if (profit >= whaleThreshold)
-                emblems.Unlock(args.currentState, EmblemIds.Whale);
+                achievements.Unlock(args.currentState, Achievement.Whale);
         }
         catch (Exception e)
         {
-            // never let emblem bookkeeping break flip tracking
-            args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error unlocking bazaar emblems");
+            // never let achievement bookkeeping break flip tracking
+            args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error unlocking bazaar achievements");
         }
     }
 

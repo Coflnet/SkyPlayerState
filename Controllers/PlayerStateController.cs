@@ -68,6 +68,19 @@ namespace Coflnet.Sky.PlayerState.Controllers
             return await service.GetSkills(playerId);
         }
 
+        /// <summary>
+        /// Lists the achievements a player has unlocked. To unlock one, send an
+        /// <see cref="UpdateMessage.UpdateKind.Achievement"/> update through the state pipeline instead,
+        /// so it lands on the instance holding the players live state.
+        /// </summary>
+        [HttpGet]
+        [Route("{playerId}/achievements")]
+        public async Task<List<Achievement>> GetAchievements(string playerId)
+        {
+            var data = await service.GetStateObject(playerId);
+            return data?.UnlockedAchievements?.ToList() ?? new List<Achievement>();
+        }
+
         [HttpGet]
         [Route("{playerId}/extracted")]
         public async Task<ExtractedInfo> GetPlayerData(string playerId)

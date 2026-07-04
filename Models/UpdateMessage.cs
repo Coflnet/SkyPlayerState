@@ -26,6 +26,11 @@ public class UpdateMessage
     public string[]? Scoreboard { get; set; }
     [Key(8)]
     public string[]? Tab { get; set; }
+    /// <summary>
+    /// Name of the achievement to unlock, set when <see cref="Kind"/> is <see cref="UpdateKind.Achievement"/>.
+    /// </summary>
+    [Key(9)]
+    public string? AchievementId { get; set; }
 
     public enum UpdateKind
     {
@@ -36,6 +41,7 @@ public class UpdateMessage
         Setting = 8,
         Scoreboard = 16,
         Tab = 32,
+        Achievement = 64,
     }
 }
 

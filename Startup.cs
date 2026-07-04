@@ -61,6 +61,7 @@ public class Startup
         }
         else
             services.AddHostedService<PlayerStateBackgroundService>();
+        services.AddSingleton<IAchievementService, AchievementService>();
         services.AddJaeger(Configuration, 0.001);
         services.AddResponseCaching();
         services.AddResponseCompression();

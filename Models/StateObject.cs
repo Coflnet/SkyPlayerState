@@ -66,6 +66,12 @@ public class StateObject
     public string[] LastTab = Array.Empty<string>();
     [Key(12)]
     public Dictionary<string, int> ItemsCollectedRecently = new();
+    /// <summary>
+    /// Achievements the player has unlocked. The mod (SkyModCommands) maps these to displayable emblems.
+    /// Older serialized states predating this field deserialize this as null, so always null-check before use.
+    /// </summary>
+    [Key(13)]
+    public HashSet<Achievement> UnlockedAchievements = new();
     // [IgnoreMember] only excludes these from MessagePack (cassandra/redis). The api also serializes
     // StateObject with System.Text.Json (IncludeFields = true), which chokes on the SemaphoreSlim's
     // native handle ("IntPtr ... not supported"), so GetFullState needs [JsonIgnore] too.
@@ -111,6 +117,8 @@ public class StateObject
             LastTab = (string[])other.LastTab.Clone();
         if (other.ItemsCollectedRecently != null)
             ItemsCollectedRecently = new Dictionary<string, int>(other.ItemsCollectedRecently);
+        if (other.UnlockedAchievements != null)
+            UnlockedAchievements = new HashSet<Achievement>(other.UnlockedAchievements);
         Settings = other.Settings;
     }
 }
