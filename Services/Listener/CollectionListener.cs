@@ -342,10 +342,33 @@ public class CollectionListener : UpdateListener
             {
                 Logger.LogError(ex, "Failed to record method aggregate");
             }
+            UnlockCollectionAchievements(args, period.ItemsCollected);
             args.SendDebugMessage("You collected a total of " + profit + " coins worth of items in " + previousLocation + " " + string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}")));
             Logger.LogInformation("Profit summary for {playerId} at {location}: {profit} coins from {items}", args.currentState.PlayerId, previousLocation, profit, string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}")));
         }
         args.currentState.ItemsCollectedRecently.Clear();
         args.currentState.ExtractedInfo.LastLocationChange = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Unlocks the collection related achievements for a just recorded <see cref="TrackedProfitService.Period"/>.
+    /// </summary>
+    internal static void UnlockCollectionAchievements(UpdateArgs args, Dictionary<string, int> itemsCollected)
+    {
+        try
+        {
+            const int farmerThreshold = 20_000;
+            const int collectorDistinctKindsThreshold = 50;
+            var achievements = args.GetService<IAchievementService>();
+            if (itemsCollected.Values.Any(count => count > farmerThreshold))
+                achievements.Unlock(args.currentState, Models.Achievement.Farmer);
+            if (itemsCollected.Count >= collectorDistinctKindsThreshold)
+                achievements.Unlock(args.currentState, Models.Achievement.Collector);
+        }
+        catch (Exception e)
+        {
+            // never let achievement bookkeeping break profit tracking
+            args.GetService<ILogger<CollectionListener>>().LogError(e, "Error unlocking collection achievements");
+        }
     }
 }

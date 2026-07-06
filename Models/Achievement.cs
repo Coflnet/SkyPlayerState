@@ -27,4 +27,8 @@ public enum Achievement
     NightOwl = 5,
     /// <summary>Reserved - not granted yet (mysterious emblem on the mod side).</summary>
     DiamondHands = 6,
+    /// <summary>Collected 50 or more different item kinds in one grinding session.</summary>
+    Collector = 7,
+    /// <summary>Collected more than 20,000 of a single item kind in one grinding session.</summary>
+    Farmer = 8,
 }
