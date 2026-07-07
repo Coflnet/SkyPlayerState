@@ -49,6 +49,11 @@ public class Startup
         services.AddSwaggerGen(c =>
         {
             c.SwaggerDoc("v1", new OpenApiInfo { Title = "SkyPlayerState", Version = "v1" });
+            // Swashbuckle's JsonSerializerDataContractResolver only reflects public properties
+            // (Type.GetProperties), ignoring JsonSerializerOptions.IncludeFields entirely, so models
+            // that use public fields (KatStatus, ForgeItems, Composter, ChestView, ...) come out as
+            // empty/missing in the schema even though they serialize fine at runtime. Patch it in.
+            c.SchemaFilter<IncludeFieldsSchemaFilter>();
             // Set the comments path for the Swagger JSON and UI.
             var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
             var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
