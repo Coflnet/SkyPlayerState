@@ -721,6 +721,16 @@ public class BazaarOrderListener : UpdateListener
                     "Recorded bazaar flip for {player}: {amount}x {item}, profit: {profit} coins",
                     args.currentState.McInfo.Name, flip.Amount, flip.ItemName, flip.Profit / 10.0);
                 UnlockBazaarAchievements(args, flip.Profit);
+                try
+                {
+                    // export the completed round trip for downstream oracles (all-users push stream)
+                    await args.GetService<BazaarFlipExportProducer>().Produce(flip);
+                }
+                catch (Exception exportError)
+                {
+                    args.GetService<ILogger<BazaarOrderListener>>().LogWarning(exportError,
+                        "Failed to export bazaar flip to Kafka for {item}", flip.ItemTag);
+                }
             } else
             {
                 args.GetService<ILogger<BazaarOrderListener>>().LogInformation(

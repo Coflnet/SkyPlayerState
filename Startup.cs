@@ -105,6 +105,7 @@ public class Startup
         services.AddSingleton<Sky.Bazaar.Client.Api.IBazaarApi>(sp => new Sky.Bazaar.Client.Api.BazaarApi(Configuration["BAZAAR_BASE_URL"]));
         services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(Configuration["REDIS_HOST"]));
         services.AddSingleton<BazaarSignalPublisher>();
+        services.AddSingleton<Bazaar.BazaarFlipExportProducer>();
 
         services.AddSingleton<IItemsApi>(context => new ItemsApi(Configuration["ITEMS_BASE_URL"]));
         services.AddSingleton<IAuctionsApi>(context => new AuctionsApi(Configuration["API_BASE_URL"]));
