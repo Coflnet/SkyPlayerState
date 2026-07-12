@@ -58,6 +58,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         AddHandler<TradeLimitsUpdate>(UpdateMessage.UpdateKind.CHAT);
         AddHandler<KatChatListener>(UpdateMessage.UpdateKind.CHAT);
         AddHandler<AchievementListener>(UpdateMessage.UpdateKind.Achievement);
+        AddHandler<TaskClaimListener>(UpdateMessage.UpdateKind.TaskClaim);
 
 
         AddHandler<ItemIdAssignUpdate>(UpdateMessage.UpdateKind.INVENTORY);

@@ -110,6 +110,31 @@ public class Startup
         services.AddSingleton<IAuctionsApi>(context => new AuctionsApi(Configuration["API_BASE_URL"]));
         services.AddSingleton<IPlayerApi>(context => new PlayerApi(Configuration["API_BASE_URL"]));
         services.AddSingleton<IPricesApi>(context => new PricesApi(Configuration["API_BASE_URL"]));
+
+        // task estimation system
+        services.AddSingleton<Crafts.Client.Api.IKatApi>(sp => new Crafts.Client.Api.KatApi(Configuration["CRAFTS_BASE_URL"]));
+        services.AddSingleton<Crafts.Client.Api.IForgeApi>(sp => new Crafts.Client.Api.ForgeApi(Configuration["CRAFTS_BASE_URL"]));
+        services.AddSingleton<Mayor.Client.Api.IMayorApiApi>(sp => new Mayor.Client.Api.MayorApiApi(Configuration["MAYOR_BASE_URL"]));
+        services.AddSingleton<Tasks.ProfileForgeClient>();
+        services.AddSingleton<Tasks.ForgeFlipService>();
+        services.AddSingleton<Tasks.CurrentMayorService>();
+        services.AddSingleton<Tasks.ComposterService>();
+        services.AddSingleton<Tasks.CoinValueRegistry>();
+        services.AddSingleton<Tasks.TaskRegistry>();
+        services.AddSingleton<Tasks.TaskClassifier>();
+        services.AddSingleton<Tasks.TaskActivityService>();
+        services.AddSingleton<Tasks.StatScoreService>();
+        services.AddSingleton<Tasks.TaskAggregateService>();
+        services.AddSingleton<Tasks.TaskPeriodFolder>();
+        services.AddSingleton<Tasks.TaskEstimator>();
+        services.AddSingleton<Tasks.TaskPriceService>();
+        services.AddSingleton<Tasks.TaskBackfillService>();
+        services.AddHostedService<Tasks.TaskAggregateFlusher>();
+        // export the fold/estimate spans (and the existing consumer spans) to jaeger.
+        // AddOpenTelemetry().WithTracing is additive to the config AddJaeger set up.
+        services.AddOpenTelemetry().WithTracing(b => b.AddSource(Tasks.TaskTelemetry.SourceName));
+        Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions
+            .TryAddSingleton(services, Tasks.TaskTelemetry.Source);
         RegisterScyllaSession(services);
     }
 

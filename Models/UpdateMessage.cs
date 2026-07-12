@@ -31,6 +31,12 @@ public class UpdateMessage
     /// </summary>
     [Key(9)]
     public string? AchievementId { get; set; }
+    /// <summary>
+    /// Task the player manually claimed, set when <see cref="Kind"/> is <see cref="UpdateKind.TaskClaim"/>.
+    /// Null clears the claim.
+    /// </summary>
+    [Key(10)]
+    public string? ClaimedTask { get; set; }
 
     public enum UpdateKind
     {
@@ -42,6 +48,7 @@ public class UpdateMessage
         Scoreboard = 16,
         Tab = 32,
         Achievement = 64,
+        TaskClaim = 128,
     }
 }
 

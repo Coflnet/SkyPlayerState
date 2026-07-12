@@ -26,6 +26,11 @@ public class CollectionListener : UpdateListener
     // instead of retrying on every single scoreboard message
     private static readonly TimeSpan CleanPricesFailureBackoff = TimeSpan.FromSeconds(15);
     private static readonly Dictionary<string, double> EmptyCleanPrices = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> lastLiveClassification = new();
+    private static readonly Prometheus.Counter PeriodClassifiedCounter = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_task_classified_total", "Periods attributed to a task by the classifier", "task");
+    private static readonly Prometheus.Counter PeriodUnclassifiedCounter = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_task_unclassified_total", "Periods the classifier could not attribute to any task");
     /// <inheritdoc/>
     public override async Task Process(UpdateArgs args)
     {
@@ -308,6 +313,46 @@ public class CollectionListener : UpdateListener
             await StoreLocationProfit(args, previousLocation);
         }
         args.currentState.ExtractedInfo.CurrentLocation = currentLocation;
+        await ClassifyLive(args);
+    }
+
+    /// <summary>
+    /// Continuously attribute what the player is currently doing to a task based on the
+    /// rolling collection window, throttled per player. Feeds the live doer counts.
+    /// </summary>
+    private async Task ClassifyLive(UpdateArgs args)
+    {
+        var state = args.currentState;
+        var playerId = state.PlayerId;
+        if (playerId == null || lastLiveClassification.TryGetValue(playerId, out var last) && DateTime.UtcNow - last < TimeSpan.FromSeconds(60))
+            return;
+        lastLiveClassification[playerId] = DateTime.UtcNow;
+        try
+        {
+            if (args.GetService<Microsoft.Extensions.Configuration.IConfiguration>()["TASKS:CLASSIFY"] == "false")
+                return;
+            var minutes = (DateTime.UtcNow - state.ExtractedInfo.LastLocationChange).TotalMinutes;
+            // an active claim (not older than 30 min) biases the classifier
+            var claim = state.ExtractedInfo.ClaimedTask;
+            if (claim != null && DateTime.UtcNow - state.ExtractedInfo.ClaimedAt > TimeSpan.FromMinutes(30))
+            {
+                state.ExtractedInfo.ClaimedTask = null;
+                claim = null;
+            }
+            // stale prices (or none on startup) only weaken tie breaking, not matching
+            var classification = args.GetService<Tasks.TaskClassifier>().Classify(
+                state.ExtractedInfo.CurrentLocation, state.ItemsCollectedRecently, minutes, claim, cachedCleanPrices);
+            var previous = state.ExtractedInfo.CurrentTask;
+            state.ExtractedInfo.CurrentTask = classification?.TaskName;
+            if (classification?.TaskName != previous)
+                state.ExtractedInfo.CurrentTaskSince = DateTime.UtcNow;
+            if (classification != null && state.McInfo.Uuid != default)
+                await args.GetService<Tasks.TaskActivityService>().MarkDoing(classification.TaskName, state.McInfo.Uuid.ToString("N"));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed live task classification for {playerId}", playerId);
+        }
     }
 
     private async Task StoreLocationProfit(UpdateArgs args, string previousLocation)
@@ -333,7 +378,9 @@ public class CollectionListener : UpdateListener
                 ItemsCollected = new Dictionary<string, int>(args.currentState.ItemsCollectedRecently),
                 Profit = profit
             };
+            ClassifyPeriod(args, period, cleanPrices);
             await args.GetService<TrackedProfitService>().AddPeriod(period);
+            await FoldPeriod(args, period, cleanPrices);
             try
             {
                 await args.GetService<MethodAggregateService>().RecordPeriod(period);
@@ -348,6 +395,50 @@ public class CollectionListener : UpdateListener
         }
         args.currentState.ItemsCollectedRecently.Clear();
         args.currentState.ExtractedInfo.LastLocationChange = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Attributes a flushed period to a task. Failures only lose the attribution,
+    /// never the period itself.
+    /// </summary>
+    private void ClassifyPeriod(UpdateArgs args, TrackedProfitService.Period period, Dictionary<string, double> cleanPrices)
+    {
+        try
+        {
+            if (args.GetService<Microsoft.Extensions.Configuration.IConfiguration>()["TASKS:CLASSIFY"] == "false")
+                return;
+            var classification = args.GetService<Tasks.TaskClassifier>().Classify(
+                period.Location, period.ItemsCollected,
+                (period.EndTime - period.StartTime).TotalMinutes, null, cleanPrices);
+            period.DetectedTask = classification?.TaskName;
+            if (classification == null)
+                PeriodUnclassifiedCounter.Inc();
+            else
+                PeriodClassifiedCounter.WithLabels(classification.TaskName).Inc();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to classify period at {location}", period.Location);
+        }
+    }
+
+    /// <summary>
+    /// Folds a classified period into the stat bucketed aggregates and the player's stats.
+    /// Failures only lose this contribution, never the period.
+    /// </summary>
+    private async Task FoldPeriod(UpdateArgs args, TrackedProfitService.Period period, Dictionary<string, double> cleanPrices)
+    {
+        try
+        {
+            if (period.DetectedTask == null
+                || args.GetService<Microsoft.Extensions.Configuration.IConfiguration>()["TASKS:AGGREGATE"] == "false")
+                return;
+            await args.GetService<Tasks.TaskPeriodFolder>().Fold(period, args.currentState, cleanPrices);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to fold period at {location}", period.Location);
+        }
     }
 
     /// <summary>

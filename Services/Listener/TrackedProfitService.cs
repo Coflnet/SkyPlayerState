@@ -58,6 +58,18 @@ public class TrackedProfitService
             await session.ExecuteAsync(new SimpleStatement(
                 $"ALTER TABLE {TABLE_NAME_HISTORY} WITH compaction = {{'class': 'TimeWindowCompactionStrategy', 'compaction_window_size': '1', 'compaction_window_unit': 'DAYS'}} AND default_time_to_live = {keeptime};"));
         }
+        await AddColumnIfMissing("locationperiods", "detectedtask", "text");
+        await AddColumnIfMissing(TABLE_NAME_HISTORY.ToLower(), "detectedtask", "text");
+    }
+
+    private async Task AddColumnIfMissing(string table, string column, string type)
+    {
+        var existing = await session.ExecuteAsync(new SimpleStatement(
+            $"SELECT column_name FROM system_schema.columns WHERE keyspace_name = '{session.Keyspace}' AND table_name = '{table}' AND column_name = '{column}';"));
+        if (existing.FirstOrDefault() == null)
+        {
+            await session.ExecuteAsync(new SimpleStatement($"ALTER TABLE {table} ADD {column} {type};"));
+        }
     }
 
     public async Task AddPeriod(Period period)
@@ -103,5 +115,9 @@ public class TrackedProfitService
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
         public Dictionary<string, int> ItemsCollected { get; set; } = new();
+        /// <summary>
+        /// Task the classifier attributed this period to, null when the signal was too weak.
+        /// </summary>
+        public string DetectedTask { get; set; }
     }
 }

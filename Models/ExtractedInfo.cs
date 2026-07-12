@@ -48,6 +48,26 @@ public class ExtractedInfo
     public PlayerElectionVote? PlayerElectionVote { get; set; } = null;
     [Key(18)]
     public int MithrilPowder { get; set; }
+    /// <summary>
+    /// Task the classifier currently attributes the player's activity to, null when unknown.
+    /// </summary>
+    [Key(19)]
+    public string? CurrentTask { get; set; }
+    /// <summary>
+    /// When <see cref="CurrentTask"/> last changed to its current value.
+    /// </summary>
+    [Key(20)]
+    public DateTime CurrentTaskSince { get; set; }
+    /// <summary>
+    /// Task the player manually claimed, biases the classifier. Null when none.
+    /// </summary>
+    [Key(21)]
+    public string? ClaimedTask { get; set; }
+    /// <summary>
+    /// When <see cref="ClaimedTask"/> was set, used for claim expiry.
+    /// </summary>
+    [Key(22)]
+    public DateTime ClaimedAt { get; set; }
     [MessagePackObject]
     public class PetState
     {
@@ -144,6 +164,10 @@ public class ExtractedInfo
             VoteCount = extractedInfo.PlayerElectionVote.VoteCount
         };
         MithrilPowder = extractedInfo.MithrilPowder;
+        CurrentTask = extractedInfo.CurrentTask;
+        CurrentTaskSince = extractedInfo.CurrentTaskSince;
+        ClaimedTask = extractedInfo.ClaimedTask;
+        ClaimedAt = extractedInfo.ClaimedAt;
     }
 }
 
