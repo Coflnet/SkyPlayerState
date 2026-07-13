@@ -39,6 +39,11 @@ public class SkillService
         return (await skillTable.Where(x => x.Player == playerId).ExecuteAsync()).ToArray();
     }
 
+    public async Task DeleteSkills(Guid playerId)
+    {
+        await skillTable.Where(x => x.Player == playerId).Delete().ExecuteAsync();
+    }
+
     public class Skill
     {
         public Guid Player { get; set; }

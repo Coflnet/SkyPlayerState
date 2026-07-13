@@ -22,6 +22,7 @@ public interface ITransactionService
     Task StoreUuidToItemMapping(List<(Guid, long? Id)> itemUuidAndItemId);
     Task<IEnumerable<long>> GetItemIdsFromUuid(Guid itemId);
     Task<Dictionary<Guid, long[]>> GetItemIdsFromUuids(List<Guid> itemIds);
+    Task DeletePlayerTransactions(Guid playerUuid);
 }
 
 public interface ICassandraService
@@ -295,6 +296,16 @@ public class TransactionService : ITransactionService, ICassandraService
         var table = await GetPlayerTable();
         var start = end - timeSpan;
         return await table.Where(t => t.PlayerUuid == guid && t.TimeStamp > start && t.TimeStamp <= end).ExecuteAsync();
+    }
+
+    /// <summary>
+    /// Drops the transaction history of a player. The per-item copies in `itemTransaction` are keyed
+    /// by item and carry no player reference, so they are left alone.
+    /// </summary>
+    public async Task DeletePlayerTransactions(Guid playerUuid)
+    {
+        var table = await GetPlayerTable();
+        await table.Where(t => t.PlayerUuid == playerUuid).Delete().ExecuteAsync();
     }
 
     public async Task<IEnumerable<Transaction>> GetItemTransactions(long itemId, int max)

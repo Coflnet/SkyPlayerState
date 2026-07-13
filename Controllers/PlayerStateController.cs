@@ -20,14 +20,30 @@ namespace Coflnet.Sky.PlayerState.Controllers
     public class PlayerStateController : ControllerBase
     {
         private readonly IPersistenceService service;
+        private readonly PlayerDataDeletionService deletionService;
 
         /// <summary>
         /// Creates a new instance of <see cref="PlayerStateController"/>
         /// </summary>
         /// <param name="service"></param>
-        public PlayerStateController(IPersistenceService service)
+        /// <param name="deletionService"></param>
+        public PlayerStateController(IPersistenceService service, PlayerDataDeletionService deletionService)
         {
             this.service = service;
+            this.deletionService = deletionService;
+        }
+
+        /// <summary>
+        /// Deletes everything stored about a player, used when the account behind it is deleted.
+        /// </summary>
+        /// <param name="playerId">the player name the state is stored under</param>
+        /// <param name="playerUuid">the minecraft uuid, needed to also drop storage, skills, transactions, bazaar and task data</param>
+        /// <returns>what was removed</returns>
+        [HttpDelete]
+        [Route("{playerId}")]
+        public async Task<PlayerDataDeletionService.DeletionSummary> DeletePlayer(string playerId, Guid playerUuid)
+        {
+            return await deletionService.DeletePlayer(playerId, playerUuid);
         }
 
         /// <summary>

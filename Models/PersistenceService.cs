@@ -19,6 +19,7 @@ public interface IPersistenceService
     Task<StateObject> GetStateObject(string playerId);
     Task SaveStateObject(StateObject stateObject);
     Task ForceSave(StateObject stateObject);
+    Task DeleteStateObject(string playerId);
 }
 
 public class PersistenceService : IPersistenceService
@@ -50,6 +51,12 @@ public class PersistenceService : IPersistenceService
     // serializing and saturate redis network for no extra freshness.
     private ConcurrentDictionary<string, DateTime> redisNextSync = new();
     private static readonly TimeSpan redisSyncThrottle = TimeSpan.FromSeconds(1);
+    // A delete has to win against saves that were already queued for that player. QueueDelayedSave
+    // holds a reference to the live StateObject and fires up to saveThrottle later, which would
+    // write the deleted state straight back. Blocking saves for a while after the delete lets those
+    // in-flight tasks drain without resurrecting anything.
+    private ConcurrentDictionary<string, DateTime> deletedUntil = new();
+    private static readonly TimeSpan deleteBlockDuration = TimeSpan.FromMinutes(5);
     // kept short on purpose: cassandra is the durable store and catches up within saveThrottle (8s),
     // so redis only has to bridge that gap. A small ttl keeps redis ram bounded to recently-active
     // players instead of accumulating every player that was ever touched.
@@ -167,6 +174,8 @@ public class PersistenceService : IPersistenceService
             stateSaveSkippedAnonymousCount.Inc();
             return;
         }
+        if (IsBlockedByDelete(stateObject.PlayerId))
+            return;
         // Near-real-time mirror to redis (own 1s throttle), independent of the 8s cassandra save
         // below. Driven off the same per-update call site so every processed update keeps redis warm.
         if (!recursive)
@@ -225,6 +234,8 @@ public class PersistenceService : IPersistenceService
             stateSaveSkippedAnonymousCount.Inc();
             return;
         }
+        if (IsBlockedByDelete(stateObject.PlayerId))
+            return;
         var table = await GetPlayerTable();
         var inventory = new Inventory(stateObject);
         var hash = GetHash(inventory);
@@ -236,6 +247,41 @@ public class PersistenceService : IPersistenceService
         await table.Insert(inventory).ExecuteAsync().ConfigureAwait(false);
         stateSaveCount.Inc();
         savedHashList[stateObject.PlayerId] = hash;
+    }
+
+    /// <summary>
+    /// Removes the persisted state of a player from cassandra and the redis mirror and blocks
+    /// further saves for <see cref="deleteBlockDuration"/> so queued saves can't write it back.
+    /// The caller is responsible for dropping the in-memory state as well.
+    /// </summary>
+    public async Task DeleteStateObject(string playerId)
+    {
+        if (StateObject.IsAnonymous(playerId))
+            return;
+        deletedUntil[playerId] = DateTime.UtcNow + deleteBlockDuration;
+        var table = await GetPlayerTable();
+        await table.Where(t => t.PlayerId == playerId).Delete().ExecuteAsync();
+        try
+        {
+            await redis.GetDatabase().KeyDeleteAsync(RedisKeyFor(playerId));
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "failed to remove state from redis for {playerId}, it expires within {ttl}", playerId, redisTtl);
+        }
+        savedHashList.TryRemove(playerId, out _);
+        redisNextSync.TryRemove(playerId, out _);
+        logger.LogInformation("Deleted state object for player {playerId}", playerId);
+    }
+
+    private bool IsBlockedByDelete(string playerId)
+    {
+        if (!deletedUntil.TryGetValue(playerId, out var until))
+            return false;
+        if (DateTime.UtcNow < until)
+            return true;
+        deletedUntil.TryRemove(playerId, out _);
+        return false;
     }
 
     private void QueueDelayedSave(StateObject stateObject)

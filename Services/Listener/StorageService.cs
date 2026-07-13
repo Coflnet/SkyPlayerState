@@ -57,6 +57,18 @@ public class StorageService
         return all;
     }
 
+    /// <summary>
+    /// Removes all stored chests of a player. The profile ids have to be passed in because they are
+    /// part of the partition key, cassandra can't delete by player alone.
+    /// </summary>
+    public async Task DeleteStorage(Guid playerId, IEnumerable<Guid> profileIds)
+    {
+        foreach (var profileId in profileIds.Distinct())
+        {
+            await storageTable.Where(i => i.PlayerId == playerId && i.ProfileId == profileId).Delete().ExecuteAsync();
+        }
+    }
+
     public class StorageItem
     {
         public Guid PlayerId { get; set; }

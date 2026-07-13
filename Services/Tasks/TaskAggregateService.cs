@@ -252,6 +252,18 @@ public class TaskAggregateService
         return (await playerTable!.Where(r => r.PlayerUuid == playerUuid).ExecuteAsync()).ToList();
     }
 
+    /// <summary>
+    /// Drops the per player task stats. The day bucket aggregates the player was folded into still
+    /// list the uuid in their Players set, but those rows are written with a 14 day TTL and no
+    /// further deltas arrive for a deleted player, so the last trace expires on its own.
+    /// </summary>
+    public async Task DeletePlayerStats(string playerUuid)
+    {
+        if (playerTable == null)
+            await Setup();
+        await playerTable!.Where(r => r.PlayerUuid == playerUuid).Delete().ExecuteAsync();
+    }
+
     private async Task Setup()
     {
         var mapping = new MappingConfiguration().Define(new Map<TaskBucketAggregateRow>()

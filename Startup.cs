@@ -60,12 +60,15 @@ public class Startup
             c.IncludeXmlComments(xmlPath);
         });
 
+        // registered as a singleton as well so the deletion path can evict the live in-memory state
+        services.AddSingleton<PlayerStateBackgroundService>();
         if (Configuration["MIGRATOR"] == "true")
         {
             services.AddHostedService<MigrationService>();
         }
         else
-            services.AddHostedService<PlayerStateBackgroundService>();
+            services.AddHostedService(p => p.GetRequiredService<PlayerStateBackgroundService>());
+        services.AddSingleton<PlayerDataDeletionService>();
         services.AddSingleton<IAchievementService, AchievementService>();
         services.AddJaeger(Configuration, 0.001);
         services.AddResponseCaching();

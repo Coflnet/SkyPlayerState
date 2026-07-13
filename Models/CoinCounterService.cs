@@ -13,6 +13,7 @@ public interface ICoinCounterService
 {
     Task IncrementCounter(string userId, DateTime timestamp, CoinCounterType type, long amount);
     Task<CoinCounter> GetCounter(string userId, DateTime timestamp);
+    Task DeleteCounters(string userId);
 }
 
 public class CoinCounterService : ICoinCounterService
@@ -74,6 +75,22 @@ public class CoinCounterService : ICoinCounterService
             logger.LogError(ex, $"Failed to increment counter for {userId}");
         }
     }
+
+    /// <summary>
+    /// Drops every counter partition of a user. The year is part of the partition key so there is no
+    /// way to select them all, they have to be walked from the first year the service existed.
+    /// </summary>
+    public async Task DeleteCounters(string userId)
+    {
+        var table = await GetTable();
+        for (short year = FirstTrackedYear; year <= DateTime.UtcNow.Year; year++)
+        {
+            var toDelete = year;
+            await table.Where(c => c.User == userId && c.Year == toDelete).Delete().ExecuteAsync();
+        }
+    }
+
+    private const short FirstTrackedYear = 2020;
 
     public async Task<CoinCounter> GetCounter(string userId, DateTime timestamp)
     {

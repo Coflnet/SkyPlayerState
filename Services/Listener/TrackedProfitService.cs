@@ -106,6 +106,14 @@ public class TrackedProfitService
     }
 
 
+    public async Task DeletePlayer(string playerUuid)
+    {
+        if (locationPeriods == null || historyPeriods == null)
+            await Setup();
+        await locationPeriods!.Where(p => p.PlayerUuid == playerUuid).Delete().ExecuteAsync();
+        await historyPeriods!.Where(p => p.PlayerUuid == playerUuid).Delete().ExecuteAsync();
+    }
+
     public class Period
     {
         public string PlayerUuid { get; set; }

@@ -116,6 +116,11 @@ public interface IBazaarProfitTracker
     /// Gets outstanding (unsold) buy orders for a player
     /// </summary>
     Task<List<BazaarBuyRecord>> GetOutstandingOrders(Guid playerUuid);
+
+    /// <summary>
+    /// Removes all buy records and completed flips of a player
+    /// </summary>
+    Task DeletePlayer(Guid playerUuid);
 }
 
 public class BazaarProfitTracker : IBazaarProfitTracker
@@ -392,14 +397,29 @@ public class BazaarProfitTracker : IBazaarProfitTracker
     public async Task<List<BazaarBuyRecord>> GetOutstandingOrders(Guid playerUuid)
     {
         await EnsureTablesExist();
-        
+
         // With playerUuid as partition key, we can efficiently query all records for a player
         var records = (await _buyTable!
             .Where(r => r.PlayerUuid == playerUuid)
             .ExecuteAsync())
             .Where(r => r.RemainingAmount > 0)
             .ToList();
-        
+
         return records;
+    }
+
+    private const int FirstTrackedYear = 2024;
+
+    /// <inheritdoc/>
+    public async Task DeletePlayer(Guid playerUuid)
+    {
+        await EnsureTablesExist();
+        await _buyTable!.Where(r => r.PlayerUuid == playerUuid).Delete().ExecuteAsync();
+        // flips are partitioned by (player, year) so every year has to be dropped individually
+        for (var year = FirstTrackedYear; year <= DateTime.UtcNow.Year; year++)
+        {
+            var toDelete = year;
+            await _flipTable!.Where(f => f.PlayerUuid == playerUuid && f.Year == toDelete).Delete().ExecuteAsync();
+        }
     }
 }
