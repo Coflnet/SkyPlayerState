@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Cassandra.Data.Linq;
 using Coflnet.Sky.Bazaar.Client.Api;
+using Coflnet.Sky.Core;
 using Coflnet.Sky.Sniper.Client.Api;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -134,7 +135,12 @@ public class CollectionListener : UpdateListener
         }
         var shardName = match.Groups[3].Value.Trim();
         var count = match.Groups[2].Value.StartsWith("x") ? int.Parse(match.Groups[2].Value.Substring(1)) : 1;
-        var tag = "SHARD_" + shardName.ToUpperInvariant().Replace(" ", "_");
+        // The mob display name does not always match its shard tag stem (e.g. "Lotusfish" -> LOTUS_FISH,
+        // "Cinderbat" -> CINDER_BAT, "Bogged" -> SEA_ARCHER). Prefer the canonical map, fall back to the
+        // naive derivation so unknown/new shards are still recorded rather than dropped.
+        var tag = Constants.ShardNames.TryGetValue(shardName, out var mapped)
+            ? "SHARD_" + mapped.ToUpperInvariant()
+            : "SHARD_" + shardName.ToUpperInvariant().Replace(" ", "_");
         args.currentState.ItemsCollectedRecently[tag] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(tag, 0) + count;
     }
 

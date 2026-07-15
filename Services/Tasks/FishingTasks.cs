@@ -118,12 +118,12 @@ public class LotusAtollTask : BaseFishingTask
     protected override string MethodName => "Lotus Atoll";
     protected override HashSet<string> Locations => ["Lotus Atoll"];
     // The lily pads pushed together are WATER_LILY/LOTUS; the pile explodes into sea
-    // creatures and fish that are caught for SHARD_LOTUSFISH, which is the main value.
+    // creatures and fish that are caught for SHARD_LOTUS_FISH, which is the main value.
     // Shards are deliberately not excluded so their value counts toward this activity.
     protected override HashSet<string> DetectionItems => ["LOTUS", "WATER_LILY"];
     protected override string HowTo => "Go to Lotus Atoll on Galatea and push lily pads across the pond into one big pile. It explodes into sea creatures and fish you catch for Lotusfish shards.";
-    // Reference sample (Ekwav, ~5 min at Lotus Atoll): LOTUS 57, WATER_LILY 64, SHARD_LOTUSFISH 22.
-    protected override List<MethodDrop> FormulaDrops => [new("WATER_LILY", 700), new("LOTUS", 650), new("SHARD_LOTUSFISH", 250)];
+    // Reference sample (Ekwav, ~5 min at Lotus Atoll): LOTUS 57, WATER_LILY 64, SHARD_LOTUS_FISH 22.
+    protected override List<MethodDrop> FormulaDrops => [new("WATER_LILY", 700), new("LOTUS", 650), new("SHARD_LOTUS_FISH", 250)];
 }
 public class OasisFishingTask : BaseFishingTask
 {

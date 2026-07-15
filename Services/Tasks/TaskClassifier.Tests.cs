@@ -185,7 +185,7 @@ public class TaskClassifierTests
     [Test]
     public void LotusAtoll_SampleClassifiesToLotusAtoll()
     {
-        var items = new Dictionary<string, int> { { "LOTUS", 57 }, { "WATER_LILY", 64 }, { "SHARD_LOTUSFISH", 22 } };
+        var items = new Dictionary<string, int> { { "LOTUS", 57 }, { "WATER_LILY", 64 }, { "SHARD_LOTUS_FISH", 22 } };
         var classification = Classifier.Classify("Lotus Atoll", items, 5);
         classification.Should().NotBeNull();
         classification!.TaskName.Should().Be("Lotus Atoll");

@@ -28,7 +28,7 @@ public class HuntingTrapTask : MethodTask
         ("SHARD_WITHER_SPECTER", ["The End", "Dragon's Nest", "Void Sepulture"]),
         ("SHARD_ZEALOT", ["The End", "Dragon's Nest", "Void Sepulture"]),
         ("SHARD_BRUISER", ["The End", "Dragon's Nest"]),
-        ("SHARD_CINDERBAT", ["Dive-Ember Pass", "Side-Ember Way", "Stride-Ember Fissure"]),
+        ("SHARD_CINDER_BAT", ["Dive-Ember Pass", "Side-Ember Way", "Stride-Ember Fissure"]),
         ("SHARD_BURNINGSOUL", ["Dive-Ember Pass", "Side-Ember Way"]),
         ("SHARD_DROWNED", ["Drowned Reliquary", "Kelpwoven Tunnels", "Murkwater Depths"]),
     ];
