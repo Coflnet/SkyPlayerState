@@ -186,7 +186,7 @@ public class TaskEstimator
             Contributors = globalContributors,
             CurrentDoers = doers,
             DoersChange20m = deltas.GetValueOrDefault(name),
-            Drops = BuildDrops(p > 0.5 && personal != null ? PlayerStatCounts(personal) : bucketAgg?.ItemCounts,
+            Drops = BuildDrops(task, p > 0.5 && personal != null ? PlayerStatCounts(personal) : bucketAgg?.ItemCounts,
                 bucketAgg?.WSeconds ?? personal?.WSeconds ?? 0, prices),
             TraceId = span?.TraceId.ToString() ?? System.Diagnostics.Activity.Current?.TraceId.ToString()
         };
@@ -275,11 +275,26 @@ public class TaskEstimator
         return (liveItemValue + pools) / (wSeconds / 3600.0);
     }
 
-    private List<TaskDropRate> BuildDrops(Dictionary<string, double> itemCounts, double wSeconds, Dictionary<string, double> prices)
+    private List<TaskDropRate> BuildDrops(MethodTask task, Dictionary<string, double> itemCounts, double wSeconds, Dictionary<string, double> prices)
     {
         var drops = new List<TaskDropRate>();
-        if (itemCounts == null || wSeconds <= 0)
+        // Cold-start (formula tier): no tracked item counts yet, so surface the task's
+        // declared FormulaDrops as the breakdown instead of returning nothing.
+        if (itemCounts == null || itemCounts.Count == 0 || wSeconds <= 0)
+        {
+            foreach (var drop in task.FormulaDropsForTest.OrderByDescending(d => d.RatePerHour * (prices?.GetValueOrDefault(d.ItemTag) ?? 0)).Take(12))
+            {
+                var price = prices?.GetValueOrDefault(drop.ItemTag) ?? 0;
+                drops.Add(new TaskDropRate
+                {
+                    ItemTag = drop.ItemTag,
+                    RatePerHour = drop.RatePerHour,
+                    PriceEach = price,
+                    ContributionPerHour = drop.RatePerHour * price
+                });
+            }
             return drops;
+        }
         var hours = wSeconds / 3600.0;
         foreach (var (tag, count) in itemCounts.OrderByDescending(e => e.Value).Take(12))
         {
