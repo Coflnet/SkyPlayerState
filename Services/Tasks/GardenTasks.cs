@@ -30,12 +30,12 @@ public class FigTask : MethodTask
 {
     protected override string MethodName => "Fig";
     protected override HashSet<string> Locations => ["The Garden", "Plot 1", "Plot 2", "Plot 3", "Plot 4", "Plot 5", "Plot 6", "Plot 7", "Plot 8", "Plot 9", "Plot 10", "Plot 11", "Plot 12"];
-    protected override HashSet<string> DetectionItems => ["FIG", "ENCHANTED_FIG"];
-    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_FIG", 200)];
+    protected override HashSet<string> DetectionItems => ["FIG_LOG", "ENCHANTED_FIG_LOG"];
+    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_FIG_LOG", 200)];
     protected override string Category => "Garden";
     protected override string HowTo => "Farm figs on your Garden plots. Requires fig seeds planted on dedicated plots. Higher Farming Fortune increases yield.";
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "THEORETICAL_HOE_FIG", Reason = "Best hoe for fig farming" }
+        new() { ItemTag = "FIG_AXE", Reason = "Best axe for fig foraging" }
     ];
     protected override List<DropEffect> Effects => [
         new() { Name = "Farming Fortune", Description = "Directly multiplies fig drop rate", EstimatedMultiplier = 1.5 },

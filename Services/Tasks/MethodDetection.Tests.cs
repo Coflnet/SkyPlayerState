@@ -57,14 +57,14 @@ public class MethodDetectionTests
     {
         var period = MakePeriod("Dive-Ember Pass", 500_000, new()
         {
-            { "SHARD_CINDERBAT", 42 },
+            { "SHARD_CINDER_BAT", 42 },
             { "AGATHA_COUPON", 10 }
         });
         var task = new CinderbatTask();
         var result = await task.Execute(MakeParams(period));
         result.ProfitPerHour.Should().BeGreaterThan(0);
         result.Name.Should().Be("Cinderbat");
-        result.Details.Should().Contain("SHARD_CINDERBAT");
+        result.Details.Should().Contain("SHARD_CINDER_BAT");
     }
 
     [Test]
@@ -182,12 +182,11 @@ public class MethodDetectionTests
     }
 
     [Test]
-    public async Task GhostHunting_DetectedByGhostCoin()
+    public async Task GhostHunting_DetectedByGhostShard()
     {
         var period = MakePeriod("The Mist", 1_200_000, new()
         {
-            { "GHOST_COIN", 450 },
-            { "SHARD_GHOST", 10 }
+            { "SHARD_GHOST", 450 }
         });
         var task = new GhostHuntingTask();
         var result = await task.Execute(MakeParams(period));
@@ -251,7 +250,7 @@ public class MethodDetectionTests
             Profit = 100_000,
             StartTime = start,
             EndTime = start.AddMinutes(5),
-            ItemsCollected = new Dictionary<string, int> { { "GRAND_EXPERIENCE_BOTTLE", 3 } }
+            ItemsCollected = new Dictionary<string, int> { { "GRAND_EXP_BOTTLE", 3 } }
         };
         var task = new ExperimentationTableTask();
 
@@ -284,14 +283,14 @@ public class MethodDetectionTests
     [Test]
     public async Task MultiplePeriodsAggregated_ForSameMob()
     {
-        var p1 = MakePeriod("Dive-Ember Pass", 300_000, new() { { "SHARD_CINDERBAT", 30 } }, 5);
-        var p2 = MakePeriod("Stride-Ember Fissure", 400_000, new() { { "SHARD_CINDERBAT", 40 } }, 5);
+        var p1 = MakePeriod("Dive-Ember Pass", 300_000, new() { { "SHARD_CINDER_BAT", 30 } }, 5);
+        var p2 = MakePeriod("Stride-Ember Fissure", 400_000, new() { { "SHARD_CINDER_BAT", 40 } }, 5);
 
         var task = new CinderbatTask();
         var result = await task.Execute(MakeParams(p1, p2));
         result.ProfitPerHour.Should().BeGreaterThan(0);
         // Both periods contribute to total
-        result.Details.Should().Contain("SHARD_CINDERBAT");
+        result.Details.Should().Contain("SHARD_CINDER_BAT");
     }
 
     // ── Overlapping locations resolved by items ──
@@ -300,9 +299,9 @@ public class MethodDetectionTests
     public async Task OverlappingLocations_ResolvedByDetectionItems()
     {
         // Dive-Ember Pass is shared by Cinderbat, Burningsoul, and Stridersurfer
-        var cinderbatPeriod = MakePeriod("Dive-Ember Pass", 500_000, new() { { "SHARD_CINDERBAT", 40 } });
+        var cinderbatPeriod = MakePeriod("Dive-Ember Pass", 500_000, new() { { "SHARD_CINDER_BAT", 40 } });
         var burningsoulPeriod = MakePeriod("Dive-Ember Pass", 400_000, new() { { "SHARD_BURNINGSOUL", 30 } });
-        var stridersurferPeriod = MakePeriod("Stride-Ember Fissure", 600_000, new() { { "SHARD_STRIDERSURFER", 50 } });
+        var stridersurferPeriod = MakePeriod("Stride-Ember Fissure", 600_000, new() { { "SHARD_STRIDER_SURFER", 50 } });
 
         var allPeriods = new[] { cinderbatPeriod, burningsoulPeriod, stridersurferPeriod };
         var p = MakeParams(allPeriods);
@@ -317,9 +316,9 @@ public class MethodDetectionTests
         stridersurferResult.ProfitPerHour.Should().BeGreaterThan(0);
 
         // Each should only see its own items
-        cinderbatResult.Details.Should().Contain("SHARD_CINDERBAT").And.NotContain("SHARD_BURNINGSOUL");
-        burningsoulResult.Details.Should().Contain("SHARD_BURNINGSOUL").And.NotContain("SHARD_CINDERBAT");
-        stridersurferResult.Details.Should().Contain("SHARD_STRIDERSURFER");
+        cinderbatResult.Details.Should().Contain("SHARD_CINDER_BAT").And.NotContain("SHARD_BURNINGSOUL");
+        burningsoulResult.Details.Should().Contain("SHARD_BURNINGSOUL").And.NotContain("SHARD_CINDER_BAT");
+        stridersurferResult.Details.Should().Contain("SHARD_STRIDER_SURFER");
     }
 
     // ── Dungeon tasks ──
@@ -373,12 +372,12 @@ public class MethodDetectionTests
             LocationProfit = new Dictionary<string, Period[]>(),
             CleanPrices = new Dictionary<string, long>
             {
-                { "SHARD_CINDERBAT", 2000 }
+                { "SHARD_CINDER_BAT", 2000 }
             },
             BazaarPrices = [],
             Names = new Dictionary<string, string>
             {
-                { "SHARD_CINDERBAT", "Cinderbat Shard" }
+                { "SHARD_CINDER_BAT", "Cinderbat Shard" }
             }
         };
 

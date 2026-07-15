@@ -9,7 +9,7 @@ public abstract class BaseKuudraTask : MethodTask
     protected override string WarpCommand => "/warp kuudra";
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "TERROR_CHESTPLATE", Reason = "Kuudra armor set" },
-        new() { ItemTag = "INFERNAL_CRIMSON_DAGGER", Reason = "Weapon" }
+        new() { ItemTag = "HYPERION", Reason = "Weapon" }
     ];
     protected override List<DropEffect> Effects => [
         new() { Name = "Crimson Essence multiplier", Description = "Higher tier drops more essence per run", EstimatedMultiplier = 1.0 },

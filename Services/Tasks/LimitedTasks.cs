@@ -78,7 +78,7 @@ public class DailyCrimsonQuestsTask : LimitedTask
     protected override string HowTo => "Go to the Crimson Isle and complete daily quests from NPCs. " +
         "Quests include combat missions, item collection, and boss kills. Rewards include Crimson Essence and exclusive items.";
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "ASPECT_OF_THE_DRAGONS", Reason = "Combat weapon for quest mobs" }
+        new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "Combat weapon for quest mobs" }
     ];
     protected override List<DropEffect> Effects => [
         new() { Name = "Combat Level", Description = "Higher combat makes quests faster", EstimatedMultiplier = 1.2 }
@@ -91,8 +91,8 @@ public class ExperimentationTableTask : LimitedTask
     protected override string MethodName => "Experimentation Table";
     protected override TimeSpan Cooldown => TimeSpan.FromHours(24);
     protected override HashSet<string> Locations => ["Hub", "Village"];
-    protected override HashSet<string> DetectionItems => ["GRAND_EXPERIENCE_BOTTLE", "TITANIC_EXPERIENCE_BOTTLE"];
-    protected override List<MethodDrop> FormulaDrops => [new("GRAND_EXPERIENCE_BOTTLE", 3), new("TITANIC_EXPERIENCE_BOTTLE", 1)];
+    protected override HashSet<string> DetectionItems => ["GRAND_EXP_BOTTLE", "TITANIC_EXP_BOTTLE"];
+    protected override List<MethodDrop> FormulaDrops => [new("GRAND_EXP_BOTTLE", 3), new("TITANIC_EXP_BOTTLE", 1)];
     protected override string Category => "Daily";
     protected override string HowTo => "Visit the Experimentation Table in the Hub (near the Alchemist). " +
         "Complete the memory/click game for enchanting XP and rare rewards. Higher Enchanting level unlocks better experiments.";

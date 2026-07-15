@@ -12,7 +12,7 @@ public class ZealotsFdTask : MethodTask
     protected override string Category => "Combat";
     protected override string HowTo => "Go to The End and grind Zealots for Summoning Eyes. Kill Zealots rapidly; Special Zealots have a guaranteed eye drop. Formula-based estimate.";
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "ASPECT_OF_THE_DRAGONS", Reason = "One-shot zealots for fast farming" }
+        new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "One-shot zealots for fast farming" }
     ];
     protected override List<DropEffect> Effects => [
         new() { Name = "Magic Find", Description = "Increases Summoning Eye drop rate", EstimatedMultiplier = 1.2 },

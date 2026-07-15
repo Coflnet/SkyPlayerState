@@ -38,7 +38,7 @@ public class BayouFishingTask : BaseFishingTask
     protected override string MethodName => "Bayou Fishing";
     protected override HashSet<string> Locations => ["Backwater Bayou"];
     protected override bool ExcludeShardItems => true;
-    protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 200), new("LILY_PAD", 80)];
+    protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 200), new("WATER_LILY", 80)];
 }
 public class BayouHotspotFishingTask : BaseFishingTask
 {
@@ -46,7 +46,7 @@ public class BayouHotspotFishingTask : BaseFishingTask
     protected override HashSet<string> Locations => ["Backwater Bayou"];
     protected override HashSet<string> DetectionItems => ["HOTSPOT_CATCH"];
     protected override bool ExcludeShardItems => true;
-    protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 300), new("LILY_PAD", 120)];
+    protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 300), new("WATER_LILY", 120)];
 }
 public class SpookyFishingTask : BaseFishingTask
 {
@@ -140,7 +140,7 @@ public class FlamingWormFishingTask : BaseFishingTask
 {
     protected override string MethodName => "Flaming Worm Fishing";
     protected override HashSet<string> Locations => ["Crystal Hollows", "Precursor Remnants"];
-    protected override HashSet<string> DetectionItems => ["FLAMING_WORM"];
+    protected override HashSet<string> DetectionItems => ["WORM_MEMBRANE"];
     protected override List<MethodDrop> FormulaDrops => [new("ROUGH_SAPPHIRE_GEM", 250), new("WORM_MEMBRANE", 2.5), new("ETERNAL_FLAME_RING", 0.05)];
 }
 
@@ -158,14 +158,14 @@ public class BayouFishingHuntingTask : BaseFishingTask
     protected override HashSet<string> Locations => ["Backwater Bayou"];
     protected override bool RequireShardItems => true;
     // Alligator/Titanoboa sea creatures drop attribute shards; that is the value, not raw fish.
-    protected override List<MethodDrop> FormulaDrops => [new("LILY_PAD", 80), new("SHARD_ALLIGATOR", 6), new("SHARD_TITANOBOA", 0.5)];
+    protected override List<MethodDrop> FormulaDrops => [new("WATER_LILY", 80), new("SHARD_ALLIGATOR", 6), new("SHARD_TITANOBOA", 0.5)];
 }
 public class BayouHotspotFishingHuntingTask : BaseFishingTask
 {
     protected override string MethodName => "Bayou Hotspot Fishing (Hunting)";
     protected override HashSet<string> Locations => ["Backwater Bayou"];
     protected override bool RequireShardItems => true;
-    protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 300), new("LILY_PAD", 120)];
+    protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 300), new("WATER_LILY", 120)];
 }
 public class SpookyFishingHuntingTask : BaseFishingTask
 {

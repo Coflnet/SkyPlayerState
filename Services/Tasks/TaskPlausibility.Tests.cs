@@ -46,13 +46,13 @@ public class TaskPlausibilityTests
             LocationProfit = new Dictionary<string, Period[]>(),
             CleanPrices = prices ?? new Dictionary<string, long>
             {
-                { "SHARD_CINDERBAT", 2000 }, { "SHARD_BURNINGSOUL", 1500 },
+                { "SHARD_CINDER_BAT", 2000 }, { "SHARD_BURNINGSOUL", 1500 },
                 { "SHARD_LUMISQUID", 1800 }, { "SHARD_DROWNED", 2500 },
-                { "SHARD_YOG", 3000 }, { "GHOST_COIN", 100 },
+                { "SHARD_YOG", 3000 }, { "SHARD_GHOST", 100 },
                 { "SHARD_SHELLWISE", 1200 }, { "SHARD_MATCHO", 1100 },
                 { "SHARD_RAIN_SLIME", 1200 }, { "SHARD_HELLWISP", 1100 },
                 { "SHARD_XYZ", 2000 }, { "SHARD_BEZAL", 1500 },
-                { "SHARD_FLARE", 900 }, { "SHARD_GHOST", 2000 },
+                { "SHARD_FLARE", 900 },
                 { "SHARD_FLAMING_SPIDER", 800 }, { "SHARD_OBSIDIAN_DEFENDER", 1500 },
                 { "SHARD_WITHER_SPECTER", 1800 }, { "SHARD_ZEALOT", 1000 },
                 { "SHARD_BRUISER", 900 }, { "SHARD_KADA_KNIGHT", 1600 },
@@ -65,7 +65,7 @@ public class TaskPlausibilityTests
                 { "ENCHANTED_MELON", 8_000 }, { "ENCHANTED_CARROT", 7_000 },
                 { "ENCHANTED_POTATO", 7_000 }, { "ENCHANTED_WHEAT", 6_000 },
                 { "ENCHANTED_PUMPKIN", 9_000 }, { "ENCHANTED_CACTUS", 6_000 },
-                { "ENCHANTED_SUGAR_CANE", 6_000 }, { "ENCHANTED_FIG", 12_000 },
+                { "ENCHANTED_SUGAR_CANE", 6_000 }, { "ENCHANTED_FIG_LOG", 12_000 },
                 { "ENCHANTED_RED_MUSHROOM", 5000 }, { "ENCHANTED_BROWN_MUSHROOM", 4000 },
                 { "ENCHANTED_MYCELIUM", 3500 },
                 { "RAW_FISH", 10 }, { "ENCHANTED_RAW_FISH", 1600 },
@@ -79,7 +79,7 @@ public class TaskPlausibilityTests
                 { "COBBLESTONE", 1 }, { "OBSIDIAN", 15 },
                 { "TUNGSTEN", 100 }, { "UMBER", 80 },
                 { "SLUDGE_JUICE", 500 }, { "GEMSTONE_MIXTURE", 20_000 },
-                { "SCATHA_PET", 50_000_000 },
+                { "PET_SCATHA", 50_000_000 },
             },
             BazaarPrices = [],
             Names = new Dictionary<string, string>()
@@ -173,17 +173,17 @@ public class TaskPlausibilityTests
     {
         var prices = new Dictionary<string, long>
         {
-            { "SHARD_CINDERBAT", 2000 }, { "ESSENCE_WITHER", 20 },
+            { "SHARD_CINDER_BAT", 2000 }, { "ESSENCE_WITHER", 20 },
             { "NECRON_HANDLE", 300_000_000 }
         };
         var parameters = MakeFormulaParams(prices);
 
-        // Cinderbat: FormulaDrops = [("SHARD_CINDERBAT", 300)]
+        // Cinderbat: FormulaDrops = [("SHARD_CINDER_BAT", 300)]
         var task = new CinderbatTask();
         var result = await task.Execute(parameters);
         result.Breakdown.Should().NotBeNull();
         result.Breakdown.Drops.Should().NotBeEmpty();
-        result.Breakdown.Drops.Should().Contain(d => d.ItemTag == "SHARD_CINDERBAT",
+        result.Breakdown.Drops.Should().Contain(d => d.ItemTag == "SHARD_CINDER_BAT",
             "breakdown drops should include the formula drop item");
 
         // M7: FormulaDrops = [("WITHER_ESSENCE", 600), ("NECRON_HANDLE", 0.05)]

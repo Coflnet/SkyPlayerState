@@ -22,7 +22,7 @@ public abstract class BaseHuntingTask : MethodTask
         new() { Name = "Combat Level", Description = "Higher combat level increases kill speed", EstimatedMultiplier = 1.1 }
     ];
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "ASPECT_OF_THE_DRAGONS", Reason = "Weapon for mob hunting" }
+        new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "Weapon for mob hunting" }
     ];
 }
 

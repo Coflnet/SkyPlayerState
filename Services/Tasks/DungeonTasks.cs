@@ -22,7 +22,7 @@ public class M4Task : BaseDungeonTask
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 300)];
     protected override string HowTo => "Queue for Master Mode Floor 4 in the Dungeon Hub. Requires Catacombs level 26+. Run with a party of 5 for efficient clears.";
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "WITHER_ARMOR", Reason = "Dungeon armor for survivability" }
+        new() { ItemTag = "WITHER_CHESTPLATE", Reason = "Dungeon armor for survivability" }
     ];
 }
 public class M5Task : BaseDungeonTask
@@ -32,7 +32,7 @@ public class M5Task : BaseDungeonTask
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 400)];
     protected override string HowTo => "Queue for Master Mode Floor 5. Requires Catacombs level 28+. Boss fight is Professor with Guardians phase.";
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "WITHER_ARMOR", Reason = "Dungeon armor for survivability" }
+        new() { ItemTag = "WITHER_CHESTPLATE", Reason = "Dungeon armor for survivability" }
     ];
 }
 public class M6Task : BaseDungeonTask
@@ -42,7 +42,7 @@ public class M6Task : BaseDungeonTask
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 500)];
     protected override string HowTo => "Queue for Master Mode Floor 6. Requires Catacombs level 30+. Boss is Sadan with terracotta phases.";
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "WITHER_ARMOR", Reason = "Dungeon armor for survivability" },
+        new() { ItemTag = "WITHER_CHESTPLATE", Reason = "Dungeon armor for survivability" },
         new() { ItemTag = "HYPERION", Reason = "Mage weapon for efficient clears" }
     ];
 }

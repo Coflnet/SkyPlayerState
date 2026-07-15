@@ -20,12 +20,12 @@ public class DianaTask : BaseDianaTask
 {
     protected override string MethodName => "Diana";
     protected override HashSet<string> Locations => ["Hub", "Wilderness", "Forest", "Mountain", "Ruins", "Graveyard", "Farm", "Village"];
-    protected override HashSet<string> DetectionItems => ["GRIFFIN_FEATHER", "MINOS_RELIC", "DAEDALUS_STICK", "CHIMERA"];
+    protected override HashSet<string> DetectionItems => ["GRIFFIN_FEATHER", "MINOS_RELIC", "DAEDALUS_STICK"];
     protected override List<MethodDrop> FormulaDrops => [new("GRIFFIN_FEATHER", 30), new("DAEDALUS_STICK", 2)];
     protected override string HowTo => "During the Mythological Ritual mayor event, use an Ancestral Spade on Diana burrows in the Hub. Follow particle trails to dig burrows.";
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "ANCESTRAL_SPADE", Reason = "Required to dig Diana burrows" },
-        new() { ItemTag = "GRIFFIN_PET", Reason = "Griffin pet reveals burrow locations via particles" }
+        new() { ItemTag = "PET_GRIFFIN", Reason = "Griffin pet reveals burrow locations via particles" }
     ];
     protected override List<DropEffect> Effects => [
         new() { Name = "Griffin Pet Rarity", Description = "Higher rarity Griffin reveals burrows further away", EstimatedMultiplier = 1.3 },
@@ -42,8 +42,7 @@ public class DianaHuntingTask : BaseDianaTask
     protected override string HowTo => "During Mythological Ritual, focus on killing Mythological mobs (Minotaurs, Gaia, Champions, Inquisitors). Inquisitors drop the most money.";
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "ANCESTRAL_SPADE", Reason = "Required to dig Diana burrows" },
-        new() { ItemTag = "GRIFFIN_PET", Reason = "Griffin pet reveals burrow locations" },
-        new() { ItemTag = "CHIMERA", Reason = "High-value drop from Inquisitors" }
+        new() { ItemTag = "PET_GRIFFIN", Reason = "Griffin pet reveals burrow locations" }
     ];
     protected override List<DropEffect> Effects => [
         new() { Name = "Griffin Pet Rarity", Description = "Higher rarity Griffin reveals burrows further", EstimatedMultiplier = 1.3 },

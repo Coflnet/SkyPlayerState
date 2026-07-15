@@ -76,7 +76,7 @@ public class TaskClassifierTests
     [Test]
     public void ShardCatch_GoesToHuntingVariant()
     {
-        var items = new Dictionary<string, int> { { "SHARD_STRIDERSURFER", 12 }, { "RAW_FISH", 50 } };
+        var items = new Dictionary<string, int> { { "SHARD_STRIDER_SURFER", 12 }, { "RAW_FISH", 50 } };
         var result = Classifier.Classify("Backwater Bayou", items, 15);
         result.Should().NotBeNull();
         // ExcludeShardItems disqualifies the regular variants, the hunting variant requires shards
@@ -96,13 +96,13 @@ public class TaskClassifierTests
     public void MostValuableMatchedItems_WinAmongItemMatches()
     {
         // both magma core and flaming worm tasks can match in Magma Fields
-        var items = new Dictionary<string, int> { { "MAGMA_CORE", 10 }, { "FLAMING_WORM", 10 } };
-        var prices = new Dictionary<string, double> { { "MAGMA_CORE", 100_000 }, { "FLAMING_WORM", 1_000 } };
+        var items = new Dictionary<string, int> { { "MAGMA_CORE", 10 }, { "WORM_MEMBRANE", 10 } };
+        var prices = new Dictionary<string, double> { { "MAGMA_CORE", 100_000 }, { "WORM_MEMBRANE", 1_000 } };
         var result = Classifier.Classify("Crystal Hollows", items, 15, prices: prices);
         result.Should().NotBeNull();
         result.TaskName.Should().Be("Magma Core Fishing");
 
-        prices = new Dictionary<string, double> { { "MAGMA_CORE", 1_000 }, { "FLAMING_WORM", 100_000 } };
+        prices = new Dictionary<string, double> { { "MAGMA_CORE", 1_000 }, { "WORM_MEMBRANE", 100_000 } };
         result = Classifier.Classify("Crystal Hollows", items, 15, prices: prices);
         result.TaskName.Should().Be("Flaming Worm Fishing");
     }

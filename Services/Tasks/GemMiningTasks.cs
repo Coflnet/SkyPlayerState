@@ -186,7 +186,7 @@ public class ScathaMiningTask : BaseMiningTask
     protected override string MethodName => "Scatha Mining";
     // Scatha/Worm spawn only in the Crystal Hollows; they drop gemstones, not worm membrane.
     protected override HashSet<string> Locations => ["Crystal Hollows"];
-    protected override HashSet<string> DetectionItems => ["SCATHA_PET"];
+    protected override HashSet<string> DetectionItems => ["PET_SCATHA"];
     protected override List<MethodDrop> FormulaDrops => [new("FINE_TOPAZ_GEM", 15), new("FINE_AMETHYST_GEM", 6), new("ROUGH_TOPAZ_GEM", 50), new("FINE_JADE_GEM", 3)];
     protected override string HowTo => "Mine in the Crystal Hollows to spawn and kill Scatha worms for rare drops.";
     protected override double ActionsPerHour => 1500;
@@ -197,11 +197,11 @@ public class PrecursorCityPowderMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Precursor City Powder Mining";
     protected override HashSet<string> Locations => ["Precursor Remnants", "Lost Precursor City"];
-    protected override HashSet<string> DetectionItems => ["MITHRIL_ORE", "ENCHANTED_MITHRIL", "SAPPHIRE_GEMSTONE"];
+    protected override HashSet<string> DetectionItems => ["MITHRIL_ORE", "ENCHANTED_MITHRIL", "ROUGH_SAPPHIRE_GEM"];
     // The profit driver here is Sapphire gemstones + Automaton robot parts, not just mithril.
     protected override List<MethodDrop> FormulaDrops =>
     [
-        new("SAPPHIRE_GEMSTONE", 2000), new("SYNTHETIC_HEART", 0.5), new("CONTROL_SWITCH", 0.5),
+        new("ROUGH_SAPPHIRE_GEM", 2000), new("SYNTHETIC_HEART", 0.5), new("CONTROL_SWITCH", 0.5),
         new("SUPERLITE_MOTOR", 0.5), new("ROBOTRON_REFLECTOR", 0.5), new("FTX_3070", 0.5),
         new("ELECTRON_TRANSMITTER", 0.5), new("ENCHANTED_MITHRIL", 200)
     ];

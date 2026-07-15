@@ -40,9 +40,8 @@ public class HuntingTrapTask : MethodTask
     protected override double ActionsPerHour => 1.0 / 24; // 1 trap per 24 hours
     protected override string HowTo => "Place a hunting trap in the area with the most expensive shards. " +
         "The trap collects one shard after 24 hours. Check daily to collect and re-place.";
-    protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "HUNTING_TRAP", Reason = "Trap to place in hunting areas (1 shard per 24h)" }
-    ];
+    // The in-game trap (placed for 1 shard per 24h) is not a tradeable/priced item on the API, so no RequiredItem tag is listed.
+    protected override List<RequiredItem> RequiredItems => [];
 
     public override Task<TaskResult> Execute(TaskParams parameters)
     {

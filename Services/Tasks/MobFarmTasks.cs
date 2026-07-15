@@ -20,7 +20,7 @@ public abstract class BaseGalateaMobTask : MethodTask
         new() { Name = "Pet Luck", Description = "Increases pet drop chance from mobs", EstimatedMultiplier = 1.15 }
     ];
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "ASPECT_OF_THE_DRAGONS", Reason = "Weapon for mob farming" }
+        new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "Weapon for mob farming" }
     ];
 }
 
@@ -29,8 +29,8 @@ public class CinderbatTask : BaseGalateaMobTask
 {
     protected override string MethodName => "Cinderbat";
     protected override HashSet<string> Locations => ["Dive-Ember Pass", "Stride-Ember Fissure", "Side-Ember Way"];
-    protected override HashSet<string> DetectionItems => ["SHARD_CINDERBAT"];
-    protected override List<MethodDrop> FormulaDrops => [new("SHARD_CINDERBAT", 300)];
+    protected override HashSet<string> DetectionItems => ["SHARD_CINDER_BAT"];
+    protected override List<MethodDrop> FormulaDrops => [new("SHARD_CINDER_BAT", 300)];
     protected override string HowTo => "Go to the Ember areas on Galatea and kill Cinderbats. They spawn in lava biome areas.";
 }
 public class BurningsoulTask : BaseGalateaMobTask
@@ -70,8 +70,8 @@ public class StridersurferTask : BaseGalateaMobTask
 {
     protected override string MethodName => "Stridersurfer";
     protected override HashSet<string> Locations => ["Stride-Ember Fissure", "Side-Ember Way", "Dive-Ember Pass"];
-    protected override HashSet<string> DetectionItems => ["SHARD_STRIDERSURFER"];
-    protected override List<MethodDrop> FormulaDrops => [new("SHARD_STRIDERSURFER", 320)];
+    protected override HashSet<string> DetectionItems => ["SHARD_STRIDER_SURFER"];
+    protected override List<MethodDrop> FormulaDrops => [new("SHARD_STRIDER_SURFER", 320)];
     protected override string HowTo => "Go to the Ember areas on Galatea and kill Stridersurfers. Higher drop rate than other Ember mobs.";
 }
 public class SporeTask : BaseGalateaMobTask
@@ -91,7 +91,7 @@ public class BladesoulTask : BaseGalateaMobTask
     protected override List<MethodDrop> FormulaDrops =>
     [
         new("HALLOWED_SKULL", 12), new("COAL", 300), new("ENCHANTED_COAL", 12),
-        new("KUUDRA_KEY", 0.7), new("HOT_KUUDRA_KEY", 0.5), new("MAGMA_URCHIN", 0.24), new("RAGNAROCK", 0.06)
+        new("MAGMA_URCHIN", 0.24), new("RAGNAROCK_AXE", 0.06)
     ];
     protected override string HowTo => "Go to the Stronghold on the Crimson Isle and kill the Bladesoul boss (respawns ~5 min; needs 1M+ damage to qualify for loot).";
 }
@@ -190,7 +190,7 @@ public class VoraciousSpiderTask : MethodTask
     protected override HashSet<string> DetectionItems => ["SHARD_VORACIOUS_SPIDER", "STRING"];
     protected override List<MethodDrop> FormulaDrops => [new("STRING", 4000), new("SPIDER_EYE", 300)];
     protected override string HowTo => "Go to the Spider's Den and kill Voracious Spiders. Good for Tarantula Web drops.";
-    protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "ASPECT_OF_THE_DRAGONS", Reason = "Weapon" }];
+    protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "Weapon" }];
     protected override List<DropEffect> Effects => [
         new() { Name = "Magic Find", Description = "Increases rare drop chance", EstimatedMultiplier = 1.2 },
         new() { Name = "Looting enchantment", Description = "Increases drop quantity", EstimatedMultiplier = 1.15 }
@@ -206,7 +206,7 @@ public class GoldenGhoulTask : MethodTask
     protected override HashSet<string> DetectionItems => ["SHARD_GOLDEN_GHOUL", "GOLDEN_POWDER"];
     protected override List<MethodDrop> FormulaDrops => [new("GOLDEN_POWDER", 0.5)];
     protected override string HowTo => "Go to the Ruins or Graveyard and kill Golden Ghouls for Golden Powder.";
-    protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "ASPECT_OF_THE_DRAGONS", Reason = "Weapon" }];
+    protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "Weapon" }];
     protected override List<DropEffect> Effects => [
         new() { Name = "Magic Find", Description = "Increases rare drop chance", EstimatedMultiplier = 1.2 }
     ];
@@ -221,7 +221,7 @@ public class StarSentryTask : MethodTask
     protected override HashSet<string> DetectionItems => ["SHARD_STAR_SENTRY"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_STAR_SENTRY", 200)];
     protected override string HowTo => "Go to The End and kill Star Sentries in the Dragon's Nest area.";
-    protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "ASPECT_OF_THE_DRAGONS", Reason = "Weapon" }];
+    protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "Weapon" }];
     protected override List<DropEffect> Effects => [
         new() { Name = "Magic Find", Description = "Increases rare drop chance", EstimatedMultiplier = 1.2 }
     ];
@@ -239,7 +239,7 @@ public class AutomatonTask : MethodTask
         new("ROBOTRON_REFLECTOR", 3), new("SUPERLITE_MOTOR", 3), new("SYNTHETIC_HEART", 3)
     ];
     protected override string HowTo => "Go to the Precursor Remnants in the Crystal Hollows and kill Automatons for robot parts.";
-    protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "ASPECT_OF_THE_DRAGONS", Reason = "Weapon" }];
+    protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "Weapon" }];
     protected override List<DropEffect> Effects => [
         new() { Name = "Magic Find", Description = "Increases rare drop chance", EstimatedMultiplier = 1.2 }
     ];
@@ -253,7 +253,7 @@ public class XyzMobTask : MethodTask
     protected override HashSet<string> DetectionItems => ["SHARD_XYZ"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_XYZ", 200)];
     protected override string HowTo => "Go to Crystal Hollows and kill Xyz mobs in the Precursor area.";
-    protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "ASPECT_OF_THE_DRAGONS", Reason = "Weapon" }];
+    protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "Weapon" }];
     protected override List<DropEffect> Effects => [
         new() { Name = "Magic Find", Description = "Increases rare drop chance", EstimatedMultiplier = 1.2 }
     ];
@@ -264,10 +264,10 @@ public class GhostMobTask : MethodTask
     protected override string Category => "Mob Farming";
     protected override string ActionUnit => "kills";
     protected override HashSet<string> Locations => ["Dwarven Mines", "The Mist", "Goblin Holdout"];
-    protected override HashSet<string> DetectionItems => ["GHOST_COIN", "SHARD_GHOST"];
-    protected override List<MethodDrop> FormulaDrops => [new("GHOST_COIN", 400)];
-    protected override string HowTo => "Go to The Mist in the Dwarven Mines and kill Ghosts. They drop Ghost Coins which sell well.";
-    protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "ASPECT_OF_THE_DRAGONS", Reason = "Weapon" }];
+    protected override HashSet<string> DetectionItems => ["SHARD_GHOST"];
+    protected override List<MethodDrop> FormulaDrops => [new("SHARD_GHOST", 50)];
+    protected override string HowTo => "Go to The Mist in the Dwarven Mines and kill Ghosts. They drop Ghost shards used in the Hunting system.";
+    protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "Weapon" }];
     protected override List<DropEffect> Effects => [
         new() { Name = "Magic Find", Description = "Increases rare drop chance", EstimatedMultiplier = 1.2 },
         new() { Name = "Kill speed", Description = "Faster killing means more coins per hour", EstimatedMultiplier = 1.3 }
