@@ -20,6 +20,24 @@ public class StorageListener : UpdateListener
         {
             return; // Only process Ender Chest or Storage chests
         }
+        // Temporary diagnostics: dump the full unprocessed chest view for a specific
+        // player whenever any backpack is opened, so we can analyse why items appear
+        // to be missing (e.g. pagination / trim logic). Remove once analysed.
+        if (chestView.Name.Contains("Backpack") &&
+            (string.Equals(args.currentState.PlayerId, "SpectChicken", System.StringComparison.OrdinalIgnoreCase)
+             || string.Equals(args.currentState.McInfo?.Name, "SpectChicken", System.StringComparison.OrdinalIgnoreCase)))
+        {
+            try
+            {
+                var blob = System.Text.Json.JsonSerializer.Serialize(chestView);
+                Logger.LogInformation("Full backpack blob for SpectChicken chest {chestName} (rawItemCount {rawCount}): {blob}",
+                    chestView.Name, chestView.Items.Count, blob);
+            }
+            catch (System.Exception e)
+            {
+                Logger.LogError(e, "Failed to serialize full backpack blob for SpectChicken chest {chestName}", chestView.Name);
+            }
+        }
         // there can be smaller backpacks or only partial enderchets
         var itemsToStore = (chestView.Items.Count / 9 - 4) * 9;
         await args.GetService<StorageService>().SaveStorageItem(new()
