@@ -300,7 +300,7 @@ public class CollectionListener : UpdateListener
         {
             args.currentState.ExtractedInfo.CurrentServer = server;
         }
-        var currentLocation = args.msg.Scoreboard?.FirstOrDefault(s => s.StartsWith(" ⏣ "))?.Substring(3).Trim();
+        var currentLocation = ScoreboardParser.ExtractArea(args.msg.Scoreboard);
         if (currentLocation == null)
         {
             return;

@@ -73,7 +73,7 @@ public class KuudraListener : UpdateListener
     {
         if (args.msg.Scoreboard == null)
             return;
-        var kuudra = args.msg.Scoreboard.Any(s => s.StartsWith(" ⏣ Kuudra's Hollow"));
+        var kuudra = args.msg.Scoreboard.Any(s => ScoreboardParser.IsAreaLine(s) && s.EndsWith("Kuudra's Hollow"));
         if (!kuudra)
             return;
         Logger.LogInformation("Started kuudra {playerId} {scoreboard}", args.msg.PlayerId, string.Join(" ", args.msg.Scoreboard));
