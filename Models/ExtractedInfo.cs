@@ -76,6 +76,18 @@ public class ExtractedInfo
     /// </summary>
     [Key(23)]
     public TaskSession? CurrentSession { get; set; }
+    /// <summary>
+    /// Coins currently in the players purse, parsed from the sidebar scoreboard.
+    /// 0 when not yet known (e.g. never seen in skyblock). -1 while outside skyblock.
+    /// </summary>
+    [Key(24)]
+    public long Purse { get; set; }
+    /// <summary>
+    /// Bits the player currently has available, parsed from the sidebar scoreboard.
+    /// 0 when not yet known.
+    /// </summary>
+    [Key(25)]
+    public long Bits { get; set; }
     [MessagePackObject]
     public class PetState
     {
@@ -177,6 +189,8 @@ public class ExtractedInfo
         ClaimedTask = extractedInfo.ClaimedTask;
         ClaimedAt = extractedInfo.ClaimedAt;
         CurrentSession = extractedInfo.CurrentSession == null ? null : new TaskSession(extractedInfo.CurrentSession);
+        Purse = extractedInfo.Purse;
+        Bits = extractedInfo.Bits;
     }
 }
 

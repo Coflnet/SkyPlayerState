@@ -306,6 +306,14 @@ public class CollectionListener : UpdateListener
         {
             args.currentState.ExtractedInfo.CurrentServer = server;
         }
+        // parse currencies before the area early-return below so the purse/bits stay current
+        // even on scoreboards without an area line (e.g. hub, island)
+        var purse = ScoreboardParser.ParsePurse(args.msg.Scoreboard);
+        if (purse.HasValue)
+            args.currentState.ExtractedInfo.Purse = purse.Value;
+        var bits = ScoreboardParser.ParseBits(args.msg.Scoreboard);
+        if (bits.HasValue)
+            args.currentState.ExtractedInfo.Bits = bits.Value;
         var currentLocation = ScoreboardParser.ExtractArea(args.msg.Scoreboard);
         if (currentLocation == null)
         {

@@ -105,6 +105,23 @@ namespace Coflnet.Sky.PlayerState.Controllers
             return data?.ExtractedInfo ?? throw new CoflnetException("no_player_data", $"No player data found for {playerId}. Make sure you use the CoflMod and opened the skyblock menu.");
         }
 
+        /// <summary>
+        /// Returns the players current currency balances (purse, bits) as last seen on the
+        /// sidebar scoreboard. Lightweight alternative to fetching the full state.
+        /// </summary>
+        /// <param name="playerId">the player name the state is stored under</param>
+        [HttpGet]
+        [Route("{playerId}/currencies")]
+        public async Task<PlayerCurrencies> GetCurrencies(string playerId)
+        {
+            var extracted = (await service.GetStateObject(playerId))?.ExtractedInfo;
+            return new PlayerCurrencies
+            {
+                Purse = extracted?.Purse ?? 0,
+                Bits = extracted?.Bits ?? 0
+            };
+        }
+
         [HttpGet]
         [Route("{playerId}/profit/location")]
         public async Task<List<TrackedProfitService.Period>> GetLocationProfit(string playerId, [FromServices] TrackedProfitService service)
