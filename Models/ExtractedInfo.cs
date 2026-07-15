@@ -68,6 +68,14 @@ public class ExtractedInfo
     /// </summary>
     [Key(22)]
     public DateTime ClaimedAt { get; set; }
+    /// <summary>
+    /// The task session currently being accumulated across location changes.
+    /// Location fragments are folded per session (not per area) so tasks that
+    /// span multiple locations are not chopped below the classifier's minimum
+    /// window. Null when no activity is being tracked.
+    /// </summary>
+    [Key(23)]
+    public TaskSession? CurrentSession { get; set; }
     [MessagePackObject]
     public class PetState
     {
@@ -168,6 +176,39 @@ public class ExtractedInfo
         CurrentTaskSince = extractedInfo.CurrentTaskSince;
         ClaimedTask = extractedInfo.ClaimedTask;
         ClaimedAt = extractedInfo.ClaimedAt;
+        CurrentSession = extractedInfo.CurrentSession == null ? null : new TaskSession(extractedInfo.CurrentSession);
+    }
+}
+
+/// <summary>
+/// A contiguous run of activity attributed to a single task, accumulated across
+/// location changes. Lives on <see cref="ExtractedInfo"/> so it survives across
+/// state updates (single writer per player via Kafka partitioning).
+/// </summary>
+[MessagePackObject]
+public class TaskSession
+{
+    /// <summary>Task the accumulated window currently classifies to, null while still ambiguous.</summary>
+    [Key(0)] public string? DetectedTask { get; set; }
+    /// <summary>Start of the session (start of its first fragment).</summary>
+    [Key(1)] public DateTime StartTime { get; set; }
+    /// <summary>Last time items were actually collected, used for idle/AFK finalization.</summary>
+    [Key(2)] public DateTime LastItemTime { get; set; }
+    [Key(3)] public string? Server { get; set; }
+    /// <summary>Most recent location the session collected in.</summary>
+    [Key(4)] public string? Location { get; set; }
+    /// <summary>Items accumulated across every location the session spanned.</summary>
+    [Key(5)] public Dictionary<string, int> Items { get; set; } = new();
+
+    public TaskSession() { }
+    public TaskSession(TaskSession other)
+    {
+        DetectedTask = other.DetectedTask;
+        StartTime = other.StartTime;
+        LastItemTime = other.LastItemTime;
+        Server = other.Server;
+        Location = other.Location;
+        Items = other.Items == null ? new() : new(other.Items);
     }
 }
 

@@ -126,6 +126,7 @@ public class Startup
         services.AddSingleton<Tasks.CoinValueRegistry>();
         services.AddSingleton<Tasks.TaskRegistry>();
         services.AddSingleton<Tasks.TaskClassifier>();
+        services.AddSingleton<Tasks.TaskSessionService>();
         services.AddSingleton<Tasks.TaskActivityService>();
         services.AddSingleton<Tasks.StatScoreService>();
         services.AddSingleton<Tasks.TaskAggregateService>();

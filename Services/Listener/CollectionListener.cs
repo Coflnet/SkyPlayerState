@@ -331,14 +331,14 @@ public class CollectionListener : UpdateListener
         {
             if (args.GetService<Microsoft.Extensions.Configuration.IConfiguration>()["TASKS:CLASSIFY"] == "false")
                 return;
-            var minutes = (DateTime.UtcNow - state.ExtractedInfo.LastLocationChange).TotalMinutes;
+            var now = DateTime.UtcNow;
+            // measure the window from the session start (spans locations) so live doer
+            // attribution of multi-location tasks is not reset on every area change
+            var sessionStart = state.ExtractedInfo.CurrentSession?.StartTime;
+            var windowStart = sessionStart is { } s && s != default ? s : state.ExtractedInfo.LastLocationChange;
+            var minutes = (now - windowStart).TotalMinutes;
             // an active claim (not older than 30 min) biases the classifier
-            var claim = state.ExtractedInfo.ClaimedTask;
-            if (claim != null && DateTime.UtcNow - state.ExtractedInfo.ClaimedAt > TimeSpan.FromMinutes(30))
-            {
-                state.ExtractedInfo.ClaimedTask = null;
-                claim = null;
-            }
+            var claim = GetActiveClaim(state, now);
             // stale prices (or none on startup) only weaken tie breaking, not matching
             var classification = args.GetService<Tasks.TaskClassifier>().Classify(
                 state.ExtractedInfo.CurrentLocation, state.ItemsCollectedRecently, minutes, claim, cachedCleanPrices);
@@ -357,11 +357,13 @@ public class CollectionListener : UpdateListener
 
     private async Task StoreLocationProfit(UpdateArgs args, string previousLocation)
     {
+        var now = DateTime.UtcNow;
         var profit = 0L;
         var collected = args.currentState.ItemsCollectedRecently;
+        Dictionary<string, double> cleanPrices = null;
         if (collected.Count > 0)
         {
-            var cleanPrices = await GetCleanPrices(args);
+            cleanPrices = await GetCleanPrices(args);
 
             profit = (long)collected.Select(c =>
             {
@@ -370,7 +372,7 @@ public class CollectionListener : UpdateListener
             }).Sum();
             var period = new TrackedProfitService.Period()
             {
-                EndTime = DateTime.UtcNow,
+                EndTime = now,
                 StartTime = args.currentState.ExtractedInfo.LastLocationChange,
                 Location = previousLocation,
                 PlayerUuid = args.currentState.McInfo.Uuid.ToString("N"),
@@ -380,7 +382,6 @@ public class CollectionListener : UpdateListener
             };
             ClassifyPeriod(args, period, cleanPrices);
             await args.GetService<TrackedProfitService>().AddPeriod(period);
-            await FoldPeriod(args, period, cleanPrices);
             try
             {
                 await args.GetService<MethodAggregateService>().RecordPeriod(period);
@@ -393,8 +394,70 @@ public class CollectionListener : UpdateListener
             args.SendDebugMessage("You collected a total of " + profit + " coins worth of items in " + previousLocation + " " + string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}")));
             Logger.LogInformation("Profit summary for {playerId} at {location}: {profit} coins from {items}", args.currentState.PlayerId, previousLocation, profit, string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}")));
         }
+        // fold task attribution per session (spanning locations), not per location fragment
+        await AccumulateSession(args, previousLocation, collected, cleanPrices, now);
         args.currentState.ItemsCollectedRecently.Clear();
-        args.currentState.ExtractedInfo.LastLocationChange = DateTime.UtcNow;
+        args.currentState.ExtractedInfo.LastLocationChange = now;
+    }
+
+    /// <summary>
+    /// Merge the just-flushed location fragment into the running task session and fold
+    /// the session when a boundary is crossed. Runs on every flush (including empty idle
+    /// ticks) so a task spanning multiple locations accumulates into one session instead
+    /// of being chopped below the classifier's minimum window. Failures only lose the
+    /// contribution, never the raw period.
+    /// </summary>
+    private async Task AccumulateSession(UpdateArgs args, string previousLocation,
+        Dictionary<string, int> collected, Dictionary<string, double> cleanPrices, DateTime now)
+    {
+        try
+        {
+            var config = args.GetService<Microsoft.Extensions.Configuration.IConfiguration>();
+            if (config["TASKS:AGGREGATE"] == "false" || config["TASKS:CLASSIFY"] == "false")
+                return;
+            var state = args.currentState;
+            if (state.McInfo.Uuid == default)
+                return;
+            var playerUuid = state.McInfo.Uuid.ToString("N");
+            var fragment = new TrackedProfitService.Period()
+            {
+                EndTime = now,
+                StartTime = state.ExtractedInfo.LastLocationChange,
+                Location = previousLocation ?? state.ExtractedInfo.CurrentLocation,
+                PlayerUuid = playerUuid,
+                Server = state.ExtractedInfo.CurrentServer,
+                ItemsCollected = new Dictionary<string, int>(collected)
+            };
+            var claim = GetActiveClaim(state, now);
+            var flush = args.GetService<Tasks.TaskSessionService>()
+                .Accumulate(state.ExtractedInfo, playerUuid, fragment, claim, cleanPrices ?? cachedCleanPrices, now);
+            if (flush == null)
+                return;
+            if (flush.DetectedTask == null)
+            {
+                PeriodUnclassifiedCounter.Inc();
+                return;
+            }
+            PeriodClassifiedCounter.WithLabels(flush.DetectedTask).Inc();
+            var prices = cleanPrices ?? await GetCleanPrices(args);
+            await args.GetService<Tasks.TaskPeriodFolder>().Fold(flush, state, prices);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to accumulate/fold task session for {playerId}", args.currentState.PlayerId);
+        }
+    }
+
+    /// <summary>Returns the player's claimed task if it is set and not expired, clearing it otherwise.</summary>
+    private static string GetActiveClaim(Models.StateObject state, DateTime now)
+    {
+        var claim = state.ExtractedInfo.ClaimedTask;
+        if (claim != null && now - state.ExtractedInfo.ClaimedAt > TimeSpan.FromMinutes(30))
+        {
+            state.ExtractedInfo.ClaimedTask = null;
+            return null;
+        }
+        return claim;
     }
 
     /// <summary>
@@ -407,37 +470,16 @@ public class CollectionListener : UpdateListener
         {
             if (args.GetService<Microsoft.Extensions.Configuration.IConfiguration>()["TASKS:CLASSIFY"] == "false")
                 return;
+            // raw per-fragment attribution for the locationperiods.detectedtask column only;
+            // the counters and the fold operate on the accumulated session (AccumulateSession).
             var classification = args.GetService<Tasks.TaskClassifier>().Classify(
                 period.Location, period.ItemsCollected,
                 (period.EndTime - period.StartTime).TotalMinutes, null, cleanPrices);
             period.DetectedTask = classification?.TaskName;
-            if (classification == null)
-                PeriodUnclassifiedCounter.Inc();
-            else
-                PeriodClassifiedCounter.WithLabels(classification.TaskName).Inc();
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to classify period at {location}", period.Location);
-        }
-    }
-
-    /// <summary>
-    /// Folds a classified period into the stat bucketed aggregates and the player's stats.
-    /// Failures only lose this contribution, never the period.
-    /// </summary>
-    private async Task FoldPeriod(UpdateArgs args, TrackedProfitService.Period period, Dictionary<string, double> cleanPrices)
-    {
-        try
-        {
-            if (period.DetectedTask == null
-                || args.GetService<Microsoft.Extensions.Configuration.IConfiguration>()["TASKS:AGGREGATE"] == "false")
-                return;
-            await args.GetService<Tasks.TaskPeriodFolder>().Fold(period, args.currentState, cleanPrices);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to fold period at {location}", period.Location);
         }
     }
 
