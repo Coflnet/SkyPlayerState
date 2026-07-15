@@ -177,4 +177,17 @@ public class TaskClassifierTests
             .ToList();
         duplicates.Should().BeEmpty("MethodName is the classification and aggregation key");
     }
+
+    /// <summary>
+    /// A real Lotus Atoll lily-pad session (Ekwav's reference sample) classifies to the
+    /// new task rather than a region-only Galatea tracker.
+    /// </summary>
+    [Test]
+    public void LotusAtoll_SampleClassifiesToLotusAtoll()
+    {
+        var items = new Dictionary<string, int> { { "LOTUS", 57 }, { "WATER_LILY", 64 }, { "SHARD_LOTUSFISH", 22 } };
+        var classification = Classifier.Classify("Lotus Atoll", items, 5);
+        classification.Should().NotBeNull();
+        classification!.TaskName.Should().Be("Lotus Atoll");
+    }
 }

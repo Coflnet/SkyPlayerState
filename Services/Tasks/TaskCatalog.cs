@@ -98,6 +98,7 @@ internal static class TaskCatalog
         // tasks.Add<FestivalFishingTask>();    // deactivated: fabricated location, seasonal, unconfirmed shark tags
         tasks.Add<SquidFishingTask>();
         tasks.Add<GalateaFishingMethodTask>();
+        tasks.Add<LotusAtollTask>();
         tasks.Add<OasisFishingTask>();
         tasks.Add<WaterFishingTask>();
         tasks.Add<MagmaCoreFishingTask>();
