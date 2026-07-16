@@ -29,7 +29,10 @@ public class StorageListener : UpdateListener
         {
             try
             {
-                var blob = System.Text.Json.JsonSerializer.Serialize(chestView);
+                // ChestView exposes public fields (not properties); System.Text.Json ignores
+                // fields unless IncludeFields is set, otherwise it emits "{}" (see StateObject notes).
+                var blob = System.Text.Json.JsonSerializer.Serialize(chestView,
+                    new System.Text.Json.JsonSerializerOptions { IncludeFields = true });
                 Logger.LogInformation("Full backpack blob for SpectChicken chest {chestName} (rawItemCount {rawCount}): {blob}",
                     chestView.Name, chestView.Items.Count, blob);
             }
