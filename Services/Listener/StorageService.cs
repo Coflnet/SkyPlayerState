@@ -83,7 +83,32 @@ public class StorageService
         public List<Item> Items
         {
             get => MessagePackSerializer.Deserialize<List<Item>>(SerializedItems, options);
-            set => SerializedItems = MessagePackSerializer.Serialize(value, options);
+            set => SerializedItems = MessagePackSerializer.Serialize(NormalizeForStorage(value), options);
+        }
+
+        /// <summary>
+        /// MessagePack (Standard resolver) cannot serialize Newtonsoft <c>JToken</c> values, which is
+        /// what Kafka's JSON deserialization leaves in <see cref="Item.ExtraAttributes"/> for nested
+        /// structures (e.g. a potion's <c>effects</c> array). If any item still holds a JToken when it
+        /// reaches storage, the whole chest save threw <c>FormatterNotRegisteredException</c> and no
+        /// items were persisted at all. Convert JTokens to native .NET types first so storage is
+        /// robust regardless of whether an upstream listener already normalized the items.
+        /// </summary>
+        private static List<Item> NormalizeForStorage(List<Item> items)
+        {
+            if (items == null)
+                return items;
+            foreach (var item in items)
+            {
+                if (item?.ExtraAttributes == null)
+                    continue;
+                foreach (var key in item.ExtraAttributes.Keys.ToList())
+                {
+                    if (item.ExtraAttributes[key] is Newtonsoft.Json.Linq.JToken token)
+                        item.ExtraAttributes[key] = CassandraItem.ConvertJTokenToNative(token);
+                }
+            }
+            return items;
         }
         public Core.BlockPos? Position
         {
