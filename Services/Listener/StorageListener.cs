@@ -59,6 +59,7 @@ public class StorageListener : UpdateListener
         return !chestView.Name.StartsWith("Ender Chest") && !chestView.Name.Contains("Backpack (Slot")
         && chestView.Name != "Chest" && chestView.Name != "Large Chest" //island chests
         && chestView.Name != "Chest Storage" && chestView.Name != "Medium Shelves" && !chestView.Name.Contains("Chest+") //furniture
+        && !chestView.Name.Contains("Huntaxe") && !chestView.Name.StartsWith("Hunting Toolkit") //hunting menus (also read by HuntingListener)
         ;
     }
 }
