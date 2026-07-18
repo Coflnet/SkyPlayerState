@@ -87,7 +87,7 @@ public class TaskPeriodFolder
             span?.SetTag("bucket", bucket);
 
             // value each item; separate rare, high value, infrequent drops into an EV pool
-            var bucketAgg = (await aggregates.GetSnapshot()).GetValueOrDefault((task, bucket));
+            var bucketAgg = aggregates.GetSnapshot().GetValueOrDefault((task, bucket));
             var commonCounts = new Dictionary<string, double>();
             double rareCoins = 0, itemValue = 0;
             foreach (var (tag, count) in owned)

@@ -39,9 +39,11 @@ public class TaskAggregateFlusher : BackgroundService
             try
             {
                 await aggregates.Flush();
-                if (DateTime.UtcNow - lastMerge > TimeSpan.FromMinutes(2))
+                // rebuild the read snapshot roughly once a minute. This is the only place the
+                // merge runs; GetSnapshot() on the request/fold path just reads the last result.
+                if (DateTime.UtcNow - lastMerge > TimeSpan.FromSeconds(60))
                 {
-                    await aggregates.GetSnapshot();
+                    await aggregates.RefreshSnapshot();
                     await activity.GetCounts(); // also samples the delta ring
                     lastMerge = DateTime.UtcNow;
                 }

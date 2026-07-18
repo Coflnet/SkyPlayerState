@@ -76,7 +76,7 @@ public class TaskEstimator
     {
         using var span = TaskTelemetry.Source.StartActivity("task-estimate-all");
         await coinValues.EnsureFresh();
-        var snapshot = await aggregates.GetSnapshot();
+        var snapshot = aggregates.GetSnapshot();
         var counts = await activityService.GetCounts();
         var deltas = await activityService.GetChange20m();
         var playerUuid = state?.McInfo?.Uuid.ToString("N");

@@ -269,7 +269,10 @@ public class CollectionListener : UpdateListener
                 var bazaarPrices = await args.GetService<IBazaarApi>().GetAllPricesAsync();
                 foreach (var item in bazaarPrices)
                 {
-                    cleanPrices[item.ProductId] = (int)item.SellPrice;
+                    // keep the full precision: an (int) cast floored fractional prices and, worse,
+                    // dropped every sub-1-coin bazaar item to 0 so it valued as unpriced and fell
+                    // out of the period total. Matches TaskPriceService, which uses the double.
+                    cleanPrices[item.ProductId] = (double)item.SellPrice;
                 }
                 foreach (var item in ahPrices)
                 {

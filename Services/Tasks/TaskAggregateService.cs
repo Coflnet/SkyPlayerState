@@ -47,16 +47,19 @@ public class TaskAggregateService
     private readonly string instanceId = Environment.MachineName;
     private const int TTL_SECONDS = 1209600; // 14 days
     private const double DecayHalfLifeDays = 7;
+    // with a stable instanceId a day partition holds ~tasks*buckets*instances rows (~1.8k);
+    // page generously so the merge is one round trip per day even after some instanceId churn.
+    private const int MergePageSize = 5000;
 
     // pending deltas accumulated in memory, flushed to cassandra periodically
     private readonly ConcurrentDictionary<(string task, byte bucket), PendingDelta> pending = new();
     private readonly SemaphoreSlim flushLock = new(1, 1);
 
-    // merged read snapshot, refreshed periodically
+    // merged read snapshot, rebuilt only in the background (never on the request path)
     private Dictionary<(string task, byte bucket), BucketAggregate> snapshot = new();
     private DateTime snapshotAt = DateTime.MinValue;
     private readonly SemaphoreSlim mergeLock = new(1, 1);
-    private static readonly TimeSpan MergeInterval = TimeSpan.FromMinutes(2);
+    private int warmupKicked;
 
     public TaskAggregateService(ISession session, ILogger<TaskAggregateService> logger)
     {
@@ -174,27 +177,42 @@ public class TaskAggregateService
     }
 
     /// <summary>
-    /// Merge-read all instances' rows over the last 8 days, applying read time decay,
-    /// into the in-memory snapshot. Called on a timer and lazily when stale.
+    /// Returns the last snapshot built by the background <see cref="RefreshSnapshot"/>.
+    /// This is a non-blocking, allocation-free read: it never touches cassandra, so the
+    /// request path (and the fold path) can never stall behind a slow merge. The snapshot
+    /// is at most one refresh interval (~60s) stale, which is well within the estimate's
+    /// tolerance. Empty until the first background refresh completes, in which case the
+    /// estimator simply degrades to the formula tier. The first call kicks a one-off warm
+    /// up so a fresh pod does not have to wait for the flusher's initial delay.
     /// </summary>
-    public async Task<Dictionary<(string task, byte bucket), BucketAggregate>> GetSnapshot()
+    public Dictionary<(string task, byte bucket), BucketAggregate> GetSnapshot()
     {
-        if (DateTime.UtcNow - snapshotAt < MergeInterval)
-            return snapshot;
-        await mergeLock.WaitAsync();
+        if (snapshotAt == DateTime.MinValue && System.Threading.Interlocked.Exchange(ref warmupKicked, 1) == 0)
+            _ = Task.Run(RefreshSnapshot);
+        return snapshot;
+    }
+
+    /// <summary>
+    /// Merge-read all instances' rows over the last 8 days, applying read time decay,
+    /// into the in-memory snapshot. Called only from the background flusher (and once at
+    /// warm up) so no caller ever awaits the merge. Concurrent invocations are coalesced.
+    /// </summary>
+    public async Task RefreshSnapshot()
+    {
+        if (!await mergeLock.WaitAsync(0))
+            return; // a refresh is already running; skip this tick
         try
         {
-            if (DateTime.UtcNow - snapshotAt < MergeInterval)
-                return snapshot;
             if (table == null)
                 await Setup();
+            var startedAt = DateTime.UtcNow;
             var merged = new Dictionary<(string, byte), BucketAggregate>();
             var now = DateTime.UtcNow.Date;
             for (int dayOffset = 0; dayOffset < 8; dayOffset++)
             {
                 var day = now.AddDays(-dayOffset);
                 var weight = Math.Pow(0.5, dayOffset / DecayHalfLifeDays);
-                var rows = (await table!.Where(r => r.DayBucket == day).ExecuteAsync()).ToList();
+                var rows = (await table!.Where(r => r.DayBucket == day).SetPageSize(MergePageSize).ExecuteAsync()).ToList();
                 foreach (var row in rows)
                 {
                     var key = (row.TaskName, (byte)row.Bucket);
@@ -217,6 +235,9 @@ public class TaskAggregateService
             }
             snapshot = merged;
             snapshotAt = DateTime.UtcNow;
+            var elapsed = DateTime.UtcNow - startedAt;
+            if (elapsed > TimeSpan.FromSeconds(10))
+                logger.LogWarning("task aggregate merge took {seconds:0.0}s for {keys} task/bucket keys - check task_bucket_aggregates partition size (instanceId churn)", elapsed.TotalSeconds, merged.Count);
         }
         catch (Exception e)
         {
@@ -226,7 +247,6 @@ public class TaskAggregateService
         {
             mergeLock.Release();
         }
-        return snapshot;
     }
 
     // ── Per player rolled up stats ──
