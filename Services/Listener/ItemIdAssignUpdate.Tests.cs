@@ -49,6 +49,41 @@ public class ItemIdAssignUpdateTest
     }
 
     [Test]
+    public async Task AlreadyAssignedIdDoesNotLookup()
+    {
+        var listener = new ItemIdAssignUpdate();
+        var assigned = new Item(sampleItem) { Id = 42 };
+        assigned.Enchantments!["protection"] = 2;
+
+        await listener.Process(CreateArgs(assigned));
+
+        Assert.That(assigned.Id, Is.EqualTo(42));
+        itemsService.Verify(s => s.FindOrCreate(It.IsAny<IEnumerable<Item>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task DatabaseResultIsCachedAcrossPlayerStates()
+    {
+        var listener = new ItemIdAssignUpdate();
+        var first = new Item(sampleItem);
+        first.Enchantments!["protection"] = 2;
+        var firstArgs = CreateArgs(first);
+        itemsService.Setup(s => s.FindOrCreate(It.IsAny<IEnumerable<Item>>()))
+            .ReturnsAsync((IEnumerable<Item> items) => items.Select(item => new Item(item) { Id = 42 }).ToList());
+
+        await listener.Process(firstArgs);
+        Assert.That(first.Id, Is.EqualTo(42));
+
+        currentState = new();
+        var second = new Item(sampleItem);
+        second.Enchantments!["protection"] = 2;
+        await listener.Process(CreateArgs(second));
+
+        Assert.That(second.Id, Is.EqualTo(42));
+        itemsService.Verify(s => s.FindOrCreate(It.IsAny<IEnumerable<Item>>()), Times.Never);
+    }
+
+    [Test]
     public async Task BoosterCookie()
     {
         var json =

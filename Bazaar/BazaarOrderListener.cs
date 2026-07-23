@@ -518,7 +518,7 @@ public class BazaarOrderListener : UpdateListener
         var scheduleTask = Task.Run(async () =>
         {
             var scheduleApi = args.GetService<IScheduleApi>();
-            await scheduleApi.ScheduleUserIdPostAsync(args.msg.UserId, DateTime.UtcNow + TimeSpan.FromDays(7), new()
+            await scheduleApi.ScheduleUserIdPostAsync(args.msg.UserId, args.msg.ReceivedAt + TimeSpan.FromDays(7), new()
             {
                 Summary = "Bazaar order expired",
                 Message = $"Your bazaar order for {itemName} expired",

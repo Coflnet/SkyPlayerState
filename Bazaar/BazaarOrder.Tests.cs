@@ -151,6 +151,8 @@ public class BazaarOrderTests
     {
         UpdateArgs args = CreateArgs("[Bazaar] Submitting sell order...",
                     "[Bazaar] Sell Offer Setup! 64x Coal for 208.8 coins.");
+        var receivedAt = DateTime.UtcNow.AddHours(-2);
+        args.msg.ReceivedAt = receivedAt;
         await listener.Process(args);
 
         transactionService.Verify(t => t.AddTransactions(It.Is<Transaction>(t =>
@@ -163,7 +165,7 @@ public class BazaarOrderTests
         Assert.That(currentState.BazaarOffers[0].Amount, Is.EqualTo(64));
         Assert.That(currentState.BazaarOffers[0].PricePerUnit, Is.EqualTo(3.3));
 
-        scheduleApi.Verify(s => s.ScheduleUserIdPostAsync("5", It.IsAny<DateTime>(), It.Is<MessageContainer>(con =>
+        scheduleApi.Verify(s => s.ScheduleUserIdPostAsync("5", receivedAt.AddDays(7), It.Is<MessageContainer>(con =>
             con.Message == "Your bazaar order for Coal expired"
         ), 0, default), Times.Once);
     }
@@ -383,7 +385,8 @@ public class BazaarOrderTests
             msg = new UpdateMessage()
             {
                 ChatBatch = msgs.ToList(),
-                UserId = "5"
+                UserId = "5",
+                ReceivedAt = DateTime.UtcNow
             }
         };
         currentState.RecentViews.Enqueue(JsonConvert.DeserializeObject<ChestView>("""

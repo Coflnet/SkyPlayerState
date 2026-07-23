@@ -35,9 +35,13 @@ public class ItemCompare : IEqualityComparer<Item>
 
     private static bool EnchantMatch(Item? x, Item? y)
     {
-        return (y?.Enchantments?.Count ?? 0) == 0 && x?.Enchantments == null || (y?.Enchantments != null && x?.Enchantments != null &&
-            y.Enchantments?.Count == x.Enchantments?.Count
-                && x.Enchantments!.Sum(x => x.Value) == y.Enchantments!.Sum(x => x.Value) && !x.Enchantments!.Except(y.Enchantments!).Any());
+        var xCount = x?.Enchantments?.Count ?? 0;
+        var yCount = y?.Enchantments?.Count ?? 0;
+        if (xCount == 0 || yCount == 0)
+            return xCount == yCount;
+        return xCount == yCount
+            && x!.Enchantments!.Sum(enchantment => enchantment.Value) == y!.Enchantments!.Sum(enchantment => enchantment.Value)
+            && !x.Enchantments.Except(y.Enchantments).Any();
     }
 
     public int GetHashCode(Item obj)

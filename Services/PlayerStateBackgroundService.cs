@@ -34,7 +34,9 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
     private ILoggerFactory loggerFactory;
     private Prometheus.Counter consumeCount = Prometheus.Metrics.CreateCounter("sky_playerstate_conume", "How many messages were consumed");
     private Prometheus.Counter droppedCount = Prometheus.Metrics.CreateCounter("sky_playerstate_dropped", "How many messages were dropped after exhausting retries");
+    private static readonly Prometheus.Gauge consumerLagSeconds = Prometheus.Metrics.CreateGauge("sky_playerstate_consumer_lag_seconds", "Age in seconds of the oldest message in the current batch.");
     private static readonly Prometheus.Counter optionalHandlerFailedCount = Prometheus.Metrics.CreateCounter("sky_playerstate_optional_handler_failed", "How many times an optional handler threw and was skipped (state still saved), by handler.", new Prometheus.CounterConfiguration { LabelNames = new[] { "handler" } });
+    private static readonly TimeSpan staleUpdateThreshold = TimeSpan.FromMinutes(15);
 
     public ConcurrentDictionary<string, StateObject> States = new();
     private IPersistenceService persistenceService;
@@ -135,47 +137,32 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         {
             SessionTimeoutMs = 9_000,
             AutoOffsetReset = AutoOffsetReset.Earliest,
+            EnableAutoCommit = false,
             GroupId = config["KAFKA_GROUP_ID"]
         };
         await TestCassandraConnection();
 
         await Kafka.KafkaConsumer.ConsumeBatch<UpdateMessage>(consumerConfig, new string[] { config["TOPICS:STATE_UPDATE"] }, async batch =>
         {
-            if (batch.Max(b => b.ReceivedAt) < DateTime.UtcNow - TimeSpan.FromHours(1))
+            var updates = batch.ToList();
+            var now = DateTime.UtcNow;
+            var oldestMessageLag = now - updates.Min(update => update.ReceivedAt);
+            var newestMessageLag = now - updates.Max(update => update.ReceivedAt);
+            consumerLagSeconds.Set(Math.Max(0, oldestMessageLag.TotalSeconds));
+            if (newestMessageLag > staleUpdateThreshold)
             {
-                logger.LogWarning("Received old batch of {0} messages", batch.Count());
-                _ = Task.WhenAll(batch.Select(async update =>
-                {
-                    if (update.Kind == UpdateMessage.UpdateKind.INVENTORY && !update.Chest.Name.StartsWith("You"))
-                    {
-                        // Only "You ..." (trade) and "Your Bazaar Orders" (bazaar) are relevant for tracking
-                        return;
-                    }
-                    if (update.Kind == UpdateMessage.UpdateKind.CHAT && !update.ChatBatch.Any(m => m.StartsWith(" + ") && !m.StartsWith(" - ")))
-                    {
-                        // Ignore no chat messages
-                        return;
-                    }
-                    try
-                    {
-                        await Update(update);
-                        if (Random.Shared.NextDouble() < 0.01)
-                            logger.LogWarning("Processed old update {0}", JsonConvert.SerializeObject(update));
-                    }
-                    catch (System.Exception e)
-                    {
-                        logger.LogError(e, "Error while processing old update");
-                    }
-                }));
-                return;
+                logger.LogWarning(
+                    "Received stale batch of {count} messages ({lagSeconds:F0}s behind); processing every update",
+                    updates.Count, newestMessageLag.TotalSeconds);
             }
-            logger.LogInformation("Consuming batch of {0} messages", batch.Count());
+            else
+                logger.LogInformation("Consuming batch of {0} messages", updates.Count);
             using var span = activitySource.StartActivity("Batch", ActivityKind.Consumer);
             // Await the whole batch so offsets are only committed (by the consumer, after this
             // returns) once every message has actually been processed - no commit-before-done.
             // Per-message failures are retried inside Update and dropped there after 3 attempts,
             // so a single failing/poison message no longer stalls or backs off the whole pipeline.
-            await Task.WhenAll(batch.Select(async update =>
+            await Task.WhenAll(updates.Select(async update =>
             {
                 await Update(update);
                 consumeCount.Inc();

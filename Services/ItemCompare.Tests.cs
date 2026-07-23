@@ -56,10 +56,11 @@ public class ItemCompareTests
     public void NoEnchants()
     {
         var comparer = new ItemCompare();
-        var a = new Item() { ExtraAttributes = new() { { "array", "b" } } };
-        var b = new Item() { ExtraAttributes = new() { { "array", "b" } } };
+        var a = new Item() { ExtraAttributes = new() { { "array", "b" } }, Enchantments = null };
+        var b = new Item() { ExtraAttributes = new() { { "array", "b" } }, Enchantments = new() };
         Assert.That(comparer.GetHashCode(a), Is.EqualTo(comparer.GetHashCode(b)));
         Assert.That(comparer.Equals(a, b));
+        Assert.That(comparer.Equals(b, a));
     }
     [Test]
     public void CompareComplex()
