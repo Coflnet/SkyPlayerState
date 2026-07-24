@@ -81,21 +81,27 @@ public class PersistenceService : IPersistenceService
         }
         logger.LogInformation("Constructing state table access");
         await tableLock.WaitAsync();
-        if (_table != null)
+        try
         {
-            return _table;
+            if (_table != null)
+            {
+                return _table;
+            }
+            var mapping = new MappingConfiguration()
+                .Define(new Map<Inventory>()
+                .PartitionKey(t => t.PlayerId)
+            );
+            var table = new Table<Inventory>(await cassandraService.GetSession(), mapping, "skyPlayerState");
+            table.SetConsistencyLevel(ConsistencyLevel.Quorum);
+            logger.LogInformation("Creating table if not exists");
+            await table.CreateIfNotExistsAsync();
+            _table = table;
+            return table;
         }
-        var mapping = new MappingConfiguration()
-            .Define(new Map<Inventory>()
-            .PartitionKey(t => t.PlayerId)
-        );
-        var table = new Table<Inventory>(await cassandraService.GetSession(), mapping, "skyPlayerState");
-        table.SetConsistencyLevel(ConsistencyLevel.Quorum);
-        logger.LogInformation("Creating table if not exists");
-        await table.CreateIfNotExistsAsync();
-        _table = table;
-        tableLock.Release();
-        return table;
+        finally
+        {
+            tableLock.Release();
+        }
     }
 
     public async Task<StateObject> GetStateObject(string playerId)

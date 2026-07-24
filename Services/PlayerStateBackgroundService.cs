@@ -332,6 +332,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
                     States[msg.PlayerId] = state;
                 }
             }
+            args.currentState = state;
             using var span = activitySource.StartActivity("Update", ActivityKind.Consumer);
             span?.SetTag("playerId", msg.PlayerId);
             span?.SetTag("kind", msg.Kind.ToString());
