@@ -34,13 +34,17 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
     private ILoggerFactory loggerFactory;
     private Prometheus.Counter consumeCount = Prometheus.Metrics.CreateCounter("sky_playerstate_conume", "How many messages were consumed");
     private Prometheus.Counter droppedCount = Prometheus.Metrics.CreateCounter("sky_playerstate_dropped", "How many messages were dropped after exhausting retries");
-    private static readonly Prometheus.Gauge consumerLagSeconds = Prometheus.Metrics.CreateGauge("sky_playerstate_consumer_lag_seconds", "Age in seconds of the oldest message in the current batch.");
+    private static readonly Prometheus.Gauge consumerLagSeconds = Prometheus.Metrics.CreateGauge(
+        "sky_playerstate_consumer_lag_seconds",
+        "Age in seconds of the oldest message in the current partition batch.",
+        new Prometheus.GaugeConfiguration { LabelNames = new[] { "partition" } });
     private static readonly Prometheus.Counter optionalHandlerFailedCount = Prometheus.Metrics.CreateCounter("sky_playerstate_optional_handler_failed", "How many times an optional handler threw and was skipped (state still saved), by handler.", new Prometheus.CounterConfiguration { LabelNames = new[] { "handler" } });
     private static readonly TimeSpan staleUpdateThreshold = TimeSpan.FromMinutes(15);
 
     public ConcurrentDictionary<string, StateObject> States = new();
     private IPersistenceService persistenceService;
     private ActivitySource activitySource;
+    private long nextStateCleanupTicks;
 
     private ConcurrentDictionary<UpdateMessage.UpdateKind, List<UpdateListener>> Handlers = new();
 
@@ -138,37 +142,51 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
             SessionTimeoutMs = 9_000,
             AutoOffsetReset = AutoOffsetReset.Earliest,
             EnableAutoCommit = false,
+            PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky,
             GroupId = config["KAFKA_GROUP_ID"]
         };
         await TestCassandraConnection();
+        var batchSizePerPartition = config.GetValue("STATE_UPDATE_BATCH_SIZE_PER_PARTITION", 80);
 
-        await Kafka.KafkaConsumer.ConsumeBatch<UpdateMessage>(consumerConfig, new string[] { config["TOPICS:STATE_UPDATE"] }, async batch =>
+        logger.LogInformation("Consuming up to {batchSize} updates per partition batch", batchSizePerPartition);
+        await Kafka.KafkaConsumer.ConsumePartitionedParallelBatch<UpdateMessage>(consumerConfig, new string[] { config["TOPICS:STATE_UPDATE"] }, async (partition, batch) =>
         {
             var updates = batch.ToList();
             var now = DateTime.UtcNow;
             var oldestMessageLag = now - updates.Min(update => update.ReceivedAt);
             var newestMessageLag = now - updates.Max(update => update.ReceivedAt);
-            consumerLagSeconds.Set(Math.Max(0, oldestMessageLag.TotalSeconds));
+            consumerLagSeconds.WithLabels(partition.Partition.Value.ToString()).Set(Math.Max(0, oldestMessageLag.TotalSeconds));
             if (newestMessageLag > staleUpdateThreshold)
             {
                 logger.LogWarning(
-                    "Received stale batch of {count} messages ({lagSeconds:F0}s behind); processing every update",
-                    updates.Count, newestMessageLag.TotalSeconds);
+                    "Received stale batch of {count} messages from {partition} ({lagSeconds:F0}s behind); processing every update",
+                    updates.Count, partition, newestMessageLag.TotalSeconds);
             }
             else
-                logger.LogInformation("Consuming batch of {0} messages", updates.Count);
+                logger.LogInformation("Consuming batch of {count} messages from {partition}", updates.Count, partition);
             using var span = activitySource.StartActivity("Batch", ActivityKind.Consumer);
-            // Await the whole batch so offsets are only committed (by the consumer, after this
-            // returns) once every message has actually been processed - no commit-before-done.
+            span?.SetTag("partition", partition.Partition.Value);
+            // Await the whole partition batch so its offset is only committed (by the consumer,
+            // after this returns) once every message has actually been processed.
             // Per-message failures are retried inside Update and dropped there after 3 attempts,
             // so a single failing/poison message no longer stalls or backs off the whole pipeline.
-            await Task.WhenAll(updates.Select(async update =>
+            await Task.WhenAll(updates
+                .GroupBy(update => string.IsNullOrWhiteSpace(update.PlayerId) ? StateObject.AnonymousId : update.PlayerId)
+                .Select(async playerUpdates =>
             {
-                await Update(update);
-                consumeCount.Inc();
+                foreach (var update in playerUpdates)
+                {
+                    await Update(update);
+                    consumeCount.Inc();
+                }
             }));
             KeepStateCountInCheck();
-        }, stoppingToken, 50);
+        }, stoppingToken, batchSizePerPartition,
+            partitionsRevoked: partitions =>
+            {
+                foreach (var partition in partitions)
+                    consumerLagSeconds.RemoveLabelled(partition.Partition.Value.ToString());
+            });
         var retrieved = new UpdateMessage();
     }
 
@@ -219,12 +237,18 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
 
     private void KeepStateCountInCheck()
     {
+        var now = DateTime.UtcNow;
+        var scheduledCleanup = Interlocked.Read(ref nextStateCleanupTicks);
+        if (now.Ticks < scheduledCleanup
+            || Interlocked.CompareExchange(ref nextStateCleanupTicks, now.AddMinutes(1).Ticks, scheduledCleanup) != scheduledCleanup)
+            return;
         if (States.Count < 200)
             return;
         foreach (var key in States.Keys)
         {
-            var item = States[key];
-            if (item.LastAccess < DateTime.UtcNow - TimeSpan.FromHours(0.5))
+            if (States.TryGetValue(key, out var item)
+                && item.Lock.CurrentCount > 0
+                && item.LastAccess < now - TimeSpan.FromHours(0.5))
             {
                 States.TryRemove(key, out _);
             }
@@ -233,7 +257,10 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         if (States.Count < 600)
             return;
 
-        var oldest = States.OrderBy(s => s.Value.LastAccess).First();
+        var oldest = States.Where(state => state.Value.Lock.CurrentCount > 0)
+            .OrderBy(state => state.Value.LastAccess).FirstOrDefault();
+        if (oldest.Key == null)
+            return;
         States.TryRemove(oldest.Key, out var removed);
         logger.LogWarning("States count is {0} removed {1}, last used {used}", States.Count, removed?.PlayerId, removed?.LastAccess);
     }
