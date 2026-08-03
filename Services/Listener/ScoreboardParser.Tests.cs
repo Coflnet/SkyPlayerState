@@ -1,5 +1,8 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using AwesomeAssertions;
+using Coflnet.Sky.PlayerState.Models;
+using Coflnet.Sky.PlayerState.Tests;
 using NUnit.Framework;
 
 namespace Coflnet.Sky.PlayerState.Services;
@@ -9,6 +12,22 @@ public class ScoreboardParserTests
     // legacy benzene ring (U+23E3) and the newer private-use glyph (U+E067)
     private const string LegacyLine = " ⏣ Lotus Atoll";
     private const string PrivateUseLine = "  Lotus Atoll";
+
+    [Test]
+    public async Task DateOnlyScoreboardLineDoesNotThrow()
+    {
+        var args = new MockedUpdateArgs
+        {
+            currentState = new StateObject(),
+            msg = new UpdateMessage
+            {
+                Kind = UpdateMessage.UpdateKind.Scoreboard,
+                Scoreboard = new[] { "[SKYBLOCK]", System.DateTime.UtcNow.ToString("MM/dd/yy"), "Purse: 1" }
+            }
+        };
+
+        await new CollectionListener().Process(args);
+    }
 
     [TestCase(LegacyLine)]
     [TestCase(PrivateUseLine)]

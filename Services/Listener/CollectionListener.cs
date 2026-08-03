@@ -410,7 +410,7 @@ public class CollectionListener : UpdateListener
         // 07/14/15
         var currentDate = DateTime.UtcNow.ToString("MM/dd/yy");
         var yesterdayDate = DateTime.UtcNow.AddDays(-1).ToString("MM/dd/yy");
-        var server = args.msg.Scoreboard?.FirstOrDefault(s => s.StartsWith(currentDate) || s.StartsWith(yesterdayDate))?.Split(' ')[1];
+        var server = args.msg.Scoreboard?.FirstOrDefault(s => s.StartsWith(currentDate) || s.StartsWith(yesterdayDate))?.Split(' ').ElementAtOrDefault(1);
         if (server != null)
         {
             args.currentState.ExtractedInfo.CurrentServer = server;

@@ -227,7 +227,7 @@ public class BazaarOrderListener : UpdateListener
                 var perPrice = ParseCoins(parts[4].Value);
                 var perPriceInCoins = perPrice / 10.0; // Convert from tenths to coins for comparison with PricePerUnit
                 await AddItemTransaction(args, side | Transaction.TransactionType.Move, amount, itemName);
-                var order = args.currentState.BazaarOffers.Where(o => o.ItemName == itemName && o.Amount == amount && o.PricePerUnit == perPriceInCoins).FirstOrDefault();
+                var order = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && o.ItemName == itemName && o.Amount == amount && o.PricePerUnit == perPriceInCoins);
 
                 // Track buy order for profit calculation
                 await RecordBuyOrderForProfit(args, itemName, amount, price);
@@ -268,7 +268,7 @@ public class BazaarOrderListener : UpdateListener
 
                 // Track sell order and calculate profit
                 await RecordSellOrderForProfit(args, itemName, amount, price);
-                var order = args.currentState.BazaarOffers.Where(o => o.ItemName == itemName && o.Amount == amount).FirstOrDefault();
+                var order = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && o.ItemName == itemName && o.Amount == amount);
                 if (order == null)
                 {
                     args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No order found for {item} {amount}", itemName, amount);

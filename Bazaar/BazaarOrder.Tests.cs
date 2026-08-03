@@ -146,6 +146,15 @@ public class BazaarOrderTests
     {
         await listener.Process(CreateArgs(line));
     }
+
+    [Test]
+    public async Task ClaimBuyOrderIgnoresNullOfferEntries()
+    {
+        currentState.BazaarOffers.Add(null!);
+
+        await listener.Process(CreateArgs("[Bazaar] Claimed 187x Melon worth 112.2 coins bought for 0.6 each!"));
+    }
+
     [Test]
     public async Task SellOrderCreateAndFill()
     {
