@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Coflnet.Sky.PlayerState.Models;
 using Coflnet.Sky.PlayerState.Services;
@@ -21,15 +22,18 @@ public class TaskController : ControllerBase
     private readonly TaskEstimator estimator;
     private readonly TaskActivityService activity;
     private readonly TaskPriceService prices;
+    private readonly TaskAggregateService aggregates;
     private readonly ILogger<TaskController> logger;
 
     public TaskController(IPersistenceService persistence, TaskEstimator estimator,
-        TaskActivityService activity, TaskPriceService prices, ILogger<TaskController> logger)
+        TaskActivityService activity, TaskPriceService prices, TaskAggregateService aggregates,
+        ILogger<TaskController> logger)
     {
         this.persistence = persistence;
         this.estimator = estimator;
         this.activity = activity;
         this.prices = prices;
+        this.aggregates = aggregates;
         this.logger = logger;
     }
 
@@ -37,12 +41,32 @@ public class TaskController : ControllerBase
     /// Ranked task estimates for one player, best coins per hour first.
     /// </summary>
     [HttpGet("{playerId}")]
-    public async Task<List<TaskEstimate>> GetEstimates(string playerId)
+    public async Task<List<TaskEstimate>> GetEstimates(string playerId, CancellationToken cancellationToken)
     {
-        var state = await persistence.GetStateObject(playerId);
-        var priceLookup = await prices.GetPrices();
-        var estimates = await estimator.EstimateAll(state, priceLookup);
+        var stateTask = LoadState(playerId, cancellationToken);
+        var pricesTask = prices.GetPrices(cancellationToken);
+        var state = await stateTask;
+        var priceLookup = await pricesTask;
+        var estimates = await estimator.EstimateAll(state, priceLookup, cancellationToken);
         return estimates.OrderByDescending(e => e.CoinsPerHour).ToList();
+    }
+
+    private async Task<StateObject> LoadState(string playerId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await persistence.GetStateObject(playerId)
+                .WaitAsync(TimeSpan.FromSeconds(1), cancellationToken);
+        }
+        catch (TimeoutException e)
+        {
+            logger.LogWarning(e, "player state timed out for {player}; using community estimates", playerId);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            logger.LogWarning(e, "player state unavailable for {player}; using community estimates", playerId);
+        }
+        return null;
     }
 
     /// <summary>
@@ -54,13 +78,21 @@ public class TaskController : ControllerBase
     {
         var counts = await activity.GetCounts();
         var deltas = await activity.GetChange20m();
+        var trackedHours = GetTrackedHours(aggregates.GetSnapshot());
         return counts.Select(c => new TaskMetrics
         {
             TaskName = c.Key,
             CurrentDoers = c.Value,
-            Change20m = deltas.GetValueOrDefault(c.Key)
+            Change20m = deltas.GetValueOrDefault(c.Key),
+            TotalTrackedHours = trackedHours.GetValueOrDefault(c.Key)
         }).OrderByDescending(m => m.CurrentDoers).ToList();
     }
+
+    internal static Dictionary<string, double> GetTrackedHours(
+        Dictionary<(string task, byte bucket), BucketAggregate> snapshot) =>
+        snapshot.GroupBy(e => e.Key.task, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Sum(e => e.Value.WSeconds) / 3600,
+                StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// The task the player is currently detected or claimed to be doing.

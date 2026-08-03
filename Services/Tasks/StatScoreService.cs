@@ -78,6 +78,7 @@ public class StatScoreService
     /// <summary>Decayed population mean per signal key, substituted for missing signals.</summary>
     private readonly ConcurrentDictionary<string, double> populationMeans = new();
     private static readonly TimeSpan SkillCacheDuration = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan SkillReadTimeout = TimeSpan.FromSeconds(1);
 
     public StatScoreService(SkillService skillService, ILogger<StatScoreService> logger)
     {
@@ -184,7 +185,7 @@ public class StatScoreService
             return cached.skills;
         try
         {
-            var skills = await skillService.GetSkills(uuid);
+            var skills = await skillService.GetSkills(uuid).WaitAsync(SkillReadTimeout);
             var lookup = skills?.ToDictionary(s => s.Name, s => s.Level, StringComparer.OrdinalIgnoreCase);
             skillCache[uuid] = (lookup, DateTime.UtcNow);
             if (skillCache.Count > 2000) // eviction safety net, well above the live player cap

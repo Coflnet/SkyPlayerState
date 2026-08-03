@@ -15,7 +15,8 @@ public class TaskRegistry
     public TaskRegistry()
     {
         tasks = TaskCatalog.Create().Values.Distinct().ToList();
-        byName = tasks.ToDictionary(t => t.Name, t => t, System.StringComparer.OrdinalIgnoreCase);
+        byName = tasks.ToDictionary(t => t is MethodTask method ? method.GetDetectionSignature().MethodName : t.Name,
+            t => t, System.StringComparer.OrdinalIgnoreCase);
     }
 
     public IReadOnlyList<ProfitTask> Tasks => tasks;

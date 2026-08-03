@@ -29,24 +29,31 @@ public class TaskPriceService
         this.logger = logger;
     }
 
-    public async Task<Dictionary<string, double>> GetPrices()
+    public async Task<Dictionary<string, double>> GetPrices(CancellationToken cancellationToken = default)
     {
         if (cached != null && DateTime.UtcNow - fetchedAt < CacheDuration)
             return cached;
-        await refreshLock.WaitAsync();
+        if (!await refreshLock.WaitAsync(TimeSpan.FromSeconds(2), cancellationToken))
+            return cached ?? new Dictionary<string, double>();
         try
         {
             if (cached != null && DateTime.UtcNow - fetchedAt < CacheDuration)
                 return cached;
             var prices = new Dictionary<string, double>();
-            // bound each dependency so one being slow or down degrades to partial prices
-            // instead of hanging the estimate request
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            // Bound the whole refresh so unavailable price services cannot hold up estimates.
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(2));
+            var bazaarTask = bazaarApi.GetAllPricesAsync(0, cts.Token);
+            var cleanTask = sniperApi.ApiSniperPricesCleanGetAsync(0, cts.Token);
             try
             {
-                var bazaar = await bazaarApi.GetAllPricesAsync(0, cts.Token);
+                var bazaar = await bazaarTask.WaitAsync(cts.Token);
                 foreach (var item in bazaar)
                     prices[item.ProductId] = (double)item.SellPrice;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception e)
             {
@@ -54,10 +61,14 @@ public class TaskPriceService
             }
             try
             {
-                var clean = await sniperApi.ApiSniperPricesCleanGetAsync(0, cts.Token);
+                var clean = await cleanTask.WaitAsync(cts.Token);
                 foreach (var item in clean)
                     if (item.Value > 0)
                         prices[item.Key] = item.Value;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception e)
             {
@@ -67,11 +78,19 @@ public class TaskPriceService
             fetchedAt = DateTime.UtcNow;
             return cached;
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception e)
         {
             fetchedAt = DateTime.UtcNow - CacheDuration + TimeSpan.FromSeconds(15);
             logger.LogError(e, "failed to refresh task prices, serving {count} stale", cached?.Count ?? 0);
             return cached ?? new Dictionary<string, double>();
+        }
+        finally
+        {
+            refreshLock.Release();
         }
     }
 }

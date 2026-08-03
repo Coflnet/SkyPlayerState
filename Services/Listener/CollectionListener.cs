@@ -51,10 +51,19 @@ public class CollectionListener : UpdateListener
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.CHAT)
         {
             // stash messages
-            foreach (var uploadedLine in args.msg.ChatBatch)
+            var chatBatch = args.msg.ChatBatch ?? [];
+            var history = GetHistoryBeforeBatch(args.currentState.ChatHistory, chatBatch);
+            for (var i = 0; i < chatBatch.Count; i++)
             {
-                if (uploadedLine.StartsWith("You caught"))
-                    await HandleShardCatch(args, uploadedLine);
+                var uploadedLine = chatBatch[i];
+                if (TryParseShardGain(uploadedLine, out var shardTag, out var shardCount))
+                    TrackItem(args, shardTag, shardCount);
+                if (TryParseNpcShardTrade(history.Concat(chatBatch.Take(i)), uploadedLine,
+                    out shardTag, out var paymentTag))
+                {
+                    TrackItem(args, shardTag, 1);
+                    TrackItem(args, paymentTag, -1);
+                }
                 if (uploadedLine.StartsWith("Added items:"))
                     await HandleSackNotification(args, uploadedLine);
                 if (uploadedLine.StartsWith("Removed items:"))
@@ -124,23 +133,83 @@ public class CollectionListener : UpdateListener
         return Regex.Replace(value, "§.", string.Empty);
     }
 
-    private async Task HandleShardCatch(UpdateArgs args, string uploadedLine)
+    internal static bool TryParseShardGain(string uploadedLine, out string tag, out int count)
     {
-        // eg "You caught a Verdant Shard!" "You caught x2 Birries Shards!" "LOOT SHARE You received a Chill Shard for assisting Oden."
-        var match = Regex.Match(uploadedLine, @"You (caught|received) (a|x\d) (.*) Shards?(!| for)");
+        // New captures say "caught ... and gained a ... Shard"; older catches and loot share
+        // say "You caught/received a ... Shard" directly.
+        var line = StripFormatting(uploadedLine);
+        var match = Regex.Match(line, @"\bgained (a|an|x[\d,]+) (.+?) Shards?!", RegexOptions.IgnoreCase);
+        if (!match.Success)
+            match = Regex.Match(line, @"\bYou (?:caught|received) (a|an|x[\d,]+) (.+?) Shards?(?:!| for\b)",
+                RegexOptions.IgnoreCase);
         if (!match.Success)
         {
-            Logger.LogDebug("Failed to match shard catch: {line}", uploadedLine);
-            return;
+            tag = string.Empty;
+            count = 0;
+            return false;
         }
-        var shardName = match.Groups[3].Value.Trim();
-        var count = match.Groups[2].Value.StartsWith("x") ? int.Parse(match.Groups[2].Value.Substring(1)) : 1;
+        var shardName = match.Groups[2].Value.Trim();
+        var amount = match.Groups[1].Value;
+        count = amount.StartsWith("x", StringComparison.OrdinalIgnoreCase)
+            ? int.Parse(amount[1..].Replace(",", ""))
+            : 1;
+        tag = GetShardTag(shardName);
+        return true;
+    }
+
+    internal static bool TryParseNpcShardTrade(IEnumerable<string> previousLines, string uploadedLine,
+        out string shardTag, out string paymentTag)
+    {
+        shardTag = string.Empty;
+        paymentTag = string.Empty;
+        var completion = Regex.Match(StripFormatting(uploadedLine),
+            @"\bYou have been given (?:a|an) (.+?)!$", RegexOptions.IgnoreCase);
+        if (!completion.Success)
+            return false;
+
+        var shardName = completion.Groups[1].Value.Trim();
+        var context = previousLines.Select(StripFormatting).TakeLast(20).ToList();
+        for (var i = context.Count - 1; i >= 0; i--)
+        {
+            var payment = Regex.Match(context[i],
+                @"\bin exchange for(?:, say,)? (?:a|an) (.+?)[!?.]*$", RegexOptions.IgnoreCase);
+            if (!payment.Success)
+                continue;
+            if (!context.Take(i).Reverse().Any(line =>
+                line.Contains(shardName + " Shard", StringComparison.OrdinalIgnoreCase)))
+                return false;
+
+            shardTag = GetShardTag(shardName);
+            paymentTag = GetItemTag(payment.Groups[1].Value);
+            return true;
+        }
+        return false;
+    }
+
+    private static IEnumerable<string> GetHistoryBeforeBatch(Queue<Models.ChatMessage> history,
+        List<string> chatBatch)
+    {
+        var saved = history.ToList();
+        if (saved.Count >= chatBatch.Count && saved.TakeLast(chatBatch.Count).Select(m => m.Content).SequenceEqual(chatBatch))
+            saved.RemoveRange(saved.Count - chatBatch.Count, chatBatch.Count);
+        return saved.Select(m => m.Content);
+    }
+
+    private static string GetShardTag(string shardName)
+    {
         // The mob display name does not always match its shard tag stem (e.g. "Lotusfish" -> LOTUS_FISH,
         // "Cinderbat" -> CINDER_BAT, "Bogged" -> SEA_ARCHER). Prefer the canonical map, fall back to the
         // naive derivation so unknown/new shards are still recorded rather than dropped.
-        var tag = Constants.ShardNames.TryGetValue(shardName, out var mapped)
+        return Constants.ShardNames.TryGetValue(shardName, out var mapped)
             ? "SHARD_" + mapped.ToUpperInvariant()
-            : "SHARD_" + shardName.ToUpperInvariant().Replace(" ", "_");
+            : "SHARD_" + GetItemTag(shardName);
+    }
+
+    private static string GetItemTag(string itemName) =>
+        Regex.Replace(itemName.Trim().ToUpperInvariant(), @"[^A-Z0-9]+", "_").Trim('_');
+
+    private static void TrackItem(UpdateArgs args, string tag, int count)
+    {
         args.currentState.ItemsCollectedRecently[tag] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(tag, 0) + count;
     }
 

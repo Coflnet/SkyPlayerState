@@ -1,13 +1,56 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 using AwesomeAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
 
 public class TaskEstimationTests
 {
+    [Test]
+    public void EstimateTaskName_MatchesClassifierAndAggregateKey()
+    {
+        TaskEstimator.GetTaskName(new LotusAtollTask()).Should().Be("Lotus Atoll");
+    }
+
+    [Test]
+    public void RegistryLooksUpMethodTaskByClassifierName()
+    {
+        new TaskRegistry().GetByName("Lotus Atoll").Should().BeOfType<LotusAtollTask>();
+    }
+
+    [Test]
+    public async Task PersonalStats_EmptyUuidDoesNotQueryCassandra()
+    {
+        var queried = false;
+
+        var stats = await TaskEstimator.LoadPlayerStats(Guid.Empty, _ =>
+        {
+            queried = true;
+            return Task.FromResult(new List<TaskPlayerStatRow>());
+        }, TimeSpan.FromMilliseconds(20), NullLogger.Instance);
+
+        queried.Should().BeFalse();
+        stats.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task PersonalStats_TimeoutFallsBackToCommunityEstimate()
+    {
+        var neverCompletes = new TaskCompletionSource<List<TaskPlayerStatRow>>();
+        var stopwatch = Stopwatch.StartNew();
+
+        var stats = await TaskEstimator.LoadPlayerStats(Guid.NewGuid(), _ => neverCompletes.Task,
+            TimeSpan.FromMilliseconds(20), NullLogger.Instance);
+
+        stats.Should().BeEmpty();
+        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(1));
+    }
+
     // ── Confidence ramp: 5min => 50%, 30min => 100% ──
 
     [TestCase(0, 0)]

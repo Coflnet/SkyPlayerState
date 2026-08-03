@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Coflnet.Sky.PlayerState.Models;
 using Microsoft.Extensions.Logging;
@@ -57,6 +58,7 @@ public class TaskEstimator
     private const double SaturationFloor = 0.75;
     private const double PriceDriftClampLow = 0.25;
     private const double PriceDriftClampHigh = 4;
+    private static readonly TimeSpan OptionalReadTimeout = TimeSpan.FromSeconds(1);
 
     public TaskEstimator(TaskRegistry registry, TaskAggregateService aggregates, StatScoreService statScore,
         TaskActivityService activityService, CoinValueRegistry coinValues, ILogger<TaskEstimator> logger)
@@ -72,25 +74,30 @@ public class TaskEstimator
     /// <summary>
     /// Estimate coins per hour for every method task for this player.
     /// </summary>
-    public async Task<List<TaskEstimate>> EstimateAll(StateObject state, Dictionary<string, double> prices)
+    public async Task<List<TaskEstimate>> EstimateAll(StateObject state, Dictionary<string, double> prices,
+        CancellationToken cancellationToken = default)
     {
         using var span = TaskTelemetry.Source.StartActivity("task-estimate-all");
-        await coinValues.EnsureFresh();
         var snapshot = aggregates.GetSnapshot();
-        var counts = await activityService.GetCounts();
-        var deltas = await activityService.GetChange20m();
-        var playerUuid = state?.McInfo?.Uuid.ToString("N");
-        var playerStats = playerUuid != null
-            ? (await aggregates.GetPlayerStats(playerUuid)).ToDictionary(s => s.TaskName, s => s, StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, TaskPlayerStatRow>();
+        var coinValuesTask = RefreshCoinValues(cancellationToken);
+        var countsTask = LoadOptional(activityService.GetCounts(), new(), "task activity counts", cancellationToken);
+        var deltasTask = LoadOptional(activityService.GetChange20m(), new(), "task activity changes", cancellationToken);
+        var playerStatsTask = LoadPlayerStats(state?.McInfo?.Uuid ?? Guid.Empty,
+            aggregates.GetPlayerStats, OptionalReadTimeout, logger, cancellationToken);
+        await Task.WhenAll(coinValuesTask, countsTask, deltasTask, playerStatsTask);
+        var counts = countsTask.Result;
+        var deltas = deltasTask.Result;
+        var playerStats = playerStatsTask.Result;
 
         var results = new List<TaskEstimate>();
         foreach (var task in registry.MethodTasks)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                results.Add(await EstimateOne(task, state, prices, snapshot, counts, deltas,
-                    playerStats.GetValueOrDefault(task.Name)));
+                var taskName = GetTaskName(task);
+                results.Add(await EstimateOne(task, taskName, state, prices, snapshot, counts, deltas,
+                    playerStats.GetValueOrDefault(taskName)));
             }
             catch (Exception e)
             {
@@ -101,12 +108,71 @@ public class TaskEstimator
         return results;
     }
 
-    private async Task<TaskEstimate> EstimateOne(MethodTask task, StateObject state, Dictionary<string, double> prices,
-        Dictionary<(string, byte), BucketAggregate> snapshot, Dictionary<string, int> counts,
-        Dictionary<string, int> deltas, TaskPlayerStatRow personal)
+    internal static string GetTaskName(MethodTask task) => task.GetDetectionSignature().MethodName;
+
+    private async Task RefreshCoinValues(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await coinValues.EnsureFresh().WaitAsync(OptionalReadTimeout, cancellationToken);
+        }
+        catch (TimeoutException e)
+        {
+            logger.LogWarning(e, "resource coin values timed out; using cached values");
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            logger.LogWarning(e, "resource coin values unavailable; using cached values");
+        }
+    }
+
+    private async Task<T> LoadOptional<T>(Task<T> operation, T fallback, string name,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await operation.WaitAsync(OptionalReadTimeout, cancellationToken);
+        }
+        catch (TimeoutException e)
+        {
+            logger.LogWarning(e, "{name} timed out; using fallback", name);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            logger.LogWarning(e, "{name} unavailable; using fallback", name);
+        }
+        return fallback;
+    }
+
+    internal static async Task<Dictionary<string, TaskPlayerStatRow>> LoadPlayerStats(Guid playerUuid,
+        Func<string, Task<List<TaskPlayerStatRow>>> load, TimeSpan timeout, ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        if (playerUuid == Guid.Empty)
+            return new Dictionary<string, TaskPlayerStatRow>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var rows = await load(playerUuid.ToString("N")).WaitAsync(timeout, cancellationToken);
+            return rows.GroupBy(s => s.TaskName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        }
+        catch (TimeoutException e)
+        {
+            logger.LogWarning(e, "personal task stats timed out for {player}; using community estimates", playerUuid);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            logger.LogWarning(e, "personal task stats unavailable for {player}; using community estimates", playerUuid);
+        }
+        return new Dictionary<string, TaskPlayerStatRow>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private async Task<TaskEstimate> EstimateOne(MethodTask task, string name, StateObject state,
+        Dictionary<string, double> prices, Dictionary<(string, byte), BucketAggregate> snapshot,
+        Dictionary<string, int> counts, Dictionary<string, int> deltas, TaskPlayerStatRow personal)
     {
         using var span = TaskTelemetry.Source.StartActivity("task-estimate");
-        var name = task.Name;
+        var signature = task.GetDetectionSignature();
         span?.SetTag("task", name);
 
         var factors = task.StatFactors;
@@ -176,7 +242,7 @@ public class TaskEstimator
         return new TaskEstimate
         {
             TaskName = name,
-            Category = task.GetDetectionSignature().Category,
+            Category = signature.Category,
             Source = source,
             StatBucket = bucket,
             CoinsPerHour = displayed,
