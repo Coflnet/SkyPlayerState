@@ -64,6 +64,8 @@ public class CollectionListener : UpdateListener
                     TrackItem(args, shardTag, 1);
                     TrackItem(args, paymentTag, -1);
                 }
+                if (TryParseSafariShardRewards(uploadedLine, out var shardRewards))
+                    ReconcileSafariShards(args, shardRewards);
                 if (uploadedLine.StartsWith("Added items:"))
                     await HandleSackNotification(args, uploadedLine);
                 if (uploadedLine.StartsWith("Removed items:"))
@@ -203,6 +205,41 @@ public class CollectionListener : UpdateListener
         return Constants.ShardNames.TryGetValue(shardName, out var mapped)
             ? "SHARD_" + mapped.ToUpperInvariant()
             : "SHARD_" + GetItemTag(shardName);
+    }
+
+    internal static bool TryParseSafariShardRewards(string message, out Dictionary<string, int> rewards)
+    {
+        rewards = new Dictionary<string, int>();
+        var lines = StripFormatting(message).Split('\n',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (lines.Length < 2)
+            return false;
+        var totalMatch = Regex.Match(lines[0], @"^SAFARI_SHARD_REWARDS ([\d,]+)$");
+        if (!totalMatch.Success || !TryParseNumber(totalMatch.Groups[1].Value, out var expectedTotal))
+            return false;
+
+        foreach (var line in lines.Skip(1))
+        {
+            var reward = Regex.Match(line, @"^(.+?) x([\d,]+)$", RegexOptions.IgnoreCase);
+            if (!reward.Success || !TryParseNumber(reward.Groups[2].Value, out var count))
+                continue;
+            var tag = GetShardTag(reward.Groups[1].Value.Trim());
+            rewards[tag] = rewards.GetValueOrDefault(tag) + count;
+        }
+        return rewards.Count > 0 && rewards.Values.Sum() == expectedTotal;
+    }
+
+    private void ReconcileSafariShards(UpdateArgs args, Dictionary<string, int> rewards)
+    {
+        var collected = args.currentState.ItemsCollectedRecently;
+        var previousTotal = collected.Where(item => item.Key.StartsWith("SHARD_", StringComparison.Ordinal))
+            .Sum(item => item.Value);
+        foreach (var tag in collected.Keys.Where(tag => tag.StartsWith("SHARD_", StringComparison.Ordinal)).ToList())
+            collected.Remove(tag);
+        foreach (var reward in rewards)
+            collected[reward.Key] = reward.Value;
+        Logger.LogInformation("Reconciled Safari shards for {player}: {previous} tracked, {summary} in reward summary",
+            args.currentState.PlayerId, previousTotal, rewards.Values.Sum());
     }
 
     private static string GetItemTag(string itemName) =>

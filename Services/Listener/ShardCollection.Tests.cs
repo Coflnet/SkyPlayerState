@@ -64,6 +64,50 @@ public class ShardCollectionTests
         Assert.That(args.currentState.ItemsCollectedRecently["PURPLE_GEM"], Is.EqualTo(-1));
     }
 
+    [Test]
+    public async Task SafariRewardSummaryReconcilesCapturedShards()
+    {
+        var args = ChatArgs("""
+            SAFARI_SHARD_REWARDS 32
+            Chuckwalla x1
+            Fluffling x3
+            Mantis Shrimp x5
+            Parakeet x1
+            Bluebird x1
+            Polaris x4
+            Treefrog x6
+            Woodchucker x1
+            Foxtrot x4
+            Shyworm x3
+            Strongarm x2
+            Tepid x1
+            """);
+        args.currentState.ItemsCollectedRecently = new()
+        {
+            ["SHARD_MANTIS_SHRIMP"] = 4,
+            ["SHARD_TEPID"] = 1,
+            ["SHARD_WRONG"] = 2,
+            ["SAFARI_ESSENCE"] = 225
+        };
+
+        await new CollectionListener().Process(args);
+
+        Assert.That(args.currentState.ItemsCollectedRecently["SHARD_MANTIS_SHRIMP"], Is.EqualTo(5));
+        Assert.That(args.currentState.ItemsCollectedRecently["SHARD_TREEFROG"], Is.EqualTo(6));
+        Assert.That(args.currentState.ItemsCollectedRecently["SHARD_TEPID"], Is.EqualTo(1));
+        Assert.That(args.currentState.ItemsCollectedRecently, Does.Not.ContainKey("SHARD_WRONG"));
+        Assert.That(args.currentState.ItemsCollectedRecently["SAFARI_ESSENCE"], Is.EqualTo(225));
+    }
+
+    [Test]
+    public void SafariRewardSummaryRejectsIncompleteHoverBreakdown()
+    {
+        var parsed = CollectionListener.TryParseSafariShardRewards(
+            "SAFARI_SHARD_REWARDS 32\nMantis Shrimp x5\nTepid x1", out _);
+
+        Assert.That(parsed, Is.False);
+    }
+
     private static MockedUpdateArgs ChatArgs(params string[] lines) => new()
     {
         currentState = new StateObject(),
