@@ -156,6 +156,14 @@ public class BazaarOrderTests
     }
 
     [Test]
+    public async Task CancelBuyOrderIgnoresNullOfferEntries()
+    {
+        currentState.BazaarOffers.Add(null!);
+
+        await listener.Process(CreateArgs("[Bazaar] Cancelled! Refunded 148,877,624 coins from cancelling Buy Order!"));
+    }
+
+    [Test]
     public async Task SellOrderCreateAndFill()
     {
         UpdateArgs args = CreateArgs("[Bazaar] Submitting sell order...",

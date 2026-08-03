@@ -36,7 +36,7 @@ public class BazaarListener : UpdateListener
         var offers = new List<Offer>();
         // only the first 5 rows (x9) are potential orders (to include bazaar upgrade)
         var bazaarItems = args.msg.Chest.Items.Take(45);
-        var orderLookup = args.currentState.BazaarOffers.ToLookup(OrderKey, o => o);
+        var orderLookup = args.currentState.BazaarOffers.Where(o => o != null).ToLookup(OrderKey, o => o);
         foreach (var item in bazaarItems)
         {
             if (string.IsNullOrWhiteSpace(item?.Description)
@@ -126,7 +126,7 @@ public class BazaarListener : UpdateListener
 
         var newOffersLookup = newOffers.ToHashSet(new OfferComparer());
         var vanishingBuyOrders = args.currentState.BazaarOffers
-            .Where(o => !o.IsSell && !newOffersLookup.Contains(o));
+            .Where(o => o != null && !o.IsSell && !newOffersLookup.Contains(o));
 
         foreach (var order in vanishingBuyOrders)
         {

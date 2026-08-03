@@ -70,6 +70,17 @@ public class BazaarListnerTests
             "Customer timestamp should not be updated as previous time is more exact");
     }
 
+    [Test]
+    public async Task IgnoresNullHistoricalOffers()
+    {
+        var args = GetArgs();
+        args.currentState.BazaarOffers.Add(null!);
+
+        await new BazaarListener().Process(args);
+
+        Assert.That(args.currentState.BazaarOffers, Has.Count.EqualTo(2));
+    }
+
     private static UpdateArgs GetArgs()
     {
         var args = new MockedUpdateArgs()

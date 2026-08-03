@@ -156,7 +156,7 @@ public class BazaarOrderListener : UpdateListener
             amount = ParseInt(parts[2].Value);
             itemName = parts[3].Value;
             // find price from order
-            var order = args.currentState.BazaarOffers.Where(o => o.ItemName == itemName && o.Amount == amount).FirstOrDefault();
+            var order = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && o.ItemName == itemName && o.Amount == amount);
             if (order == null)
             {
                 args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No order found for {item} {amount}", itemName, amount);
@@ -177,7 +177,7 @@ public class BazaarOrderListener : UpdateListener
             {
                 var buyParts = Regex.Match(msg, @"Refunded ([.\d,]+) coins from cancelling").Groups;
                 price = ParseCoins(buyParts[1].Value);
-                var buyOrder = args.currentState.BazaarOffers.Where(o => (long)(o.PricePerUnit * 10 * o.Amount) == price).FirstOrDefault();
+                var buyOrder = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && (long)(o.PricePerUnit * 10 * o.Amount) == price);
                 if (buyOrder != null)
                     args.currentState.BazaarOffers.Remove(buyOrder);
                 await AddCoinTransaction(args, Transaction.TransactionType.BazaarBuy | Transaction.TransactionType.Move, price);
@@ -190,7 +190,7 @@ public class BazaarOrderListener : UpdateListener
             // invert side
             side ^= Transaction.TransactionType.RECEIVE ^ Transaction.TransactionType.REMOVE;
 
-            var order = args.currentState.BazaarOffers.Where(o => o.ItemName == itemName && o.Amount == amount).FirstOrDefault();
+            var order = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && o.ItemName == itemName && o.Amount == amount);
             if (order != null)
             {
                 args.currentState.BazaarOffers.Remove(order);
