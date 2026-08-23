@@ -38,6 +38,10 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         "sky_playerstate_consumer_lag_seconds",
         "Age in seconds of the oldest message in the current partition batch.",
         new Prometheus.GaugeConfiguration { LabelNames = new[] { "partition" } });
+    private static readonly Prometheus.Gauge partitionLastCompleted = Prometheus.Metrics.CreateGauge(
+        "sky_playerstate_partition_last_completed_timestamp_seconds",
+        "Unix timestamp of the last fully processed partition batch.",
+        new Prometheus.GaugeConfiguration { LabelNames = new[] { "partition" } });
     private static readonly Prometheus.Counter optionalHandlerFailedCount = Prometheus.Metrics.CreateCounter("sky_playerstate_optional_handler_failed", "How many times an optional handler threw and was skipped (state still saved), by handler.", new Prometheus.CounterConfiguration { LabelNames = new[] { "handler" } });
     private static readonly TimeSpan staleUpdateThreshold = TimeSpan.FromMinutes(15);
 
@@ -180,13 +184,19 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
                     consumeCount.Inc();
                 }
             }));
+            partitionLastCompleted.WithLabels(partition.Partition.Value.ToString())
+                .Set(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
             KeepStateCountInCheck();
         }, stoppingToken, batchSizePerPartition,
             partitionsRevoked: partitions =>
             {
                 foreach (var partition in partitions)
+                {
                     consumerLagSeconds.RemoveLabelled(partition.Partition.Value.ToString());
-            });
+                    partitionLastCompleted.RemoveLabelled(partition.Partition.Value.ToString());
+                }
+            },
+            partitionStallTimeout: TimeSpan.FromMinutes(1));
         var retrieved = new UpdateMessage();
     }
 

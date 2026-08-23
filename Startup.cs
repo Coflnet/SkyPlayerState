@@ -44,7 +44,12 @@ public class Startup
         // give the background service room to flush all in-memory states to cassandra on a
         // planned restart before the host force-stops it. Kept below the k8s
         // terminationGracePeriodSeconds (30s) so the process can exit cleanly before SIGKILL.
-        services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(25));
+        services.Configure<HostOptions>(o =>
+        {
+            o.ShutdownTimeout = TimeSpan.FromSeconds(25);
+            // A partition watchdog failure must stop the process so the StatefulSet restarts it.
+            o.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.StopHost;
+        });
         services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.IncludeFields = true);
         services.AddSwaggerGen(c =>
         {
