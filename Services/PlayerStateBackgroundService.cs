@@ -150,7 +150,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
             GroupId = config["KAFKA_GROUP_ID"]
         };
         await TestCassandraConnection();
-        var batchSizePerPartition = config.GetValue("STATE_UPDATE_BATCH_SIZE_PER_PARTITION", 80);
+        var batchSizePerPartition = config.GetValue("STATE_UPDATE_BATCH_SIZE_PER_PARTITION", 120);
 
         logger.LogInformation("Consuming up to {batchSize} updates per partition batch", batchSizePerPartition);
         await Kafka.KafkaConsumer.ConsumePartitionedParallelBatch<UpdateMessage>(consumerConfig, new string[] { config["TOPICS:STATE_UPDATE"] }, async (partition, batch) =>
@@ -196,7 +196,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
                     partitionLastCompleted.RemoveLabelled(partition.Partition.Value.ToString());
                 }
             },
-            partitionStallTimeout: TimeSpan.FromMinutes(1));
+            partitionStallTimeout: TimeSpan.FromMinutes(3));
         var retrieved = new UpdateMessage();
     }
 
