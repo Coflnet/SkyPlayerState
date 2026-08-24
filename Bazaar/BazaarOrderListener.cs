@@ -44,12 +44,14 @@ public class BazaarOrderListener : UpdateListener
             return;
         if (args.msg.ChatBatch == null)
             return;
-        await Parallel.ForEachAsync(args.msg.ChatBatch, async (item, ct) =>
+        // Chat lines are ordered events. In particular, a claimed buy must be fully recorded
+        // before a later claimed sell can match it into a completed flip.
+        foreach (var item in args.msg.ChatBatch)
         {
             if (!item.StartsWith("[Bazaar]") || item.StartsWith("[Bazaar] There are no"))
-                return;
+                continue;
             await HandleUpdate(item, args);
-        });
+        }
     }
     /// <summary>
     /// Listing => coins/item locked up (REMOVE)

@@ -207,6 +207,67 @@ public class BazaarProfitTests
     }
 
     [Test]
+    public async Task ProfitableRoundTripInOneChatBatchUnlocksPersistedAchievement()
+    {
+        _currentState.PlayerId = "profitable-flipper";
+        _currentState.McInfo.Uuid = Guid.Parse("12345678-1234-1234-1234-123456789012");
+        _currentState.BazaarOffers.Add(new Offer
+        {
+            Amount = 64,
+            ItemName = "Coal",
+            PricePerUnit = 2.1,
+            IsSell = false,
+            Created = DateTime.UtcNow.AddMinutes(-2)
+        });
+        _currentState.BazaarOffers.Add(new Offer
+        {
+            Amount = 64,
+            ItemName = "Coal",
+            PricePerUnit = 4.8,
+            IsSell = true,
+            Created = DateTime.UtcNow.AddMinutes(-1)
+        });
+
+        var buyRecorded = false;
+        _profitTracker.Setup(p => p.RecordBuyOrder(
+                _currentState.McInfo.Uuid, "COAL", 64, 1_344, It.IsAny<DateTime>()))
+            .Returns(async () =>
+            {
+                // The real tracker must finish its write before the following sell can match it.
+                await Task.Delay(50);
+                buyRecorded = true;
+            });
+        _profitTracker.Setup(p => p.RecordSellOrder(
+                _currentState.McInfo.Uuid, "COAL", "Coal", 64, 3_037, It.IsAny<DateTime>()))
+            .ReturnsAsync(() => buyRecorded
+                ? new CompletedBazaarFlip
+                {
+                    PlayerUuid = _currentState.McInfo.Uuid,
+                    ItemTag = "COAL",
+                    ItemName = "Coal",
+                    Amount = 64,
+                    BuyPrice = 1_344,
+                    SellPrice = 3_037,
+                    Profit = 1_693,
+                    SoldAt = DateTime.UtcNow
+                }
+                : null);
+
+        var args = CreateArgs(
+            "[Bazaar] Your Buy Order for 64x Coal was filled!",
+            "[Bazaar] Claimed 64x Coal worth 134.4 coins bought for 2.1 each!",
+            "[Bazaar] Your Sell Offer for 64x Coal was filled!",
+            "[Bazaar] Claimed 303.7 coins from selling 64x Coal at 4.8 each!");
+        args.AddService<IAchievementService>(new AchievementService());
+
+        await _listener.Process(args);
+
+        var persistedState = new Inventory(_currentState).GetStateObject();
+        var unlocked = new AchievementService().GetUnlocked(persistedState);
+        Assert.That(unlocked, Does.Contain(Achievement.BazaarFlipProfit));
+    }
+
+    [Test]
     public async Task InstaBuyDoesNotRecordForProfitTracking()
     {
         var args = CreateArgs("[Bazaar] Executing instant buy...",
@@ -979,4 +1040,3 @@ public class BazaarOrderFlipRaceConditionTests
         ), Times.Once);
     }
 }
-
