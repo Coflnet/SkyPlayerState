@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
@@ -9,6 +10,7 @@ using Cassandra.Mapping;
 using MessagePack;
 using Microsoft.Extensions.Logging;
 using Cassandra.Mapping.Attributes;
+using Coflnet.Sky.PlayerState.Bazaar;
 using StackExchange.Redis;
 using PartitionKeyAttribute = Cassandra.Mapping.Attributes.PartitionKeyAttribute;
 
@@ -346,7 +348,67 @@ public class Inventory
 
     public StateObject GetStateObject()
     {
-        return MessagePackSerializer.Deserialize<StateObject>(Serialized, options);
+        try
+        {
+            return MessagePackSerializer.Deserialize<StateObject>(Serialized, options);
+        }
+        catch (MessagePackSerializationException)
+        {
+            // Key 11 used to contain LimitsSummary and was later reused for LastTab. Retry that
+            // historical schema so old states remain loadable and account deletion can obtain the
+            // profile ids it needs. A future save writes the returned state in the current format.
+            return MessagePackSerializer.Deserialize<LegacyStateObject>(Serialized, options).ToCurrent();
+        }
     }
+}
+
+[MessagePackObject(AllowPrivate = true)]
+internal class LegacyStateObject
+{
+    [Key(0)] public List<Item>? Inventory;
+    [Key(1)] public List<List<Item>>? Storage;
+    [Key(2)] public Queue<ChestView>? RecentViews;
+    [Key(3)] public Queue<ChatMessage>? ChatHistory;
+    [Key(4)] public Queue<PurseUpdate>? PurseHistory;
+    [Key(5)] public McInfo? McInfo;
+    [Key(6)] public string? PlayerId;
+    [Key(7)] public List<Profile>? Profiles;
+    [Key(8)] public List<Offer>? BazaarOffers;
+    [Key(9)] public ExtractedInfo? ExtractedInfo;
+    [Key(10)] public StateSettings? Settings;
+    [Key(11)] public LegacyLimitsSummary? Limits;
+    [Key(12)] public Dictionary<string, int>? ItemsCollectedRecently;
+
+    public StateObject ToCurrent() => new()
+    {
+        Inventory = Inventory ?? new(),
+        Storage = Storage ?? new(),
+        RecentViews = RecentViews ?? new(),
+        ChatHistory = ChatHistory ?? new(),
+        PurseHistory = PurseHistory ?? new(),
+        McInfo = McInfo ?? new(),
+        PlayerId = PlayerId ?? string.Empty,
+        Profiles = Profiles ?? new(),
+        BazaarOffers = BazaarOffers ?? new(),
+        ExtractedInfo = ExtractedInfo ?? new(),
+        Settings = Settings ?? new(),
+        ItemsCollectedRecently = ItemsCollectedRecently ?? new()
+    };
+}
+
+[MessagePackObject(AllowPrivate = true)]
+internal class LegacyLimitsSummary
+{
+    [Key(0)] public Queue<LegacyLimit>? Bazaar { get; set; }
+    [Key(1)] public Queue<LegacyLimit>? AuctionHouse { get; set; }
+    [Key(2)] public Queue<LegacyLimit>? Trade { get; set; }
+}
+
+[MessagePackObject(AllowPrivate = true)]
+internal class LegacyLimit
+{
+    [Key(0)] public long Amount { get; set; }
+    [Key(1)] public DateTime Time { get; set; }
+    [Key(2)] public string? Message { get; set; }
 }
 #nullable restore

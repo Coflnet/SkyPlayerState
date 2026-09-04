@@ -62,6 +62,7 @@ public class StateObject
     public ExtractedInfo ExtractedInfo = new();
     [Key(10)]
     public StateSettings Settings = new();
+    // Key 11 previously held LimitsSummary; PersistenceService retains a legacy reader for those blobs.
     [Key(11)]
     public string[] LastTab = Array.Empty<string>();
     [Key(12)]
