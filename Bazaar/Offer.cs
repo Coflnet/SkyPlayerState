@@ -18,6 +18,8 @@ public class Offer
     public double PricePerUnit { get; set; }
     [Key(5)]
     public DateTime Created { get; set; }
+    [Key(7)]
+    public long FilledAmount { get; set; }
     [Key(6)]
     public List<Fill> Customers { get; set; } = new();
 }

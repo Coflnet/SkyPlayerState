@@ -44,12 +44,12 @@ public class BazaarOrderListener : UpdateListener
             return;
         if (args.msg.ChatBatch == null)
             return;
-        await Parallel.ForEachAsync(args.msg.ChatBatch, async (item, ct) =>
+        foreach (var item in args.msg.ChatBatch)
         {
             if (!item.StartsWith("[Bazaar]") || item.StartsWith("[Bazaar] There are no"))
-                return;
+                continue;
             await HandleUpdate(item, args);
-        });
+        }
     }
     /// <summary>
     /// Listing => coins/item locked up (REMOVE)
@@ -134,7 +134,7 @@ public class BazaarOrderListener : UpdateListener
                 ItemName = itemName,
                 PricePerUnit = Math.Round((double)price / amount) / 10,
                 IsSell = side.HasFlag(Transaction.TransactionType.REMOVE),
-                Created = args.msg.ReceivedAt,
+                Created = args.msg.ReceivedAt.AddMilliseconds(args.currentState.BazaarOffers.Count(o => o != null && o.Created >= args.msg.ReceivedAt)),
             };
             args.currentState.BazaarOffers.Add(order);
 
@@ -156,7 +156,7 @@ public class BazaarOrderListener : UpdateListener
             amount = ParseInt(parts[2].Value);
             itemName = parts[3].Value;
             // find price from order
-            var order = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && o.ItemName == itemName && o.Amount == amount);
+            var order = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && o.ItemName == itemName && o.Amount == amount && o.IsSell == isSell && o.FilledAmount < o.Amount);
             if (order == null)
             {
                 args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No order found for {item} {amount}", itemName, amount);
@@ -168,7 +168,8 @@ public class BazaarOrderListener : UpdateListener
                 PlayerName = "unknown",
                 TimeStamp = args.msg.ReceivedAt,
             });
-            await ProduceFillEvent(args, itemName, order);
+            order.FilledAmount = order.Amount;
+            await ProduceFillEvent(args, itemName, order, remove: false);
             return;
         }
         if (msg.Contains("Cancelled!"))
@@ -177,9 +178,12 @@ public class BazaarOrderListener : UpdateListener
             {
                 var buyParts = Regex.Match(msg, @"Refunded ([.\d,]+) coins from cancelling").Groups;
                 price = ParseCoins(buyParts[1].Value);
-                var buyOrder = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && (long)(o.PricePerUnit * 10 * o.Amount) == price);
+                var buyOrder = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && !o.IsSell && (long)(o.PricePerUnit * 10 * (o.Amount - o.FilledAmount)) == price);
                 if (buyOrder != null)
+                {
                     args.currentState.BazaarOffers.Remove(buyOrder);
+                    await RemoveOrderFromBook(args, buyOrder);
+                }
                 await AddCoinTransaction(args, Transaction.TransactionType.BazaarBuy | Transaction.TransactionType.Move, price);
                 return;
             }
@@ -190,23 +194,12 @@ public class BazaarOrderListener : UpdateListener
             // invert side
             side ^= Transaction.TransactionType.RECEIVE ^ Transaction.TransactionType.REMOVE;
 
-            var order = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && o.ItemName == itemName && o.Amount == amount);
+            var order = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && o.IsSell && o.ItemName == itemName && o.Amount == amount);
             if (order != null)
             {
                 args.currentState.BazaarOffers.Remove(order);
                 
-                // Notify bazaar service that the order was removed
-                try
-                {
-                    var orderApi = args.GetService<IOrderBookApi>();
-                    string tag = await GetTagForName(args, itemName);
-                    await orderApi.RemoveOrderAsync(tag, args.msg.UserId, order.Created);
-                    args.GetService<ILogger<BazaarOrderListener>>().LogInformation("Eremoved order from {user} {item}", args.msg.UserId, itemName);
-                }
-                catch (Exception e)
-                {
-                    args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error removing cancelled order from order book for {item}", itemName);
-                }
+                await RemoveOrderFromBook(args, order);
             }
             else
                 args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No order found for {item} {amount} to cancel {offers}", itemName, amount, JsonConvert.SerializeObject(args.currentState.BazaarOffers));
@@ -227,7 +220,7 @@ public class BazaarOrderListener : UpdateListener
                 var perPrice = ParseCoins(parts[4].Value);
                 var perPriceInCoins = perPrice / 10.0; // Convert from tenths to coins for comparison with PricePerUnit
                 await AddItemTransaction(args, side | Transaction.TransactionType.Move, amount, itemName);
-                var order = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && o.ItemName == itemName && o.Amount == amount && o.PricePerUnit == perPriceInCoins);
+                var order = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && !o.IsSell && o.ItemName == itemName && o.Amount == amount && o.PricePerUnit == perPriceInCoins);
 
                 // Track buy order for profit calculation
                 await RecordBuyOrderForProfit(args, itemName, amount, price);
@@ -268,7 +261,7 @@ public class BazaarOrderListener : UpdateListener
 
                 // Track sell order and calculate profit
                 await RecordSellOrderForProfit(args, itemName, amount, price);
-                var order = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && o.ItemName == itemName && o.Amount == amount);
+                var order = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && o.IsSell && o.ItemName == itemName && o.Amount == amount);
                 if (order == null)
                 {
                     args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No order found for {item} {amount}", itemName, amount);
@@ -532,7 +525,7 @@ public class BazaarOrderListener : UpdateListener
         {
             try
             {
-                await AddOrderToOrderBook(args, itemName, amount, price, side.HasFlag(Transaction.TransactionType.REMOVE));
+                await AddOrderToOrderBook(args, itemName, amount, price, side.HasFlag(Transaction.TransactionType.REMOVE), order.Created);
             }
             catch (Exception e)
             {
@@ -543,7 +536,7 @@ public class BazaarOrderListener : UpdateListener
         await Task.WhenAll(scheduleTask, orderBookTask);
     }
 
-    private static async Task AddOrderToOrderBook(UpdateArgs args, string itemName, int amount, long price, bool isSell)
+    private static async Task AddOrderToOrderBook(UpdateArgs args, string itemName, int amount, long price, bool isSell, DateTime? created = null)
     {
         try
         {
@@ -552,16 +545,16 @@ public class BazaarOrderListener : UpdateListener
 
             var orderBookApi = args.GetService<IOrderBookApi>();
             string tag = await GetTagForName(args, itemName);
-            await orderBookApi.AddOrderAsync(new()
+            await BazaarOrderSync.Retry(() => orderBookApi.AddOrderAsync(new()
             {
                 Amount = amount,
                 UserId = args.msg.UserId,
                 ItemId = tag,
                 PricePerUnit = (double)price / amount / 10,
                 IsSell = isSell,
-                Timestamp = args.msg.ReceivedAt,
+                Timestamp = created ?? args.msg.ReceivedAt,
                 PlayerName = args.currentState.McInfo.Name
-            });
+            }), args.GetService<ILogger<BazaarOrderListener>>(), operation: "register", userId: args.msg.UserId, itemTag: tag, created: created ?? args.msg.ReceivedAt);
             args.GetService<ILogger<BazaarOrderListener>>().LogInformation("Added order to order book for {user} {item} {amount} {price}", args.currentState.McInfo.Name, tag, amount, price);
         }
         catch (Exception e)
@@ -613,7 +606,23 @@ public class BazaarOrderListener : UpdateListener
         }
     }
 
-    private static async Task ProduceFillEvent(UpdateArgs args, string itemName, Offer order)
+    private static async Task RemoveOrderFromBook(UpdateArgs args, Offer order)
+    {
+        if (string.IsNullOrEmpty(args.msg.UserId))
+            return;
+        try
+        {
+            var tag = order.ItemTag ?? await GetTagForName(args, order.ItemName);
+            await BazaarOrderSync.Retry(() => args.GetService<IOrderBookApi>().RemoveOrderAsync(tag, args.msg.UserId, order.Created),
+                args.GetService<ILogger<BazaarOrderListener>>(), operation: "remove", userId: args.msg.UserId, itemTag: tag, created: order.Created);
+        }
+        catch (Exception e)
+        {
+            args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error removing cancelled order {item}", order.ItemName);
+        }
+    }
+
+    private static async Task ProduceFillEvent(UpdateArgs args, string itemName, Offer order, bool remove = true)
     {
         string tag;
         try
@@ -629,9 +638,15 @@ public class BazaarOrderListener : UpdateListener
         try
         {
             var orderApi = args.GetService<IOrderBookApi>();
-            await orderApi.MarkOrderFilledAsync(tag, args.msg.UserId, order.PricePerUnit, (int)order.Amount);
-            await orderApi.RemoveOrderAsync(tag, args.msg.UserId, order.Created);
-            args.GetService<ILogger<BazaarOrderListener>>().LogInformation("Marked filled and removed order from order book for {user} {item} {amount} {price}", args.currentState.McInfo.Name, tag, order.Amount, order.PricePerUnit);
+            await BazaarOrderSync.Retry(() => orderApi.AddOrderAsync(new() {
+                ItemId = tag, UserId = args.msg.UserId, PlayerName = args.currentState.McInfo.Name,
+                IsSell = order.IsSell, Timestamp = order.Created, Amount = (int)order.Amount,
+                Filled = (int)order.Amount, PricePerUnit = order.PricePerUnit
+            }), args.GetService<ILogger<BazaarOrderListener>>(), operation: "confirm", userId: args.msg.UserId, itemTag: tag, created: order.Created);
+            if (remove)
+                await BazaarOrderSync.Retry(() => orderApi.RemoveOrderAsync(tag, args.msg.UserId, order.Created),
+                    args.GetService<ILogger<BazaarOrderListener>>(), operation: "remove", userId: args.msg.UserId, itemTag: tag, created: order.Created);
+            args.GetService<ILogger<BazaarOrderListener>>().LogInformation("Updated filled order in order book for {user} {item} {amount} {price}", args.currentState.McInfo.Name, tag, order.Amount, order.PricePerUnit);
         }
         catch (Exception e)
         {

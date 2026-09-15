@@ -109,6 +109,8 @@ public class Startup
         services.AddSingleton<IScheduleApi>(sp => new ScheduleApi(Configuration["EVENTS_BASE_URL"]));
         services.AddSingleton<IPlayerNameApi>(sp => new PlayerNameApi(Configuration["PLAYERNAME_BASE_URL"]));
         services.AddSingleton<IBaseApi>(sp => new BaseApi(Configuration["PROXY_BASE_URL"]));
+        services.AddHttpClient<Bazaar.BazaarOrderSync>(client =>
+            client.BaseAddress = new Uri(Configuration["BAZAAR_BASE_URL"]!.TrimEnd('/') + "/"));
         services.AddSingleton<IOrderBookApi>(sp => new OrderBookApi(Configuration["BAZAAR_BASE_URL"]));
         services.AddSingleton<Sky.Bazaar.Client.Api.IBazaarApi>(sp => new Sky.Bazaar.Client.Api.BazaarApi(Configuration["BAZAAR_BASE_URL"]));
         services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(Configuration["REDIS_HOST"]));
@@ -142,7 +144,7 @@ public class Startup
         services.AddHostedService<Tasks.TaskAggregateFlusher>();
         // export the fold/estimate spans (and the existing consumer spans) to jaeger.
         // AddOpenTelemetry().WithTracing is additive to the config AddJaeger set up.
-        services.AddOpenTelemetry().WithTracing(b => b.AddSource(Tasks.TaskTelemetry.SourceName));
+        services.AddOpenTelemetry().WithTracing(b => b.AddSource(Tasks.TaskTelemetry.SourceName).AddSource(BazaarOrderSync.SourceName));
         Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions
             .TryAddSingleton(services, Tasks.TaskTelemetry.Source);
         RegisterScyllaSession(services);

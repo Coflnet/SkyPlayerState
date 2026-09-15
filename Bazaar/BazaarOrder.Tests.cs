@@ -394,6 +394,40 @@ public class BazaarOrderTests
         ), Times.Once, "Coin transaction should be recorded even when order is missing from state");
     }
 
+    [Test]
+    public async Task FilledChatRetainsExactSideUntilClaimed()
+    {
+        var created = DateTime.UtcNow.AddMinutes(-1);
+        currentState.BazaarOffers.Add(new() { ItemName = "Coal", Amount = 64, PricePerUnit = 9.9, Created = created });
+        currentState.BazaarOffers.Add(new() { ItemName = "Coal", Amount = 64, IsSell = true, PricePerUnit = 9.9,
+            Created = created.AddSeconds(1) });
+        var args = CreateArgs("[Bazaar] Your Sell Offer for 64x Coal was filled!");
+        itemsApi.Setup(i => i.ItemsSearchTermGetAsync(It.IsAny<string>(), null, 0, default))
+            .ReturnsAsync(new List<Items.Client.Model.SearchResult> { new() { Tag = "COAL" } });
+        await listener.Process(args);
+        Assert.That(currentState.BazaarOffers[0].FilledAmount, Is.Zero);
+        Assert.That(currentState.BazaarOffers[1].FilledAmount, Is.EqualTo(64));
+        orderBookApi.Verify(a => a.AddOrderAsync(It.Is<Coflnet.Sky.Bazaar.Client.Model.OrderEntry>(o =>
+            o.IsSell == true && o.Filled == 64 && o.Timestamp == created.AddSeconds(1)), 0, default), Times.Once);
+        orderBookApi.Verify(a => a.RemoveOrderAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(), 0, default), Times.Never);
+        args.msg.ChatBatch = new() { "[Bazaar] Claimed 633.6 coins from selling 64x Coal at 9.9 each!" };
+        await listener.Process(args);
+        orderBookApi.Verify(a => a.RemoveOrderAsync("COAL", "5", created.AddSeconds(1), 0, default), Times.Once);
+        Assert.That(currentState.BazaarOffers.Single().IsSell, Is.False);
+    }
+
+    [Test]
+    public async Task CancellingPartlyFilledBuyOrderRemovesItFromAuthority()
+    {
+        var created = DateTime.UtcNow.AddMinutes(-1);
+        currentState.BazaarOffers.Add(new() { ItemTag = "COAL", ItemName = "Coal", Amount = 64,
+            FilledAmount = 32, PricePerUnit = 10, Created = created });
+        var args = CreateArgs("[Bazaar] Cancelled! Refunded 320 coins from cancelling Buy Order!");
+        await listener.Process(args);
+        orderBookApi.Verify(a => a.RemoveOrderAsync("COAL", "5", created, 0, default), Times.Once);
+        Assert.That(currentState.BazaarOffers, Is.Empty);
+    }
+
     private MockedUpdateArgs CreateArgs(params string[] msgs)
     {
         var args = new MockedUpdateArgs()

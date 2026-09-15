@@ -34,6 +34,8 @@ public class BazaarListener : UpdateListener
         if (args.msg.Chest?.Name != "Your Bazaar Orders" && args.msg.Chest?.Name != "Co-op Bazaar Orders")
             return;
         var offers = new List<Offer>();
+        var matched = new HashSet<Offer>();
+        var complete = true;
         // only the first 5 rows (x9) are potential orders (to include bazaar upgrade)
         var bazaarItems = args.msg.Chest.Items.Take(45);
         var orderLookup = args.currentState.BazaarOffers.Where(o => o != null).ToLookup(OrderKey, o => o);
@@ -49,12 +51,18 @@ public class BazaarListener : UpdateListener
             try
             {
                 Offer offer = ParseOfferFromItem(item);
+                // Co-op lore can contain another member's orders. Do not assign their ownership
+                // to the uploader; that member's own chat/description stream registers them.
+                var owner = Regex.Match(Regex.Replace(item.Description, "§.", ""), @"(?m)^By: (?:\[[^\]]+\] )?(\w+)");
+                if (!string.IsNullOrEmpty(args.currentState.McInfo.Name) && owner.Success && !string.Equals(owner.Groups[1].Value, args.currentState.McInfo.Name, StringComparison.OrdinalIgnoreCase))
+                    continue;
                 var key = OrderKey(offer);
-                if (orderLookup.Contains(key))
+                if (orderLookup[key].Any(o => !matched.Contains(o)))
                 {
-                    var existing = orderLookup[key].OrderByDescending(o =>
+                    var existing = orderLookup[key].Where(o => !matched.Contains(o)).OrderByDescending(o =>
                         (o.Customers.FirstOrDefault()?.PlayerName == offer.Customers.FirstOrDefault()?.PlayerName ? 10 : 0) - Math.Abs(o.Customers.Count - offer.Customers.Count))
                         .First();
+                    matched.Add(existing);
                     offer.Created = existing.Created;
                     // update customer timestamps
                     foreach (var customer in offer.Customers)
@@ -68,12 +76,13 @@ public class BazaarListener : UpdateListener
                 }
                 else
                 {
-                    offer.Created = args.msg.ReceivedAt;
+                    offer.Created = args.msg.ReceivedAt.AddMilliseconds(offers.Count);
                 }
                 offers.Add(offer);
             }
             catch (Exception e)
             {
+                complete = false;
                 if (args.currentState.PlayerId == null)
                     throw; // for test
                 args.GetService<ILogger<BazaarListener>>()
@@ -83,10 +92,14 @@ public class BazaarListener : UpdateListener
         Logger.LogInformation("Found {count} bazaar offers for {player}", offers.Count, args.currentState.PlayerId);
         bazaarOrdersTrackedCount.Inc(offers.Count);
         
+        if (!complete)
+            return; // A malformed description is not evidence that an order was removed.
         // Track vanishing buy orders before replacing state
         TrackVanishingOrders(args, offers);
-        
+
         args.currentState.BazaarOffers = offers;
+        if (!string.IsNullOrEmpty(args.msg.UserId) && !string.IsNullOrEmpty(args.currentState.McInfo.Name))
+            await args.GetService<BazaarOrderSync>().Observe(args);
 
         if (orderLookup.SelectMany(o => o).Count() == offers.Count)
             return;
@@ -224,9 +237,16 @@ public class BazaarListener : UpdateListener
             PricePerUnit = double.Parse(pricePerUnit, System.Globalization.CultureInfo.InvariantCulture),
             ItemName = Regex.Replace(item.ItemName.Substring("§6§lSELL ".Length), "(§.)*", ""),
             Created = item.Description.Contains("Expired") ? default : DateTime.Now,
+            FilledAmount = ParseFilled(item.Description, customers),
             Customers = customers
         };
         return offer;
+    }
+
+    private static long ParseFilled(string description, List<Fill> customers)
+    {
+        var match = Regex.Match(Regex.Replace(description, "§.", ""), @"Filled: ([\d,]+)/[\d,]+");
+        return match.Success ? ParseInt(match.Groups[1].Value) : customers.Sum(c => c.Amount);
     }
 
     private static int ParseInt(string amount)
