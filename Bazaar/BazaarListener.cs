@@ -64,6 +64,8 @@ public class BazaarListener : UpdateListener
                         .First();
                     matched.Add(existing);
                     offer.Created = existing.Created;
+                    if (string.IsNullOrWhiteSpace(offer.ItemTag))
+                        offer.ItemTag = existing.ItemTag;
                     // update customer timestamps
                     foreach (var customer in offer.Customers)
                     {
@@ -78,6 +80,8 @@ public class BazaarListener : UpdateListener
                 {
                     offer.Created = args.msg.ReceivedAt.AddMilliseconds(offers.Count);
                 }
+                if (!string.IsNullOrEmpty(args.msg.UserId) && string.IsNullOrWhiteSpace(offer.ItemTag))
+                    offer.ItemTag = await BazaarOrderListener.GetTagForName(args, offer.ItemName);
                 offers.Add(offer);
             }
             catch (Exception e)
@@ -235,7 +239,7 @@ public class BazaarListener : UpdateListener
             ItemTag = item.Tag,
             Amount = ParseInt(amount),
             PricePerUnit = double.Parse(pricePerUnit, System.Globalization.CultureInfo.InvariantCulture),
-            ItemName = Regex.Replace(item.ItemName.Substring("§6§lSELL ".Length), "(§.)*", ""),
+            ItemName = Regex.Replace(Regex.Replace(item.ItemName, "§.", ""), @"^(?:BUY|SELL)\s+", ""),
             Created = item.Description.Contains("Expired") ? default : DateTime.Now,
             FilledAmount = ParseFilled(item.Description, customers),
             Customers = customers

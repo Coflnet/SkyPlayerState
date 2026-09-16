@@ -21,6 +21,45 @@ public class BazaarObservationTests
         Assert.That(offer.FilledAmount, Is.EqualTo(512));
         Assert.That(offer.Customers, Is.Empty);
     }
+    [TestCase("§a§lBUY §aAgatha's Coupon", "Agatha's Coupon")]
+    [TestCase("§6§lSELL §aEnchanted Cobblestone", "Enchanted Cobblestone")]
+    public void ParsesOrderNamesBeforeRemovingBuyOrSellPrefix(string name, string expected)
+    {
+        var offer = BazaarListener.ParseOfferFromItem(new Item {
+            ItemName = name,
+            Description = "§7Order amount: §a64§7x\n§7Price per unit: §610.0 coins"
+        });
+        Assert.That(offer.ItemName, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public async Task MissingMenuItemTagIsResolvedBeforeSendingWholeView()
+    {
+        var args = new MockedUpdateArgs { currentState = new(), msg = new() {
+            UserId = "1", ReceivedAt = DateTime.UtcNow,
+            Chest = new() { Name = "Co-op Bazaar Orders", Items = new() { new Item {
+                ItemName = "§6§lSELL §aEnchanted Cobblestone",
+                Description = "§7Offer amount: §a640§7x\n§7Price per unit: §6500.9 coins\n§7Filled: §6320§7/640"
+            } } }
+        }};
+        args.currentState.McInfo.Name = "Ekwav";
+        var items = new Mock<Coflnet.Sky.Items.Client.Api.IItemsApi>();
+        items.Setup(i => i.ItemsSearchTermGetAsync("Enchanted Cobblestone", null, 0, default))
+            .ReturnsAsync(new List<Coflnet.Sky.Items.Client.Model.SearchResult> {
+                new() { Tag = "ENCHANTED_COBBLESTONE", Text = "Enchanted Cobblestone" }
+            });
+        args.AddService(items.Object);
+        var sync = new Mock<BazaarOrderSync>(new System.Net.Http.HttpClient());
+        sync.Setup(s => s.Observe(args)).Returns(Task.CompletedTask);
+        args.AddService(sync.Object);
+        args.AddService<Microsoft.Extensions.Logging.ILogger<BazaarListener>>(
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<BazaarListener>.Instance);
+        await new BazaarListener().Process(args);
+        Assert.That(args.currentState.BazaarOffers.Single().ItemTag, Is.EqualTo("ENCHANTED_COBBLESTONE"));
+        Assert.That(args.currentState.BazaarOffers.Single().FilledAmount, Is.EqualTo(320));
+        sync.Verify(s => s.Observe(args), Times.Once);
+    }
+
     [Test]
     public async Task RepeatedOrderViewsReconcileEvenWhenOrderCountIsUnchanged()
     {

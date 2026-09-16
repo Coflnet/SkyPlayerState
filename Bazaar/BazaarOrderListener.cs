@@ -676,7 +676,7 @@ public class BazaarOrderListener : UpdateListener
         }
     }
 
-    private static async Task<string> GetTagForName(UpdateArgs args, string itemName)
+    internal static async Task<string> GetTagForName(UpdateArgs args, string itemName)
     {
         // Check cache first - valid for 2 minutes
         if (_itemTagCache.TryGetValue(itemName, out var cached))
