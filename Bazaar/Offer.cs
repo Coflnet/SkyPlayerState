@@ -20,6 +20,10 @@ public class Offer
     public DateTime Created { get; set; }
     [Key(7)]
     public long FilledAmount { get; set; }
+    [Key(8)]
+    public bool IsExpired { get; set; }
+    [Key(9)]
+    public long? ClaimedAmount { get; set; }
     [Key(6)]
     public List<Fill> Customers { get; set; } = new();
 }

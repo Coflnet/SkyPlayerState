@@ -407,6 +407,7 @@ public class BazaarOrderTests
         await listener.Process(args);
         Assert.That(currentState.BazaarOffers[0].FilledAmount, Is.Zero);
         Assert.That(currentState.BazaarOffers[1].FilledAmount, Is.EqualTo(64));
+        Assert.That(currentState.BazaarUpdatedAt, Is.EqualTo(args.msg.ReceivedAt));
         orderBookApi.Verify(a => a.AddOrderAsync(It.Is<Coflnet.Sky.Bazaar.Client.Model.OrderEntry>(o =>
             o.IsSell == true && o.Filled == 64 && o.Timestamp == created.AddSeconds(1)), 0, default), Times.Once);
         orderBookApi.Verify(a => a.RemoveOrderAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(), 0, default), Times.Never);
@@ -426,6 +427,70 @@ public class BazaarOrderTests
         await listener.Process(args);
         orderBookApi.Verify(a => a.RemoveOrderAsync("COAL", "5", created, 0, default), Times.Once);
         Assert.That(currentState.BazaarOffers, Is.Empty);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task PartialClaimRetainsOrderUntilEntireAmountWithdrawn(bool sell)
+    {
+        var created = DateTime.UtcNow.AddMinutes(-1);
+        var order = new Offer { ItemName = "Coal", ItemTag = "COAL", Amount = 1024,
+            FilledAmount = 1024, PricePerUnit = 7.1, IsSell = sell, IsExpired = true, Created = created };
+        currentState.BazaarOffers.Add(order);
+        var message = sell ? "[Bazaar] Claimed 3,635.2 coins from selling 512x Coal at 7.1 each!"
+            : "[Bazaar] Claimed 512x Coal worth 3,635.2 coins bought for 7.1 each!";
+        var args = CreateArgs(message);
+        var sync = new Mock<BazaarOrderSync>(new System.Net.Http.HttpClient());
+        args.AddService(sync.Object);
+        await listener.Process(args);
+        Assert.That(currentState.BazaarOffers.Single(), Is.SameAs(order));
+        Assert.That(order.FilledAmount, Is.EqualTo(1024));
+        Assert.That(order.ClaimedAmount, Is.EqualTo(512));
+        sync.Verify(s => s.Claim(args, order), Times.Once);
+        orderBookApi.Verify(a => a.RemoveOrderAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(), 0, default), Times.Never);
+        args.msg.ReceivedAt = args.msg.ReceivedAt.AddSeconds(1);
+        await listener.Process(args);
+        Assert.That(currentState.BazaarOffers, Is.Empty);
+        orderBookApi.Verify(a => a.RemoveOrderAsync("COAL", "5", created, 0, default), Times.Once);
+        orderBookApi.Verify(a => a.AddOrderAsync(It.IsAny<Coflnet.Sky.Bazaar.Client.Model.OrderEntry>(), 0, default), Times.Never,
+            "Withdrawing an old fill must not announce a new completion");
+    }
+
+    [Test]
+    public async Task LaterChatForAnotherOrderDoesNotDiscardPartialClaim()
+    {
+        var order = new Offer { ItemName = "Coal", ItemTag = "COAL", Amount = 1024, FilledAmount = 1024, PricePerUnit = 7.1 };
+        currentState.BazaarOffers.Add(order);
+        var args = CreateArgs("[Bazaar] Claimed 512x Coal worth 3,635.2 coins bought for 7.1 each!");
+        var laterChat = args.msg.ReceivedAt.AddSeconds(1);
+        currentState.BazaarUpdatedAt = laterChat;
+        args.AddService(new Mock<BazaarOrderSync>(new System.Net.Http.HttpClient()).Object);
+        await listener.Process(args);
+        Assert.That(order.ClaimedAmount, Is.EqualTo(512));
+        Assert.That(currentState.BazaarUpdatedAt, Is.EqualTo(laterChat));
+    }
+
+    [Test]
+    public async Task NewerMenuPreventsLateSetupChatFromDuplicatingOrder()
+    {
+        currentState.BazaarOffers.Add(new() { ItemName = "Coal", Amount = 64, PricePerUnit = 2.1 });
+        var args = CreateArgs("[Bazaar] Buy Order Setup! 64x Coal for 134.4 coins");
+        currentState.BazaarObservedAt = args.msg.ReceivedAt.AddSeconds(1);
+        await listener.Process(args);
+        Assert.That(currentState.BazaarOffers, Has.Count.EqualTo(1));
+        orderBookApi.Verify(a => a.AddOrderAsync(It.IsAny<Coflnet.Sky.Bazaar.Client.Model.OrderEntry>(), 0, default), Times.Never);
+        transactionService.Verify(t => t.AddTransactions(It.IsAny<Transaction>()), Times.Once);
+    }
+
+    [Test]
+    public async Task MenuAlreadyIncludingClaimPreventsDoubleSubtraction()
+    {
+        currentState.BazaarOffers.Add(new() { ItemName = "Coal", Amount = 1024,
+            FilledAmount = 1024, ClaimedAmount = 512, PricePerUnit = 7.1 });
+        var args = CreateArgs("[Bazaar] Claimed 512x Coal worth 3,635.2 coins bought for 7.1 each!");
+        currentState.BazaarObservedAt = args.msg.ReceivedAt.AddSeconds(1);
+        await listener.Process(args);
+        Assert.That(currentState.BazaarOffers.Single().ClaimedAmount, Is.EqualTo(512));
     }
 
     private MockedUpdateArgs CreateArgs(params string[] msgs)

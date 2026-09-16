@@ -33,6 +33,12 @@ public class BazaarListener : UpdateListener
             return;
         if (args.msg.Chest?.Name != "Your Bazaar Orders" && args.msg.Chest?.Name != "Co-op Bazaar Orders")
             return;
+        if (args.msg.ReceivedAt < args.currentState.BazaarUpdatedAt)
+        {
+            Logger.LogDebug("Ignoring older Bazaar menu for {Player}: {ObservedAt:o} < {CurrentAt:o}",
+                args.currentState.PlayerId, args.msg.ReceivedAt, args.currentState.BazaarUpdatedAt);
+            return;
+        }
         var offers = new List<Offer>();
         var matched = new HashSet<Offer>();
         var complete = true;
@@ -64,6 +70,7 @@ public class BazaarListener : UpdateListener
                         .First();
                     matched.Add(existing);
                     offer.Created = existing.Created;
+                    offer.ClaimedAmount ??= existing.ClaimedAmount;
                     if (string.IsNullOrWhiteSpace(offer.ItemTag))
                         offer.ItemTag = existing.ItemTag;
                     // update customer timestamps
@@ -102,6 +109,8 @@ public class BazaarListener : UpdateListener
         TrackVanishingOrders(args, offers);
 
         args.currentState.BazaarOffers = offers;
+        args.currentState.BazaarUpdatedAt = args.msg.ReceivedAt;
+        args.currentState.BazaarObservedAt = args.msg.ReceivedAt;
         if (!string.IsNullOrEmpty(args.msg.UserId) && !string.IsNullOrEmpty(args.currentState.McInfo.Name))
             await args.GetService<BazaarOrderSync>().Observe(args);
 
@@ -240,17 +249,25 @@ public class BazaarListener : UpdateListener
             Amount = ParseInt(amount),
             PricePerUnit = double.Parse(pricePerUnit, System.Globalization.CultureInfo.InvariantCulture),
             ItemName = Regex.Replace(Regex.Replace(item.ItemName, "§.", ""), @"^(?:BUY|SELL)\s+", ""),
-            Created = item.Description.Contains("Expired") ? default : DateTime.Now,
-            FilledAmount = ParseFilled(item.Description, customers),
+            Created = DateTime.Now,
+            IsExpired = item.Description.Contains("Expired!"),
+            FilledAmount = ParseFilled(item.Description, customers, ParseInt(amount)),
             Customers = customers
         };
+        var claimable = Regex.Match(Regex.Replace(item.Description, "§.", ""), @"You have ([\d,]+) items? to claim!");
+        if (!offer.IsSell)
+            offer.ClaimedAmount = Math.Max(0, offer.FilledAmount - (claimable.Success ? ParseInt(claimable.Groups[1].Value) : 0));
         return offer;
     }
 
-    private static long ParseFilled(string description, List<Fill> customers)
+    private static long ParseFilled(string description, List<Fill> customers, long amount)
     {
-        var match = Regex.Match(Regex.Replace(description, "§.", ""), @"Filled: ([\d,]+)/[\d,]+");
-        return match.Success ? ParseInt(match.Groups[1].Value) : customers.Sum(c => c.Amount);
+        var plain = Regex.Replace(description, "§.", "");
+        // The GUI abbreviates 1,024 as 1k and truncates long vendor lists.
+        if (Regex.IsMatch(plain, @"Filled: [^\n]+ 100%!"))
+            return amount;
+        var match = Regex.Match(plain, @"Filled: ([\d,]+)/[\d,]+(?:\s|$)");
+        return Math.Min(amount, match.Success ? ParseInt(match.Groups[1].Value) : customers.Sum(c => c.Amount));
     }
 
     private static int ParseInt(string amount)

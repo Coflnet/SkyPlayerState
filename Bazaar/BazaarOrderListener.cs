@@ -136,14 +136,16 @@ public class BazaarOrderListener : UpdateListener
                 IsSell = side.HasFlag(Transaction.TransactionType.REMOVE),
                 Created = args.msg.ReceivedAt.AddMilliseconds(args.currentState.BazaarOffers.Count(o => o != null && o.Created >= args.msg.ReceivedAt)),
             };
-            args.currentState.BazaarOffers.Add(order);
-
             if (isSell)
                 await AddItemTransaction(args, Transaction.TransactionType.BazaarListSell, amount, itemName);
             else
                 await AddCoinTransaction(args, Transaction.TransactionType.BazaarListSell, price);
 
-
+            if (args.msg.ReceivedAt < args.currentState.BazaarObservedAt)
+                return; // The newer menu already includes this placement; keep the transaction only.
+            args.currentState.BazaarOffers.Add(order);
+            args.currentState.BazaarUpdatedAt = args.msg.ReceivedAt > args.currentState.BazaarUpdatedAt
+                ? args.msg.ReceivedAt : args.currentState.BazaarUpdatedAt;
             if (args.msg.UserId == null)
                 return;
             await RegisterUserEvents(args, side, amount, itemName, price, order);
@@ -152,11 +154,13 @@ public class BazaarOrderListener : UpdateListener
         }
         if (msg.Contains("filled!"))
         {
+            if (args.msg.ReceivedAt < args.currentState.BazaarObservedAt)
+                return;
             var parts = Regex.Match(msg, @"Your .*(Buy Order|Sell Offer) for ([\d,]+)x (.+) was filled!").Groups;
             amount = ParseInt(parts[2].Value);
             itemName = parts[3].Value;
             // find price from order
-            var order = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && o.ItemName == itemName && o.Amount == amount && o.IsSell == isSell && o.FilledAmount < o.Amount);
+            var order = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && !o.IsExpired && o.ItemName == itemName && o.Amount == amount && o.IsSell == isSell && o.FilledAmount < o.Amount);
             if (order == null)
             {
                 args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No order found for {item} {amount}", itemName, amount);
@@ -169,6 +173,8 @@ public class BazaarOrderListener : UpdateListener
                 TimeStamp = args.msg.ReceivedAt,
             });
             order.FilledAmount = order.Amount;
+            args.currentState.BazaarUpdatedAt = args.msg.ReceivedAt > args.currentState.BazaarUpdatedAt
+                ? args.msg.ReceivedAt : args.currentState.BazaarUpdatedAt;
             await ProduceFillEvent(args, itemName, order, remove: false);
             return;
         }
@@ -179,7 +185,7 @@ public class BazaarOrderListener : UpdateListener
                 var buyParts = Regex.Match(msg, @"Refunded ([.\d,]+) coins from cancelling").Groups;
                 price = ParseCoins(buyParts[1].Value);
                 var buyOrder = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && !o.IsSell && (long)(o.PricePerUnit * 10 * (o.Amount - o.FilledAmount)) == price);
-                if (buyOrder != null)
+                if (buyOrder != null && args.msg.ReceivedAt >= args.currentState.BazaarObservedAt)
                 {
                     args.currentState.BazaarOffers.Remove(buyOrder);
                     await RemoveOrderFromBook(args, buyOrder);
@@ -195,7 +201,7 @@ public class BazaarOrderListener : UpdateListener
             side ^= Transaction.TransactionType.RECEIVE ^ Transaction.TransactionType.REMOVE;
 
             var order = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && o.IsSell && o.ItemName == itemName && o.Amount == amount);
-            if (order != null)
+            if (order != null && args.msg.ReceivedAt >= args.currentState.BazaarObservedAt)
             {
                 args.currentState.BazaarOffers.Remove(order);
                 
@@ -220,7 +226,7 @@ public class BazaarOrderListener : UpdateListener
                 var perPrice = ParseCoins(parts[4].Value);
                 var perPriceInCoins = perPrice / 10.0; // Convert from tenths to coins for comparison with PricePerUnit
                 await AddItemTransaction(args, side | Transaction.TransactionType.Move, amount, itemName);
-                var order = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && !o.IsSell && o.ItemName == itemName && o.Amount == amount && o.PricePerUnit == perPriceInCoins);
+                var order = FindClaim(args, itemName, amount, false, perPriceInCoins);
 
                 // Track buy order for profit calculation
                 await RecordBuyOrderForProfit(args, itemName, amount, price);
@@ -247,12 +253,11 @@ public class BazaarOrderListener : UpdateListener
                     args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No order found for {item} {amount}", itemName, amount);
                     return;
                 }
-                args.currentState.BazaarOffers.Remove(order);
-                await ProduceFillEvent(args, itemName, order);
+                await ApplyClaim(args, order, amount);
             }
             else
             {
-                var parts = Regex.Match(msg, @"Claimed ([\.\d,]+) coins from (.*) ([\d,]+)x (.*) at ").Groups;
+                var parts = Regex.Match(msg, @"Claimed ([\.\d,]+) coins from (.*) ([\d,]+)x (.*) at ([\d,.]+) each").Groups;
                 amount = ParseInt(parts[3].Value);
                 itemName = parts[4].Value;
                 price = ParseCoins(parts[1].Value);
@@ -261,15 +266,14 @@ public class BazaarOrderListener : UpdateListener
 
                 // Track sell order and calculate profit
                 await RecordSellOrderForProfit(args, itemName, amount, price);
-                var order = args.currentState.BazaarOffers.FirstOrDefault(o => o != null && o.IsSell && o.ItemName == itemName && o.Amount == amount);
+                var order = FindClaim(args, itemName, amount, true, ParseCoins(parts[5].Value) / 10.0);
                 if (order == null)
                 {
                     args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No order found for {item} {amount}", itemName, amount);
                     return;
                 }
 
-                args.currentState.BazaarOffers.Remove(order);
-                await ProduceFillEvent(args, itemName, order);
+                await ApplyClaim(args, order, amount);
 
             }
         }
@@ -606,8 +610,39 @@ public class BazaarOrderListener : UpdateListener
         }
     }
 
+    private static Offer FindClaim(UpdateArgs args, string name, int amount, bool sell, double price)
+    {
+        // A newer menu already includes this withdrawal. Do not subtract it twice.
+        if (args.msg.ReceivedAt < args.currentState.BazaarObservedAt)
+            return null;
+        var candidates = args.currentState.BazaarOffers.Where(o => o != null && o.IsSell == sell
+            && o.ItemName == name && o.PricePerUnit == price
+            && o.Amount - (o.ClaimedAmount ?? 0) >= amount).Take(2).ToList();
+        return candidates.Count == 1 ? candidates[0] : null;
+    }
+
+    private static async Task ApplyClaim(UpdateArgs args, Offer order, int amount)
+    {
+        order.ClaimedAmount = (order.ClaimedAmount ?? 0) + amount;
+        order.FilledAmount = Math.Max(order.FilledAmount, order.ClaimedAmount.Value);
+        args.currentState.BazaarUpdatedAt = args.msg.ReceivedAt > args.currentState.BazaarUpdatedAt
+                ? args.msg.ReceivedAt : args.currentState.BazaarUpdatedAt;
+        if (order.ClaimedAmount >= order.Amount)
+        {
+            args.currentState.BazaarOffers.Remove(order);
+            await RemoveOrderFromBook(args, order);
+        }
+        else if (!string.IsNullOrEmpty(args.msg.UserId))
+            await args.GetService<BazaarOrderSync>().Claim(args, order);
+        args.GetService<ILogger<BazaarOrderListener>>().LogDebug(
+            "Applied Bazaar claim for {UserId}/{ItemTag}: claimed {Claimed}/{Amount}, filled {Filled}, expired {Expired}",
+            args.msg.UserId, order.ItemTag, order.ClaimedAmount, order.Amount, order.FilledAmount, order.IsExpired);
+    }
+
     private static async Task RemoveOrderFromBook(UpdateArgs args, Offer order)
     {
+        args.currentState.BazaarUpdatedAt = args.msg.ReceivedAt > args.currentState.BazaarUpdatedAt
+                ? args.msg.ReceivedAt : args.currentState.BazaarUpdatedAt;
         if (string.IsNullOrEmpty(args.msg.UserId))
             return;
         try

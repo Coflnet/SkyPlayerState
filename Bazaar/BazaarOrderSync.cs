@@ -71,14 +71,39 @@ public class BazaarOrderSync(HttpClient client)
         _ => false
     };
 
+    private sealed class ObservedOrder : OrderEntry
+    {
+        public bool IsExpired { get; set; }
+        public int? Claimed { get; set; }
+    }
+
+    private static ObservedOrder ToOrder(UpdateArgs args, Offer order) => new() {
+        ItemId = order.ItemTag, Amount = (int)order.Amount, Filled = (int)order.FilledAmount,
+        PricePerUnit = order.PricePerUnit, IsSell = order.IsSell, Timestamp = order.Created,
+        IsExpired = order.IsExpired, Claimed = (int?)order.ClaimedAmount,
+        UserId = args.msg.UserId, PlayerName = args.currentState.McInfo.Name
+    };
+
+    public virtual async Task Claim(UpdateArgs args, Offer order)
+    {
+        if (string.IsNullOrWhiteSpace(order.ItemTag))
+            order.ItemTag = await BazaarOrderListener.GetTagForName(args, order.ItemName);
+        var update = ToOrder(args, order);
+        await Retry(async () => {
+            using var response = await client.PostAsJsonAsync("OrderBook", update);
+            response.EnsureSuccessStatusCode();
+        }, args.GetService<ILogger<BazaarOrderSync>>(), operation: "claim", userId: args.msg.UserId,
+            itemTag: order.ItemTag, created: order.Created);
+    }
+
     public virtual async Task Observe(UpdateArgs args)
     {
+        // Chat-created orders may not have received an item tag from a menu yet.
+        var offers = args.currentState.BazaarOffers.Where(o => o != null).ToList();
+        foreach (var offer in offers.Where(o => string.IsNullOrWhiteSpace(o.ItemTag)))
+            offer.ItemTag = await BazaarOrderListener.GetTagForName(args, offer.ItemName);
         // Capture the observation once so a retry cannot change its identity or timestamp.
-        var orders = args.currentState.BazaarOffers.Select(o => new OrderEntry {
-            ItemId = o.ItemTag, Amount = (int)o.Amount, Filled = (int)o.FilledAmount,
-            PricePerUnit = o.PricePerUnit, IsSell = o.IsSell, Timestamp = o.Created,
-            UserId = args.msg.UserId, PlayerName = args.currentState.McInfo.Name
-        }).ToList();
+        var orders = offers.Select(o => ToOrder(args, o)).ToList();
         var observation = new {
             args.msg.UserId, PlayerName = args.currentState.McInfo.Name,
             Timestamp = args.msg.ReceivedAt, Orders = orders
@@ -92,7 +117,7 @@ public class BazaarOrderSync(HttpClient client)
             {
                 logger.LogDebug("Using legacy Bazaar registration for {UserId}; personal reconciliation endpoint is unavailable", args.msg.UserId);
                 // Older SkyBazaar instances support registration but not full reconciliation.
-                foreach (var order in orders)
+                foreach (var order in orders.Where(o => !o.IsExpired))
                 {
                     using var legacy = await client.PostAsJsonAsync("OrderBook", order);
                     legacy.EnsureSuccessStatusCode();

@@ -58,6 +58,10 @@ public class StateObject
     public List<Profile> Profiles = new();
     [Key(8)]
     public List<Offer> BazaarOffers = new();
+    [Key(14)]
+    public DateTime BazaarUpdatedAt;
+    [Key(15)]
+    public DateTime BazaarObservedAt;
     [Key(9)]
     public ExtractedInfo ExtractedInfo = new();
     [Key(10)]
@@ -120,6 +124,8 @@ public class StateObject
             ItemsCollectedRecently = new Dictionary<string, int>(other.ItemsCollectedRecently);
         if (other.UnlockedAchievements != null)
             UnlockedAchievements = new HashSet<Achievement>(other.UnlockedAchievements);
+        BazaarUpdatedAt = other.BazaarUpdatedAt;
+        BazaarObservedAt = other.BazaarObservedAt;
         Settings = other.Settings;
     }
 }

@@ -81,6 +81,40 @@ public class BazaarListnerTests
         Assert.That(args.currentState.BazaarOffers, Has.Count.EqualTo(2));
     }
 
+    [TestCase(1024, "1k/1k 100%!", 512, 1024, 512)]
+    [TestCase(2000, "2k/2k 100%!", 1616, 2000, 384)]
+    [TestCase(160, "91/160 (56.9%)", 91, 91, 0)]
+    [TestCase(160, "", 0, 0, 0)]
+    public async Task ExpiredLorePreservesFillAndClaimCounts(int amount, string fill, int claimable, int filled, int claimed)
+    {
+        var args = GetArgs();
+        args.msg.ReceivedAt = DateTime.UtcNow;
+        args.msg.Chest.Items = new() { new() {
+            ItemName = "§a§lBUY §aAgatha's Coupon", Tag = "AGATHA_COUPON",
+            Description = $"§7Order amount: §a{amount}§7x\nFilled: {fill}\nExpired!\n§7Price per unit: §69,673.0 coins\nYou have {claimable} items to claim!"
+        } };
+        await new BazaarListener().Process(args);
+        var order = args.currentState.BazaarOffers.Single();
+        var created = order.Created;
+        args.msg.ReceivedAt = args.msg.ReceivedAt.AddSeconds(1);
+        await new BazaarListener().Process(args);
+        order = args.currentState.BazaarOffers.Single();
+        Assert.That(order.IsExpired, Is.True);
+        Assert.That(order.Created, Is.EqualTo(created));
+        Assert.That(order.FilledAmount, Is.EqualTo(filled));
+        Assert.That(order.ClaimedAmount, Is.EqualTo(claimed));
+    }
+
+    [Test]
+    public async Task MenuOlderThanClaimCannotRestoreRemovedOrder()
+    {
+        var args = GetArgs();
+        args.msg.ReceivedAt = DateTime.UtcNow.AddSeconds(-1);
+        args.currentState.BazaarUpdatedAt = DateTime.UtcNow;
+        await new BazaarListener().Process(args);
+        Assert.That(args.currentState.BazaarOffers, Is.Empty);
+    }
+
     private static UpdateArgs GetArgs()
     {
         var args = new MockedUpdateArgs()
