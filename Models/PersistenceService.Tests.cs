@@ -45,13 +45,14 @@ public class PersistenceServiceTests
         var time = DateTime.UtcNow;
         var original = new StateObject { BazaarUpdatedAt = time, BazaarObservedAt = time.AddSeconds(-1), BazaarOffers = new() { new() {
             ItemName = "Gill Membrane", Amount = 1024, FilledAmount = 1024,
-            ClaimedAmount = 512, IsExpired = true, Created = time.AddDays(-1)
+            ClaimedAmount = 512, PendingObservedClaims = 256, IsExpired = true, Created = time.AddDays(-1)
         } } };
         var stored = new Inventory(new StateObject(original)).GetStateObject();
         Assert.That(stored.BazaarUpdatedAt, Is.EqualTo(time));
         Assert.That(stored.BazaarObservedAt, Is.EqualTo(time.AddSeconds(-1)));
         Assert.That(stored.BazaarOffers[0].IsExpired, Is.True);
         Assert.That(stored.BazaarOffers[0].ClaimedAmount, Is.EqualTo(512));
+        Assert.That(stored.BazaarOffers[0].PendingObservedClaims, Is.EqualTo(256));
         Assert.That(stored.BazaarOffers[0].FilledAmount, Is.EqualTo(1024));
     }
 

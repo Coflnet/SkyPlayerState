@@ -71,6 +71,10 @@ public class BazaarListener : UpdateListener
                     matched.Add(existing);
                     offer.Created = existing.Created;
                     offer.ClaimedAmount ??= existing.ClaimedAmount;
+                    offer.PendingObservedClaims = existing.PendingObservedClaims;
+                    if (offer.ClaimedAmount is long claimed && existing.ClaimedAmount is long previousClaimed)
+                        offer.PendingObservedClaims = claimed >= previousClaimed
+                            ? existing.PendingObservedClaims + claimed - previousClaimed : 0;
                     if (string.IsNullOrWhiteSpace(offer.ItemTag))
                         offer.ItemTag = existing.ItemTag;
                     // update customer timestamps

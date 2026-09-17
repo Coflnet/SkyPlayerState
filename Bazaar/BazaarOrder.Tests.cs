@@ -493,6 +493,66 @@ public class BazaarOrderTests
         Assert.That(currentState.BazaarOffers.Single().ClaimedAmount, Is.EqualTo(512));
     }
 
+    [TestCase(-5, false)]
+    [TestCase(0, false)]
+    [TestCase(5, false)]
+    [TestCase(2000, false)]
+    [TestCase(5, true)]
+    public async Task MenuAndChatForSamePartialClaimOnlyWithdrawOnce(int chatDelayMs, bool repeatMenu)
+    {
+        var order = new Offer { ItemName = "Gill Membrane", ItemTag = "GILL_MEMBRANE", Amount = 1024,
+            FilledAmount = 1024, ClaimedAmount = 512, PricePerUnit = 7.1, IsExpired = true,
+            Created = DateTime.UtcNow.AddMinutes(-1) };
+        currentState.BazaarOffers.Add(order);
+        var args = CreateArgs("[Bazaar] Claiming order...",
+            "[Bazaar] Claimed 256x Gill Membrane worth 1,817.6 coins bought for 7.1 each!");
+        args.AddService(new Mock<BazaarOrderSync>(new System.Net.Http.HttpClient()).Object);
+        var observedAt = args.msg.ReceivedAt;
+        args.msg.Chest = new ChestView { Name = "Co-op Bazaar Orders", Items = new() { new() {
+            ItemName = "§a§lBUY §aGill Membrane", Tag = "GILL_MEMBRANE",
+            Description = "§7Order amount: §a1,024§7x\n§7Filled: §a1k§7/1k §a§l100%!\nExpired!\n§7Price per unit: §67.1 coins\n§aYou have §2256 items §ato claim!"
+        } } };
+        var menus = new BazaarListener();
+        await menus.Process(args);
+        if (repeatMenu)
+            await menus.Process(args);
+        args.msg.ReceivedAt = observedAt.AddMilliseconds(chatDelayMs);
+        await listener.Process(args);
+        var remaining = currentState.BazaarOffers.Single();
+        Assert.That(remaining.Created, Is.EqualTo(order.Created));
+        Assert.That(remaining.FilledAmount - remaining.ClaimedAmount, Is.EqualTo(256));
+        orderBookApi.Verify(a => a.RemoveOrderAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(), 0, default), Times.Never);
+
+        // A second, genuine withdrawal must still consume the remaining items.
+        args.msg.ReceivedAt = observedAt.AddSeconds(5);
+        await listener.Process(args);
+        Assert.That(currentState.BazaarOffers, Is.Empty);
+        orderBookApi.Verify(a => a.RemoveOrderAsync("GILL_MEMBRANE", "5", order.Created, 0, default), Times.Once);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task MenuDoesNotReserveClaimsAlreadyReportedInChatOrHistoricalClaims(bool chatFirst)
+    {
+        var order = new Offer { ItemName = "Coal", ItemTag = "COAL", Amount = 1024,
+            FilledAmount = 1024, ClaimedAmount = chatFirst ? 256 : null, PricePerUnit = 7.1,
+            Created = DateTime.UtcNow.AddMinutes(-1) };
+        currentState.BazaarOffers.Add(order);
+        var args = CreateArgs("[Bazaar] Claimed 256x Coal worth 1,817.6 coins bought for 7.1 each!");
+        args.AddService(new Mock<BazaarOrderSync>(new System.Net.Http.HttpClient()).Object);
+        if (chatFirst)
+            await listener.Process(args);
+        args.msg.ReceivedAt = args.msg.ReceivedAt.AddMilliseconds(5);
+        args.msg.Chest = new ChestView { Name = "Co-op Bazaar Orders", Items = new() { new() {
+            ItemName = "§a§lBUY §aCoal", Tag = "COAL",
+            Description = "§7Order amount: §a1,024§7x\nFilled: 1k/1k 100%!\n§7Price per unit: §67.1 coins\nYou have 512 items to claim!"
+        } } };
+        await new BazaarListener().Process(args);
+        args.msg.ReceivedAt = args.msg.ReceivedAt.AddSeconds(1);
+        await listener.Process(args);
+        Assert.That(currentState.BazaarOffers.Single().ClaimedAmount, Is.EqualTo(768));
+    }
+
     private MockedUpdateArgs CreateArgs(params string[] msgs)
     {
         var args = new MockedUpdateArgs()

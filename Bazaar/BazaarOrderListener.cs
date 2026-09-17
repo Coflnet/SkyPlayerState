@@ -612,17 +612,26 @@ public class BazaarOrderListener : UpdateListener
 
     private static Offer FindClaim(UpdateArgs args, string name, int amount, bool sell, double price)
     {
-        // A newer menu already includes this withdrawal. Do not subtract it twice.
-        if (args.msg.ReceivedAt < args.currentState.BazaarObservedAt)
-            return null;
         var candidates = args.currentState.BazaarOffers.Where(o => o != null && o.IsSell == sell
             && o.ItemName == name && o.PricePerUnit == price
-            && o.Amount - (o.ClaimedAmount ?? 0) >= amount).Take(2).ToList();
+            && o.Amount - (o.ClaimedAmount ?? 0) + o.PendingObservedClaims >= amount).Take(2).ToList();
         return candidates.Count == 1 ? candidates[0] : null;
     }
 
     private static async Task ApplyClaim(UpdateArgs args, Offer order, int amount)
     {
+        var observed = Math.Min(order.PendingObservedClaims, amount);
+        order.PendingObservedClaims -= observed;
+        if (observed > 0)
+            args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
+                "Reconciled Bazaar claim for {UserId}/{ItemTag}: {Observed}/{ClaimAmount} already observed in menu, claimed total {Claimed}",
+                args.msg.UserId, order.ItemTag, observed, amount, order.ClaimedAmount);
+        // Older chat is covered by the latest menu, but must still consume its credit.
+        if (args.msg.ReceivedAt < args.currentState.BazaarObservedAt)
+            return;
+        amount -= (int)observed;
+        if (amount == 0)
+            return;
         order.ClaimedAmount = (order.ClaimedAmount ?? 0) + amount;
         order.FilledAmount = Math.Max(order.FilledAmount, order.ClaimedAmount.Value);
         args.currentState.BazaarUpdatedAt = args.msg.ReceivedAt > args.currentState.BazaarUpdatedAt
