@@ -466,7 +466,7 @@ public class BazaarOrderListener : UpdateListener
         }
         if (msg.StartsWith("[Bazaar] Sold ") || msg.StartsWith("[Bazaar] Bought "))
         {
-            var parts = Regex.Match(msg, @"(Sold|Bought) ([\d,]+)x (.*) for ([\d,]+)").Groups;
+            var parts = Regex.Match(msg, @"(Sold|Bought) ([\d,]+)x (.*) for ([\d,]+(?:\.\d+)?)").Groups;
             var isSold = parts[1].Value == "Sold";
             amount = ParseInt(parts[2].Value);
             itemName = parts[3].Value;
@@ -722,7 +722,11 @@ public class BazaarOrderListener : UpdateListener
 
     internal static async Task<string> GetTagForName(UpdateArgs args, string itemName)
     {
-        // Check cache first - valid for 2 minutes
+        // Use the shared special shard mapping before search, matching SkyApi descriptions.
+        var plainName = Regex.Replace(itemName, "§.", "");
+        if (plainName.EndsWith(" Shard") && Coflnet.Sky.Core.Constants.ShardNames.TryGetValue(plainName[..^6], out var shard))
+            return "SHARD_" + shard.ToUpperInvariant();
+        // Check cache first - valid for 2 hours
         if (_itemTagCache.TryGetValue(itemName, out var cached))
         {
             var (cachedTag, cachedTime) = cached;

@@ -267,7 +267,7 @@ public class BazaarOrderTests
                 ), Times.Once);
         transactionService.Verify(t => t.AddTransactions(It.Is<Transaction>(t =>
                     t.Type == (Transaction.TransactionType.BAZAAR | Transaction.TransactionType.RECEIVE)
-                    && t.Amount == 38400
+                    && t.Amount == 38402
                     && t.ItemId == TradeDetect.IdForCoins
                     )
                 ), Times.Once);
@@ -551,6 +551,23 @@ public class BazaarOrderTests
         args.msg.ReceivedAt = args.msg.ReceivedAt.AddSeconds(1);
         await listener.Process(args);
         Assert.That(currentState.BazaarOffers.Single().ClaimedAmount, Is.EqualTo(768));
+    }
+
+    [TestCase("Hideonwall Shard", "SHARD_HIDEONWALL")]
+    [TestCase("Beetle Shard", "SHARD_CROPEETLE")]
+    public async Task ChatUsesCanonicalShardIdWithoutSearch(string name, string expected)
+    {
+        var args = CreateArgs();
+        Assert.That(await BazaarOrderListener.GetTagForName(args, name), Is.EqualTo(expected));
+        itemsApi.Verify(a => a.ItemsSearchTermGetAsync(It.IsAny<string>(), 0, default), Times.Never);
+    }
+
+    [Test]
+    public async Task InstantBuyRetainsDecimalCoinAmount()
+    {
+        await listener.Process(CreateArgs("[Bazaar] Bought 1x Coal for 81.9 coins!"));
+        transactionService.Verify(t => t.AddTransactions(It.Is<Transaction>(t =>
+            t.ItemId == TradeDetect.IdForCoins && t.Amount == 819)), Times.Once);
     }
 
     private MockedUpdateArgs CreateArgs(params string[] msgs)
