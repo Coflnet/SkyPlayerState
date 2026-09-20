@@ -9,6 +9,7 @@ using Coflnet.Sky.PlayerState.Services;
 using System.Dynamic;
 using System.Collections.Generic;
 using Coflnet.Sky.Core;
+using Coflnet.Sky.PlayerName.Client.Api;
 
 namespace Coflnet.Sky.PlayerState.Controllers
 {
@@ -91,10 +92,36 @@ namespace Coflnet.Sky.PlayerState.Controllers
         /// </summary>
         [HttpGet]
         [Route("{playerId}/achievements")]
-        public async Task<List<Achievement>> GetAchievements(string playerId)
+        public async Task<List<Achievement>> GetAchievements(string playerId,
+            [FromServices] IPlayerNameApi names, [FromServices] ILogger<PlayerStateController> logger)
         {
             var data = await service.GetStateObject(playerId);
-            return data?.UnlockedAchievements?.ToList() ?? new List<Achievement>();
+            var unlocked = new HashSet<Achievement>(data?.UnlockedAchievements ?? new());
+            if (!Guid.TryParse(playerId, out var uuid) || uuid == Guid.Empty)
+                return unlocked.ToList();
+
+            // Chat is partitioned and persisted by Minecraft name; the emblem consumer reads by UUID.
+            // Keep both existing stores intact, and only combine achievements with verified ownership.
+            try
+            {
+                unlocked.UnionWith(await GetNameKeyedAchievements(uuid, names));
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not read name-keyed achievements for {playerId}", playerId);
+            }
+            return unlocked.ToList();
+        }
+
+        private async Task<IEnumerable<Achievement>> GetNameKeyedAchievements(Guid uuid, IPlayerNameApi names)
+        {
+            var name = (await names.PlayerNameNameUuidGetAsync(uuid.ToString("N")))?.Trim('"');
+            if (string.IsNullOrWhiteSpace(name) || Guid.TryParse(name, out _))
+                return Array.Empty<Achievement>();
+            var state = await service.GetStateObject(name);
+            if (state?.McInfo?.Uuid != uuid)
+                return Array.Empty<Achievement>();
+            return state.UnlockedAchievements ?? new HashSet<Achievement>();
         }
 
         [HttpGet]
