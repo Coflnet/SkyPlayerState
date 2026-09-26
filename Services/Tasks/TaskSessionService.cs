@@ -67,7 +67,8 @@ public class TaskSessionService
 
         if (session == null)
         {
-            info.CurrentSession = StartSession(fragment, claimedTask, prices);
+            info.CurrentSession = StartSession(fragment, claimedTask, prices, info.CurrentIsland, info.CurrentIslandAt,
+                info.CurrentLocationSince, info.CurrentLocationSeenAt);
             return null;
         }
 
@@ -75,14 +76,16 @@ public class TaskSessionService
         var tentative = Merge(session.Items, fragment.ItemsCollected);
         var startTime = session.StartTime == default ? fragment.StartTime : session.StartTime;
         var minutes = (fragment.EndTime - startTime).TotalMinutes;
-        var newTask = classifier.Classify(fragment.Location, tentative, minutes, claimedTask, prices)?.TaskName;
+        var newTask = classifier.Classify(fragment.Location, tentative, minutes, claimedTask, prices,
+            info.CurrentIsland, info.CurrentIslandAt, info.CurrentLocationSince, info.CurrentLocationSeenAt)?.TaskName;
 
         if (session.DetectedTask != null && newTask != null && newTask != session.DetectedTask)
         {
             // the fragment belongs to a different task -> flush the pre-merge session,
             // begin a fresh session from this fragment.
             var flush = BuildPeriod(session, playerUuid);
-            info.CurrentSession = StartSession(fragment, claimedTask, prices);
+            info.CurrentSession = StartSession(fragment, claimedTask, prices, info.CurrentIsland, info.CurrentIslandAt,
+                info.CurrentLocationSince, info.CurrentLocationSeenAt);
             return flush;
         }
 
@@ -101,7 +104,8 @@ public class TaskSessionService
         return null;
     }
 
-    private TaskSession StartSession(Period fragment, string claimedTask, Dictionary<string, double> prices)
+    private TaskSession StartSession(Period fragment, string claimedTask, Dictionary<string, double> prices,
+        string currentIsland, DateTime currentIslandAt, DateTime currentLocationSince, DateTime currentLocationSeenAt)
     {
         var items = Cap(Merge(new Dictionary<string, int>(), fragment.ItemsCollected));
         var minutes = (fragment.EndTime - fragment.StartTime).TotalMinutes;
@@ -112,7 +116,8 @@ public class TaskSessionService
             Location = fragment.Location,
             Server = fragment.Server,
             Items = items,
-            DetectedTask = classifier.Classify(fragment.Location, items, minutes, claimedTask, prices)?.TaskName
+            DetectedTask = classifier.Classify(fragment.Location, items, minutes, claimedTask, prices,
+                currentIsland, currentIslandAt, currentLocationSince, currentLocationSeenAt)?.TaskName
         };
     }
 

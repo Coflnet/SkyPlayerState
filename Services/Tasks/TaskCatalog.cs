@@ -46,7 +46,6 @@ internal static class TaskCatalog
         typeof(WinterFishingHuntingTask),   // fishing nets (shard hunting) do not work at Jerry's Workshop
         typeof(OasisFishingHuntingTask),    // real activity is Tomb Floodway shard fishing, mislabeled as Oasis
         typeof(CinderbatTask),              // real mob but spawns on Crimson Isle not Galatea; SHARD_CINDER_BAT tag unconfirmed
-        typeof(BurningsoulTask),            // shard farmed in Smoldering Tomb (Crimson Isle), not the Galatea ember zones
         typeof(StridersurferTask),          // real, but SHARD_STRIDER_SURFER tag id needs confirming
         typeof(XyzMobTask),                 // duplicate of XyzHuntingTask; wrong location (Exe mob is on Crimson Isle)
         typeof(GhostMobTask),               // duplicate of GhostHuntingTask; GHOST_COIN is not a real item id
@@ -138,7 +137,7 @@ internal static class TaskCatalog
 
         // Mob farm tasks (Galatea)
         // tasks.Add<CinderbatTask>();      // deactivated: Crimson Isle mob (not Galatea); SHARD_CINDER_BAT tag unconfirmed
-        // tasks.Add<BurningsoulTask>();    // deactivated: farmed in Smoldering Tomb (Crimson Isle), not Galatea
+        tasks.Add<BurningsoulTask>();    // re-registered 2026-09: Inferno Demonlord (Blaze Slayer boss, Crimson Isle) - see MobFarmTasks.cs
         tasks.Add<LumisquidTask>();
         tasks.Add<ShellwiseTask>();
         tasks.Add<MatchoTask>();

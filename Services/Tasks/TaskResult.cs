@@ -72,6 +72,12 @@ public class MethodBreakdown
     /// </summary>
     public List<DropInfo> Drops { get; set; } = [];
     /// <summary>
+    /// Items consumed by the method (e.g. gemstones fed into a Forge recipe). ContributionPerHour
+    /// is negative (already subtracted from ProfitPerHour) so consumers can render it directly.
+    /// Empty for methods with no ingredient cost.
+    /// </summary>
+    public List<DropInfo> Costs { get; set; } = [];
+    /// <summary>
     /// Estimated actions per hour (kills, catches, mines, etc.)
     /// </summary>
     public double ActionsPerHour { get; set; }
@@ -103,6 +109,43 @@ public class MethodBreakdown
     /// Task type classification (Active, Passive, Limited)
     /// </summary>
     public TaskType Type { get; set; } = TaskType.Active;
+    /// <summary>
+    /// Wiki page explaining the method or its main item (e.g. Sludge Mining -&gt;
+    /// https://hypixelskyblock.minecraft.wiki/w/Sludge_Juice). Null when no page has been
+    /// curated/verified for this specific method yet - see MethodTask.WikiUrl.
+    /// </summary>
+    public string WikiUrl { get; set; }
+    /// <summary>The exact zone to stand in to do this method (defaults to the first Locations entry).</summary>
+    public string Where { get; set; }
+    /// <summary>The SkyBlock island <see cref="Where"/> belongs to (see SkyblockZones.IslandOf), or null if unknown.</summary>
+    public string Island { get; set; }
+    /// <summary>Wiki page for <see cref="Island"/> (has the island's map), or null if unknown.</summary>
+    public string WhereWikiUrl { get; set; }
+    /// <summary>
+    /// Warp command to get close: the task's own WarpCommand if it declares one, else the
+    /// <see cref="Island"/>'s warp (see SkyblockZones.IslandInfo), else null.
+    /// </summary>
+    public string Warp { get; set; }
+    /// <summary>
+    /// Ordered, followable steps a total beginner can click through - see MethodTask.Steps.
+    /// </summary>
+    public List<TaskStep> Steps { get; set; } = [];
+}
+
+/// <summary>
+/// One step in a followable how-to-earn-coins guide. Rendered as a numbered list; clickable where
+/// OnClick is set.
+/// </summary>
+public class TaskStep
+{
+    public int Number { get; set; }
+    public string Text { get; set; }
+    /// <summary>
+    /// Same click semantics as <see cref="TaskResult.OnClick"/>: a string starting with "http" opens
+    /// a URL in the browser, "suggest:" suggests a chat command, anything else runs as a command.
+    /// Null means this step has no action (just read it).
+    /// </summary>
+    public string OnClick { get; set; }
 }
 
 public class RequiredItem

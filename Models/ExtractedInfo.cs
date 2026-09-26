@@ -88,6 +88,43 @@ public class ExtractedInfo
     /// </summary>
     [Key(25)]
     public long Bits { get; set; }
+    /// <summary>
+    /// The island the player is currently on, parsed from the tab list's "Area: &lt;Island&gt;"
+    /// line (see TabListUpdate). Unlike <see cref="CurrentLocation"/> (the scoreboard sub-zone,
+    /// e.g. "Jungle"), this is the island itself (e.g. "Crystal Hollows"), and is only set while
+    /// the tab list carries that line. Takes priority over the static zone-to-island map (see
+    /// Tasks.SkyblockZones) for live classification since it can resolve zones the map leaves
+    /// ambiguous (e.g. "Dragon's Lair").
+    /// </summary>
+    [Key(26)]
+    public string? CurrentIsland { get; set; }
+    /// <summary>
+    /// When <see cref="CurrentIsland"/> was last set from the tab list (see TabListUpdate). The tab
+    /// list is sent far less often than the scoreboard, so this can predate the player's current
+    /// zone/location; classification must only trust <see cref="CurrentIsland"/> for a zone when
+    /// this is at or after <see cref="LastLocationChange"/> - see TaskClassifier.Classify.
+    /// </summary>
+    [Key(27)]
+    public DateTime CurrentIslandAt { get; set; }
+    /// <summary>
+    /// When <see cref="CurrentLocation"/> last actually CHANGED to a different zone (or was first
+    /// seen) - unlike <see cref="LastLocationChange"/> (really "last profit flush", also bumped by
+    /// the 5-minute same-zone flush - see CollectionListener.StoreLocationProfit), this only moves
+    /// on a genuine zone change. Together with <see cref="CurrentLocationSeenAt"/> this bounds the
+    /// window in which a tab-reported <see cref="CurrentIsland"/> reading can be trusted for the
+    /// current zone - see TaskClassifier.Classify.
+    /// </summary>
+    [Key(28)]
+    public DateTime CurrentLocationSince { get; set; }
+    /// <summary>
+    /// Time of the last scoreboard update that confirmed the player is still in
+    /// <see cref="CurrentLocation"/> (bumped on every scoreboard tick while the zone is unchanged,
+    /// not just on a flush). A tab reading is only trusted for the current zone's fragment when it
+    /// arrived at/after <see cref="CurrentLocationSince"/> and at/before this - i.e. while the
+    /// player was actually confirmed to be in that zone - see TaskClassifier.Classify.
+    /// </summary>
+    [Key(29)]
+    public DateTime CurrentLocationSeenAt { get; set; }
     [MessagePackObject]
     public class PetState
     {
@@ -191,6 +228,10 @@ public class ExtractedInfo
         CurrentSession = extractedInfo.CurrentSession == null ? null : new TaskSession(extractedInfo.CurrentSession);
         Purse = extractedInfo.Purse;
         Bits = extractedInfo.Bits;
+        CurrentIsland = extractedInfo.CurrentIsland;
+        CurrentIslandAt = extractedInfo.CurrentIslandAt;
+        CurrentLocationSince = extractedInfo.CurrentLocationSince;
+        CurrentLocationSeenAt = extractedInfo.CurrentLocationSeenAt;
     }
 }
 

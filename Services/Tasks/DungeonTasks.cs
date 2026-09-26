@@ -56,6 +56,17 @@ public class M7Task : BaseDungeonTask
         new() { ItemTag = "HYPERION", Reason = "Best mage weapon for M7" },
         new() { ItemTag = "TERMINATOR", Reason = "Best archer weapon for M7" }
     ];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Necron";
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Get your gear ready: a Hyperion (mage) or Terminator (archer) is best for M7." },
+        new() { Number = 2, Text = "Type /warp dungeon_hub to get close.", OnClick = "/warp dungeon_hub" },
+        new() { Number = 3, Text = "Queue for Master Mode Floor 7 (needs Catacombs level 36+), with a good party of 5.", OnClick = WhereWikiUrl },
+        new() { Number = 4, Text = "Clear the dungeon and fight the boss, Necron - he has several phases." },
+        new() { Number = 5, Text = "You're doing it right when you collect: Wither Essence, and rarely a Necron's Handle (about 1 in 20 runs).", OnClick = WikiUrl },
+        new() { Number = 6, Text = "Sell the Wither Essence, and the Handle if you get one, on the Bazaar/Auction House." },
+        new() { Number = 7, Text = "Check /cofl task again to see your real coins/hour." },
+    ];
 }
 public class M7KismetTask : BaseDungeonTask
 {
@@ -67,5 +78,17 @@ public class M7KismetTask : BaseDungeonTask
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "KISMET_FEATHER", Reason = "Rerolls dungeon chest for better drops" },
         new() { ItemTag = "HYPERION", Reason = "Best mage weapon for M7" }
+    ];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Necron";
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Get your gear ready: a Hyperion (mage) or Terminator (archer) is best for M7.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Kismet_Feather" },
+        new() { Number = 2, Text = "Buy some Kismet Feathers - each one lets you reroll your dungeon chest once for a better item." },
+        new() { Number = 3, Text = "Type /warp dungeon_hub to get close.", OnClick = "/warp dungeon_hub" },
+        new() { Number = 4, Text = "Queue for Master Mode Floor 7 (needs Catacombs level 36+), with a good party of 5.", OnClick = WhereWikiUrl },
+        new() { Number = 5, Text = "Clear the dungeon and beat Necron, then use your Kismet Feathers to reroll the end chest." },
+        new() { Number = 6, Text = "You're doing it right when you collect: Wither Essence, and Necron's Handle more often than plain M7.", OnClick = WikiUrl },
+        new() { Number = 7, Text = "Sell the Wither Essence, and the Handle if you get one, on the Bazaar/Auction House." },
+        new() { Number = 8, Text = "Check /cofl task again to see your real coins/hour." },
     ];
 }

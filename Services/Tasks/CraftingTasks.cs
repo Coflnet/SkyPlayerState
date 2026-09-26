@@ -1,5 +1,6 @@
 using Coflnet.Sky.Commands.MC;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -18,6 +19,18 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 public class ReaperScytheTask : ProfitTask
 {
     public override string Description => "Estimates profit from crafting Reaper Scythes via M3 runs";
+    protected override string Where => "The Great Forge";
+    protected override string WarpCommand => "/warp forge";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Reaper_Scythe";
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Run Master Mode Floor 3 (M3) in the Catacombs and collect the Wither Essence/drops it needs." },
+        new() { Number = 2, Text = "Type /warp forge to get close.", OnClick = "/warp forge" },
+        new() { Number = 3, Text = "Craft the Reaper Scythe in the Forge with those drops.", OnClick = WikiUrl },
+        new() { Number = 4, Text = "Wait for the craft to finish." },
+        new() { Number = 5, Text = "Sell the Reaper Scythe on the Auction House." },
+        new() { Number = 6, Text = "Check /cofl task again to see your real coins/hour." },
+    ];
 
     public override async Task<TaskResult> Execute(TaskParams parameters)
     {
@@ -29,7 +42,9 @@ public class ReaperScytheTask : ProfitTask
             {
                 ProfitPerHour = 0,
                 Message = "Reaper Scythe price data unavailable.",
-                Details = "Cannot determine current sell price for Reaper Scythe."
+                Details = "Cannot determine current sell price for Reaper Scythe.",
+                OnClick = WarpCommand,
+                Breakdown = NewGuidanceBreakdown("Crafting", "formula")
             };
         }
 
@@ -46,7 +61,8 @@ public class ReaperScytheTask : ProfitTask
                 ProfitPerHour = (int)reaperFlip.ProfitPerHour,
                 Message = $"Craft Reaper Scythe, takes {parameters.Formatter.FormatTime(TimeSpan.FromSeconds(reaperFlip.Duration))}",
                 Details = $"Ingredients: {string.Join(", ", reaperFlip.CraftData.Ingredients.Select(i => $"{i.ItemId} x{i.Count}"))}\nClick to warp to forge",
-                OnClick = "/warp forge"
+                OnClick = "/warp forge",
+                Breakdown = NewGuidanceBreakdown("Crafting", "formula")
             };
         }
 
@@ -54,7 +70,9 @@ public class ReaperScytheTask : ProfitTask
         {
             ProfitPerHour = 0,
             Message = "Reaper Scythe not currently profitable in forge or recipe not available.",
-            Details = "Check /cofl forge for current forge craft opportunities."
+            Details = "Check /cofl forge for current forge craft opportunities.",
+            OnClick = WarpCommand,
+            Breakdown = NewGuidanceBreakdown("Crafting", "formula")
         };
     }
 }
@@ -66,6 +84,18 @@ public class ReaperScytheTask : ProfitTask
 public class GauntletOfContagionTask : ProfitTask
 {
     public override string Description => "Estimates profit from crafting Gauntlet of Contagion";
+    protected override string Where => "The Great Forge";
+    protected override string WarpCommand => "/warp forge";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Gauntlet_of_Contagion";
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Collect the ingredients this craft needs (mostly slayer/dungeon drops)." },
+        new() { Number = 2, Text = "Type /warp forge to get close.", OnClick = "/warp forge" },
+        new() { Number = 3, Text = "Craft the Gauntlet of Contagion in the Forge.", OnClick = WikiUrl },
+        new() { Number = 4, Text = "Wait for the craft to finish." },
+        new() { Number = 5, Text = "Sell the Gauntlet of Contagion on the Auction House." },
+        new() { Number = 6, Text = "Check /cofl task again to see your real coins/hour." },
+    ];
 
     public override async Task<TaskResult> Execute(TaskParams parameters)
     {
@@ -77,7 +107,9 @@ public class GauntletOfContagionTask : ProfitTask
             {
                 ProfitPerHour = 0,
                 Message = "Gauntlet of Contagion price data unavailable.",
-                Details = "Cannot determine current sell price."
+                Details = "Cannot determine current sell price.",
+                OnClick = WarpCommand,
+                Breakdown = NewGuidanceBreakdown("Crafting", "formula")
             };
         }
 
@@ -93,7 +125,8 @@ public class GauntletOfContagionTask : ProfitTask
                 ProfitPerHour = (int)gauntletFlip.ProfitPerHour,
                 Message = $"Craft Gauntlet of Contagion, takes {parameters.Formatter.FormatTime(TimeSpan.FromSeconds(gauntletFlip.Duration))}",
                 Details = $"Ingredients: {string.Join(", ", gauntletFlip.CraftData.Ingredients.Select(i => $"{i.ItemId} x{i.Count}"))}\nClick to warp to forge",
-                OnClick = "/warp forge"
+                OnClick = "/warp forge",
+                Breakdown = NewGuidanceBreakdown("Crafting", "formula")
             };
         }
 
@@ -101,7 +134,9 @@ public class GauntletOfContagionTask : ProfitTask
         {
             ProfitPerHour = 0,
             Message = "Gauntlet of Contagion not currently profitable or recipe unavailable.",
-            Details = "Check /cofl forge for current forge craft opportunities."
+            Details = "Check /cofl forge for current forge craft opportunities.",
+            OnClick = WarpCommand,
+            Breakdown = NewGuidanceBreakdown("Crafting", "formula")
         };
     }
 }
@@ -175,6 +210,19 @@ public abstract class ForgeCraftTask : ProfitTask
     protected abstract string ItemDisplayName { get; }
 
     public override string Description => $"Estimates profit from crafting {ItemDisplayName}";
+    protected override string Where => "The Great Forge";
+    protected override string WarpCommand => "/warp forge";
+    /// <summary>Best-effort wiki page guess from the item's own display name - verify with curl when adding a new ForgeCraftTask.</summary>
+    protected override string WikiUrl => SkyblockZones.WikiPageUrl(ItemDisplayName);
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = $"Collect the ingredients {ItemDisplayName} needs (check the recipe on the wiki).", OnClick = WikiUrl },
+        new() { Number = 2, Text = "Type /warp forge to get close.", OnClick = "/warp forge" },
+        new() { Number = 3, Text = $"Craft {ItemDisplayName} in the Forge." },
+        new() { Number = 4, Text = "Wait for the craft to finish." },
+        new() { Number = 5, Text = $"Sell {ItemDisplayName} on the Auction House or Bazaar." },
+        new() { Number = 6, Text = "Check /cofl task again to see your real coins/hour." },
+    ];
 
     public override async Task<TaskResult> Execute(TaskParams parameters)
     {
@@ -190,14 +238,17 @@ public abstract class ForgeCraftTask : ProfitTask
                 Message = $"Craft {ItemDisplayName}, takes {parameters.Formatter.FormatTime(TimeSpan.FromSeconds(flip.Duration))}",
                 Details = $"Ingredients: {string.Join(", ", flip.CraftData.Ingredients.Select(i => $"{i.ItemId} x{i.Count}"))}\nClick to warp to forge",
                 OnClick = "/warp forge",
-                MostlyPassive = true
+                MostlyPassive = true,
+                Breakdown = NewGuidanceBreakdown("Crafting", "formula")
             };
 
         return new TaskResult
         {
             ProfitPerHour = 0,
             Message = $"{ItemDisplayName} not currently profitable or unavailable.",
-            Details = "Check /cofl forge for current forge craft opportunities."
+            Details = "Check /cofl forge for current forge craft opportunities.",
+            OnClick = WarpCommand,
+            Breakdown = NewGuidanceBreakdown("Crafting", "formula")
         };
     }
 }

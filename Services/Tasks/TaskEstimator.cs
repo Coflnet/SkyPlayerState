@@ -26,6 +26,18 @@ public class TaskEstimate
     public int DoersChange20m { get; set; }
     public List<TaskDropRate> Drops { get; set; } = new();
     public string TraceId { get; set; }
+    /// <summary>Wiki page explaining the method/main item, or null if not curated - see MethodTask.WikiUrl.</summary>
+    public string WikiUrl { get; set; }
+    /// <summary>The exact zone to stand in to do this method - see MethodTask.Where.</summary>
+    public string Where { get; set; }
+    /// <summary>The SkyBlock island Where belongs to, or null if unknown - see SkyblockZones.IslandOf.</summary>
+    public string Island { get; set; }
+    /// <summary>Wiki page for Island (has the island's map), or null if unknown.</summary>
+    public string WhereWikiUrl { get; set; }
+    /// <summary>Warp command to get close: the task's own, else the island's, else null.</summary>
+    public string Warp { get; set; }
+    /// <summary>Ordered, followable steps a total beginner can click through - see MethodTask.Steps.</summary>
+    public List<TaskStep> Steps { get; set; } = new();
 }
 
 public class TaskDropRate
@@ -254,7 +266,13 @@ public class TaskEstimator
             DoersChange20m = deltas.GetValueOrDefault(name),
             Drops = BuildDrops(task, p > 0.5 && personal != null ? PlayerStatCounts(personal) : bucketAgg?.ItemCounts,
                 bucketAgg?.WSeconds ?? personal?.WSeconds ?? 0, prices),
-            TraceId = span?.TraceId.ToString() ?? System.Diagnostics.Activity.Current?.TraceId.ToString()
+            TraceId = span?.TraceId.ToString() ?? System.Diagnostics.Activity.Current?.TraceId.ToString(),
+            WikiUrl = task.WikiUrlForTest,
+            Where = task.WhereForTest,
+            Island = task.IslandForTest,
+            WhereWikiUrl = task.WhereWikiUrlForTest,
+            Warp = task.EffectiveWarpCommandForTest,
+            Steps = task.StepsForTest
         };
     }
 
@@ -263,13 +281,21 @@ public class TaskEstimator
     private double FormulaRate(MethodTask task, Dictionary<string, double> prices)
     {
         double total = 0;
+        var dropRates = new Dictionary<string, double>();
         foreach (var drop in task.FormulaDropsForTest)
         {
             var price = prices?.GetValueOrDefault(drop.ItemTag) ?? 0;
             if (price > 0)
                 total += drop.RatePerHour * price;
+            // rates, not counts, but ScaledFormulaCost below is called with hours = 1 so its own
+            // "count / hours" math reduces back to these same per-hour rates.
+            dropRates[drop.ItemTag] = dropRates.GetValueOrDefault(drop.ItemTag) + drop.RatePerHour;
         }
-        return total;
+        // Net out ingredient costs (e.g. the 16 fine gems per Gemstone Mixture) - otherwise the
+        // formula baseline (used as the cold-start prior even once community data exists) counts
+        // the full output price and silently drops what the recipe consumes to make it.
+        var cost = task.ScaledFormulaCost(dropRates, 1.0, tag => prices?.GetValueOrDefault(tag) ?? 0);
+        return total - cost;
     }
 
     /// <summary>

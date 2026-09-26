@@ -68,24 +68,72 @@ public class MethodDetectionTests
     }
 
     [Test]
-    public async Task BurningsoulDetected_NotCinderbat_AtSameLocation()
+    public async Task BurningsoulDetected_AsInfernoDemonlord_AtSmolderingTomb()
     {
-        var period = MakePeriod("Dive-Ember Pass", 400_000, new()
+        // SHARD_BURNINGSOUL now drops from the Inferno Demonlord boss (Blaze Slayer) on the
+        // Crimson Isle, not from any Galatea ember mob - see BurningsoulTask.
+        var period = MakePeriod("Smoldering Tomb", 400_000, new()
         {
             { "SHARD_BURNINGSOUL", 30 },
             { "AGATHA_COUPON", 8 }
         });
 
-        // Burningsoul should detect it
         var burningsoul = new BurningsoulTask();
         var bResult = await burningsoul.Execute(MakeParams(period));
         bResult.ProfitPerHour.Should().BeGreaterThan(0);
-        bResult.Name.Should().Be("Burningsoul");
+        bResult.Name.Should().Be("Inferno Demonlord");
 
-        // Cinderbat should NOT detect it (wrong shard)
+        // Cinderbat (a Galatea ember mob) should NOT detect a Crimson Isle period
         var cinderbat = new CinderbatTask();
         var cResult = await cinderbat.Execute(MakeParams(period));
-        cResult.ProfitPerHour.Should().Be(0, "Cinderbat should not match periods with SHARD_BURNINGSOUL");
+        cResult.ProfitPerHour.Should().Be(0, "Cinderbat only matches Galatea ember zones, not the Crimson Isle");
+    }
+
+    /// <summary>
+    /// Regression: BurningsoulTask (Inferno Demonlord / Blaze Slayer) used to list the bare island
+    /// name "Crimson Isle" in its Locations, so SkyblockZones.Matches (island-level fallback) let
+    /// ANY Crimson Isle zone count as Inferno Demonlord progress - e.g. Mycelium mining in Mystic
+    /// Marsh or fishing in Scarleton/Oasis. It must only match the actual combat zone
+    /// (Smoldering Tomb - see InfernoDemonlordGuide) plus its other specifically-declared zones.
+    /// </summary>
+    [TestCase("Mystic Marsh")]
+    [TestCase("Scarleton")]
+    [TestCase("Oasis")]
+    public async Task BurningsoulTask_DoesNotMatchUnrelatedCrimsonIsleZones(string unrelatedZone)
+    {
+        var period = MakePeriod(unrelatedZone, 400_000, new() { { "SHARD_BURNINGSOUL", 30 } });
+        var result = await new BurningsoulTask().Execute(MakeParams(period));
+        result.ProfitPerHour.Should().Be(0,
+            $"{unrelatedZone} is a Crimson Isle zone but not where Inferno Demonlord is fought");
+    }
+
+    /// <summary>
+    /// Regression for the same bug as above, checked across every registered slayer task at once:
+    /// none of IndividualSlayerTask's LocationNames (T3/T4 Inferno Demonlord, T5/T4 Tarantula,
+    /// Ashfang, Barbarian Duke X) or the known slayer-boss-derived MethodTasks (BurningsoulTask,
+    /// T4 Voidglooms(/FD)) may be a bare island or multi-island-group key - SkyblockZones.Matches
+    /// would then let every zone of that island/group count as the slayer.
+    /// </summary>
+    [Test]
+    public void NoSlayerTaskLocation_IsABareIslandOrGroupKey()
+    {
+        var registry = new TaskRegistry();
+        var islandOrGroupKeys = new HashSet<string>(SkyblockZones.IslandInfo.Keys, StringComparer.Ordinal) { "Galatea" };
+
+        void AssertNoIslandLocations(string taskName, IEnumerable<string> locations)
+        {
+            foreach (var loc in locations)
+                islandOrGroupKeys.Should().NotContain(loc,
+                    $"{taskName} lists \"{loc}\" as a Location, but it is a whole island/group key - " +
+                    "SkyblockZones.Matches would then match EVERY zone of that island/group for this slayer");
+        }
+
+        foreach (var slayer in registry.Tasks.OfType<IndividualSlayerTask>())
+            AssertNoIslandLocations(slayer.GetType().Name, slayer.LocationNamesForTest);
+
+        var slayerDerivedMethodTasks = new[] { "Inferno Demonlord", "T4 Voidglooms", "T4 Voidglooms (FD)" };
+        foreach (var method in registry.MethodTasks.Where(t => slayerDerivedMethodTasks.Contains(t.GetDetectionSignature().MethodName)))
+            AssertNoIslandLocations(method.GetDetectionSignature().MethodName, method.GetDetectionSignature().Locations);
     }
 
     [Test]
@@ -298,26 +346,23 @@ public class MethodDetectionTests
     [Test]
     public async Task OverlappingLocations_ResolvedByDetectionItems()
     {
-        // Dive-Ember Pass is shared by Cinderbat, Burningsoul, and Stridersurfer
+        // Dive-Ember Pass is shared by Cinderbat and Stridersurfer (Burningsoul/Inferno Demonlord
+        // moved to the Crimson Isle Blaze Slayer boss - see BurningsoulDetected_AsInfernoDemonlord_AtSmolderingTomb)
         var cinderbatPeriod = MakePeriod("Dive-Ember Pass", 500_000, new() { { "SHARD_CINDER_BAT", 40 } });
-        var burningsoulPeriod = MakePeriod("Dive-Ember Pass", 400_000, new() { { "SHARD_BURNINGSOUL", 30 } });
         var stridersurferPeriod = MakePeriod("Stride-Ember Fissure", 600_000, new() { { "SHARD_STRIDER_SURFER", 50 } });
 
-        var allPeriods = new[] { cinderbatPeriod, burningsoulPeriod, stridersurferPeriod };
+        var allPeriods = new[] { cinderbatPeriod, stridersurferPeriod };
         var p = MakeParams(allPeriods);
 
         // Each task should only pick up its own periods
         var cinderbatResult = await new CinderbatTask().Execute(p);
-        var burningsoulResult = await new BurningsoulTask().Execute(p);
         var stridersurferResult = await new StridersurferTask().Execute(p);
 
         cinderbatResult.ProfitPerHour.Should().BeGreaterThan(0);
-        burningsoulResult.ProfitPerHour.Should().BeGreaterThan(0);
         stridersurferResult.ProfitPerHour.Should().BeGreaterThan(0);
 
         // Each should only see its own items
-        cinderbatResult.Details.Should().Contain("SHARD_CINDER_BAT").And.NotContain("SHARD_BURNINGSOUL");
-        burningsoulResult.Details.Should().Contain("SHARD_BURNINGSOUL").And.NotContain("SHARD_CINDER_BAT");
+        cinderbatResult.Details.Should().Contain("SHARD_CINDER_BAT");
         stridersurferResult.Details.Should().Contain("SHARD_STRIDER_SURFER");
     }
 
@@ -393,7 +438,13 @@ public class MethodDetectionTests
     [Test]
     public async Task VoidgloomsDetection()
     {
-        var period = MakePeriod("The End", 3_000_000, new()
+        // "Void Sepulture" - the wiki-confirmed intended zone for Enderman Slayer (Voidgloom Seraph)
+        // grinding. Not the bare "The End" main zone: that used to be in T4VoidgloomsTask's
+        // Locations too, but since it's the island's own self-referencing zone name, it also
+        // (via SkyblockZones.Matches' island fallback) wrongly matched every other The End zone,
+        // e.g. Zealot Bruiser Hideout's unrelated Summoning Eye farming - see the Inferno Demonlord
+        // regression test below for the same class of bug.
+        var period = MakePeriod("Void Sepulture", 3_000_000, new()
         {
             { "SUMMONING_EYE", 5 },
             { "ENCHANTED_OBSIDIAN", 15 }
@@ -402,6 +453,39 @@ public class MethodDetectionTests
         var result = await task.Execute(MakeParams(period));
         result.ProfitPerHour.Should().BeGreaterThan(0);
         result.Name.Should().Be("T4 Voidglooms");
+    }
+
+    /// <summary>
+    /// Regression (corrected 2026-09, supersedes an earlier test with the opposite assertion):
+    /// IndividualSlayerTask.Execute routes through SkyblockZones.Matches, so a slayer task's
+    /// Locations must never include a bare island name (here "Crimson Isle") - Matches' island
+    /// fallback would then let ANY Crimson Isle sub-zone count as this slayer, e.g. Mycelium mining
+    /// in Mystic Marsh (a totally unrelated activity - no Blaze/Inferno Demonlord connection at
+    /// all) being counted as Inferno Demonlord Blaze Slayer progress.
+    /// </summary>
+    [Test]
+    public async Task InfernoDemonlordNotDetected_AtUnrelatedCrimsonIsleSubZone()
+    {
+        var period = MakePeriod("Mystic Marsh", 5_000_000, new() { { "BLAZE_ROD", 500 } }, 20);
+        var task = new T4InfernoDemonlordTask();
+        var result = await task.Execute(MakeParams(period));
+        result.ProfitPerHour.Should().Be(0,
+            "Mystic Marsh is a Crimson Isle sub-zone unrelated to the Inferno Demonlord boss (fought in the Smoldering Tomb) " +
+            "and must not match just because \"Crimson Isle\" used to be a bare island name in LocationNames");
+    }
+
+    /// <summary>
+    /// The actual combat zone must still match, of course - Stronghold/Smoldering Tomb/The Bastion
+    /// remain explicitly listed in T4InfernoDemonlordTask.LocationNames after removing the bare
+    /// "Crimson Isle" island name.
+    /// </summary>
+    [Test]
+    public async Task InfernoDemonlordDetected_AtSmolderingTomb()
+    {
+        var period = MakePeriod("Smoldering Tomb", 5_000_000, new() { { "BLAZE_ROD", 500 } }, 20);
+        var task = new T4InfernoDemonlordTask();
+        var result = await task.Execute(MakeParams(period));
+        result.ProfitPerHour.Should().BeGreaterThan(0, "Smoldering Tomb is explicitly listed and is where Inferno Demonlord is fought");
     }
 
     // ── Misc tasks ──

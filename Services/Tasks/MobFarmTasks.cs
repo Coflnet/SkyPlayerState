@@ -35,11 +35,24 @@ public class CinderbatTask : BaseGalateaMobTask
 }
 public class BurningsoulTask : BaseGalateaMobTask
 {
-    protected override string MethodName => "Burningsoul";
-    protected override HashSet<string> Locations => ["Dive-Ember Pass", "Stride-Ember Fissure", "Side-Ember Way"];
+    // Hypixel renamed the shard to "Inferno Demonlord Shard" (item tag stays SHARD_BURNINGSOUL) and,
+    // per the community wiki (hypixelskyblock.minecraft.wiki/w/Burningsoul_Shard) and the
+    // 2026-04-30 changelog, it is Epic and drops ONLY from the Inferno Demonlord boss (Blaze Slayer,
+    // Crimson Isle) - T2 1.54%, T3 2.90%, T4 5.27% per kill, 1 per drop. It no longer drops from
+    // Galatea ember zone mobs or the old Burningsoul Demon miniboss.
+    protected override string MethodName => "Inferno Demonlord";
+    // Bare island name "Crimson Isle" deliberately excluded - IndividualSlayerTask/MethodTask both
+    // match via SkyblockZones.Matches, so an island-level entry would wrongly count every Crimson
+    // Isle zone (Mycelium mining in Mystic Marsh, fishing in Scarleton/Oasis, ...) as this drop.
+    protected override HashSet<string> Locations => ["Smoldering Tomb", "Stronghold"];
     protected override HashSet<string> DetectionItems => ["SHARD_BURNINGSOUL"];
-    protected override List<MethodDrop> FormulaDrops => [new("SHARD_BURNINGSOUL", 280)];
-    protected override string HowTo => "Go to the Ember areas on Galatea and kill Burningsouls. Found alongside Cinderbats.";
+    // ~20 T4 Inferno Demonlord kills/h (typical Blaze Slayer speed-farm) * 5.27% T4 drop chance.
+    // Only the shard is modeled - the other T4 Blaze Slayer boss drops (Derelict Ashe, Blaze Rods,
+    // dye chances) have no verified rates/tags elsewhere in this codebase to reuse here.
+    protected override List<MethodDrop> FormulaDrops => [new("SHARD_BURNINGSOUL", 20 * 0.0527)];
+    protected override string HowTo => "Buy a Maddox Batphone, start a Blaze Slayer quest at Tier 4, grind Blazes in the Smoldering Tomb until the Inferno Demonlord boss spawns, then kill it for a chance at an Inferno Demonlord Shard.";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Burningsoul_Shard";
+    protected override List<TaskStep> Steps => InfernoDemonlordGuide.Steps(4);
 }
 public class LumisquidTask : BaseGalateaMobTask
 {
@@ -61,10 +74,26 @@ public class MatchoTask : BaseGalateaMobTask
 {
     protected override string MethodName => "Matcho";
     // Matcho is launched from the Blazing Volcano eruption on the Crimson Isle, not Galatea.
+    // Verified on the community wiki 2026-09: every 120-150 minutes the volcano erupts and
+    // launches coal blocks across the whole island; a Matcho spawns wherever one lands. Unlike the
+    // slayer bosses (see SlayerTasks.cs), the bare island name "Crimson Isle" here is intentional,
+    // not the bug it would be for a slayer - this drop really is island-wide by game design.
     protected override HashSet<string> Locations => ["Crimson Isle", "Blazing Volcano"];
     protected override HashSet<string> DetectionItems => ["SHARD_MATCHO"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_MATCHO", 260)];
-    protected override string HowTo => "Go to the Wetlands on Galatea and kill Matcho mobs in the marsh areas.";
+    protected override string HowTo => "Wait for the Blazing Volcano on the Crimson Isle to erupt (every 120-150 minutes), then look for Matchos anywhere a coal block landed and kill them.";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Matcho";
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Get your gear: a good sword or bow for fighting a level 100 mob." },
+        new() { Number = 2, Text = "Type /warp isle to get close.", OnClick = "/warp isle" },
+        new() { Number = 3, Text = "Watch the Blazing Volcano - every 120-150 minutes it erupts with a loud explosion.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Blazing_Volcano" },
+        new() { Number = 4, Text = "After it erupts, blocks (including coal) land all over the Crimson Isle. Wherever a coal block lands, a Matcho appears.", OnClick = WikiUrl },
+        new() { Number = 5, Text = "Find and kill the Matchos before someone else does." },
+        new() { Number = 6, Text = "You're doing it right when you collect: Matcho Shard. That's what we track for your coins/hour." },
+        new() { Number = 7, Text = "Sell the shards on the Bazaar." },
+        new() { Number = 8, Text = "Check /cofl task again to see your real coins/hour." },
+    ];
 }
 public class StridersurferTask : BaseGalateaMobTask
 {
@@ -135,6 +164,17 @@ public class HideonleafTask : BaseGalateaMobTask
     protected override HashSet<string> DetectionItems => ["SHARD_HIDEONLEAF"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_HIDEONLEAF", 250)];
     protected override string HowTo => "Go to the Wetlands or Evergreen Plateau on Galatea and kill Hideonleaf mobs.";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Hideonleaf";
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Get your gear: a good sword or bow." },
+        new() { Number = 2, Text = "Type /warp galatea to get close.", OnClick = "/warp galatea" },
+        new() { Number = 3, Text = "Go to the Wetlands (North or South) or Evergreen Plateau on Galatea.", OnClick = WhereWikiUrl },
+        new() { Number = 4, Text = "Look for and kill Hideonleaf mobs - they like to hide, so look closely.", OnClick = WikiUrl },
+        new() { Number = 5, Text = "You're doing it right when you collect: Hideonleaf Shard. That's what we track for your coins/hour." },
+        new() { Number = 6, Text = "Sell the shards on the Bazaar." },
+        new() { Number = 7, Text = "Check /cofl task again to see your real coins/hour." },
+    ];
 }
 public class DreadwingTask : BaseGalateaMobTask
 {

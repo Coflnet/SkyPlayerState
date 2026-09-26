@@ -35,6 +35,9 @@ public class HuntingTrapTask : MethodTask
 
     protected override string MethodName => "Hunting Trap";
     protected override string Category => "Hunting";
+    // No single Where - it dynamically picks whichever zone currently has the priciest shard (see
+    // Execute below), so fall back to the general "Shard" wiki page instead of one specific zone.
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Shard";
     protected override TaskType TaskType => TaskType.Passive;
     protected override string ActionUnit => "traps";
     protected override double ActionsPerHour => 1.0 / 24; // 1 trap per 24 hours
@@ -58,13 +61,34 @@ public class HuntingTrapTask : MethodTask
                 ProfitPerHour = 0,
                 Type = TaskType.Passive, MostlyPassive = true,
                 Message = "Hunting Trap - no shard prices available.",
-                Name = MethodName
+                Name = MethodName,
+                Breakdown = NewGuidanceBreakdown("Hunting", "formula")
             });
 
         var fmt = parameters.Formatter;
         var profitPerHour = bestShard.Price / 24.0;
         var shardName = parameters.Names.GetValueOrDefault(bestShard.ShardTag, bestShard.ShardTag);
         var location = bestShard.Locations[0];
+
+        var breakdown = new MethodBreakdown
+        {
+            HowTo = HowTo,
+            RequiredItems = RequiredItems,
+            Drops = [new DropInfo
+            {
+                ItemTag = bestShard.ShardTag,
+                Name = shardName,
+                RatePerHour = 1.0 / 24,
+                PriceEach = bestShard.Price,
+                ContributionPerHour = profitPerHour
+            }],
+            ActionsPerHour = 1.0 / 24,
+            ActionUnit = "traps",
+            Category = "Hunting",
+            Source = "formula",
+            Type = TaskType.Passive
+        };
+        PopulateGuidanceFields(breakdown);
 
         return Task.FromResult(new TaskResult
         {
@@ -77,24 +101,7 @@ public class HuntingTrapTask : MethodTask
                 + $"{McColorCodes.GRAY}Place a hunting trap there and collect after 24 hours.\n"
                 + $"{McColorCodes.DARK_GRAY}(Passive — can be done alongside active tasks)",
             Name = MethodName,
-            Breakdown = new MethodBreakdown
-            {
-                HowTo = HowTo,
-                RequiredItems = RequiredItems,
-                Drops = [new DropInfo
-                {
-                    ItemTag = bestShard.ShardTag,
-                    Name = shardName,
-                    RatePerHour = 1.0 / 24,
-                    PriceEach = bestShard.Price,
-                    ContributionPerHour = profitPerHour
-                }],
-                ActionsPerHour = 1.0 / 24,
-                ActionUnit = "traps",
-                Category = "Hunting",
-                Source = "formula",
-                Type = TaskType.Passive
-            }
+            Breakdown = breakdown
         });
     }
 }

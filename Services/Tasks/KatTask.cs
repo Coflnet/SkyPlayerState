@@ -9,6 +9,18 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 
 public class KatTask : ProfitTask
 {
+    protected override string Where => "Hub";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Kat";
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Type /warp hub to get close.", OnClick = "/warp hub" },
+        new() { Number = 2, Text = "Find Kat's house/building in the Hub and click her.", OnClick = WikiUrl },
+        new() { Number = 3, Text = "Pick the pet upgrade this task suggests and buy it from the Auction House (click the button below to jump straight to it)." },
+        new() { Number = 4, Text = "Give the pet and the materials to Kat and pay to start the upgrade." },
+        new() { Number = 5, Text = "Wait for the upgrade to finish, then sell the upgraded pet on the Auction House." },
+        new() { Number = 6, Text = "Check /cofl task again to see your real coins/hour." },
+    ];
+
     public record FlipData(KatUpgradeResult katData, PriceSumary sumary)
     {
     }
@@ -43,7 +55,9 @@ public class KatTask : ProfitTask
                 Type = TaskType.Passive, MostlyPassive = true,
                 Message = "Status of kat is unknown, please open the kat menu and try again",
                 Details = "The status of kat can only be read if you\n"
-                         + "click on the kat npc in the skyblock hub"
+                         + "click on the kat npc in the skyblock hub",
+                OnClick = EffectiveWarpCommand,
+                Breakdown = NewGuidanceBreakdown("Pets", "formula")
             };
         }
         if (expireTime > DateTime.UtcNow)
@@ -54,6 +68,8 @@ public class KatTask : ProfitTask
                 Type = TaskType.Passive, MostlyPassive = true,
                 Message = $"Your kat is currently busy with {parameters.ExtractedInfo.KatStatus.ItemName} for another {formatProvider.FormatTime(parameters.ExtractedInfo.KatStatus.KatEnd - DateTime.UtcNow)}.",
                 Details = "Please wait until kat is done with the current task.\nWould you like to get a push notification when kat is done?",
+                OnClick = EffectiveWarpCommand,
+                Breakdown = NewGuidanceBreakdown("Pets", "formula")
             };
         }
         // skip top one as its usually quickly bought, add 6 minutes for getting materials and setup
@@ -88,7 +104,8 @@ public class KatTask : ProfitTask
             Type = TaskType.Passive, MostlyPassive = true,
             Message = $"Upgrade {coreData.Name} with kat starting with {coreData.BaseRarity}, click to get cheapest purchase, if its already sold try again in a minute.",
             Details = explanation,
-            OnClick = $"/viewauction {best.katData.OriginAuction}"
+            OnClick = $"/viewauction {best.katData.OriginAuction}",
+            Breakdown = NewGuidanceBreakdown("Pets", "formula")
         };
     }
 

@@ -47,6 +47,46 @@ public class ScoreboardParserTests
         ScoreboardParser.ExtractArea(null).Should().BeNull();
     }
 
+    [TestCase(" ⏣ None")]
+    public void ExtractArea_TreatsLiteralNoneAsNoArea_LegacyGlyph(string noneLine)
+    {
+        // Hypixel shows the literal area name "None" at some spots (confirmed in production logs,
+        // player Ekwav, on several islands) instead of omitting the area line - that must not be
+        // treated as a real area (see HandleScoreboard, which would otherwise end/restart location
+        // tracking and store a period for "None"). Uses a real area-marker line (glyph included),
+        // not just an absent one, so this actually exercises the "None" special case.
+        ScoreboardParser.ExtractArea(new[] { "[SKYBLOCK]", noneLine, "Purse: 1" }).Should().BeNull();
+    }
+
+    [Test]
+    public void ExtractArea_TreatsLiteralNoneAsNoArea_PrivateUseGlyph()
+    {
+        var noneLine = $" {ScoreboardParser.AreaGlyphPrivateUse} None";
+        ScoreboardParser.ExtractArea(new[] { "[SKYBLOCK]", noneLine, "Purse: 1" }).Should().BeNull();
+    }
+
+    [Test]
+    public async Task NoneAreaScoreboardLine_DoesNotChangeLocationOrThrow()
+    {
+        // No services are registered on MockedUpdateArgs, so if HandleScoreboard treated "None" as
+        // a real area it would throw trying to store the previous location's profit/session.
+        var noneLine = $" {ScoreboardParser.AreaGlyphPrivateUse} None";
+        var args = new MockedUpdateArgs
+        {
+            currentState = new StateObject(),
+            msg = new UpdateMessage
+            {
+                Kind = UpdateMessage.UpdateKind.Scoreboard,
+                Scoreboard = new[] { "[SKYBLOCK]", System.DateTime.UtcNow.ToString("MM/dd/yy") + " m1", noneLine, "Purse: 1" }
+            }
+        };
+
+        await new CollectionListener().Process(args);
+
+        args.currentState.ExtractedInfo.CurrentLocation.Should().Be("Unknown",
+            "\"None\" is not a real area and must not overwrite CurrentLocation or trigger a location change");
+    }
+
     [Test]
     public void IsAreaLine_DoesNotMatchOtherIndentedLines()
     {

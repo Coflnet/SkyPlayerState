@@ -141,10 +141,57 @@ public class TaskPeriodFolder
                 weightedItemCounts, residual * weight, rareCoins * weight, itemValue * weight, span?.TraceId.ToString());
 
             await UpdatePlayerStat(period.PlayerUuid, task, seconds, commonCounts, residual, rareCoins, itemValue, minutes, prices);
+
+            await FoldDerivedTasks(task, commonCounts, hours, minutes, seconds, weight, period.PlayerUuid, state, prices, span);
         }
         catch (Exception e)
         {
             logger.LogError(e, "failed to fold period for task {task}", period.DetectedTask);
+        }
+    }
+
+    /// <summary>
+    /// Folds a contribution for every task that declares <see cref="MethodTask.DerivedFrom"/> ==
+    /// <paramref name="primaryTask"/> (e.g. "Sludge Mining (Gem Mixture)" derives from "Sludge
+    /// Mining"). Gemstone Mixture is a Forge recipe, not a Jungle drop, so it would otherwise never
+    /// accumulate its own community/personal data - this converts the primary's observed item rate
+    /// (already rare-separated and winsorized) through <see cref="MethodTask.ConvertDerivedCounts"/>
+    /// so the derived task gets a real, non-formula estimate too. Reuses the primary's confidence
+    /// ramp weight since it is the same physical activity.
+    /// </summary>
+    private async Task FoldDerivedTasks(string primaryTask, Dictionary<string, double> primaryCommonCounts,
+        double hours, double minutes, double seconds, double weight, string playerUuid, StateObject state,
+        Dictionary<string, double> prices, Activity span)
+    {
+        foreach (var derivedTask in registry.MethodTasks.Where(t => t.DerivedFromForTest == primaryTask))
+        {
+            var derivedName = derivedTask.GetDetectionSignature().MethodName;
+            try
+            {
+                var derivedCounts = derivedTask.ConvertDerivedCountsForTest(primaryCommonCounts, hours);
+                if (derivedCounts == null || derivedCounts.Count == 0)
+                    continue;
+
+                var derivedBucket = await statScore.GetBucket(derivedTask.StatFactors, state);
+                var derivedGrossValue = derivedCounts.Sum(c => coinValues.Value(c.Key, prices) * c.Value);
+                // Net out ingredient costs (e.g. the 16 fine gems per Gemstone Mixture) scaled to how
+                // many conversions this window's ConvertDerivedCounts output actually represents -
+                // otherwise a derived task's folded value counts the full output price and silently
+                // drops what was consumed to make it (see MethodTask.ScaledFormulaCost).
+                var derivedCost = derivedTask.ScaledFormulaCost(derivedCounts, hours, tag => coinValues.Value(tag, prices));
+                var derivedItemValue = derivedGrossValue - derivedCost;
+                var weightedDerivedCounts = derivedCounts.ToDictionary(c => c.Key, c => c.Value * weight);
+
+                aggregates.AddContribution(derivedName, derivedBucket, playerUuid, seconds * weight,
+                    weightedDerivedCounts, 0, 0, derivedItemValue * weight, span?.TraceId.ToString());
+
+                await UpdatePlayerStat(playerUuid, derivedName, seconds, derivedCounts, 0, 0, derivedItemValue, minutes, prices);
+                span?.SetTag($"derived_value_{derivedName}", derivedItemValue);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "failed to fold derived task {derived} from primary {primary}", derivedName, primaryTask);
+            }
         }
     }
 

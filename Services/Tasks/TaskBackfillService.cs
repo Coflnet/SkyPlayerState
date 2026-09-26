@@ -38,7 +38,16 @@ public class TaskBackfillService
     /// </summary>
     public async Task<int> Backfill(IEnumerable<string> locations, int days = 7)
     {
-        var signatures = registry.MethodTasks.Select(t => t.GetDetectionSignature()).ToList();
+        // Derived tasks (e.g. "Sludge Mining (Gem Mixture)") share their primary's detection and
+        // must never be seeded here from the primary's raw item counts - that would wrongly seed
+        // e.g. Gem Mixture's stats with raw Sludge Juice counts/prices instead of its own converted
+        // (and much rarer) Gemstone Mixture output. They still get their own personal/community data
+        // once real activity is folded, via TaskPeriodFolder.FoldDerivedTasks/ConvertDerivedCounts -
+        // this one-time seed is not worth teaching it that conversion (backfilled data is already
+        // stale/low-value after a day or two).
+        var signatures = registry.MethodTasks.Select(t => t.GetDetectionSignature())
+            .Where(s => s.DerivedFrom == null)
+            .ToList();
         await coinValues.EnsureFresh();
         var seeded = 0;
         foreach (var location in locations.Distinct())
@@ -51,7 +60,7 @@ public class TaskBackfillService
                 // group the location's item aggregates by the task their items detect
                 var itemsAtLocation = aggregates.Select(a => a.ItemTag).ToHashSet();
                 var matchingTasks = signatures.Where(s =>
-                    (s.Locations.Count == 0 || s.Locations.Contains(location))
+                    (s.Locations.Count == 0 || SkyblockZones.Matches(s.Locations, location))
                     && (s.DetectionItems.Count == 0 || s.DetectionItems.Overlaps(itemsAtLocation))).ToList();
                 foreach (var sig in matchingTasks)
                 {

@@ -41,7 +41,73 @@ public abstract class MethodTask : ProfitTask
     /// when the player has no tracked data.
     /// </summary>
     protected virtual List<MethodDrop> FormulaDrops => [];
-    protected virtual string WarpCommand => null;
+    /// <summary>
+    /// Items consumed per hour by the method (e.g. gemstones fed into a Forge recipe), subtracted
+    /// from <see cref="FormulaDrops"/> revenue in the formula-based estimate. Kept separate from
+    /// <see cref="FormulaDrops"/> (rather than a negative rate on a drop) so drops always represent
+    /// what the player gains and the plausibility tests can keep requiring positive drop rates.
+    /// </summary>
+    protected virtual List<MethodDrop> FormulaCosts => [];
+    /// <summary>
+    /// Name of another task whose detection this task shares/derives from (e.g. "Sludge Mining
+    /// (Gem Mixture)" derives from "Sludge Mining": Gemstone Mixture is a Forge recipe, not a
+    /// Jungle drop, so requiring its own DetectionItems to show up there would never fire - see
+    /// TaskClassifier and TaskPeriodFolder). When set, this task is excluded from the classifier's
+    /// own candidate list (it never wins a tie against its primary) but is still marked as "being
+    /// done" whenever the primary is classified, and receives its own community/personal estimate
+    /// converted from the primary's observed rate via <see cref="ConvertDerivedCounts"/>.
+    /// Null (default) means this task detects independently.
+    /// </summary>
+    protected virtual string DerivedFrom => null;
+    /// <summary>
+    /// Public accessor for tests/classifier to read <see cref="DerivedFrom"/>.
+    /// </summary>
+    public string DerivedFromForTest => DerivedFrom;
+    /// <summary>
+    /// Converts item counts observed on the primary task (<see cref="DerivedFrom"/>) over
+    /// <paramref name="hours"/> into this derived task's own item counts, so its community
+    /// aggregate/personal stats can be folded without ever needing its own DetectionItems to be
+    /// observed directly. Only invoked when <see cref="DerivedFrom"/> is set. Returning null/empty
+    /// means no derived contribution is folded for this period.
+    /// </summary>
+    protected virtual Dictionary<string, double> ConvertDerivedCounts(Dictionary<string, double> primaryItemCounts, double hours) => null;
+    /// <summary>
+    /// Public accessor for tests/TaskPeriodFolder to call <see cref="ConvertDerivedCounts"/>.
+    /// </summary>
+    public Dictionary<string, double> ConvertDerivedCountsForTest(Dictionary<string, double> primaryItemCounts, double hours)
+        => ConvertDerivedCounts(primaryItemCounts, hours);
+
+    /// <summary>
+    /// This task's <see cref="FormulaCosts"/> ingredient cost, scaled to how much conversion
+    /// activity <paramref name="itemCounts"/> (absolute counts observed/assumed over
+    /// <paramref name="hours"/>) actually represents relative to this task's own design-time
+    /// <see cref="FormulaDrops"/> rate for the same item - so cost is charged proportional to what
+    /// was actually produced instead of always the full per-hour formula cost. The reference item is
+    /// the first <see cref="FormulaDrops"/> entry also present in <paramref name="itemCounts"/> (for
+    /// <see cref="SludgeMiningGemMixtureTask"/> that is GEMSTONE_MIXTURE - FormulaCosts was written
+    /// against its MixtureRate). <paramref name="priceOf"/> lets each caller use its own price
+    /// lookup (<see cref="CoinValueRegistry"/>'s drift-corrected value for folds, the raw live price
+    /// dict for the formula tiers) so this stays a pure rate/scale calculation.
+    /// <para>
+    /// Shared by <see cref="TaskPeriodFolder.FoldDerivedTasks"/> (a derived task's real, per-window
+    /// <see cref="ConvertDerivedCounts"/> output) and <see cref="TaskEstimator"/>'s formula baseline
+    /// (itemCounts = FormulaDrops themselves, hours = 1, so scale is always 1) - <see
+    /// cref="ComputeFromFormula"/> already nets its own itemized cost breakdown inline and is left
+    /// as is, but is mathematically the scale-1 case of this same idea.
+    /// </para>
+    /// </summary>
+    public double ScaledFormulaCost(Dictionary<string, double> itemCounts, double hours, Func<string, double> priceOf)
+    {
+        if (FormulaCosts.Count == 0 || hours <= 0 || itemCounts == null || itemCounts.Count == 0)
+            return 0;
+        var reference = FormulaDrops.FirstOrDefault(d => d.RatePerHour > 0 && itemCounts.ContainsKey(d.ItemTag));
+        if (reference == null)
+            return 0;
+        var scale = (itemCounts[reference.ItemTag] / hours) / reference.RatePerHour;
+        return FormulaCosts.Sum(c => priceOf(c.ItemTag) * c.RatePerHour) * scale * hours;
+    }
+
+    protected override string WarpCommand => null;
     /// <summary>
     /// Preferred time window in hours for averaging.
     /// Data is searched within this window first, then extended
@@ -86,10 +152,95 @@ public abstract class MethodTask : ProfitTask
     protected virtual string CheckAccessibility(TaskParams parameters) => null;
     protected virtual DateTime? GetNextAvailableAt(TaskParams parameters) => null;
 
+    // ── "Where do I go / what do I click" metadata (helpful task list) ──
+    // WikiUrl/Island/WhereWikiUrl/EffectiveWarpCommand/PopulateGuidanceFields are inherited as-is
+    // from ProfitTask; only Where and Steps get MethodTask-specific (Locations/HowTo-aware) defaults.
+
+    /// <summary>
+    /// The exact zone to stand in to do this method. Defaults to the first declared Location; some
+    /// tasks (mainly the top earners) override this with a more specific spot the default can't know
+    /// (e.g. "at the Forge" for a crafting step).
+    /// </summary>
+    protected override string Where => Locations.FirstOrDefault();
+    /// <summary>
+    /// Falls back to the island's own wiki page (always resolvable once Where/Island do - see
+    /// SkyblockZones.IslandInfo) so every task has *some* wiki link even without per-task curation;
+    /// specific tasks (Sludge, gemstones, ...) override this with a page about the method/item itself.
+    /// </summary>
+    protected override string WikiUrl => WhereWikiUrl;
+
+    /// <summary>
+    /// Ordered, followable steps a total beginner ("could a 6 year old follow this?") can click
+    /// through to actually do the method. Every task gets a reasonable default built from the
+    /// structured data above (gear, warp, where, the HowTo text, what to collect, what to sell);
+    /// override for the top earners and anything where the generic wording reads wrong.
+    /// </summary>
+    protected override List<TaskStep> Steps => BuildDefaultSteps();
+
+    private List<TaskStep> BuildDefaultSteps()
+    {
+        var steps = new List<TaskStep>();
+        void Add(string text, string onClick = null) => steps.Add(new TaskStep { Number = steps.Count + 1, Text = text, OnClick = onClick });
+
+        if (RequiredItems.Count > 0)
+        {
+            // One step per item (not one combined sentence) so each item can carry its own
+            // buy click and price - see SkyModCommands' TaskDetailsCommand.BuildStepByStep, which
+            // matches a step's text against RequiredItems to attach a bazaar/AH click.
+            foreach (var req in RequiredItems.Take(3))
+            {
+                var label = string.IsNullOrEmpty(req.Name) ? req.ItemTag : req.Name;
+                var reasonPart = string.IsNullOrEmpty(req.Reason) ? "" : $" ({req.Reason})";
+                Add($"Get {label} first{reasonPart}.");
+            }
+        }
+
+        var warp = EffectiveWarpCommand;
+        if (warp != null)
+            Add($"Type {warp} to get close.", warp);
+
+        if (Where != null)
+        {
+            var islandLabel = Island != null && Island != Where ? $" in {Island}" : "";
+            Add($"Go to {Where}{islandLabel}.", WhereWikiUrl);
+        }
+
+        foreach (var sentence in SplitIntoSentences(HowTo))
+            Add(sentence);
+
+        if (DetectionItems.Count > 0)
+            Add($"You're doing it right when you start collecting: {string.Join(", ", DetectionItems.Take(4))}. That's what we track for your coins/hour.");
+
+        if (FormulaDrops.Count > 0)
+        {
+            var sellItems = string.Join(", ", FormulaDrops.OrderByDescending(d => d.RatePerHour).Take(3).Select(d => d.ItemTag));
+            Add($"Sell {sellItems} on the Bazaar or Auction House.");
+        }
+
+        Add("Check /cofl task again to see your real coins/hour once you've done this a bit.");
+        return steps;
+    }
+
+    private static IEnumerable<string> SplitIntoSentences(string howTo)
+    {
+        if (string.IsNullOrWhiteSpace(howTo))
+            yield break;
+        foreach (var raw in howTo.Split('.'))
+        {
+            var sentence = raw.Trim();
+            if (sentence.Length > 0)
+                yield return sentence + ".";
+        }
+    }
+
     /// <summary>
     /// Public accessor for tests to check if this task has formula drops
     /// </summary>
     public List<MethodDrop> FormulaDropsForTest => FormulaDrops;
+    /// <summary>
+    /// Public accessor for tests to check if this task has formula costs
+    /// </summary>
+    public List<MethodDrop> FormulaCostsForTest => FormulaCosts;
 
     /// <summary>
     /// Tie break priority when multiple tasks match the same location and items,
@@ -109,7 +260,7 @@ public abstract class MethodTask : ProfitTask
     /// Exposes the same rules <see cref="FindMatchingPeriods"/> applies.
     /// </summary>
     public DetectionSignature GetDetectionSignature() => new(
-        MethodName, Locations, DetectionItems, RequireShardItems, ExcludeShardItems, Priority, Category);
+        MethodName, Locations, DetectionItems, RequireShardItems, ExcludeShardItems, Priority, Category, DerivedFrom);
 
     /// <summary>
     /// Estimated multipliers from the declared effects, used to seed the
@@ -192,7 +343,7 @@ public abstract class MethodTask : ProfitTask
     {
         IEnumerable<Period> candidates = Locations.Count > 0
             ? parameters.LocationProfit
-                .Where(lp => Locations.Contains(lp.Key))
+                .Where(lp => SkyblockZones.Matches(Locations, lp.Key))
                 .SelectMany(lp => lp.Value)
             : parameters.LocationProfit.SelectMany(lp => lp.Value);
 
@@ -255,7 +406,7 @@ public abstract class MethodTask : ProfitTask
 
         var reqItems = BuildRequiredItems(parameters);
 
-        return Task.FromResult(new TaskResult
+        var result = new TaskResult
         {
             ProfitPerHour = (int)perHour,
             Message = $"{MethodName} with {McColorCodes.AQUA}{fmt.FormatPrice(totalProfit)} {McColorCodes.GRAY}({McColorCodes.GREEN}{itemCount} items{McColorCodes.GRAY}) over {formattedDuration}.",
@@ -275,7 +426,9 @@ public abstract class MethodTask : ProfitTask
                 Category = Category,
                 Type = TaskType
             }
-        });
+        };
+        PopulateGuidanceFields(result.Breakdown);
+        return Task.FromResult(result);
     }
 
     protected Task<TaskResult> ComputeFromFormula(TaskParams parameters)
@@ -312,13 +465,38 @@ public abstract class MethodTask : ProfitTask
                 Name = MethodName
             });
 
-        var reqItems = BuildRequiredItems(parameters);
-
-        return Task.FromResult(new TaskResult
+        var costs = new List<DropInfo>();
+        var costBreakdown = new List<string>();
+        var totalCostPerHour = 0.0;
+        foreach (var cost in FormulaCosts)
         {
-            ProfitPerHour = (int)totalPerHour,
-            Message = $"{MethodName} ~{McColorCodes.AQUA}{fmt.FormatPrice((long)totalPerHour)}/h {McColorCodes.GRAY}(estimated)",
-            Details = $"Estimated drops per hour:\n{string.Join("\n", breakdown)}\n{McColorCodes.DARK_GRAY}(Do this method for personalized tracking)",
+            var price = prices.GetValueOrDefault(cost.ItemTag, 0);
+            if (price <= 0) continue;
+            var contribution = cost.RatePerHour * price;
+            totalCostPerHour += contribution;
+            var name = parameters.Names.GetValueOrDefault(cost.ItemTag, cost.ItemTag);
+            costBreakdown.Add($"{McColorCodes.YELLOW}{name} {McColorCodes.GRAY}x{cost.RatePerHour:F1}/h = {McColorCodes.RED}-{fmt.FormatPrice((long)contribution)}");
+            costs.Add(new DropInfo
+            {
+                ItemTag = cost.ItemTag,
+                Name = name,
+                RatePerHour = cost.RatePerHour,
+                PriceEach = price,
+                ContributionPerHour = -contribution
+            });
+        }
+        var netPerHour = totalPerHour - totalCostPerHour;
+
+        var reqItems = BuildRequiredItems(parameters);
+        var costSection = costBreakdown.Count > 0
+            ? $"\nEstimated ingredient costs per hour:\n{string.Join("\n", costBreakdown)}"
+            : "";
+
+        var formulaResult = new TaskResult
+        {
+            ProfitPerHour = (int)netPerHour,
+            Message = $"{MethodName} ~{McColorCodes.AQUA}{fmt.FormatPrice((long)netPerHour)}/h {McColorCodes.GRAY}(estimated)",
+            Details = $"Estimated drops per hour:\n{string.Join("\n", breakdown)}{costSection}\n{McColorCodes.DARK_GRAY}(Do this method for personalized tracking)",
             Name = MethodName,
             OnClick = WarpCommand,
             Breakdown = new MethodBreakdown
@@ -326,6 +504,7 @@ public abstract class MethodTask : ProfitTask
                 HowTo = HowTo,
                 RequiredItems = reqItems,
                 Drops = drops,
+                Costs = costs,
                 ActionsPerHour = ActionsPerHour,
                 ActionUnit = ActionUnit,
                 Effects = Effects,
@@ -334,7 +513,9 @@ public abstract class MethodTask : ProfitTask
                 Category = Category,
                 Type = TaskType
             }
-        });
+        };
+        PopulateGuidanceFields(formulaResult.Breakdown);
+        return Task.FromResult(formulaResult);
     }
 
     protected Task<TaskResult> ComputeFromGlobalAverage(TaskParams parameters, List<AverageDrop> avgDrops)
@@ -374,7 +555,7 @@ public abstract class MethodTask : ProfitTask
 
         var reqItems = BuildRequiredItems(parameters);
 
-        return Task.FromResult(new TaskResult
+        var avgResult = new TaskResult
         {
             ProfitPerHour = (int)totalPerHour,
             Message = $"{MethodName} ~{McColorCodes.AQUA}{fmt.FormatPrice((long)totalPerHour)}/h {McColorCodes.GRAY}(avg of {totalSamples} players)",
@@ -394,7 +575,9 @@ public abstract class MethodTask : ProfitTask
                 Category = Category,
                 Type = TaskType
             }
-        });
+        };
+        PopulateGuidanceFields(avgResult.Breakdown);
+        return Task.FromResult(avgResult);
     }
 
     private List<RequiredItem> BuildRequiredItems(TaskParams parameters)

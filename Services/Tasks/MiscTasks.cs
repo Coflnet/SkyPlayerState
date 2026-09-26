@@ -51,13 +51,24 @@ public class MyceliumTask : MethodTask
 {
     protected override string MethodName => "Mycelium";
     // Mycelium is mined on the Crimson Isle (Mystic Marsh/Mage Outpost/Scarleton) or via Private Island minions.
+    // Verified on the community wiki 2026-09: https://hypixelskyblock.minecraft.wiki/w/Mycelium
     protected override HashSet<string> Locations => ["Mystic Marsh", "Mage Outpost", "Scarleton", "Private Island"];
     protected override HashSet<string> DetectionItems => ["MYCEL", "ENCHANTED_MYCELIUM"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_MYCELIUM", 250)];
     protected override string Category => "Farming";
-    protected override string HowTo => "Go to the Mushroom Desert and mine Mycelium blocks. Found on the ground in mushroom biome areas.";
+    protected override string HowTo => "Go to the Crimson Isle (Mystic Marsh, Mage Outpost, or Scarleton) and mine Mycelium blocks with a shovel.";
     protected override List<DropEffect> Effects => [
         new() { Name = "Mining Fortune", Description = "Increases mycelium drop rate", EstimatedMultiplier = 1.2 },
         new() { Name = "Mining Speed", Description = "Break mycelium blocks faster", EstimatedMultiplier = 1.2 }
+    ];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Mycelium";
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Type /warp isle to get close.", OnClick = "/warp isle" },
+        new() { Number = 2, Text = "Go to Mystic Marsh, Mage Outpost, or Scarleton on the Crimson Isle.", OnClick = WikiUrl },
+        new() { Number = 3, Text = "Use a shovel to break the grey-green Mycelium blocks on the ground." },
+        new() { Number = 4, Text = "You're doing it right when you collect: Mycelium. That's what we track for your coins/hour." },
+        new() { Number = 5, Text = "Sell it as Enchanted Mycelium on the Bazaar, or turn it into a Mycelium Minion for passive income later." },
+        new() { Number = 6, Text = "Check /cofl task again to see your real coins/hour." },
     ];
 }

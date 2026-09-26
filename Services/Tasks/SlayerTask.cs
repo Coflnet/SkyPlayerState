@@ -21,28 +21,37 @@ public class SlayerTask : ProfitTask
             "Crypts", "Graveyard", "Ruins", "Coal Mine", "Mountain" // include nearby hub areas as safety
         }, StringComparer.OrdinalIgnoreCase),
 
-        // Tarantula Broodfather (Spider) — Spider's Den
+        // Tarantula Broodfather (Spider) — Spider's Den, or Burning Desert (Crimson Isle) via
+        // Flaming Spiders (wiki tip: fastest way to spawn the boss). Bare island name "Spider's
+        // Den" deliberately excluded - IndividualSlayerTask/SlayerLocations use SkyblockZones.Matches,
+        // so an island-level entry would wrongly count every zone of that island as this slayer
+        // (e.g. Gravel Mines fishing/mining counted as Tarantula Broodfather progress).
         ["Tarantula"] = new HashSet<string>(new[]
         {
-            "The Spider's Den", "Spider's Den", "Arachne's Sanctuary", "Spider Mound"
+            "The Spider's Den", "Arachne's Sanctuary", "Spider Mound", "Burning Desert"
         }, StringComparer.OrdinalIgnoreCase),
 
-        // Sven Packmaster (Wolf) — The Park
+        // Sven Packmaster (Wolf) — The Park. Bare island name "The Park" deliberately excluded -
+        // see the Tarantula comment above.
         ["Sven"] = new HashSet<string>(new[]
         {
-            "The Park", "Howling Cave", "The Howling Cave", "The Wolf's Den"
+            "Howling Cave", "The Howling Cave", "The Wolf's Den"
         }, StringComparer.OrdinalIgnoreCase),
 
-        // Voidgloom Seraph (Enderman) — The End
+        // Voidgloom Seraph (Enderman) — The End. Bare island name "The End" deliberately excluded -
+        // see the Tarantula comment above.
         ["Voidgloom"] = new HashSet<string>(new[]
         {
-            "The End", "Dragon's Nest", "Void Sepulture", "Void Slate", "Zealot Bruiser Hideout"
+            "Dragon's Nest", "Void Sepulture", "Void Slate", "Zealot Bruiser Hideout"
         }, StringComparer.OrdinalIgnoreCase),
 
-        // Inferno Demonlord (Blaze) — Crimson Isle
+        // Inferno Demonlord (Blaze) — ground and fought in the Smoldering Tomb specifically (see
+        // BurningsoulTask/InfernoDemonlordGuide). Bare island name "Crimson Isle" deliberately
+        // excluded - see the Tarantula comment above (it previously let e.g. Mycelium mining in
+        // Mystic Marsh or fishing in Scarleton/Oasis count as Inferno Demonlord progress).
         ["Inferno"] = new HashSet<string>(new[]
         {
-            "Crimson Isle", "Stronghold", "Smoldering Tomb", "The Bastion"
+            "Stronghold", "Smoldering Tomb", "The Bastion"
         }, StringComparer.OrdinalIgnoreCase),
 
         // Vampire Slayer — The Rift
@@ -63,7 +72,7 @@ public class SlayerTask : ProfitTask
             var locations = kv.Value;
 
             var matched = parameters.LocationProfit
-                .Where(lp => locations.Contains(lp.Key))
+                .Where(lp => SkyblockZones.Matches(locations, lp.Key))
                 .SelectMany(lp => lp.Value)
                 .ToList();
 

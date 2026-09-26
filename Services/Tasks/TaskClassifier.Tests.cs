@@ -190,4 +190,217 @@ public class TaskClassifierTests
         classification.Should().NotBeNull();
         classification!.TaskName.Should().Be("Lotus Atoll");
     }
+
+    // ── Zone-to-island matching (SkyblockZones) ──
+    // The scoreboard reports the sub-zone ("Jungle", "Goblin Holdout", "Dwarven Village", ...),
+    // never the island name, for most islands - these pin the classifier to matching a task's
+    // island-level Locations (e.g. ["Crystal Hollows"]) against that sub-zone.
+
+    [Test]
+    public void JungleZone_WithSludgeJuice_DetectsSludgeMining()
+    {
+        var items = new Dictionary<string, int> { { "SLUDGE_JUICE", 20 } };
+        var result = Classifier.Classify("Jungle", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Sludge Mining",
+            "Sludge Juice is mined in the Jungle sub-zone of the Crystal Hollows, not the Dwarven Mines");
+    }
+
+    [Test]
+    public void GoblinHoldoutZone_MatchesTaskWithCrystalHollowsIslandLocation()
+    {
+        // ScathaMiningTask declares Locations = ["Crystal Hollows"] only (no sub-zones); the
+        // classifier must still attribute a Goblin Holdout (a Crystal Hollows sub-zone) window
+        // to it via the zone-to-island map instead of requiring an exact string match.
+        var items = new Dictionary<string, int> { { "PET_SCATHA", 2 } };
+        var result = Classifier.Classify("Goblin Holdout", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Scatha Mining");
+    }
+
+    [Test]
+    public void DwarvenVillageZone_MatchesDwarvenMinesIslandLocation()
+    {
+        var items = new Dictionary<string, int> { { "COAL", 50 } };
+        var result = Classifier.Classify("Dwarven Village", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Coal Mining");
+    }
+
+    // ── currentIsland (tab list) fallback: only for zones the static map can't resolve, and only
+    // when fresh - received while the player was actually in the current zone: at/after
+    // CurrentLocationSince (zone start) and confirmed by a scoreboard update at/after it, i.e.
+    // at/before CurrentLocationSeenAt (see TaskClassifier.Classify). The tab list is sent far less
+    // often than the scoreboard, so CurrentIsland can be stale (production logs, player Ekwav: zone
+    // "Your Island" seen 9x while the last tab Area was still "Torrhus Canyon"/Galatea from before
+    // the player left for their private island).
+
+    [Test]
+    public void StaleCurrentIsland_AmbiguousZone_DoesNotMatch()
+    {
+        // "Your Island" is deliberately ambiguous/unmapped (SkyblockZones.AmbiguousZones), so the
+        // classifier would otherwise fall back to currentIsland. No MethodTask lists the literal
+        // island name "Galatea" (all its mob tasks key off specific sub-zones instead), so
+        // ScathaMiningTask (Locations = ["Crystal Hollows"]) + a stale "Crystal Hollows" tab
+        // reading is the equivalent real fixture for the exact same bug.
+        var items = new Dictionary<string, int> { { "PET_SCATHA", 2 } };
+        var currentLocationSince = new DateTime(2025, 7, 24, 12, 10, 0);
+        var currentLocationSeenAt = currentLocationSince.AddMinutes(10);
+        var staleCurrentIslandAt = currentLocationSince.AddMinutes(-5); // tab reading predates the move to "Your Island"
+
+        var result = Classifier.Classify("Your Island", items, 10,
+            currentIsland: "Crystal Hollows", currentIslandAt: staleCurrentIslandAt,
+            currentLocationSince: currentLocationSince, currentLocationSeenAt: currentLocationSeenAt);
+
+        result.Should().BeNull("a stale tab-reported island must not be used to match an ambiguous zone");
+    }
+
+    [Test]
+    public void TabForNewZoneArrivingAfterLastConfirmationOfOldZone_DoesNotMatchOldFragment()
+    {
+        // The tab can arrive for the NEW island before the scoreboard even shows the new zone - a
+        // fragment still being flushed for the OLD (ambiguous) zone must not pick up that new tab
+        // reading just because it is "fresh" by naive at/after-start standards: it must also have
+        // been confirmed by a scoreboard update of the OLD zone at/after it arrived.
+        var items = new Dictionary<string, int> { { "PET_SCATHA", 2 } };
+        var currentLocationSince = new DateTime(2025, 7, 24, 12, 10, 0);
+        var currentLocationSeenAt = currentLocationSince.AddMinutes(5); // last scoreboard confirmation of the OLD zone
+        var tabForNewIslandAt = currentLocationSeenAt.AddMinutes(1);    // tab arrived AFTER that last confirmation
+
+        var result = Classifier.Classify("Your Island", items, 10,
+            currentIsland: "Crystal Hollows", currentIslandAt: tabForNewIslandAt,
+            currentLocationSince: currentLocationSince, currentLocationSeenAt: currentLocationSeenAt);
+
+        result.Should().BeNull("a tab reading that arrived after the old zone's last confirmation belongs to the new zone, not this fragment");
+    }
+
+    [Test]
+    public void FreshCurrentIsland_AmbiguousZone_StillMatches()
+    {
+        // Same fixture as above, but the tab reading arrived while the player was confirmed to be
+        // in the current zone (at/after it started, at/before it was last confirmed) - the fallback
+        // must still work in this (the normal, intended) case.
+        var items = new Dictionary<string, int> { { "PET_SCATHA", 2 } };
+        var currentLocationSince = new DateTime(2025, 7, 24, 12, 10, 0);
+        var freshCurrentIslandAt = currentLocationSince.AddMinutes(1);
+        var currentLocationSeenAt = currentLocationSince.AddMinutes(10);
+
+        var result = Classifier.Classify("Your Island", items, 10,
+            currentIsland: "Crystal Hollows", currentIslandAt: freshCurrentIslandAt,
+            currentLocationSince: currentLocationSince, currentLocationSeenAt: currentLocationSeenAt);
+
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Scatha Mining");
+    }
+
+    [Test]
+    public void CurrentIsland_NeverOverridesAZoneTheMapAlreadyResolves()
+    {
+        // "Village" resolves unambiguously to "Hub" via the static map (not ambiguous/unmapped),
+        // so a currentIsland fallback - fresh or not - must never be consulted for it, even though
+        // it doesn't match any Hub-only task's Locations here.
+        var items = new Dictionary<string, int> { { "PET_SCATHA", 2 } };
+        var currentLocationSince = new DateTime(2025, 7, 24, 12, 10, 0);
+        var freshCurrentIslandAt = currentLocationSince.AddMinutes(1);
+        var currentLocationSeenAt = currentLocationSince.AddMinutes(10);
+
+        var result = Classifier.Classify("Village", items, 10,
+            currentIsland: "Crystal Hollows", currentIslandAt: freshCurrentIslandAt,
+            currentLocationSince: currentLocationSince, currentLocationSeenAt: currentLocationSeenAt);
+
+        result.Should().BeNull("Village already resolves to Hub via the static map, so Crystal Hollows tasks must not match it");
+    }
+
+    // ── Same fixtures phrased against "Dragon's Lair" (Crystal Hollows AND Galatea - the exact
+    // ambiguous zone named in the finding this pins down), covering all three CollectionListener
+    // scenarios that feed CurrentLocationSince/CurrentLocationSeenAt into Classify. ──
+
+    [Test]
+    public void DragonsLair_TabReceivedMidStay_ThenFlushWithoutNewTab_StillResolvedViaIsland()
+    {
+        // (a) the tab island was read once, mid-stay in the ambiguous zone; a later 5-minute
+        // same-zone flush (CollectionListener.StoreLocationProfit) bumps CurrentLocationSeenAt to
+        // the flush time WITHOUT a new tab arriving - the earlier tab reading must still apply
+        // since it falls within [CurrentLocationSince, CurrentLocationSeenAt].
+        var items = new Dictionary<string, int> { { "PET_SCATHA", 2 } };
+        var currentLocationSince = new DateTime(2025, 7, 24, 12, 0, 0);
+        var tabReceivedMidStayAt = currentLocationSince.AddMinutes(2);
+        var currentLocationSeenAt = currentLocationSince.AddMinutes(5); // the 5-min flush, no new tab since
+
+        var result = Classifier.Classify("Dragon's Lair", items, 10,
+            currentIsland: "Crystal Hollows", currentIslandAt: tabReceivedMidStayAt,
+            currentLocationSince: currentLocationSince, currentLocationSeenAt: currentLocationSeenAt);
+
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Scatha Mining");
+    }
+
+    [Test]
+    public void DragonsLair_TabForNewIslandArrivesAfterOldZonesLastScoreboard_DoesNotApplyToOldFragment()
+    {
+        // (b) the tab for a NEW island can arrive before the scoreboard even shows the new zone -
+        // if that tab reading is AFTER the old (ambiguous) zone's last scoreboard confirmation, the
+        // old zone's fragment must not be classified using it.
+        var items = new Dictionary<string, int> { { "PET_SCATHA", 2 } };
+        var currentLocationSince = new DateTime(2025, 7, 24, 12, 0, 0);
+        var currentLocationSeenAt = currentLocationSince.AddMinutes(5); // last scoreboard update of the OLD zone
+        var tabForNewIslandAt = currentLocationSeenAt.AddMinutes(1);
+
+        var result = Classifier.Classify("Dragon's Lair", items, 10,
+            currentIsland: "Crystal Hollows", currentIslandAt: tabForNewIslandAt,
+            currentLocationSince: currentLocationSince, currentLocationSeenAt: currentLocationSeenAt);
+
+        result.Should().BeNull(
+            "a tab reading that arrived after this zone's last scoreboard confirmation belongs to the next zone, not this fragment");
+    }
+
+    [Test]
+    public void DragonsLair_TabFromBeforeEnteringZone_IsIgnored()
+    {
+        // (c) a tab reading from before the player even arrived at the current zone must not apply.
+        var items = new Dictionary<string, int> { { "PET_SCATHA", 2 } };
+        var currentLocationSince = new DateTime(2025, 7, 24, 12, 0, 0);
+        var currentLocationSeenAt = currentLocationSince.AddMinutes(5);
+        var tabFromBeforeArrivalAt = currentLocationSince.AddMinutes(-1);
+
+        var result = Classifier.Classify("Dragon's Lair", items, 10,
+            currentIsland: "Crystal Hollows", currentIslandAt: tabFromBeforeArrivalAt,
+            currentLocationSince: currentLocationSince, currentLocationSeenAt: currentLocationSeenAt);
+
+        result.Should().BeNull("a tab reading from before the player entered this zone must not classify it");
+    }
+
+    // ── Derived tasks (shared detection, no classification tie) ──
+    // Regression for: "Sludge Mining" and "Sludge Mining (Gem Mixture)" both matched on
+    // SLUDGE_JUICE in the Jungle; the alphabetical tie-break meant "Sludge Mining" always won and
+    // the Gem Mixture variant never got its own doers/community data. DerivedFrom takes it out of
+    // the tie entirely instead of hoping it wins.
+
+    [Test]
+    public void SludgeMiningGemMixture_NeverCompetesForClassification()
+    {
+        // Even with BOTH tasks' detection items present, the derived task must never be returned -
+        // only its primary "Sludge Mining" is a valid classification target.
+        var items = new Dictionary<string, int> { { "SLUDGE_JUICE", 40 }, { "GEMSTONE_MIXTURE", 5 } };
+        var result = Classifier.Classify("Jungle", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Sludge Mining");
+        result.TaskName.Should().NotBe("Sludge Mining (Gem Mixture)");
+    }
+
+    [Test]
+    public void GetDerivedTaskNames_ReturnsGemMixtureVariant_ForSludgeMining()
+    {
+        var derived = Classifier.GetDerivedTaskNames("Sludge Mining");
+        derived.Should().Contain("Sludge Mining (Gem Mixture)",
+            "players mining Sludge Juice should count as doing the Gem Mixture variant too");
+    }
+
+    [Test]
+    public void GetDerivedTaskNames_EmptyForTaskWithNoDerivedVariants()
+    {
+        Classifier.GetDerivedTaskNames("Bayou Fishing").Should().BeEmpty();
+        Classifier.GetDerivedTaskNames(null).Should().BeEmpty();
+        Classifier.GetDerivedTaskNames("Not A Real Task").Should().BeEmpty();
+    }
 }

@@ -428,14 +428,31 @@ public class CollectionListener : UpdateListener
         {
             return;
         }
+        var now = DateTime.UtcNow;
         var previousLocation = args.currentState.ExtractedInfo.CurrentLocation;
-        if (previousLocation != null && previousLocation != currentLocation
-            // if the same location is used, attempt to store it for people staying in same location
-            || args.currentState.ExtractedInfo.LastLocationChange < DateTime.UtcNow.AddMinutes(-5))
+        var zoneChanged = previousLocation != null && previousLocation != currentLocation;
+        if (!zoneChanged)
         {
+            // Reconfirm we're still in the same zone as of this scoreboard update - bumped on
+            // every tick (not just a flush) so a live classification in between flushes always
+            // sees a fresh CurrentLocationSeenAt (see TaskClassifier.Classify's tab-fallback gate).
+            args.currentState.ExtractedInfo.CurrentLocationSeenAt = now;
+        }
+        if (zoneChanged
+            // if the same location is used, attempt to store it for people staying in same location
+            || args.currentState.ExtractedInfo.LastLocationChange < now.AddMinutes(-5))
+        {
+            // Flush/classify the OLD fragment using the OLD zone's CurrentLocationSince/SeenAt
+            // (for the same-zone path these were just bumped above; for a real zone change they
+            // still describe the zone that just ended - only updated below, AFTER this flush).
             await StoreLocationProfit(args, previousLocation);
         }
         args.currentState.ExtractedInfo.CurrentLocation = currentLocation;
+        if (zoneChanged)
+        {
+            args.currentState.ExtractedInfo.CurrentLocationSince = now;
+            args.currentState.ExtractedInfo.CurrentLocationSeenAt = now;
+        }
         await ClassifyLive(args);
     }
 
@@ -463,14 +480,26 @@ public class CollectionListener : UpdateListener
             // an active claim (not older than 30 min) biases the classifier
             var claim = GetActiveClaim(state, now);
             // stale prices (or none on startup) only weaken tie breaking, not matching
-            var classification = args.GetService<Tasks.TaskClassifier>().Classify(
-                state.ExtractedInfo.CurrentLocation, state.ItemsCollectedRecently, minutes, claim, cachedCleanPrices);
+            var classifier = args.GetService<Tasks.TaskClassifier>();
+            var classification = classifier.Classify(
+                state.ExtractedInfo.CurrentLocation, state.ItemsCollectedRecently, minutes, claim, cachedCleanPrices,
+                state.ExtractedInfo.CurrentIsland, state.ExtractedInfo.CurrentIslandAt,
+                state.ExtractedInfo.CurrentLocationSince, state.ExtractedInfo.CurrentLocationSeenAt);
             var previous = state.ExtractedInfo.CurrentTask;
             state.ExtractedInfo.CurrentTask = classification?.TaskName;
             if (classification?.TaskName != previous)
                 state.ExtractedInfo.CurrentTaskSince = DateTime.UtcNow;
             if (classification != null && state.McInfo.Uuid != default)
-                await args.GetService<Tasks.TaskActivityService>().MarkDoing(classification.TaskName, state.McInfo.Uuid.ToString("N"));
+            {
+                var activityService = args.GetService<Tasks.TaskActivityService>();
+                var playerUuid = state.McInfo.Uuid.ToString("N");
+                await activityService.MarkDoing(classification.TaskName, playerUuid);
+                // derived tasks (e.g. "Sludge Mining (Gem Mixture)") share the primary's detection
+                // and never get classified themselves, but players doing the primary count as
+                // "doing this now" for them too - see TaskClassifier.GetDerivedTaskNames.
+                foreach (var derivedName in classifier.GetDerivedTaskNames(classification.TaskName))
+                    await activityService.MarkDoing(derivedName, playerUuid);
+            }
         }
         catch (Exception ex)
         {
@@ -595,9 +624,11 @@ public class CollectionListener : UpdateListener
                 return;
             // raw per-fragment attribution for the locationperiods.detectedtask column only;
             // the counters and the fold operate on the accumulated session (AccumulateSession).
+            var info = args.currentState.ExtractedInfo;
             var classification = args.GetService<Tasks.TaskClassifier>().Classify(
                 period.Location, period.ItemsCollected,
-                (period.EndTime - period.StartTime).TotalMinutes, null, cleanPrices);
+                (period.EndTime - period.StartTime).TotalMinutes, null, cleanPrices,
+                info.CurrentIsland, info.CurrentIslandAt, info.CurrentLocationSince, info.CurrentLocationSeenAt);
             period.DetectedTask = classification?.TaskName;
         }
         catch (Exception ex)

@@ -23,6 +23,20 @@ public class TaskEstimationTests
         new TaskRegistry().GetByName("Lotus Atoll").Should().BeOfType<LotusAtollTask>();
     }
 
+    /// <summary>
+    /// TaskPeriodFolder.FoldDerivedTasks finds derived tasks via
+    /// registry.MethodTasks.Where(t => t.DerivedFromForTest == primaryTask) - pin that lookup so a
+    /// future registry/task change can't silently stop the Gem Mixture variant from ever getting
+    /// its own community/personal data folded (see TaskClassifier's derived-task tests too).
+    /// </summary>
+    [Test]
+    public void Registry_FindsGemMixtureAsDerivedFromSludgeMining()
+    {
+        var registry = new TaskRegistry();
+        var derived = registry.MethodTasks.Where(t => t.DerivedFromForTest == "Sludge Mining").ToList();
+        derived.Should().ContainSingle().Which.Should().BeOfType<SludgeMiningGemMixtureTask>();
+    }
+
     [Test]
     public async Task PersonalStats_EmptyUuidDoesNotQueryCassandra()
     {
@@ -211,5 +225,77 @@ public class TaskEstimationTests
         mLow.Should().BeLessThan(1);
         mHigh.Should().BeGreaterThan(1);
         (mHigh / mLow).Should().BeGreaterThan(1.4, "a high stat player should see a materially higher prior");
+    }
+
+    // ── Ingredient costs (MethodTask.FormulaCosts / ScaledFormulaCost) must be netted out
+    // everywhere a derived task's converted output is priced, not just in ComputeFromFormula -
+    // otherwise "Sludge Mining (Gem Mixture)" looks more profitable than plain Sludge Mining even
+    // when the 16 fine gems it consumes per mixture cost more than the mixture (net of the 320
+    // Sludge Juice that mixture consumed) is worth. ──
+
+    private static readonly Dictionary<string, double> ExpensiveGemsPrices = new()
+    {
+        { "SLUDGE_JUICE", 20 },
+        { "GEMSTONE_MIXTURE", 500_000 },
+        { "FINE_JADE_GEM", 50_000 },
+        { "FINE_AMBER_GEM", 50_000 },
+        { "FINE_AMETHYST_GEM", 50_000 },
+        { "FINE_SAPPHIRE_GEM", 50_000 },
+    };
+
+    /// <summary>Mirror of TaskEstimator.FormulaRate (private) for isolated testing via the public MethodTask API it now delegates cost-netting to.</summary>
+    private static double FormulaRate(MethodTask task, Dictionary<string, double> prices)
+    {
+        double total = 0;
+        var dropRates = new Dictionary<string, double>();
+        foreach (var drop in task.FormulaDropsForTest)
+        {
+            var price = prices.GetValueOrDefault(drop.ItemTag);
+            if (price > 0)
+                total += drop.RatePerHour * price;
+            dropRates[drop.ItemTag] = dropRates.GetValueOrDefault(drop.ItemTag) + drop.RatePerHour;
+        }
+        var cost = task.ScaledFormulaCost(dropRates, 1.0, tag => prices.GetValueOrDefault(tag));
+        return total - cost;
+    }
+
+    [Test]
+    public void FormulaEstimate_GemMixture_IsLowerThanPlainSludgeMining_WhenGemsAreExpensive()
+    {
+        var sludgeMining = new SludgeMiningTask();
+        var gemMixture = new SludgeMiningGemMixtureTask();
+
+        var sludgeRate = FormulaRate(sludgeMining, ExpensiveGemsPrices);
+        var gemMixtureRate = FormulaRate(gemMixture, ExpensiveGemsPrices);
+
+        gemMixtureRate.Should().BeLessThan(sludgeRate,
+            "16 expensive fine gems per mixture must be charged against the mixture's formula estimate, " +
+            "not silently dropped the way it would be if only ComputeFromFormula netted FormulaCosts");
+    }
+
+    [Test]
+    public void FoldedValue_GemMixture_IsLowerThanPlainSludgeMining_WhenGemsAreExpensive()
+    {
+        // Mirror of the relevant slice of TaskPeriodFolder.FoldDerivedTasks (gross value minus
+        // MethodTask.ScaledFormulaCost) - TaskPeriodFolder itself needs a live Cassandra-backed
+        // TaskAggregateService/CoinValueRegistry, so this pins the same computation via the public
+        // MethodTask API it calls into instead of standing up the full service.
+        var gemMixture = new SludgeMiningGemMixtureTask();
+        const double hours = 4;
+        const double observedJuicePerHour = 400; // exactly saturates the 1.25 mixtures/h Forge cap
+        var primaryCounts = new Dictionary<string, double> { { "SLUDGE_JUICE", observedJuicePerHour * hours } };
+
+        var derivedCounts = gemMixture.ConvertDerivedCountsForTest(primaryCounts, hours);
+        derivedCounts.Should().NotBeNull();
+        var derivedGrossValue = derivedCounts!.Sum(c => ExpensiveGemsPrices.GetValueOrDefault(c.Key) * c.Value);
+        var derivedCost = gemMixture.ScaledFormulaCost(derivedCounts, hours, tag => ExpensiveGemsPrices.GetValueOrDefault(tag));
+        var netFoldedValue = derivedGrossValue - derivedCost;
+
+        // What plain Sludge Mining would have folded for the same observed juice: the raw juice sold
+        // directly, no ingredient cost involved.
+        var sludgeMiningFoldedValue = primaryCounts["SLUDGE_JUICE"] * ExpensiveGemsPrices["SLUDGE_JUICE"];
+
+        netFoldedValue.Should().BeLessThan(sludgeMiningFoldedValue,
+            "converting to Gemstone Mixture at these gem prices is a net loss versus just selling the raw Sludge Juice");
     }
 }

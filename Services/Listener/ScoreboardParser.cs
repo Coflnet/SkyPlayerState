@@ -58,7 +58,14 @@ public static class ScoreboardParser
 
     /// <summary>
     /// The current area name from a scoreboard, or null when no area line is present.
+    /// Hypixel shows the literal area name "None" at some spots (confirmed in production logs,
+    /// player Ekwav, on several islands) rather than omitting the area line entirely; that is
+    /// treated the same as no area line so it does not trigger a location change or get stored
+    /// as its own period (see CollectionListener.HandleScoreboard).
     /// </summary>
-    public static string ExtractArea(IEnumerable<string> scoreboard) =>
-        scoreboard?.FirstOrDefault(IsAreaLine)?.Substring(3).Trim();
+    public static string ExtractArea(IEnumerable<string> scoreboard)
+    {
+        var area = scoreboard?.FirstOrDefault(IsAreaLine)?.Substring(3).Trim();
+        return area == "None" ? null : area;
+    }
 }
