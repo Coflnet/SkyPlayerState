@@ -16,6 +16,14 @@ public class ComposterTask : ProfitTask
         var compostPrice = all.GetValueOrDefault("COMPOST");
         var upgrades = parameters.ExtractedInfo?.Composter ?? new();
         var caclucated = composterService.GetBestFlip(parameters.GetPrices(), compostPrice, upgrades);
+        if (caclucated.cropMatter == null || caclucated.fuel == null)
+            return new TaskResult
+            {
+                ProfitPerHour = 0,
+                Type = TaskType.Passive, MostlyPassive = true,
+                Message = "Composter price data unavailable (no priced crop matter or fuel).",
+                Breakdown = NewGuidanceBreakdown("Garden", "formula")
+            };
         var cropName = parameters.Names.GetValueOrDefault(caclucated.cropMatter, caclucated.cropMatter);
         var fuelName = parameters.Names.GetValueOrDefault(caclucated.fuel, caclucated.fuel);
         var breakdown = NewGuidanceBreakdown("Garden", "formula");

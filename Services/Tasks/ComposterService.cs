@@ -75,9 +75,10 @@ public class ComposterService
 
     public (string cropMatter, string fuel, float profitPerHour) GetBestFlip(Dictionary<string, float> itemPrices, float compostPrice, Coflnet.Sky.PlayerState.Models.Composter composterState)
     {
-        var bestFuel = FuelTable.Select(f => (f.Key, itemPrices.GetValueOrDefault(f.Key, 0) / f.Value)).OrderBy(f => f.Item2).FirstOrDefault();
-        var bestCrop = MatterTable.Select(c => (c.Key, itemPrices.GetValueOrDefault(c.Key, 0) / c.Value)).OrderBy(c => c.Item2).FirstOrDefault();
-        if (bestFuel.Item2 <= 0 || bestCrop.Item2 <= 0)
+        // unpriced items (price 0) must not win the "cheapest per unit" pick - skip them
+        var bestFuel = FuelTable.Select(f => (f.Key, itemPrices.GetValueOrDefault(f.Key, 0) / f.Value)).Where(f => f.Item2 > 0).OrderBy(f => f.Item2).FirstOrDefault();
+        var bestCrop = MatterTable.Select(c => (c.Key, itemPrices.GetValueOrDefault(c.Key, 0) / c.Value)).Where(c => c.Item2 > 0).OrderBy(c => c.Item2).FirstOrDefault();
+        if (bestFuel.Key == null || bestCrop.Key == null)
             return (null, null, 0);
 
 
