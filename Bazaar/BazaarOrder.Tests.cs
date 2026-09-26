@@ -562,6 +562,63 @@ public class BazaarOrderTests
         itemsApi.Verify(a => a.ItemsSearchTermGetAsync(It.IsAny<string>(), 0, default), Times.Never);
     }
 
+    // Regression for https://github.com (Karma I resolved as ENCHANTMENT_KARMA_4): the item search
+    // ranks enchant book results by tier (highest first), none of which is an exact `Text` match for
+    // the roman-numeral display name, so the old scoring always picked the highest tier available.
+    [TestCase("Karma I", "ENCHANTMENT_KARMA_1")]
+    [TestCase("Karma IV", "ENCHANTMENT_KARMA_4")]
+    public async Task EnchantedBookRomanNumeralPicksMatchingLevelTag(string name, string expected)
+    {
+        var args = CreateArgs();
+        itemsApi.Setup(i => i.ItemsSearchTermGetAsync(It.IsAny<string>(), null, 0, default))
+            .ReturnsAsync(() => new List<Items.Client.Model.SearchResult>(){
+                new(){ Text = "karma 4 enchant - bazaar", Tag = "ENCHANTMENT_KARMA_4", Flags = Items.Client.Model.ItemFlags.BAZAAR },
+                new(){ Text = "karma 3 enchant - bazaar", Tag = "ENCHANTMENT_KARMA_3", Flags = Items.Client.Model.ItemFlags.BAZAAR },
+                new(){ Text = "karma 2 enchant - bazaar", Tag = "ENCHANTMENT_KARMA_2", Flags = Items.Client.Model.ItemFlags.BAZAAR },
+                new(){ Text = "karma 1 enchant - bazaar", Tag = "ENCHANTMENT_KARMA_1", Flags = Items.Client.Model.ItemFlags.BAZAAR },
+            });
+        Assert.That(await BazaarOrderListener.GetTagForName(args, name), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public async Task MultiWordEnchantRomanNumeralPicksMatchingLevelTag()
+    {
+        var args = CreateArgs();
+        itemsApi.Setup(i => i.ItemsSearchTermGetAsync(It.IsAny<string>(), null, 0, default))
+            .ReturnsAsync(() => new List<Items.Client.Model.SearchResult>(){
+                new(){ Text = "ultimate wise 5 enchant - bazaar", Tag = "ENCHANTMENT_ULTIMATE_WISE_5", Flags = Items.Client.Model.ItemFlags.BAZAAR },
+                new(){ Text = "ultimate wise 4 enchant - bazaar", Tag = "ENCHANTMENT_ULTIMATE_WISE_4", Flags = Items.Client.Model.ItemFlags.BAZAAR },
+                new(){ Text = "ultimate wise 3 enchant - bazaar", Tag = "ENCHANTMENT_ULTIMATE_WISE_3", Flags = Items.Client.Model.ItemFlags.BAZAAR },
+            });
+        Assert.That(await BazaarOrderListener.GetTagForName(args, "Ultimate Wise V"), Is.EqualTo("ENCHANTMENT_ULTIMATE_WISE_5"));
+    }
+
+    [Test]
+    public async Task HyphenatedEnchantRomanNumeralPicksMatchingLevelTag()
+    {
+        var args = CreateArgs();
+        itemsApi.Setup(i => i.ItemsSearchTermGetAsync(It.IsAny<string>(), null, 0, default))
+            .ReturnsAsync(() => new List<Items.Client.Model.SearchResult>(){
+                new(){ Text = "turbo-wheat 2 enchant - bazaar", Tag = "ENCHANTMENT_TURBO_WHEAT_2", Flags = Items.Client.Model.ItemFlags.BAZAAR },
+                new(){ Text = "turbo-wheat 1 enchant - bazaar", Tag = "ENCHANTMENT_TURBO_WHEAT_1", Flags = Items.Client.Model.ItemFlags.BAZAAR },
+            });
+        Assert.That(await BazaarOrderListener.GetTagForName(args, "Turbo-Wheat I"), Is.EqualTo("ENCHANTMENT_TURBO_WHEAT_1"));
+    }
+
+    [Test]
+    public async Task RomanNumeralSuffixFallsBackToScoringWhenCandidateTagAbsent()
+    {
+        // "Mystery Box III" isn't an enchanted book; no ENCHANTMENT_MYSTERY_BOX_3 exists in the
+        // search results, so the deterministic candidate must be ignored and the normal
+        // exact-match/bazaar-flag scoring used instead.
+        var args = CreateArgs();
+        itemsApi.Setup(i => i.ItemsSearchTermGetAsync(It.IsAny<string>(), null, 0, default))
+            .ReturnsAsync(() => new List<Items.Client.Model.SearchResult>(){
+                new(){ Text = "Mystery Box III", Tag = "MYSTERY_BOX_3", Flags = Items.Client.Model.ItemFlags.BAZAAR },
+            });
+        Assert.That(await BazaarOrderListener.GetTagForName(args, "Mystery Box III"), Is.EqualTo("MYSTERY_BOX_3"));
+    }
+
     [Test]
     public async Task InstantBuyRetainsDecimalCoinAmount()
     {

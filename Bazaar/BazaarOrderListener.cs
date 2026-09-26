@@ -743,13 +743,57 @@ public class BazaarOrderListener : UpdateListener
 
         var itemApi = args.GetService<IItemsApi>();
         var searchResult = await itemApi.ItemsSearchTermGetAsync(itemName);
-        var tag = searchResult.OrderByDescending(s => (itemName.Equals(s.Text ?? "", StringComparison.OrdinalIgnoreCase) ? 2 : 0) 
+        // Enchanted book display names use roman numerals (e.g. "Karma I") while the search
+        // results are named/ranked by tier with the highest level first (e.g. ENCHANTMENT_KARMA_4
+        // before _1), so the generic scoring below would always pick the max tier. If a
+        // deterministically built ENCHANTMENT_<NAME>_<level> tag is actually present among the
+        // results, prefer it; otherwise fall back to the existing scoring.
+        var enchantTagCandidate = GetEnchantTagCandidate(plainName);
+        var tag = (enchantTagCandidate == null ? null : searchResult.FirstOrDefault(
+                s => string.Equals(s.Tag, enchantTagCandidate, StringComparison.OrdinalIgnoreCase)))?.Tag
+            ?? searchResult.OrderByDescending(s => (itemName.Equals(s.Text ?? "", StringComparison.OrdinalIgnoreCase) ? 2 : 0)
             + (s.Flags.HasValue && s.Flags.Value.HasFlag(Items.Client.Model.ItemFlags.BAZAAR) ? 1 :0)).First().Tag;
-        
+
         // Cache the result
         _itemTagCache[itemName] = (tag, DateTime.UtcNow);
-        
+
         return tag;
+    }
+
+    private static readonly Regex _trailingRomanNumeral = new(@"^(.+?)\s+([IVXLC]+)$", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Builds the ENCHANTMENT_&lt;NAME&gt;_&lt;level&gt; tag candidate for names ending in a roman
+    /// numeral level, e.g. "Karma I" -&gt; ENCHANTMENT_KARMA_1, "Ultimate Wise V" -&gt;
+    /// ENCHANTMENT_ULTIMATE_WISE_5, "Turbo-Wheat I" -&gt; ENCHANTMENT_TURBO_WHEAT_1.
+    /// Returns null when the trailing token isn't a valid roman numeral (verified by round-tripping
+    /// it through <see cref="Coflnet.Sky.Core.Roman"/>), so this never misfires for non-enchant
+    /// names that merely end in letters which happen to be valid roman numerals (e.g. "Foo CIVIL").
+    /// The caller only uses the candidate when it actually matches a search result, so an
+    /// unexpected candidate here is harmless.
+    /// </summary>
+    private static string GetEnchantTagCandidate(string plainName)
+    {
+        var match = _trailingRomanNumeral.Match(plainName);
+        if (!match.Success)
+            return null;
+        var romanPart = match.Groups[2].Value;
+        int level;
+        try
+        {
+            level = Coflnet.Sky.Core.Roman.From(romanPart);
+        }
+        catch (KeyNotFoundException)
+        {
+            return null;
+        }
+        if (level <= 0 || Coflnet.Sky.Core.Roman.To(level) != romanPart)
+            return null;
+        var namePart = string.Join("_", match.Groups[1].Value.Split(new[] { ' ', '-' }, StringSplitOptions.RemoveEmptyEntries))
+            .ToUpperInvariant();
+        if (namePart.Length == 0)
+            return null;
+        return $"ENCHANTMENT_{namePart}_{level}";
     }
 
     private static async Task RecordBuyOrderForProfit(UpdateArgs args, string itemName, int amount, long price)
