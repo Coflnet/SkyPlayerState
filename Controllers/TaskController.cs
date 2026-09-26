@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Coflnet.Sky.Core;
 using Coflnet.Sky.PlayerState.Models;
 using Coflnet.Sky.PlayerState.Services;
 using Coflnet.Sky.PlayerState.Tasks;
@@ -23,23 +24,32 @@ public class TaskController : ControllerBase
     private readonly TaskActivityService activity;
     private readonly TaskPriceService prices;
     private readonly TaskAggregateService aggregates;
+    private readonly TaskExecutionService execution;
+    private readonly TaskRegistry registry;
     private readonly ILogger<TaskController> logger;
 
     public TaskController(IPersistenceService persistence, TaskEstimator estimator,
         TaskActivityService activity, TaskPriceService prices, TaskAggregateService aggregates,
-        ILogger<TaskController> logger)
+        TaskExecutionService execution, TaskRegistry registry, ILogger<TaskController> logger)
     {
         this.persistence = persistence;
         this.estimator = estimator;
         this.activity = activity;
         this.prices = prices;
         this.aggregates = aggregates;
+        this.execution = execution;
+        this.registry = registry;
         this.logger = logger;
     }
 
     /// <summary>
     /// Ranked task estimates for one player, best coins per hour first.
     /// </summary>
+    /// <param name="playerId">The player's Minecraft name - player state (<see cref="LoadState"/>)
+    /// is keyed by name, not uuid. Calling this with a uuid instead degrades gracefully to
+    /// community-only estimates (<see cref="TaskEstimator"/> treats an unresolved/empty state the
+    /// same as no personal data), it does not throw.</param>
+    /// <param name="cancellationToken"></param>
     [HttpGet("{playerId}")]
     public async Task<List<TaskEstimate>> GetEstimates(string playerId, CancellationToken cancellationToken)
     {
@@ -67,6 +77,56 @@ public class TaskController : ControllerBase
             logger.LogWarning(e, "player state unavailable for {player}; using community estimates", playerId);
         }
         return null;
+    }
+
+    /// <summary>
+    /// Executes every registered task for one player and returns the full results (message,
+    /// accessibility, MethodBreakdown with steps/wiki/where/drops/costs/effects, ...), sorted
+    /// accessible-first then by profit/hour. This is what SkyModCommands' /cofl task and API
+    /// consumers render directly - unlike <see cref="GetEstimates"/>, which only covers the
+    /// stat-aware community estimate tier for MethodTask.
+    /// </summary>
+    /// <param name="playerId">The player's Minecraft name (not uuid) - see
+    /// <see cref="TaskExecutionService.LoadStateAndHistory"/>, which resolves the uuid used for the
+    /// (uuid-keyed) profit history from the loaded state instead of requiring the caller to know it.
+    /// Calling this with a uuid still works (history/PlayerUuid use it directly) but returns no
+    /// personal state (no skills/HOTM/purse/claimed task).</param>
+    /// <param name="cancellationToken"></param>
+    [HttpGet("{playerId}/results")]
+    public async Task<List<TaskResult>> GetResults(string playerId, CancellationToken cancellationToken)
+    {
+        return await execution.ExecuteAll(playerId, cancellationToken);
+    }
+
+    /// <summary>
+    /// Executes a single registered task for one player and returns its full result, including the
+    /// MethodBreakdown (steps, wiki, where, island, warp, drops, costs, effects). 404s when no task
+    /// is registered under <paramref name="taskName"/> (see <see cref="TaskRegistry.GetByName"/> -
+    /// matches by MethodTask.MethodName or the class-derived <see cref="ProfitTask.Name"/>).
+    /// </summary>
+    /// <param name="playerId">The player's Minecraft name (not uuid) - see <see cref="GetResults"/>.</param>
+    /// <param name="taskName"></param>
+    /// <param name="cancellationToken"></param>
+    [HttpGet("{playerId}/results/{taskName}")]
+    public async Task<TaskResult> GetResult(string playerId, string taskName, CancellationToken cancellationToken)
+    {
+        var result = await execution.ExecuteOne(playerId, taskName, cancellationToken);
+        if (result == null)
+            throw new CoflnetException("task_not_found", $"No task named '{taskName}' is registered.");
+        return result;
+    }
+
+    /// <summary>
+    /// Metadata (name, description) for every registered money-making method, no player data
+    /// needed. SkyModCommands forwards its own <c>/api/task/methods</c> to this.
+    /// </summary>
+    [HttpGet("methods")]
+    [ResponseCache(Duration = 300)]
+    public List<MethodMetadata> GetMethods()
+    {
+        return registry.Tasks.OfType<MethodTask>()
+            .Select(t => new MethodMetadata { Name = t.Name, Description = t.Description })
+            .ToList();
     }
 
     /// <summary>
@@ -134,4 +194,10 @@ public class CurrentTask
     public string TaskName { get; set; }
     public DateTime Since { get; set; }
     public string Source { get; set; }
+}
+
+public class MethodMetadata
+{
+    public string Name { get; set; }
+    public string Description { get; set; }
 }

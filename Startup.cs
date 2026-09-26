@@ -128,6 +128,7 @@ public class Startup
         services.AddSingleton<Mayor.Client.Api.IMayorApiApi>(sp => new Mayor.Client.Api.MayorApiApi(Configuration["MAYOR_BASE_URL"]));
         services.AddSingleton<Tasks.ProfileForgeClient>();
         services.AddSingleton<Tasks.ForgeFlipService>();
+        services.AddSingleton<Tasks.IForgeFlipService>(p => p.GetRequiredService<Tasks.ForgeFlipService>());
         services.AddSingleton<Tasks.CurrentMayorService>();
         services.AddSingleton<Tasks.ComposterService>();
         services.AddSingleton<Tasks.CoinValueRegistry>();
@@ -141,6 +142,7 @@ public class Startup
         services.AddSingleton<Tasks.TaskEstimator>();
         services.AddSingleton<Tasks.TaskPriceService>();
         services.AddSingleton<Tasks.TaskBackfillService>();
+        services.AddSingleton<Tasks.TaskExecutionService>();
         services.AddHostedService<Tasks.TaskAggregateFlusher>();
         // export the fold/estimate spans (and the existing consumer spans) to jaeger.
         // AddOpenTelemetry().WithTracing is additive to the config AddJaeger set up.

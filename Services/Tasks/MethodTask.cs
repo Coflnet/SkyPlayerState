@@ -277,15 +277,33 @@ public abstract class MethodTask : ProfitTask
 
         var matchedPeriods = FindMatchingPeriodsWindowed(parameters);
 
+        // Looked up once (MethodName, falling back to the class-derived Name - see
+        // InfernoDemonlordUsesLegacyBurningsoulServerEstimate) so both the server-estimate branch
+        // and the formula fallback below can see it: TaskEstimator.EstimateAll returns an estimate
+        // for every task, including Source == "formula" ones whenever their FormulaDrops have
+        // prices, so a plain CoinsPerHour > 0 check used to route those into
+        // ComputeFromServerEstimate too - which has no per-drop/per-cost breakdown and mislabels a
+        // pure formula number as "community_estimate"/"(estimated)". A formula-sourced estimate must
+        // fall through to ComputeFromFormula instead, which renders the full drops+costs breakdown -
+        // see the stat-aware rescale in ComputeFromFormula for how its own per-player accuracy is
+        // still preserved.
+        TaskEstimate serverEstimate = null;
+        parameters.ServerEstimates?.TryGetValue(MethodName, out serverEstimate);
+        if (serverEstimate == null)
+            parameters.ServerEstimates?.TryGetValue(Name, out serverEstimate);
+
         TaskResult result;
         if (matchedPeriods.Count > 0)
             result = await ComputeFromPlayerData(parameters, matchedPeriods);
+        else if (serverEstimate != null && serverEstimate.CoinsPerHour > 0 && serverEstimate.Source != "formula")
+            result = await ComputeFromServerEstimate(parameters, serverEstimate);
         else if (parameters.GlobalAverageDrops != null
-                 && parameters.GlobalAverageDrops.TryGetValue(MethodName, out var avgDrops)
+                 && (parameters.GlobalAverageDrops.TryGetValue(MethodName, out var avgDrops)
+                     || parameters.GlobalAverageDrops.TryGetValue(Name, out avgDrops))
                  && avgDrops.Count > 0)
             result = await ComputeFromGlobalAverage(parameters, avgDrops);
         else if (FormulaDrops.Count > 0)
-            result = await ComputeFromFormula(parameters);
+            result = await ComputeFromFormula(parameters, serverEstimate?.Source == "formula" ? serverEstimate : null);
         else
             result = new TaskResult
             {
@@ -431,13 +449,23 @@ public abstract class MethodTask : ProfitTask
         return Task.FromResult(result);
     }
 
-    protected Task<TaskResult> ComputeFromFormula(TaskParams parameters)
+    /// <summary>
+    /// Cold-start estimate from this task's own declared <see cref="FormulaDrops"/>/<see
+    /// cref="FormulaCosts"/> at current prices, with the full itemized drops+costs breakdown.
+    /// <paramref name="statAdjustedEstimate"/> is the matching <see cref="TaskEstimate"/> when
+    /// <see cref="TaskEstimator"/> also priced this task's formula tier (<c>Source == "formula"</c> -
+    /// see <see cref="Execute"/>): that figure applies a stat-bucket prior seeded from this task's
+    /// own <see cref="Effects"/> (mining speed/fortune, gauntlet, hotm tier, ...) plus live
+    /// saturation - real per-player adjustments this flat recipe math has no way to know about on
+    /// its own - so whenever it is available, drops/costs/totals are rescaled together (keeping the
+    /// recipe's cost:output ratio intact) to match it instead of the flat design-time numbers.
+    /// </summary>
+    protected Task<TaskResult> ComputeFromFormula(TaskParams parameters, TaskEstimate statAdjustedEstimate = null)
     {
         var prices = parameters.GetPrices();
-        var totalPerHour = 0.0;
-        var breakdown = new List<string>();
-        var drops = new List<DropInfo>();
         var fmt = parameters.Formatter;
+        var totalPerHour = 0.0;
+        var drops = new List<DropInfo>();
 
         foreach (var drop in FormulaDrops)
         {
@@ -445,12 +473,10 @@ public abstract class MethodTask : ProfitTask
             if (price <= 0) continue;
             var contribution = drop.RatePerHour * price;
             totalPerHour += contribution;
-            var name = parameters.Names.GetValueOrDefault(drop.ItemTag, drop.ItemTag);
-            breakdown.Add($"{McColorCodes.YELLOW}{name} {McColorCodes.GRAY}x{drop.RatePerHour:F0}/h = {McColorCodes.AQUA}{fmt.FormatPrice((long)contribution)}");
             drops.Add(new DropInfo
             {
                 ItemTag = drop.ItemTag,
-                Name = name,
+                Name = parameters.Names.GetValueOrDefault(drop.ItemTag, drop.ItemTag),
                 RatePerHour = drop.RatePerHour,
                 PriceEach = price,
                 ContributionPerHour = contribution
@@ -466,7 +492,6 @@ public abstract class MethodTask : ProfitTask
             });
 
         var costs = new List<DropInfo>();
-        var costBreakdown = new List<string>();
         var totalCostPerHour = 0.0;
         foreach (var cost in FormulaCosts)
         {
@@ -474,18 +499,31 @@ public abstract class MethodTask : ProfitTask
             if (price <= 0) continue;
             var contribution = cost.RatePerHour * price;
             totalCostPerHour += contribution;
-            var name = parameters.Names.GetValueOrDefault(cost.ItemTag, cost.ItemTag);
-            costBreakdown.Add($"{McColorCodes.YELLOW}{name} {McColorCodes.GRAY}x{cost.RatePerHour:F1}/h = {McColorCodes.RED}-{fmt.FormatPrice((long)contribution)}");
             costs.Add(new DropInfo
             {
                 ItemTag = cost.ItemTag,
-                Name = name,
+                Name = parameters.Names.GetValueOrDefault(cost.ItemTag, cost.ItemTag),
                 RatePerHour = cost.RatePerHour,
                 PriceEach = price,
                 ContributionPerHour = -contribution
             });
         }
         var netPerHour = totalPerHour - totalCostPerHour;
+
+        if (statAdjustedEstimate != null && statAdjustedEstimate.CoinsPerHour > 0 && netPerHour > 0)
+        {
+            var scale = statAdjustedEstimate.CoinsPerHour / netPerHour;
+            foreach (var drop in drops) { drop.RatePerHour *= scale; drop.ContributionPerHour *= scale; }
+            foreach (var cost in costs) { cost.RatePerHour *= scale; cost.ContributionPerHour *= scale; }
+            netPerHour = statAdjustedEstimate.CoinsPerHour;
+        }
+
+        var breakdown = drops.Select(d =>
+            $"{McColorCodes.YELLOW}{d.Name} {McColorCodes.GRAY}x{d.RatePerHour:F0}/h = {McColorCodes.AQUA}{fmt.FormatPrice((long)d.ContributionPerHour)}");
+        var costBreakdown = costs.Select(c =>
+            // c.ContributionPerHour is already negative (see the doc comment on MethodBreakdown.Costs) -
+            // FormatPrice adds its own "-" for a negative value, so no separate "-" prefix here.
+            $"{McColorCodes.YELLOW}{c.Name} {McColorCodes.GRAY}x{c.RatePerHour:F1}/h = {McColorCodes.RED}{fmt.FormatPrice((long)c.ContributionPerHour)}").ToList();
 
         var reqItems = BuildRequiredItems(parameters);
         var costSection = costBreakdown.Count > 0
@@ -578,6 +616,122 @@ public abstract class MethodTask : ProfitTask
         };
         PopulateGuidanceFields(avgResult.Breakdown);
         return Task.FromResult(avgResult);
+    }
+
+    /// <summary>
+    /// Build a result from the SkyUserState stat aware estimate. The heavy lifting (personal
+    /// blending, stat buckets, saturation, price drift, AND ingredient cost netting for recipe
+    /// tasks like Sludge Mining (Gem Mixture) - see TaskEstimator.RateFromAggregate/
+    /// RateFromPlayerStat/FormulaRate) already happened server side, so estimate.CoinsPerHour
+    /// arrives here already net; render it as-is. Never called for a Source == "formula" estimate -
+    /// see Execute(), which falls through to ComputeFromFormula for those instead.
+    /// </summary>
+    protected Task<TaskResult> ComputeFromServerEstimate(TaskParams parameters, TaskEstimate estimate)
+    {
+        var fmt = parameters.Formatter;
+        var drops = (estimate.Drops ?? []).Select(d => new DropInfo
+        {
+            ItemTag = d.ItemTag,
+            Name = parameters.Names.GetValueOrDefault(d.ItemTag, d.ItemTag),
+            RatePerHour = d.RatePerHour,
+            PriceEach = d.PriceEach,
+            ContributionPerHour = d.ContributionPerHour
+        }).ToList();
+
+        // estimate.CoinsPerHour is already net of ingredient cost (netted once, upstream, in
+        // TaskEstimator - see the doc comment above). Build a Costs list purely for display, scaled
+        // to THIS estimate's own observed drop rates (not the design-time FormulaDrops rate) so a
+        // player/community producing more or less than the formula assumes sees a proportional
+        // figure - but do NOT subtract it again: gross drops (above) minus these display costs is
+        // already what CoinsPerHour represents.
+        var (costs, _) = BuildScaledCosts(
+            drops.ToDictionary(d => d.ItemTag, d => d.RatePerHour, StringComparer.OrdinalIgnoreCase), parameters);
+        var netCoinsPerHour = estimate.CoinsPerHour;
+
+        var sourceLabel = estimate.Source switch
+        {
+            "personal" => "your tracked data",
+            "stat_bucket" => "players with similar stats",
+            "global" => "community data",
+            _ => "estimated"
+        };
+        var saturationNote = estimate.CurrentDoers > 1
+            ? $" {McColorCodes.GRAY}({estimate.CurrentDoers} doing this now)"
+            : "";
+        var costNote = costs.Count > 0
+            ? $"\nEstimated ingredient costs per hour:\n{string.Join("\n", costs.Select(c =>
+                $"{McColorCodes.YELLOW}{c.Name} {McColorCodes.GRAY}x{c.RatePerHour:F1}/h = {McColorCodes.RED}{fmt.FormatPrice((long)c.ContributionPerHour)}"))}\n"
+            : "";
+
+        var serverResult = new TaskResult
+        {
+            ProfitPerHour = (int)netCoinsPerHour,
+            Message = $"{MethodName} ~{McColorCodes.AQUA}{fmt.FormatPrice(netCoinsPerHour)}/h {McColorCodes.GRAY}({sourceLabel}){saturationNote}",
+            Details = $"Based on {sourceLabel}.\n"
+                + (estimate.PersonalTrackedMinutes > 0 ? $"Your tracked time: {fmt.FormatTime(TimeSpan.FromMinutes(estimate.PersonalTrackedMinutes))}\n" : "")
+                + (estimate.Contributors > 0 ? $"{McColorCodes.DARK_GRAY}{estimate.Contributors} players contributed data\n" : "")
+                + costNote
+                + (estimate.TraceId != null ? $"{McColorCodes.DARK_GRAY}ref {estimate.TraceId}" : ""),
+            Name = MethodName,
+            OnClick = WarpCommand,
+            Breakdown = new MethodBreakdown
+            {
+                HowTo = HowTo,
+                RequiredItems = BuildRequiredItems(parameters),
+                Drops = drops,
+                Costs = costs,
+                ActionsPerHour = ActionsPerHour,
+                ActionUnit = ActionUnit,
+                Effects = Effects,
+                Source = estimate.Source == "personal" ? "player_data" : "community_estimate",
+                TrackedHours = estimate.CommunityTrackedHours,
+                Category = Category,
+                Type = TaskType
+            }
+        };
+        PopulateGuidanceFields(serverResult.Breakdown);
+        return Task.FromResult(serverResult);
+    }
+
+    /// <summary>
+    /// This task's <see cref="FormulaCosts"/> scaled to <paramref name="itemRatesPerHour"/> - the
+    /// task's own observed/estimated per-hour output (e.g. a server estimate's drops) rather than
+    /// the design-time <see cref="FormulaDrops"/> rate, so a player/community producing more or less
+    /// than the formula assumes sees a proportional figure (same idea as <see
+    /// cref="ScaledFormulaCost"/>, which this reuses - hours = 1 since <paramref
+    /// name="itemRatesPerHour"/> are already per-hour rates, not absolute counts). Used by <see
+    /// cref="ComputeFromServerEstimate"/> for DISPLAY ONLY: the estimate's CoinsPerHour is already
+    /// net of this cost (see TaskEstimator), so the returned <c>TotalPerHour</c> must not be
+    /// subtracted from it again there. Returns an empty list/0 when this task has no <see
+    /// cref="FormulaCosts"/> or no priced reference drop.
+    /// </summary>
+    private (List<DropInfo> Costs, double TotalPerHour) BuildScaledCosts(Dictionary<string, double> itemRatesPerHour, TaskParams parameters)
+    {
+        var costs = new List<DropInfo>();
+        if (FormulaCosts.Count == 0 || itemRatesPerHour == null || itemRatesPerHour.Count == 0)
+            return (costs, 0);
+        var prices = parameters.GetPrices();
+        double PriceOf(string tag) => prices.GetValueOrDefault(tag, 0);
+        var totalPerHour = ScaledFormulaCost(itemRatesPerHour, 1.0, PriceOf);
+        if (totalPerHour <= 0)
+            return (costs, 0);
+        var reference = FormulaDrops.FirstOrDefault(d => d.RatePerHour > 0 && itemRatesPerHour.ContainsKey(d.ItemTag));
+        var scale = reference == null ? 0 : itemRatesPerHour[reference.ItemTag] / reference.RatePerHour;
+        foreach (var cost in FormulaCosts)
+        {
+            var price = PriceOf(cost.ItemTag);
+            if (price <= 0) continue;
+            var rate = cost.RatePerHour * scale;
+            costs.Add(new DropInfo
+            {
+                ItemTag = cost.ItemTag,
+                Name = parameters.Names.GetValueOrDefault(cost.ItemTag, cost.ItemTag),
+                RatePerHour = rate,
+                PriceEach = price,
+                ContributionPerHour = -(rate * price)
+            });
+        }
+        return (costs, totalPerHour);
     }
 
     private List<RequiredItem> BuildRequiredItems(TaskParams parameters)

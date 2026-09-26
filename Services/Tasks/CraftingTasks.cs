@@ -49,7 +49,7 @@ public class ReaperScytheTask : ProfitTask
         }
 
         // Check forge for existing profits
-        var flips = await parameters.GetService<ForgeFlipService>().GetForgeFlips(parameters.PlayerUuid, parameters.ExtractedInfo);
+        var flips = await parameters.GetService<IForgeFlipService>().GetForgeFlips(parameters);
         var reaperFlip = flips.FirstOrDefault(f =>
             f.CraftData.ItemId?.Contains("REAPER") == true ||
             f.CraftData.ItemName?.Contains("Reaper") == true);
@@ -113,7 +113,7 @@ public class GauntletOfContagionTask : ProfitTask
             };
         }
 
-        var flips = await parameters.GetService<ForgeFlipService>().GetForgeFlips(parameters.PlayerUuid, parameters.ExtractedInfo);
+        var flips = await parameters.GetService<IForgeFlipService>().GetForgeFlips(parameters);
         var gauntletFlip = flips.FirstOrDefault(f =>
             f.CraftData.ItemId?.Contains("GAUNTLET") == true ||
             f.CraftData.ItemName?.Contains("Gauntlet") == true);
@@ -226,7 +226,7 @@ public abstract class ForgeCraftTask : ProfitTask
 
     public override async Task<TaskResult> Execute(TaskParams parameters)
     {
-        var flips = await parameters.GetService<ForgeFlipService>().GetForgeFlips(parameters.PlayerUuid, parameters.ExtractedInfo);
+        var flips = await parameters.GetService<IForgeFlipService>().GetForgeFlips(parameters);
         var flip = flips.FirstOrDefault(f =>
             (f.CraftData.ItemId?.Contains(SearchTerm) == true) ||
             (f.CraftData.ItemName?.Contains(SearchTerm) == true));

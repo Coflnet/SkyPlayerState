@@ -153,17 +153,95 @@ public class TaskEstimationTests
         RateFromAggregate(agg, prices).Should().BeApproximately(10_400, 1e-6);
     }
 
-    // Mirror of TaskEstimator.RateFromAggregate for isolated math testing.
-    private static double RateFromAggregate(BucketAggregate agg, Dictionary<string, double> prices)
+    // Thin wrappers over the real TaskEstimator methods (argument order kept for the call sites
+    // below) - these tests must exercise production code, not a copy of it.
+    private static double RateFromAggregate(BucketAggregate agg, Dictionary<string, double> prices, MethodTask task = null)
+        => TaskEstimator.RateFromAggregate(task, agg, prices);
+
+    private static double RateFromPlayerStat(TaskPlayerStatRow row, Dictionary<string, double> prices, double decay, MethodTask task = null)
+        => TaskEstimator.RateFromPlayerStat(task, row, prices, decay);
+
+    /// <summary>
+    /// Regression: the community/stat-bucket tier must net a recipe task's ingredient cost (here
+    /// Sludge Mining (Gem Mixture)'s Fine gems) the same way FormulaRate/ComputeFromFormula already
+    /// did, instead of only ever netting it into the drift reference (see the doc comments on
+    /// TaskEstimator.RateFromAggregate and TaskPeriodFolder.FoldDerivedTasks).
+    /// </summary>
+    [Test]
+    public void AggregateRate_NetsIngredientCost_ForFormulaCostsTask()
     {
-        double liveItemValue = 0;
-        foreach (var (tag, count) in agg.ItemCounts)
-            liveItemValue += (prices.GetValueOrDefault(tag)) * count;
-        var driftScale = agg.RefItemValue > 0 && liveItemValue > 0
-            ? Math.Clamp(liveItemValue / agg.RefItemValue, 0.25, 4)
-            : 1;
-        var pools = (agg.ResidualCoins + agg.RareCoins) * driftScale;
-        return (liveItemValue + pools) / (agg.WSeconds / 3600.0);
+        var gemMixture = new SludgeMiningGemMixtureTask();
+        var prices = new Dictionary<string, double>
+        {
+            ["GEMSTONE_MIXTURE"] = 500_000,
+            ["FINE_JADE_GEM"] = 5_000,
+            ["FINE_AMBER_GEM"] = 5_000,
+            ["FINE_AMETHYST_GEM"] = 5_000,
+            ["FINE_SAPPHIRE_GEM"] = 5_000,
+        };
+        const double hours = 4;
+        const double mixtures = 2; // 0.5/h over 4h
+        var agg = new BucketAggregate
+        {
+            WSeconds = hours * 3600,
+            ItemCounts = new() { { "GEMSTONE_MIXTURE", mixtures } },
+            RefItemValue = mixtures * 500_000, // gross ref matching liveItemValue -> no drift
+        };
+
+        var gross = RateFromAggregate(agg, prices);
+        var net = RateFromAggregate(agg, prices, gemMixture);
+        var expectedCost = gemMixture.ScaledFormulaCost(agg.ItemCounts, hours, tag => prices.GetValueOrDefault(tag));
+
+        net.Should().BeApproximately(gross - expectedCost / hours, 1e-6);
+        net.Should().BeLessThan(gross, "the 16 Fine gems per mixture must be charged against the community rate too");
+    }
+
+    [Test]
+    public void PlayerStatRate_NetsIngredientCost_ForFormulaCostsTask()
+    {
+        var gemMixture = new SludgeMiningGemMixtureTask();
+        var prices = new Dictionary<string, double>
+        {
+            ["GEMSTONE_MIXTURE"] = 500_000,
+            ["FINE_JADE_GEM"] = 5_000,
+            ["FINE_AMBER_GEM"] = 5_000,
+            ["FINE_AMETHYST_GEM"] = 5_000,
+            ["FINE_SAPPHIRE_GEM"] = 5_000,
+        };
+        var row = new TaskPlayerStatRow
+        {
+            WSeconds = 4 * 3600,
+            ItemCounts = new() { { "GEMSTONE_MIXTURE", 2 } },
+            RefItemValue = 2 * 500_000,
+        };
+        const double decay = 1.0;
+
+        var gross = RateFromPlayerStat(row, prices, decay);
+        var net = RateFromPlayerStat(row, prices, decay, gemMixture);
+
+        net.Should().BeLessThan(gross, "the 16 Fine gems per mixture must be charged against the personal rate too");
+        net.Should().BeApproximately(gross - 40_000, 1e-6,
+            "4 gem types x 4/mixture x 2 mixtures x 5k / 4h = 40k/h ingredient cost");
+    }
+
+    /// <summary>
+    /// A task with no FormulaCosts must be entirely unaffected by threading MethodTask into these
+    /// rate helpers - ScaledFormulaCost short-circuits to 0 for it (see MethodTask.FormulaCosts's
+    /// empty default), so passing the task through must be a no-op.
+    /// </summary>
+    [Test]
+    public void AggregateRate_TaskWithoutFormulaCosts_IsUnchanged()
+    {
+        var sludgeMining = new SludgeMiningTask(); // no FormulaCosts
+        var prices = new Dictionary<string, double> { { "SLUDGE_JUICE", 20 } };
+        var agg = new BucketAggregate
+        {
+            WSeconds = 3600,
+            ItemCounts = new() { { "SLUDGE_JUICE", 2000 } },
+            RefItemValue = 2000 * 20,
+        };
+
+        RateFromAggregate(agg, prices, sludgeMining).Should().Be(RateFromAggregate(agg, prices));
     }
 
     // ── Saturation penalty ──
@@ -243,21 +321,8 @@ public class TaskEstimationTests
         { "FINE_SAPPHIRE_GEM", 50_000 },
     };
 
-    /// <summary>Mirror of TaskEstimator.FormulaRate (private) for isolated testing via the public MethodTask API it now delegates cost-netting to.</summary>
     private static double FormulaRate(MethodTask task, Dictionary<string, double> prices)
-    {
-        double total = 0;
-        var dropRates = new Dictionary<string, double>();
-        foreach (var drop in task.FormulaDropsForTest)
-        {
-            var price = prices.GetValueOrDefault(drop.ItemTag);
-            if (price > 0)
-                total += drop.RatePerHour * price;
-            dropRates[drop.ItemTag] = dropRates.GetValueOrDefault(drop.ItemTag) + drop.RatePerHour;
-        }
-        var cost = task.ScaledFormulaCost(dropRates, 1.0, tag => prices.GetValueOrDefault(tag));
-        return total - cost;
-    }
+        => TaskEstimator.FormulaRate(task, prices);
 
     [Test]
     public void FormulaEstimate_GemMixture_IsLowerThanPlainSludgeMining_WhenGemsAreExpensive()
@@ -276,10 +341,12 @@ public class TaskEstimationTests
     [Test]
     public void FoldedValue_GemMixture_IsLowerThanPlainSludgeMining_WhenGemsAreExpensive()
     {
-        // Mirror of the relevant slice of TaskPeriodFolder.FoldDerivedTasks (gross value minus
-        // MethodTask.ScaledFormulaCost) - TaskPeriodFolder itself needs a live Cassandra-backed
-        // TaskAggregateService/CoinValueRegistry, so this pins the same computation via the public
-        // MethodTask API it calls into instead of standing up the full service.
+        // Mirror of the equivalent net-value computation (gross value minus
+        // MethodTask.ScaledFormulaCost) TaskEstimator.RateFromAggregate/RateFromPlayerStat now
+        // perform from the gross item counts TaskPeriodFolder.FoldDerivedTasks stores - both
+        // TaskPeriodFolder and TaskEstimator need live Cassandra-backed services, so this pins the
+        // same computation via the public MethodTask API they call into instead of standing up the
+        // full services.
         var gemMixture = new SludgeMiningGemMixtureTask();
         const double hours = 4;
         const double observedJuicePerHour = 400; // exactly saturates the 1.25 mixtures/h Forge cap

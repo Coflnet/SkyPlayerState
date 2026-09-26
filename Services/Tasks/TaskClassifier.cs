@@ -4,18 +4,8 @@ using System.Linq;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
 
-/// <summary>
-/// Detection rules of one task, mirror of the matching in MethodTask.FindMatchingPeriods.
-/// </summary>
-public record DetectionSignature(
-    string MethodName,
-    HashSet<string> Locations,
-    HashSet<string> DetectionItems,
-    bool RequireShardItems,
-    bool ExcludeShardItems,
-    int Priority,
-    string Category,
-    string DerivedFrom = null);
+// DetectionSignature lives in DetectionSignature.cs, since MethodTask.GetDetectionSignature()
+// constructs it.
 
 /// <summary>
 /// Result of classifying a collection window to a task.

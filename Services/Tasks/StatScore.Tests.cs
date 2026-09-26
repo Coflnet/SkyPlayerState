@@ -50,7 +50,7 @@ public class StatScoreTests
     public async Task HotmTier_DrivesBucket()
     {
         var state = new StateObject();
-        state.ExtractedInfo.HeartOfTheMountain = new HeartOfThe { Tier = 10 };
+        state.ExtractedInfo.HeartOfTheMountain = new Coflnet.Sky.PlayerState.Models.HeartOfThe { Tier = 10 };
         state.ExtractedInfo.AttributeLevel = new Dictionary<string, int> { { "Mining Speed", 10 } };
         var factors = new List<StatFactor>
         {
@@ -67,7 +67,7 @@ public class StatScoreTests
     public async Task LowStats_LandLowBucket()
     {
         var state = new StateObject();
-        state.ExtractedInfo.HeartOfTheMountain = new HeartOfThe { Tier = 1 };
+        state.ExtractedInfo.HeartOfTheMountain = new Coflnet.Sky.PlayerState.Models.HeartOfThe { Tier = 1 };
         state.ExtractedInfo.AttributeLevel = new Dictionary<string, int> { { "Mining Speed", 1 } };
         var factors = new List<StatFactor>
         {

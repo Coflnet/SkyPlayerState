@@ -8,45 +8,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
 
-/// <summary>
-/// A single task's estimated coins per hour for one player, with the inputs that produced it.
-/// </summary>
-public class TaskEstimate
-{
-    public string TaskName { get; set; }
-    public string Category { get; set; }
-    public string Source { get; set; }         // personal | stat_bucket | global | formula
-    public byte StatBucket { get; set; }
-    public double CoinsPerHour { get; set; }   // after saturation penalty
-    public double RawCoinsPerHour { get; set; }// before saturation penalty
-    public double PersonalTrackedMinutes { get; set; }
-    public double CommunityTrackedHours { get; set; }
-    public int Contributors { get; set; }
-    public int CurrentDoers { get; set; }
-    public int DoersChange20m { get; set; }
-    public List<TaskDropRate> Drops { get; set; } = new();
-    public string TraceId { get; set; }
-    /// <summary>Wiki page explaining the method/main item, or null if not curated - see MethodTask.WikiUrl.</summary>
-    public string WikiUrl { get; set; }
-    /// <summary>The exact zone to stand in to do this method - see MethodTask.Where.</summary>
-    public string Where { get; set; }
-    /// <summary>The SkyBlock island Where belongs to, or null if unknown - see SkyblockZones.IslandOf.</summary>
-    public string Island { get; set; }
-    /// <summary>Wiki page for Island (has the island's map), or null if unknown.</summary>
-    public string WhereWikiUrl { get; set; }
-    /// <summary>Warp command to get close: the task's own, else the island's, else null.</summary>
-    public string Warp { get; set; }
-    /// <summary>Ordered, followable steps a total beginner can click through - see MethodTask.Steps.</summary>
-    public List<TaskStep> Steps { get; set; } = new();
-}
-
-public class TaskDropRate
-{
-    public string ItemTag { get; set; }
-    public double RatePerHour { get; set; }
-    public double PriceEach { get; set; }
-    public double ContributionPerHour { get; set; }
-}
+// TaskEstimate/TaskDropRate live in TaskEstimate.cs, since MethodTask.ComputeFromServerEstimate
+// renders them and TaskParams.ServerEstimates is serialized to SkyModCommands via the generated
+// PlayerState.Client - its shape must stay in sync with the OpenAPI schema.
 
 /// <summary>
 /// Produces the blended, stat aware, saturation adjusted coins per hour estimate
@@ -201,7 +165,7 @@ public class TaskEstimator
         if (globalAgg != null && globalContributors >= MinContributors)
         {
             hG = Math.Min(globalAgg.WSeconds / 3600.0, GlobalHoursCap);
-            rG = RateFromAggregate(globalAgg, prices);
+            rG = RateFromAggregate(task, globalAgg, prices);
         }
         var rGlobalStar = (hG * rG + GlobalPseudoHours * rFormula) / (hG + GlobalPseudoHours);
 
@@ -211,7 +175,7 @@ public class TaskEstimator
         if (bucketAgg != null && bucketAgg.Contributors.Count >= MinContributors)
         {
             hB = bucketAgg.WSeconds / 3600.0;
-            rB = RateFromAggregate(bucketAgg, prices);
+            rB = RateFromAggregate(task, bucketAgg, prices);
         }
         var rBucketStar = (hB * rB + BucketPseudoHours * mB * rGlobalStar) / (hB + BucketPseudoHours);
 
@@ -222,7 +186,7 @@ public class TaskEstimator
             var ageDays = (DateTime.UtcNow - personal.LastFold).TotalDays;
             var decay = Math.Pow(0.5, ageDays / 7);
             personalMinutes = personal.CumulativeMinutes * decay;
-            rPersonal = RateFromPlayerStat(personal, prices, decay);
+            rPersonal = RateFromPlayerStat(task, personal, prices, decay);
         }
         var p = TaskPeriodFolder.Ramp(personalMinutes);
         var estimate = p * rPersonal + (1 - p) * rBucketStar;
@@ -278,7 +242,7 @@ public class TaskEstimator
 
     private static Dictionary<string, double> PlayerStatCounts(TaskPlayerStatRow row) => row.ItemCounts ?? new();
 
-    private double FormulaRate(MethodTask task, Dictionary<string, double> prices)
+    internal static double FormulaRate(MethodTask task, Dictionary<string, double> prices)
     {
         double total = 0;
         var dropRates = new Dictionary<string, double>();
@@ -339,32 +303,51 @@ public class TaskEstimator
     }
 
     /// <summary>
-    /// Rate from an aggregate: items re-priced live, coin pools scaled for price drift.
+    /// Rate from an aggregate: items re-priced live, ingredient cost netted for recipe tasks
+    /// (e.g. Sludge Mining (Gem Mixture) consuming Fine gems via <see
+    /// cref="MethodTask.FormulaCosts"/>/<see cref="MethodTask.ScaledFormulaCost"/>), coin pools
+    /// scaled for price drift. Netting the cost here - rather than only in <see cref="FormulaRate"/>
+    /// - is what makes the community/stat-bucket tiers net too: <see
+    /// cref="TaskPeriodFolder.FoldDerivedTasks"/> stores this task's real, gross converted item
+    /// counts (<see cref="BucketAggregate.ItemCounts"/>) plus a like-for-like GROSS <see
+    /// cref="BucketAggregate.RefItemValue"/> drift reference, never a netted pool, so this is the
+    /// only place community/stat-bucket data ever gets charged for the ingredients it consumed.
     /// </summary>
-    private double RateFromAggregate(BucketAggregate agg, Dictionary<string, double> prices)
+    internal static double RateFromAggregate(MethodTask task, BucketAggregate agg, Dictionary<string, double> prices)
     {
         if (agg == null || agg.WSeconds <= 0)
             return 0;
+        var hours = agg.WSeconds / 3600.0;
         double liveItemValue = agg.ItemCounts.Sum(e => (prices?.GetValueOrDefault(e.Key) ?? 0) * e.Value);
+        var cost = task?.ScaledFormulaCost(agg.ItemCounts, hours, tag => prices?.GetValueOrDefault(tag) ?? 0) ?? 0;
         var driftScale = agg.RefItemValue > 0 && liveItemValue > 0
             ? Math.Clamp(liveItemValue / agg.RefItemValue, PriceDriftClampLow, PriceDriftClampHigh)
             : 1;
         var pools = (agg.ResidualCoins + agg.RareCoins) * driftScale;
-        return (liveItemValue + pools) / (agg.WSeconds / 3600.0);
+        return (liveItemValue - cost + pools) / hours;
     }
 
-    private double RateFromPlayerStat(TaskPlayerStatRow row, Dictionary<string, double> prices, double decay)
+    /// <summary>
+    /// Personal-stat mirror of <see cref="RateFromAggregate"/>: same live re-pricing, ingredient
+    /// cost netting and price-drift scaling, applied to one player's decayed row instead of a
+    /// shared bucket aggregate. Item counts are decayed the same as their coin value so the cost -
+    /// computed from those same decayed counts - is discounted by the identical staleness factor.
+    /// </summary>
+    internal static double RateFromPlayerStat(MethodTask task, TaskPlayerStatRow row, Dictionary<string, double> prices, double decay)
     {
         var wSeconds = row.WSeconds * decay;
         if (wSeconds <= 0)
             return 0;
-        double liveItemValue = (row.ItemCounts ?? new()).Sum(e => (prices?.GetValueOrDefault(e.Key) ?? 0) * e.Value * decay);
+        var hours = wSeconds / 3600.0;
+        var decayedCounts = (row.ItemCounts ?? new()).ToDictionary(e => e.Key, e => e.Value * decay);
+        double liveItemValue = decayedCounts.Sum(e => (prices?.GetValueOrDefault(e.Key) ?? 0) * e.Value);
+        var cost = task?.ScaledFormulaCost(decayedCounts, hours, tag => prices?.GetValueOrDefault(tag) ?? 0) ?? 0;
         var refValue = row.RefItemValue * decay;
         var driftScale = refValue > 0 && liveItemValue > 0
             ? Math.Clamp(liveItemValue / refValue, PriceDriftClampLow, PriceDriftClampHigh)
             : 1;
         var pools = (row.ResidualCoins + row.RareCoins) * decay * driftScale;
-        return (liveItemValue + pools) / (wSeconds / 3600.0);
+        return (liveItemValue - cost + pools) / hours;
     }
 
     private List<TaskDropRate> BuildDrops(MethodTask task, Dictionary<string, double> itemCounts, double wSeconds, Dictionary<string, double> prices)

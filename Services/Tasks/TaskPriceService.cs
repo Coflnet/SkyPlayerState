@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Coflnet.Sky.Bazaar.Client.Api;
+using Coflnet.Sky.Bazaar.Client.Model;
 using Coflnet.Sky.Sniper.Client.Api;
 using Microsoft.Extensions.Logging;
 
@@ -21,6 +23,12 @@ public class TaskPriceService
     private DateTime fetchedAt = DateTime.MinValue;
     private readonly SemaphoreSlim refreshLock = new(1, 1);
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(2);
+
+    private static readonly TimeSpan BazaarPricesCacheDuration = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan BazaarPricesTimeout = TimeSpan.FromSeconds(2);
+    private List<ItemPrice> cachedBazaarPrices;
+    private DateTime bazaarPricesFetchedAt = DateTime.MinValue;
+    private readonly SemaphoreSlim bazaarPricesRefreshLock = new(1, 1);
 
     public TaskPriceService(ISniperApi sniperApi, IBazaarApi bazaarApi, ILogger<TaskPriceService> logger)
     {
@@ -91,6 +99,46 @@ public class TaskPriceService
         finally
         {
             refreshLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Raw bazaar prices (buy and sell, per product) for <see cref="Tasks.TaskParams.BazaarPrices"/> -
+    /// used by the bazaar crafting tasks (see CraftingTasks.cs) that need both sides of the spread
+    /// rather than the single merged clean price <see cref="GetPrices"/> returns. Cached the same way
+    /// as <see cref="TaskExecutionService.GetNames"/>: a short TTL, and on a timeout/failure the last
+    /// good value is served (falling back to an empty list only when nothing has ever been fetched).
+    /// </summary>
+    public async Task<List<ItemPrice>> GetBazaarPrices(CancellationToken cancellationToken = default)
+    {
+        if (cachedBazaarPrices != null && DateTime.UtcNow - bazaarPricesFetchedAt < BazaarPricesCacheDuration)
+            return cachedBazaarPrices;
+        if (!await bazaarPricesRefreshLock.WaitAsync(TimeSpan.FromSeconds(2), cancellationToken))
+            return cachedBazaarPrices ?? new List<ItemPrice>();
+        try
+        {
+            if (cachedBazaarPrices != null && DateTime.UtcNow - bazaarPricesFetchedAt < BazaarPricesCacheDuration)
+                return cachedBazaarPrices;
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(BazaarPricesTimeout);
+            var prices = await bazaarApi.GetAllPricesAsync(0, cts.Token);
+            cachedBazaarPrices = prices?.ToList() ?? new List<ItemPrice>();
+            bazaarPricesFetchedAt = DateTime.UtcNow;
+            return cachedBazaarPrices;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception e)
+        {
+            bazaarPricesFetchedAt = DateTime.UtcNow - BazaarPricesCacheDuration + TimeSpan.FromSeconds(30);
+            logger.LogWarning(e, "bazaar prices unavailable for task results, serving {count} stale", cachedBazaarPrices?.Count ?? 0);
+            return cachedBazaarPrices ?? new List<ItemPrice>();
+        }
+        finally
+        {
+            bazaarPricesRefreshLock.Release();
         }
     }
 }

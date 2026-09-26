@@ -12,11 +12,14 @@ using RestSharp;
 namespace Coflnet.Sky.PlayerState.Tasks;
 
 /// <summary>
-/// Port of the mod side ForgeFlipService. Instead of calling the PlayerState HTTP api
-/// for the heart of the mountain tier (which would be a self call) the local
-/// <see cref="ExtractedInfo"/> is used directly.
+/// Resolves the forge flips a task can suggest. Instead of calling the PlayerState HTTP api for
+/// the heart of the mountain tier (which would be a self call) the caller's own
+/// <see cref="ExtractedInfo"/> is used directly. Implements <see cref="IForgeFlipService"/> so
+/// <see cref="ForgeTask"/>/<see cref="ForgeCraftTask"/> resolve it via <see
+/// cref="TaskParams.GetService{T}"/> instead of depending on this concrete type, which lets tests
+/// substitute a mock.
 /// </summary>
-public class ForgeFlipService
+public class ForgeFlipService : IForgeFlipService
 {
     private readonly IForgeApi forgeApi;
     private readonly ProfileForgeClient profileClient;
@@ -26,6 +29,9 @@ public class ForgeFlipService
         this.forgeApi = forgeApi;
         this.profileClient = profileClient;
     }
+
+    public Task<IEnumerable<ForgeFlip>> GetForgeFlips(TaskParams parameters)
+        => GetForgeFlips(parameters.PlayerUuid, parameters.ExtractedInfo);
 
     public async Task<IEnumerable<ForgeFlip>> GetForgeFlips(string mcUuid, ExtractedInfo extractedInfo, string profile = "current")
     {

@@ -107,7 +107,7 @@ public class TaskPeriodFolder
             double commonValue = commonCounts.Sum(c => coinValues.Value(c.Key, prices) * c.Value);
             if (bucketAgg != null && bucketAgg.WSeconds / 3600.0 >= WinsorMinBucketHours)
             {
-                var bucketRate = EstimateBucketRate(bucketAgg, prices);
+                var bucketRate = EstimateBucketRate(methodTask, bucketAgg, prices);
                 var cap = WinsorFactor * bucketRate * hours;
                 if (commonValue > cap && commonValue > 0)
                 {
@@ -122,7 +122,7 @@ public class TaskPeriodFolder
             // AFK contamination: coin rate far below the community rate for the task
             if (bucketAgg != null && bucketAgg.WSeconds / 3600.0 >= WinsorMinBucketHours)
             {
-                var bucketRate = EstimateBucketRate(bucketAgg, prices);
+                var bucketRate = EstimateBucketRate(methodTask, bucketAgg, prices);
                 var thisRate = (commonValue + rareCoins) / hours;
                 if (bucketRate > 0 && thisRate < 0.05 * bucketRate)
                 {
@@ -158,6 +158,16 @@ public class TaskPeriodFolder
     /// (already rare-separated and winsorized) through <see cref="MethodTask.ConvertDerivedCounts"/>
     /// so the derived task gets a real, non-formula estimate too. Reuses the primary's confidence
     /// ramp weight since it is the same physical activity.
+    /// <para>
+    /// Stores the GROSS converted value, both as the aggregate's item counts and as its <see
+    /// cref="BucketAggregate.RefItemValue"/> price-drift reference - ingredient cost (e.g. the 16
+    /// Fine gems a Gemstone Mixture consumes, via <see cref="MethodTask.FormulaCosts"/>) is netted
+    /// exactly once, downstream in <see cref="TaskEstimator.RateFromAggregate"/>/<see
+    /// cref="TaskEstimator.RateFromPlayerStat"/>, from these same stored item counts. Keeping
+    /// RefItemValue gross (not net) keeps the price-drift ratio there (live gross / ref gross)
+    /// like-for-like - a net reference compared against a live gross re-pricing would understate
+    /// drift and wrongly clamp it.
+    /// </para>
     /// </summary>
     private async Task FoldDerivedTasks(string primaryTask, Dictionary<string, double> primaryCommonCounts,
         double hours, double minutes, double seconds, double weight, string playerUuid, StateObject state,
@@ -174,19 +184,13 @@ public class TaskPeriodFolder
 
                 var derivedBucket = await statScore.GetBucket(derivedTask.StatFactors, state);
                 var derivedGrossValue = derivedCounts.Sum(c => coinValues.Value(c.Key, prices) * c.Value);
-                // Net out ingredient costs (e.g. the 16 fine gems per Gemstone Mixture) scaled to how
-                // many conversions this window's ConvertDerivedCounts output actually represents -
-                // otherwise a derived task's folded value counts the full output price and silently
-                // drops what was consumed to make it (see MethodTask.ScaledFormulaCost).
-                var derivedCost = derivedTask.ScaledFormulaCost(derivedCounts, hours, tag => coinValues.Value(tag, prices));
-                var derivedItemValue = derivedGrossValue - derivedCost;
                 var weightedDerivedCounts = derivedCounts.ToDictionary(c => c.Key, c => c.Value * weight);
 
                 aggregates.AddContribution(derivedName, derivedBucket, playerUuid, seconds * weight,
-                    weightedDerivedCounts, 0, 0, derivedItemValue * weight, span?.TraceId.ToString());
+                    weightedDerivedCounts, 0, 0, derivedGrossValue * weight, span?.TraceId.ToString());
 
-                await UpdatePlayerStat(playerUuid, derivedName, seconds, derivedCounts, 0, 0, derivedItemValue, minutes, prices);
-                span?.SetTag($"derived_value_{derivedName}", derivedItemValue);
+                await UpdatePlayerStat(playerUuid, derivedName, seconds, derivedCounts, 0, 0, derivedGrossValue, minutes, prices);
+                span?.SetTag($"derived_value_{derivedName}", derivedGrossValue);
             }
             catch (Exception e)
             {
@@ -207,12 +211,20 @@ public class TaskPeriodFolder
         return share < RareAppearanceRatio;
     }
 
-    private static double EstimateBucketRate(BucketAggregate agg, Dictionary<string, double> prices)
+    /// <summary>
+    /// Community rate used for winsorizing/AFK gating of a fresh period, mirroring <see
+    /// cref="TaskEstimator.RateFromAggregate"/>'s netting so a recipe task's own bucket (if it ever
+    /// has <see cref="MethodTask.FormulaCosts"/> directly, not just via a derived task) is not
+    /// compared against caps/floors computed from its gross value.
+    /// </summary>
+    private static double EstimateBucketRate(MethodTask task, BucketAggregate agg, Dictionary<string, double> prices)
     {
         if (agg == null || agg.WSeconds <= 0)
             return 0;
+        var hours = agg.WSeconds / 3600.0;
         double itemValue = agg.ItemCounts.Sum(e => (prices?.GetValueOrDefault(e.Key) ?? 0) * e.Value);
-        return (itemValue + agg.ResidualCoins + agg.RareCoins) / (agg.WSeconds / 3600.0);
+        var cost = task?.ScaledFormulaCost(agg.ItemCounts, hours, tag => prices?.GetValueOrDefault(tag) ?? 0) ?? 0;
+        return (itemValue - cost + agg.ResidualCoins + agg.RareCoins) / hours;
     }
 
     /// <summary>

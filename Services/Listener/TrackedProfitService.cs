@@ -89,7 +89,9 @@ public class TrackedProfitService
         return (await locationPeriods.Where(p => p.PlayerUuid == playerUuid).ExecuteAsync()).ToList();
     }
 
-    public async Task<List<Period>> GetHistoryForPlayer(string playerUuid, DateTime? before = null, int count = 50)
+    // virtual: lets TaskExecutionService.Tests.cs mock this one call (Moq needs an override point)
+    // without needing a real Cassandra ISession to construct a TrackedProfitService for the test.
+    public virtual async Task<List<Period>> GetHistoryForPlayer(string playerUuid, DateTime? before = null, int count = 50)
     {
         if (locationPeriods == null || historyPeriods == null)
             await Setup();

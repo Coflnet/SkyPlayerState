@@ -46,8 +46,7 @@ public class ForgeTask : ProfitTask
             };
         }
 
-        var flips = await parameters.GetService<ForgeFlipService>()
-            .GetForgeFlips(parameters.PlayerUuid, parameters.ExtractedInfo);
+        var flips = await parameters.GetService<IForgeFlipService>().GetForgeFlips(parameters);
         var best = flips
             .Where(f => f.CraftData.CraftCost < 20_000_000_000 && f.ProfitPerHour > 0)
             .OrderByDescending(f => f.ProfitPerHour)
