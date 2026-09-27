@@ -403,4 +403,120 @@ public class TaskClassifierTests
         Classifier.GetDerivedTaskNames(null).Should().BeEmpty();
         Classifier.GetDerivedTaskNames("Not A Real Task").Should().BeEmpty();
     }
+
+    // ── Floor/tier specific dungeon and Kuudra locations (2026-09 "80% of coin value went
+    // unclassified" investigation): a bare island-level Location used to make every floor/tier task
+    // match every floor/tier's periods, with the alphabetical tie-break always picking M4/whichever
+    // sorts first - see DungeonTasks.cs/KuudraTasks.cs. ──
+
+    [Test]
+    public void CatacombsM7Zone_WithGenericItems_ClassifiesToM7Only()
+    {
+        var items = new Dictionary<string, int> { { "ESSENCE_WITHER", 10 } };
+        var result = Classifier.Classify("The Catacombs (M7)", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("M7");
+    }
+
+    [Test]
+    public void CatacombsM5Zone_WithGenericItems_ClassifiesToM5Only()
+    {
+        var items = new Dictionary<string, int> { { "ESSENCE_WITHER", 10 } };
+        var result = Classifier.Classify("The Catacombs (M5)", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("M5");
+    }
+
+    [Test]
+    public void KuudraT4Zone_WithGenericItems_ClassifiesToKuudraT4Only()
+    {
+        var items = new Dictionary<string, int> { { "ATTRIBUTE_SHARD", 5 } };
+        var result = Classifier.Classify("Kuudra's Hollow (T4)", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Kuudra T4");
+    }
+
+    [Test]
+    public void CatacombsFloor7NormalMode_HasNoMatchingTask()
+    {
+        // No floor-7 normal-mode dungeon task exists (only Master Mode M7/M7 Kismet) - this is
+        // expected, not a gap to fix here.
+        var items = new Dictionary<string, int> { { "ESSENCE_WITHER", 10 } };
+        Classifier.Classify("The Catacombs (F7)", items, 10).Should().BeNull();
+    }
+
+    // ── New tasks discovered from unclassified production revenue (2026-09) ──
+
+    [Test]
+    public void TorrhusCanyonWithHelixLog_ClassifiesToHelixForaging()
+    {
+        var items = new Dictionary<string, int> { { "HELIX_LOG", 200 } };
+        var result = Classifier.Classify("Torrhus Canyon", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Helix Foraging");
+    }
+
+    [Test]
+    public void TangleburgWithFigLog_ClassifiesToFigForaging()
+    {
+        var items = new Dictionary<string, int> { { "FIG_LOG", 300 } };
+        var result = Classifier.Classify("Tangleburg", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Fig Foraging");
+    }
+
+    [Test]
+    public void TheMistWithVolta_ClassifiesToGhostTheMist()
+    {
+        var items = new Dictionary<string, int> { { "VOLTA", 20 } };
+        var result = Classifier.Classify("The Mist", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Ghost (The Mist)");
+    }
+
+    [Test]
+    public void TheMistWithShardGhost_ClassifiesToGhostHunting()
+    {
+        var items = new Dictionary<string, int> { { "SHARD_GHOST", 20 } };
+        var result = Classifier.Classify("The Mist", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Ghost (Hunting)");
+    }
+
+    [Test]
+    public void SmolderingTombWithBurningsoulShard_StillClassifiesToInfernoDemonlord()
+    {
+        // BlazeFarmingTask must not steal BurningsoulTask's classification.
+        var items = new Dictionary<string, int> { { "SHARD_BURNINGSOUL", 5 } };
+        var result = Classifier.Classify("Smoldering Tomb", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Inferno Demonlord");
+    }
+
+    [Test]
+    public void SmolderingTombWithDerelictAshe_ClassifiesToBlazeFarming()
+    {
+        var items = new Dictionary<string, int> { { "DERELICT_ASHE", 100 } };
+        var result = Classifier.Classify("Smoldering Tomb", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Blaze Farming (Smoldering Tomb)");
+    }
+
+    [Test]
+    public void GardenWithPestCountAndWheat_ClassifiesToGardenFarming()
+    {
+        var items = new Dictionary<string, int> { { "ENCHANTED_WHEAT", 50 } };
+        var result = Classifier.Classify("The Garden  x3", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Garden Farming");
+    }
+
+    [Test]
+    public void RenamedPlotWithCarrot_ClassifiesToGardenFarming()
+    {
+        var items = new Dictionary<string, int> { { "CARROT_ITEM", 40 } };
+        var result = Classifier.Classify("Plot - Left Farm 2", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Garden Farming");
+    }
 }

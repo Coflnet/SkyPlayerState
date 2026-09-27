@@ -1,0 +1,78 @@
+using System.Collections.Generic;
+
+namespace Coflnet.Sky.PlayerState.Tasks;
+
+// ── Base class for foraging tasks (discovered from unclassified production revenue 2026-09) ──
+public abstract class BaseForagingTask : MethodTask
+{
+    protected override string Category => "Foraging";
+    protected override string ActionUnit => "logs";
+    public override List<StatFactor> StatFactors =>
+    [
+        new("skill:Foraging", 0.5, 50),
+        new("hotf:tier", 0.5, 10)
+    ];
+    protected override List<DropEffect> Effects =>
+    [
+        new() { Name = "Foraging Fortune", Description = "More logs per tree", EstimatedMultiplier = 1.5 },
+        new() { Name = "Sweep", Description = "Chance to instantly fell the whole tree", EstimatedMultiplier = 1.3 },
+        new() { Name = "Foraging Wisdom", Description = "Faster Foraging XP, indirectly more logs per hour", EstimatedMultiplier = 1.1 }
+    ];
+}
+
+public class HelixForagingTask : BaseForagingTask
+{
+    protected override string MethodName => "Helix Foraging";
+    // Island key (Torrhus zones are Torrhus Canyon, Torrhus Heights, Miria's Hut, ... - see
+    // SkyblockZones); Where below names the actual spot to stand in.
+    protected override HashSet<string> Locations => ["Torrhus"];
+    protected override string Where => "Torrhus Heights";
+    protected override HashSet<string> DetectionItems => ["HELIX_LOG", "ENCHANTED_HELIX_LOG"];
+    protected override List<MethodDrop> FormulaDrops =>
+    [
+        new("HELIX_LOG", 15000), new("ENCHANTED_HELIX_LOG", 300), new("HONEYCOMB", 400)
+    ];
+    protected override double ActionsPerHour => 15000;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Helix_Log";
+    protected override string HowTo =>
+        "Warp to Torrhus (needs Foraging XII and Heart of the Forest tier 4), then cut Helix Trees in "
+        + "Torrhus Heights - the beige logs first, then the red ones. Collect Helix Logs and sell them on the Bazaar.";
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Level Foraging to XII and Heart of the Forest to tier 4 - both are needed to warp to Torrhus." },
+        new() { Number = 2, Text = "Type /warp torrhus to get close.", OnClick = "/warp torrhus" },
+        new() { Number = 3, Text = "Go to Torrhus Heights and look for Helix Trees.", OnClick = WhereWikiUrl },
+        new() { Number = 4, Text = "Cut the beige logs first, then the red logs, to fell the whole tree.", OnClick = WikiUrl },
+        new() { Number = 5, Text = "You're doing it right when you start collecting: HELIX_LOG, ENCHANTED_HELIX_LOG. That's what we track for your coins/hour." },
+        new() { Number = 6, Text = "Sell your Helix Logs on the Bazaar." },
+        new() { Number = 7, Text = "Check /cofl task again to see your real coins/hour." },
+    ];
+}
+
+public class FigForagingTask : BaseForagingTask
+{
+    protected override string MethodName => "Fig Foraging";
+    // Island key (Moonglade's own zones are Moonglade Marsh, Tangleburg, ... - see SkyblockZones);
+    // Where below names the actual spot to stand in.
+    protected override HashSet<string> Locations => ["Moonglade"];
+    protected override string Where => "Moonglade Marsh";
+    protected override HashSet<string> DetectionItems => ["FIG_LOG", "ENCHANTED_FIG_LOG"];
+    protected override List<MethodDrop> FormulaDrops =>
+    [
+        new("FIG_LOG", 20000), new("ENCHANTED_FIG_LOG", 150), new("MANGROVE_LOG", 500), new("TENDER_WOOD", 200)
+    ];
+    protected override double ActionsPerHour => 20000;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Fig_Log";
+    protected override string HowTo =>
+        "Type /warp galatea, then find Fig Trees around Tangleburg or the Reaches on Moonglade Marsh. "
+        + "Cut the trunk first, then the branches, to fell the whole tree.";
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Type /warp galatea to get close.", OnClick = "/warp galatea" },
+        new() { Number = 2, Text = "Look for Fig Trees around Tangleburg or the Reaches on Moonglade Marsh.", OnClick = WhereWikiUrl },
+        new() { Number = 3, Text = "Cut the trunk first, then the branches, to fell the whole tree.", OnClick = WikiUrl },
+        new() { Number = 4, Text = "You're doing it right when you start collecting: FIG_LOG, ENCHANTED_FIG_LOG. That's what we track for your coins/hour." },
+        new() { Number = 5, Text = "Sell your Fig Logs on the Bazaar." },
+        new() { Number = 6, Text = "Check /cofl task again to see your real coins/hour." },
+    ];
+}

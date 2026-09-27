@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
 
@@ -55,12 +56,51 @@ public static class SkyblockZones
         ["Torrhus"] = "Galatea",
     };
 
-    /// <summary>The island a zone belongs to, or null when unknown/ambiguous.</summary>
+    private static readonly Regex FormatCodeRegex = new(@"§.", RegexOptions.Compiled);
+    // Hypixel draws several sidebar "icons" (the pest count glyph, the old/new area marker glyphs
+    // parsed elsewhere in this codebase) from the Unicode Private Use Area - strip the whole block
+    // rather than pinning individual code points, since Hypixel has silently swapped glyphs before.
+    private static readonly Regex PrivateUseGlyphRegex = new(@"[\uE000-\uF8FF]", RegexOptions.Compiled);
+    private static readonly Regex MultiSpaceRegex = new(@" {2,}", RegexOptions.Compiled);
+    // "The Garden" scoreboard line carries a per-visit pest count suffix (glyph + "x<n>", the glyph
+    // already stripped above by the time this runs) that must not fracture the zone into one bucket
+    // per count.
+    private static readonly Regex GardenPestCountRegex = new(@"^The Garden( x\d+)?$", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Normalizes a raw scoreboard/tab zone string to the form the rest of this class (and every
+    /// caller of <see cref="IslandOf"/>/<see cref="Matches"/>) keys off. Real scoreboard lines carry
+    /// noise the static zone map was never going to match verbatim: Minecraft formatting codes
+    /// (section sign + one char), private-use-area glyphs, doubled/trailing spaces, a per-visit pest
+    /// count suffix on "The Garden", and fully free-text Garden plot names ("Plot - &lt;whatever the
+    /// player renamed it to&gt;" - nothing more specific is resolvable for those, so they all collapse
+    /// to the single "Plot" zone). Floor/tier suffixes like "(M7)"/"(T4)" are deliberately left alone -
+    /// MethodTask Locations need them to attribute dungeon/Kuudra runs to the right floor/tier (see
+    /// DungeonTasks.cs/KuudraTasks.cs) - so this is NOT a generic string normalizer, just the specific
+    /// cleanup real production zone strings were observed to need.
+    /// </summary>
+    public static string Canonical(string zone)
+    {
+        if (zone == null)
+            return null;
+        var cleaned = FormatCodeRegex.Replace(zone, "");
+        cleaned = PrivateUseGlyphRegex.Replace(cleaned, "");
+        cleaned = cleaned.Trim();
+        cleaned = MultiSpaceRegex.Replace(cleaned, " ").Trim();
+        if (GardenPestCountRegex.IsMatch(cleaned))
+            return "The Garden";
+        if (cleaned.StartsWith("Plot - ", StringComparison.Ordinal))
+            return "Plot";
+        return cleaned;
+    }
+
+    /// <summary>The island a zone belongs to, or null when unknown/ambiguous. Resolves via the zone's <see cref="Canonical"/> form.</summary>
     public static string IslandOf(string zone)
     {
-        if (string.IsNullOrEmpty(zone) || AmbiguousZones.Contains(zone))
+        var canonical = Canonical(zone);
+        if (string.IsNullOrEmpty(canonical) || AmbiguousZones.Contains(canonical))
             return null;
-        return ZoneToIsland.GetValueOrDefault(zone);
+        return ZoneToIsland.GetValueOrDefault(canonical);
     }
 
     /// <summary>
@@ -93,15 +133,20 @@ public static class SkyblockZones
 
     /// <summary>
     /// True when a task's declared <c>Locations</c> matches <paramref name="zone"/> - directly
-    /// (zone-specific Locations like <c>["Jungle"]</c>), via the zone's parent island (island-level
-    /// Locations like <c>["Crystal Hollows"]</c>), or via the island's multi-island group (e.g.
-    /// <c>["Galatea"]</c> matches a zone on either Moonglade or Torrhus - see <see cref="GroupOf"/>).
+    /// (zone-specific Locations like <c>["Jungle"]</c>), via the zone's <see cref="Canonical"/> form
+    /// (e.g. a task listing <c>"The Garden"</c> against a live <c>"The Garden  x3"</c> pest-count
+    /// reading), via the zone's parent island (island-level Locations like
+    /// <c>["Crystal Hollows"]</c>), or via the island's multi-island group (e.g. <c>["Galatea"]</c>
+    /// matches a zone on either Moonglade or Torrhus - see <see cref="GroupOf"/>).
     /// </summary>
     public static bool Matches(IReadOnlyCollection<string> taskLocations, string zone)
     {
         if (taskLocations == null || taskLocations.Count == 0 || zone == null)
             return false;
         if (taskLocations.Contains(zone))
+            return true;
+        var canonical = Canonical(zone);
+        if (canonical != zone && taskLocations.Contains(canonical))
             return true;
         var island = IslandOf(zone);
         if (island == null)
@@ -139,7 +184,9 @@ public static class SkyblockZones
             "Minion Shop", "Mystic Marsh", "Odger's Hut", "Plhlegblast Airport", "Ruins of Ashfang",
             "Scarleton Auction House", "Scarleton Bank", "Scarleton Blacksmith", "Scarleton Plaza",
             "Scarleton Town Square", "Stronghold", "The Dukedom", "Throne Room", "Volcano Cave", "Volcano Manor",
-            "Magma Chamber");
+            "Magma Chamber",
+            // Verified hypixelskyblock.minecraft.wiki/w/Crimson_Isle (2026-09).
+            "Crimson Fields", "The Wasteland", "Plhlegblast Pool", "Dragontail Townsquare");
 
         Add("The End",
             "The End", "Dragon's Nest", "Void Sepulture", "Void Slate", "Zealot Bruiser Hideout");
@@ -150,7 +197,11 @@ public static class SkyblockZones
             "Gates to the Mines", "Grand Library", "Great Ice Wall", "Hanging Court", "Lava Springs",
             "Miner's Guild", "Palace Bridge", "Puzzler's Hideout", "Rampart's Quarry", "Royal Mines",
             "Royal Palace", "Royal Quarters", "The Great Forge", "The Lift", "The Mist", "Upper Mines",
-            "Glacite Tunnels", "Great Glacite Lake", "Glacite Mineshafts", "The Forge");
+            "Glacite Tunnels", "Great Glacite Lake", "Glacite Mineshafts", "The Forge",
+            // Verified hypixelskyblock.minecraft.wiki/w/Dwarven_Mines (2026-09) - missing zones found
+            // during the "80% of coin value went unclassified" production log investigation.
+            "Dwarven Base Camp", "Fossil Research Center", "Divan's Gateway", "Goblin Burrows",
+            "Abandoned Quarry", "Aristocrat Passage");
 
         // Galatea is an archipelago of two separate islands (corrected 2026-09, game owner
         // knowledge), each verified zone-by-zone against hypixelskyblock.minecraft.wiki (Galatea /
@@ -177,7 +228,7 @@ public static class SkyblockZones
         Add("Torrhus", // the second Galatea island - tab Area line reports "Torrhus Canyon" (its entry zone)
             "Torrhus Canyon", "Critter Safari Entrance", "Miria's Hut", "Pangolin Hideaway", "Torrhus Heights",
             "Spring Path", "Torrhus Springs", "Spring Shallows", "Spring Depths", "Ant's Cave", "Hotspot Haven",
-            "Desert Temple");
+            "Desert Temple", "Critter Safari");
 
         // Its own separate Fishing island (reached via the Ship Navigator NPC on Backwater Bayou),
         // NOT a Galatea zone - was wrongly nested under Galatea before this fix. Verified:
@@ -201,12 +252,17 @@ public static class SkyblockZones
             "Mountain", "Museum", "Pet Care", "Ruins", "Tavern", "Thaumaturgist", "Village", "Wilderness",
             "Crypts", "Coal Mine",
             // Confirmed in production scoreboard logs (player Ekwav) paired with tab Area: Hub.
-            "Builder's House", "Combat Settlement", "Communal Stew", "Fishing Outpost", "Foraging Camp");
+            "Builder's House", "Combat Settlement", "Communal Stew", "Fishing Outpost", "Foraging Camp",
+            // Verified hypixelskyblock.minecraft.wiki/w/Hub (2026-09).
+            "Mining District", "Archery Range", "Election Room", "Sewer", "Catacombs Entrance",
+            "Artist's Abode", "Shen's Auction", "Taylor's Shop");
 
         Add("The Park",
             "The Park", "Birch Park", "Dark Thicket", "Howling Cave", "Jungle Island", "Melody's Plateau",
             "Savanna Woodland", "Spruce Woods", "The Howling Cave", "The Wolf's Den", "Viking Longhouse",
-            "Spooky Festival"); // seasonal event instance of The Park, not its own island
+            "Spooky Festival", // seasonal event instance of The Park, not its own island
+            // Verified hypixelskyblock.minecraft.wiki/w/The_Park (2026-09).
+            "Soul Cave", "Spirit Cave", "Trials of Fire");
 
         Add("Deep Caverns",
             "Deep Caverns", "Diamond Reserve", "Emerald Reserve", "Gold Reserve", "Gunpowder Mines",
@@ -220,11 +276,16 @@ public static class SkyblockZones
             "Spider's Den", "Arachne's Sanctuary", "Archaeologist's Camp", "Spider Mound", "The Spider's Den",
             "Gravel Mines", "Arachne's Burrow", "Grandma's House");
 
-        Add("Garden",
-            "The Garden", "Plot 1", "Plot 2", "Plot 3", "Plot 4", "Plot 5", "Plot 6",
-            "Plot 7", "Plot 8", "Plot 9", "Plot 10", "Plot 11", "Plot 12");
+        // "Plot 1".."Plot 12" never occur in production (players rename plots - real scoreboard
+        // strings look like "Plot - 8", "Plot - Left Farm 2", "Plot - CARROTS", ...); since plot
+        // names are free text, Canonical() collapses all of them to the single "Plot" zone instead.
+        Add("Garden", "The Garden", "Plot");
 
         Add("Kuudra", "Kuudra", "Kuudra's Hollow");
+        // Real scoreboard zone strings are tier-specific ("Kuudra's Hollow (T1)".."(T5)") - generated
+        // instead of hand-typing each one.
+        for (var tier = 1; tier <= 5; tier++)
+            Add("Kuudra", $"Kuudra's Hollow (T{tier})");
 
         Add("Jerry",
             "Jerry's Workshop", "Jerry Pond", "Sunken Jerry Pond", "Reflective Pond", "Mount Jerry",
@@ -237,6 +298,14 @@ public static class SkyblockZones
             "Dungeon Hub", "The Catacombs", "Master Mode", "Floor VII",
             "Master Mode Catacombs Floor IV", "Master Mode Catacombs Floor V",
             "Master Mode Catacombs Floor VI", "Master Mode Catacombs Floor VII");
+        // Real scoreboard zone strings are floor-specific ("The Catacombs (F1)".."(F7)" for normal
+        // mode, "(M1)".."(M7)" for Master Mode, "(E)" for the entrance) - generated instead of
+        // hand-typing 15 near-identical strings.
+        for (var floor = 1; floor <= 7; floor++)
+            Add("Dungeon Hub", $"The Catacombs (F{floor})");
+        for (var masterFloor = 1; masterFloor <= 7; masterFloor++)
+            Add("Dungeon Hub", $"The Catacombs (M{masterFloor})");
+        Add("Dungeon Hub", "The Catacombs (E)");
 
         return map;
     }

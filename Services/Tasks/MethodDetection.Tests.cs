@@ -555,7 +555,9 @@ public class MethodDetectionTests
     [Test]
     public async Task M7KismetDetection()
     {
-        var period = MakePeriod("The Catacombs", 10_000_000, new()
+        // M7KismetTask now lists the floor-specific zone only (see DungeonTasks.cs) - the bare
+        // "The Catacombs" island name never occurs on the real scoreboard.
+        var period = MakePeriod("The Catacombs (M7)", 10_000_000, new()
         {
             { "KISMET_FEATHER", 3 },
             { "ENCHANTED_DIAMOND", 20 }

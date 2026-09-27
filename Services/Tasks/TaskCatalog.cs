@@ -50,7 +50,9 @@ internal static class TaskCatalog
         typeof(XyzMobTask),                 // duplicate of XyzHuntingTask; wrong location (Exe mob is on Crimson Isle)
         typeof(GhostMobTask),               // duplicate of GhostHuntingTask; GHOST_COIN is not a real item id
         typeof(SludgeMiningCoalTask),       // fabricated "coal from sludge" variant; sludge is a Crystal Hollows grind
-        typeof(FigTask),                    // Fig is Foraging (Galatea), not a Garden crop; FIG/ENCHANTED_FIG ids are fake
+        // FigTask (the old fabricated FIG/ENCHANTED_FIG-tagged Garden crop) deleted 2026-09 -
+        // superseded by FigForagingTask (ForagingTasks.cs), Fig is a Galatea foraging tree, not a
+        // Garden crop.
         typeof(ExportableCarrotsCraftTask), // recipe fabricated; inputs are Rift-only, not a bazaar flip
         typeof(ExportableCarrotsTask),      // same fabricated recipe as a bazaar craft
         typeof(GrandmasKnittingNeedleTask), // bought from a Rift NPC, not a forge craft
@@ -163,6 +165,10 @@ internal static class TaskCatalog
         // tasks.Add<XyzMobTask>();         // deactivated: duplicate of XyzHuntingTask, wrong location
         // tasks.Add<GhostMobTask>();       // deactivated: duplicate of GhostHuntingTask; GHOST_COIN is not a real item
 
+        // Mob farm tasks - discovered from unclassified production revenue 2026-09
+        tasks.Add<GhostMistTask>();
+        tasks.Add<BlazeFarmingTask>();
+
         // Hunting tasks
         tasks.Add<RainSlimeHuntingTask>();
         tasks.Add<HellwispHuntingTask>();
@@ -212,6 +218,10 @@ internal static class TaskCatalog
         tasks.Add<MithrilDepositsPowderMiningTask>();
         tasks.Add<GoblinHoldoutPowderMiningTask>();
 
+        // Foraging tasks - discovered from unclassified production revenue 2026-09
+        tasks.Add<HelixForagingTask>();
+        tasks.Add<FigForagingTask>();
+
         // Crafting tasks
         tasks.Add<ReaperScytheTask>();
         tasks.Add<GauntletOfContagionTask>();
@@ -243,7 +253,7 @@ internal static class TaskCatalog
 
         // Garden tasks
         tasks.Add<PestTask>();
-        // tasks.Add<FigTask>();            // deactivated: Fig is Foraging (Galatea), not a Garden crop; ids are fake
+        tasks.Add<GardenFarmingTask>(); // discovered from unclassified production revenue 2026-09
 
         // Misc tasks
         tasks.Add<ZealotsFdTask>();

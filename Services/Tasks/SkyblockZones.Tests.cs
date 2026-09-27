@@ -202,4 +202,125 @@ public class SkyblockZonesTests
         SkyblockZones.NormalizeTabArea(null).Should().BeNull();
         SkyblockZones.NormalizeTabArea("").Should().Be("");
     }
+
+    // ── Canonical() / real production scoreboard zone strings (2026-09 "80% of coin value went
+    // unclassified" investigation) - format codes, private-use-area glyphs, doubled spaces, the
+    // Garden pest-count suffix, and free-text plot names. ──
+
+    [Test]
+    public void Canonical_Null_ReturnsNull()
+    {
+        SkyblockZones.Canonical(null).Should().BeNull();
+    }
+
+    [TestCase("The Garden  x3")]
+    [TestCase("The Garden x1")]
+    public void GardenWithPestCount_ResolvesToGardenIsland(string zone)
+    {
+        SkyblockZones.IslandOf(zone).Should().Be("Garden");
+    }
+
+    [Test]
+    public void GardenWithFormatCode_ResolvesToGardenIsland()
+    {
+        // "§l" is a Minecraft bold format code (section sign + one char), not part of the zone name.
+        SkyblockZones.IslandOf("The Garden §l x1").Should().Be("Garden");
+    }
+
+    [TestCase("Plot - 8 ")]
+    [TestCase("Plot - 2")]
+    [TestCase("Plot - Left Farm 2")]
+    [TestCase("Plot - Greenhouse")]
+    [TestCase("Plot - CARROTS")]
+    public void RenamedPlot_ResolvesToGardenIsland(string zone)
+    {
+        SkyblockZones.IslandOf(zone).Should().Be("Garden");
+    }
+
+    [TestCase("The Catacombs (M7)")]
+    [TestCase("The Catacombs (M4)")]
+    [TestCase("The Catacombs (F1)")]
+    [TestCase("The Catacombs (F7)")]
+    [TestCase("The Catacombs (E)")]
+    public void CatacombsFloor_ResolvesToDungeonHub(string zone)
+    {
+        SkyblockZones.IslandOf(zone).Should().Be("Dungeon Hub");
+    }
+
+    [TestCase("Kuudra's Hollow (T1)")]
+    [TestCase("Kuudra's Hollow (T4)")]
+    [TestCase("Kuudra's Hollow (T5)")]
+    public void KuudraTier_ResolvesToKuudra(string zone)
+    {
+        SkyblockZones.IslandOf(zone).Should().Be("Kuudra");
+    }
+
+    [TestCase("Dwarven Base Camp")]
+    [TestCase("Fossil Research Center")]
+    [TestCase("Divan's Gateway")]
+    [TestCase("Goblin Burrows")]
+    [TestCase("Abandoned Quarry")]
+    [TestCase("Aristocrat Passage")]
+    public void MissingDwarvenMinesZones_ResolveToDwarvenMines(string zone)
+    {
+        SkyblockZones.IslandOf(zone).Should().Be("Dwarven Mines");
+    }
+
+    [TestCase("Mining District")]
+    [TestCase("Archery Range")]
+    [TestCase("Election Room")]
+    [TestCase("Sewer")]
+    [TestCase("Catacombs Entrance")]
+    [TestCase("Artist's Abode")]
+    [TestCase("Shen's Auction")]
+    [TestCase("Taylor's Shop")]
+    public void MissingHubZones_ResolveToHub(string zone)
+    {
+        SkyblockZones.IslandOf(zone).Should().Be("Hub");
+    }
+
+    [TestCase("Crimson Fields")]
+    [TestCase("The Wasteland")]
+    [TestCase("Plhlegblast Pool")]
+    [TestCase("Dragontail Townsquare")]
+    public void MissingCrimsonIsleZones_ResolveToCrimsonIsle(string zone)
+    {
+        SkyblockZones.IslandOf(zone).Should().Be("Crimson Isle");
+    }
+
+    [TestCase("Soul Cave")]
+    [TestCase("Spirit Cave")]
+    [TestCase("Trials of Fire")]
+    public void MissingParkZones_ResolveToThePark(string zone)
+    {
+        SkyblockZones.IslandOf(zone).Should().Be("The Park");
+    }
+
+    [Test]
+    public void CritterSafari_ResolvesToTorrhus()
+    {
+        SkyblockZones.IslandOf("Critter Safari").Should().Be("Torrhus");
+    }
+
+    [Test]
+    public void Matches_GardenIslandLocation_MatchesRenamedPlot()
+    {
+        var taskLocations = new HashSet<string> { "Garden" };
+        SkyblockZones.Matches(taskLocations, "Plot - CARROTS").Should().BeTrue();
+    }
+
+    [Test]
+    public void Matches_TheGardenLocation_MatchesPestCountReading()
+    {
+        var taskLocations = new HashSet<string> { "The Garden" };
+        SkyblockZones.Matches(taskLocations, "The Garden  x2").Should().BeTrue();
+    }
+
+    [Test]
+    public void AmbiguousZone_WithFormatCodeNoise_StillResolvesNull()
+    {
+        // Canonicalizing must not accidentally "fix" an intentionally ambiguous zone.
+        SkyblockZones.IslandOf("Wizard Tower").Should().BeNull();
+        SkyblockZones.IslandOf("Community Center").Should().BeNull();
+    }
 }

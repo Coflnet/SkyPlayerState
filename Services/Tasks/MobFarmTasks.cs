@@ -313,3 +313,77 @@ public class GhostMobTask : MethodTask
         new() { Name = "Kill speed", Description = "Faster killing means more coins per hour", EstimatedMultiplier = 1.3 }
     ];
 }
+
+// ── Combat farm tasks (discovered from unclassified production revenue 2026-09) ──
+public abstract class BaseCombatFarmTask : MethodTask
+{
+    public override List<StatFactor> StatFactors =>
+    [
+        new("skill:Combat", 0.7, 60),
+        new("gear:HUNT_WEAPON", 0.3, 5)
+    ];
+    protected override string Category => "Mob Farming";
+    protected override string ActionUnit => "kills";
+    protected override List<DropEffect> Effects =>
+    [
+        new() { Name = "Magic Find", Description = "Increases chance of rare drops", EstimatedMultiplier = 1.2 },
+        new() { Name = "Looting", Description = "Higher looting enchantment increases drop quantity", EstimatedMultiplier = 1.2 },
+        new() { Name = "Combat Level", Description = "Higher combat level increases kill speed", EstimatedMultiplier = 1.1 }
+    ];
+}
+
+public class GhostMistTask : BaseCombatFarmTask
+{
+    // Distinct from GhostHuntingTask (SHARD_GHOST, "Ghost (Hunting)") - both share The Mist, the
+    // classifier's matched-value tie-break decides when a window has evidence for both.
+    protected override string MethodName => "Ghost (The Mist)";
+    protected override HashSet<string> Locations => ["The Mist"];
+    protected override HashSet<string> DetectionItems => ["SORROW", "VOLTA", "PLASMA"];
+    protected override List<MethodDrop> FormulaDrops => [new("VOLTA", 40), new("SORROW", 20), new("PLASMA", 12)];
+    protected override double ActionsPerHour => 2000;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Ghost";
+    protected override string HowTo =>
+        "Type /warp mines and go down into The Mist (needs Mining XII). Ghosts have 1M HP and can only be "
+        + "damaged by melee or magic damage - bows do nothing. Target the ones standing on stone walls, and "
+        + "sell the Sorrow, Volta and Plasma they drop on the Bazaar.";
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Level Mining to XII - needed to reach The Mist." },
+        new() { Number = 2, Text = "Type /warp mines to get close.", OnClick = "/warp mines" },
+        new() { Number = 3, Text = "Go down into The Mist, in the Dwarven Mines.", OnClick = WhereWikiUrl },
+        new() { Number = 4, Text = "Ghosts have 1M HP and can only be damaged by melee or magic - bows do nothing.", OnClick = WikiUrl },
+        new() { Number = 5, Text = "Target the Ghosts standing on stone walls - they're the easiest to hit." },
+        new() { Number = 6, Text = "You're doing it right when you start collecting: SORROW, VOLTA, PLASMA. That's what we track for your coins/hour." },
+        new() { Number = 7, Text = "Sell Sorrow, Volta and Plasma on the Bazaar." },
+        new() { Number = 8, Text = "Check /cofl task again to see your real coins/hour." },
+    ];
+}
+
+public class BlazeFarmingTask : BaseCombatFarmTask
+{
+    // Must not steal from BurningsoulTask (SHARD_BURNINGSOUL, "Inferno Demonlord") which also lists
+    // Smoldering Tomb - that task requires its own shard, this one requires the regular Blaze drops,
+    // so a window with only one of the two only ever matches the corresponding task.
+    protected override string MethodName => "Blaze Farming (Smoldering Tomb)";
+    protected override HashSet<string> Locations => ["Smoldering Tomb"];
+    protected override HashSet<string> DetectionItems => ["DERELICT_ASHE", "BLAZE_ASHES"];
+    protected override List<MethodDrop> FormulaDrops =>
+    [
+        new("DERELICT_ASHE", 6000), new("BLAZE_ROD", 5000), new("BLAZE_ASHES", 200),
+        new("CRUDE_GABAGOOL_DISTILLATE", 100), new("ENCHANTED_BLAZE_POWDER", 60)
+    ];
+    protected override double ActionsPerHour => 3000;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Smoldering_Tomb";
+    protected override string HowTo =>
+        "Type /warp isle and go to the Smoldering Tomb. Kill the Blazes there - they also give the Combat XP "
+        + "the Blaze Slayer needs. Sell the Derelict Ashe, Blaze Rods and Blaze Ashes they drop on the Bazaar.";
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Type /warp isle to get close.", OnClick = "/warp isle" },
+        new() { Number = 2, Text = "Go to the Smoldering Tomb on the Crimson Isle.", OnClick = WhereWikiUrl },
+        new() { Number = 3, Text = "Kill the Blazes there - they also give the Combat XP the Blaze Slayer needs.", OnClick = WikiUrl },
+        new() { Number = 4, Text = "You're doing it right when you start collecting: DERELICT_ASHE, BLAZE_ROD, BLAZE_ASHES. That's what we track for your coins/hour." },
+        new() { Number = 5, Text = "Sell your Derelict Ashe, Blaze Rods and Blaze Ashes on the Bazaar." },
+        new() { Number = 6, Text = "Check /cofl task again to see your real coins/hour." },
+    ];
+}

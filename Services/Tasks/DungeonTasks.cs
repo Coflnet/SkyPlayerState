@@ -18,7 +18,12 @@ public abstract class BaseDungeonTask : MethodTask
 public class M4Task : BaseDungeonTask
 {
     protected override string MethodName => "M4";
-    protected override HashSet<string> Locations => ["The Catacombs", "Master Mode Catacombs Floor IV"];
+    // Bare "The Catacombs"/"Master Mode Catacombs Floor IV" deliberately removed: neither ever
+    // occurs on the real scoreboard (verified against production logs), and the bare island-level
+    // name matched EVERY floor's periods via SkyblockZones.Matches' island fallback, with the
+    // alphabetical tie-break always picking M4 - see SkyblockZones.cs for the real per-floor zone
+    // strings ("The Catacombs (M4)" etc.) this now matches instead.
+    protected override HashSet<string> Locations => ["The Catacombs (M4)"];
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 300)];
     protected override string HowTo => "Queue for Master Mode Floor 4 in the Dungeon Hub. Requires Catacombs level 26+. Run with a party of 5 for efficient clears.";
     protected override List<RequiredItem> RequiredItems => [
@@ -28,7 +33,7 @@ public class M4Task : BaseDungeonTask
 public class M5Task : BaseDungeonTask
 {
     protected override string MethodName => "M5";
-    protected override HashSet<string> Locations => ["The Catacombs", "Master Mode Catacombs Floor V"];
+    protected override HashSet<string> Locations => ["The Catacombs (M5)"];
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 400)];
     protected override string HowTo => "Queue for Master Mode Floor 5. Requires Catacombs level 28+. Boss fight is Professor with Guardians phase.";
     protected override List<RequiredItem> RequiredItems => [
@@ -38,7 +43,7 @@ public class M5Task : BaseDungeonTask
 public class M6Task : BaseDungeonTask
 {
     protected override string MethodName => "M6";
-    protected override HashSet<string> Locations => ["The Catacombs", "Master Mode Catacombs Floor VI"];
+    protected override HashSet<string> Locations => ["The Catacombs (M6)"];
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 500)];
     protected override string HowTo => "Queue for Master Mode Floor 6. Requires Catacombs level 30+. Boss is Sadan with terracotta phases.";
     protected override List<RequiredItem> RequiredItems => [
@@ -49,7 +54,7 @@ public class M6Task : BaseDungeonTask
 public class M7Task : BaseDungeonTask
 {
     protected override string MethodName => "M7";
-    protected override HashSet<string> Locations => ["The Catacombs", "Master Mode", "Floor VII", "Master Mode Catacombs Floor VII"];
+    protected override HashSet<string> Locations => ["The Catacombs (M7)"];
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 600), new("NECRON_HANDLE", 0.05)];
     protected override string HowTo => "Queue for Master Mode Floor 7. Requires Catacombs level 36+. Boss is Necron with multiple phases. Handle drop is rare (~1/20).";
     protected override List<RequiredItem> RequiredItems => [
@@ -71,7 +76,7 @@ public class M7Task : BaseDungeonTask
 public class M7KismetTask : BaseDungeonTask
 {
     protected override string MethodName => "M7 (Kismet)";
-    protected override HashSet<string> Locations => ["The Catacombs", "Master Mode", "Floor VII", "Master Mode Catacombs Floor VII"];
+    protected override HashSet<string> Locations => ["The Catacombs (M7)"];
     protected override HashSet<string> DetectionItems => ["KISMET_FEATHER"];
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 600), new("NECRON_HANDLE", 0.1)];
     protected override string HowTo => "Queue for Master Mode Floor 7 with Kismet Feathers for double chest reroll. Doubles the handle chance but costs a Kismet per run.";
