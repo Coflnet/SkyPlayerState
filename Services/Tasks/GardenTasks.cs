@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
 
@@ -26,43 +27,198 @@ public class PestTask : MethodTask
         new() { Name = "Pest Luck", Description = "Increases chance of pest spawns and rare drops", EstimatedMultiplier = 1.2 }
     ];
 }
-// GardenFarmingTask (discovered from unclassified production revenue 2026-09): the actual Garden
-// crop-selling activity. PestTask shares the same location - the classifier tells them apart by
-// DetectionItems (crop items here vs. PEST_KILL/PESTERMINATOR there).
-public class GardenFarmingTask : MethodTask
+
+// GardenFarmingTask (discovered from unclassified production revenue 2026-09) used to lump every
+// Garden crop into one bucket. Split 2026-09 into one task per crop: production data shows a
+// Garden period is nearly always a single crop (one plot = one crop), so per-crop detection
+// classifies cleanly instead of falling back to a "most common crop" flat seed. PestTask shares
+// the same location - the classifier tells them apart by DetectionItems (crop items here vs.
+// PEST_KILL/PESTERMINATOR there).
+public abstract class BaseGardenCropTask : MethodTask
 {
-    protected override string MethodName => "Garden Farming";
+    protected override string MethodName => $"{CropName} Farming";
     protected override string Category => "Farming";
     protected override string ActionUnit => "crops";
     // Island key - real Garden zones are "The Garden" (with a per-visit pest count suffix) and
     // free-text "Plot - <player's name>" strings, both collapsed by SkyblockZones.Canonical.
     protected override HashSet<string> Locations => ["Garden"];
     protected override string Where => "The Garden";
-    protected override HashSet<string> DetectionItems =>
-    [
-        "WHEAT", "ENCHANTED_WHEAT", "SEEDS", "ENCHANTED_SEEDS",
-        "CARROT_ITEM", "ENCHANTED_CARROT", "POTATO_ITEM", "ENCHANTED_POTATO",
-        "PUMPKIN", "ENCHANTED_PUMPKIN", "MELON", "ENCHANTED_MELON",
-        "SUGAR_CANE", "ENCHANTED_SUGAR", "NETHER_STALK", "ENCHANTED_NETHER_STALK",
-        "CACTUS", "ENCHANTED_CACTUS_GREEN", "RED_MUSHROOM", "ENCHANTED_RED_MUSHROOM",
-        "BROWN_MUSHROOM", "ENCHANTED_BROWN_MUSHROOM", "INK_SACK:3", "ENCHANTED_COCOA",
-        "ENCHANTED_SUNFLOWER", "ENCHANTED_MOONFLOWER", "ENCHANTED_WILD_ROSE"
-    ];
-    // Wheat is the default/most common crop - real player data (folded once tracked periods exist,
-    // see MethodTask.Execute) dominates this flat seed the moment any is available.
-    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_WHEAT", 6000), new("ENCHANTED_SEEDS", 6000)];
-    protected override double ActionsPerHour => 40000;
     public override List<StatFactor> StatFactors => [new("skill:Farming", 1.0, 60)];
-    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/The_Garden";
-    protected override string HowTo =>
-        "Type /warp garden, pick a crop, and farm your plots with the matching farming tool. Sell what you collect on the Bazaar.";
-    protected override List<TaskStep> Steps =>
+    protected override double ActionsPerHour => 30000;
+
+    /// <summary>Crop display name, e.g. "Wheat" or "Sugar Cane" - MethodName becomes "{CropName} Farming".</summary>
+    protected abstract string CropName { get; }
+    /// <summary>Community wiki page slug under https://hypixelskyblock.minecraft.wiki/w/.</summary>
+    protected abstract string WikiPage { get; }
+    /// <summary>Item tag of the crop's dedicated Farming Fortune tool, or null if the crop has no dedicated tool.</summary>
+    protected abstract string? ToolTag { get; }
+    /// <summary>Display name of <see cref="ToolTag"/>, or null if the crop has no dedicated tool.</summary>
+    protected abstract string? ToolName { get; }
+
+    protected override string WikiUrl => $"https://hypixelskyblock.minecraft.wiki/w/{WikiPage}";
+
+    protected override List<RequiredItem> RequiredItems => ToolTag == null ? [] :
+        [new() { ItemTag = ToolTag, Name = ToolName!, Reason = "Farming tool with the crop's Farming Fortune" }];
+
+    protected override List<DropEffect> Effects =>
     [
-        new() { Number = 1, Text = "Type /warp garden to get close.", OnClick = "/warp garden" },
-        new() { Number = 2, Text = "Pick a crop and plant/farm it on one of your plots." },
-        new() { Number = 3, Text = "Use the matching farming tool (hoe/axe) for that crop for the best Farming Fortune.", OnClick = WikiUrl },
-        new() { Number = 4, Text = "You're doing it right when you start collecting crops like Wheat, Carrots, Potatoes, Pumpkins, Melons, Sugar Cane, Cactus or Mushrooms. That's what we track for your coins/hour." },
-        new() { Number = 5, Text = "Sell your crops on the Bazaar." },
-        new() { Number = 6, Text = "Check /cofl task again to see your real coins/hour." },
+        new() { Name = "Farming Fortune", Description = "More crops per block broken", EstimatedMultiplier = 1.5 },
+        new() { Name = "Farming Speed", Description = "Faster tool use means more blocks broken per hour", EstimatedMultiplier = 1.2 }
     ];
+
+    protected override string HowTo => ToolTag == null
+        ? $"Type /warp garden, and plant/farm {CropName} on a plot. Sell what you collect on the Bazaar."
+        : $"Type /warp garden, plant/farm {CropName} on a plot, and use your {ToolName} for the best Farming Fortune. Sell what you collect on the Bazaar.";
+
+    protected override List<TaskStep> Steps
+    {
+        get
+        {
+            var steps = new List<TaskStep>();
+            void Add(string text, string onClick = null) => steps.Add(new TaskStep { Number = steps.Count + 1, Text = text, OnClick = onClick });
+            Add("Type /warp garden to get close.", "/warp garden");
+            Add($"Plant/farm {CropName} on one of your plots.");
+            if (ToolTag != null)
+                Add($"Use your {ToolName} for the best Farming Fortune.", WikiUrl);
+            Add($"You're doing it right when you start collecting: {string.Join(", ", DetectionItems.Take(4))}. That's what we track for your coins/hour.");
+            Add("Sell on the Bazaar.");
+            Add("Check /cofl task again to see your real coins/hour.");
+            return steps;
+        }
+    }
+}
+
+public class WheatFarmingTask : BaseGardenCropTask
+{
+    protected override string CropName => "Wheat";
+    protected override string WikiPage => "Wheat";
+    protected override string ToolTag => "THEORETICAL_HOE_WHEAT_1";
+    protected override string ToolName => "Euclid's Wheat Hoe";
+    protected override HashSet<string> DetectionItems => ["WHEAT", "ENCHANTED_WHEAT", "SEEDS", "ENCHANTED_SEEDS", "ENCHANTED_HAY_BLOCK"];
+    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_WHEAT", 1700), new("ENCHANTED_SEEDS", 2300)];
+}
+
+public class CarrotFarmingTask : BaseGardenCropTask
+{
+    protected override string CropName => "Carrot";
+    protected override string WikiPage => "Carrot";
+    protected override string ToolTag => "THEORETICAL_HOE_CARROT_1";
+    protected override string ToolName => "Gauss Carrot Hoe";
+    protected override HashSet<string> DetectionItems => ["CARROT_ITEM", "ENCHANTED_CARROT", "ENCHANTED_GOLDEN_CARROT"];
+    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_CARROT", 2300)];
+}
+
+public class PotatoFarmingTask : BaseGardenCropTask
+{
+    protected override string CropName => "Potato";
+    protected override string WikiPage => "Potato";
+    protected override string ToolTag => "THEORETICAL_HOE_POTATO_1";
+    protected override string ToolName => "Pythagorean Potato Hoe";
+    protected override HashSet<string> DetectionItems => ["POTATO_ITEM", "ENCHANTED_POTATO", "ENCHANTED_BAKED_POTATO"];
+    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_POTATO", 3200)];
+}
+
+public class PumpkinFarmingTask : BaseGardenCropTask
+{
+    protected override string CropName => "Pumpkin";
+    protected override string WikiPage => "Pumpkin";
+    protected override string ToolTag => "PUMPKIN_DICER";
+    protected override string ToolName => "Pumpkin Dicer";
+    protected override HashSet<string> DetectionItems => ["PUMPKIN", "ENCHANTED_PUMPKIN"];
+    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_PUMPKIN", 1200)];
+}
+
+public class MelonFarmingTask : BaseGardenCropTask
+{
+    protected override string CropName => "Melon";
+    protected override string WikiPage => "Melon";
+    protected override string ToolTag => "MELON_DICER";
+    protected override string ToolName => "Melon Dicer";
+    protected override HashSet<string> DetectionItems => ["MELON", "ENCHANTED_MELON", "ENCHANTED_MELON_BLOCK"];
+    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_MELON", 1900)];
+}
+
+public class SugarCaneFarmingTask : BaseGardenCropTask
+{
+    protected override string CropName => "Sugar Cane";
+    protected override string WikiPage => "Sugar_Cane";
+    protected override string ToolTag => "THEORETICAL_HOE_CANE_1";
+    protected override string ToolName => "Turing Sugar Cane Hoe";
+    protected override HashSet<string> DetectionItems => ["SUGAR_CANE", "ENCHANTED_SUGAR", "ENCHANTED_SUGAR_CANE"];
+    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_SUGAR", 1900)];
+}
+
+public class NetherWartFarmingTask : BaseGardenCropTask
+{
+    protected override string CropName => "Nether Wart";
+    protected override string WikiPage => "Nether_Wart";
+    protected override string ToolTag => "THEORETICAL_HOE_WARTS_1";
+    protected override string ToolName => "Newton Nether Warts Hoe";
+    protected override HashSet<string> DetectionItems => ["NETHER_STALK", "ENCHANTED_NETHER_STALK"];
+    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_NETHER_STALK", 2900)];
+}
+
+public class CactusFarmingTask : BaseGardenCropTask
+{
+    protected override string CropName => "Cactus";
+    protected override string WikiPage => "Cactus";
+    protected override string ToolTag => "CACTUS_KNIFE";
+    protected override string ToolName => "Cactus Knife";
+    // Production tags the raw cactus drop as BUILDER_CACTUS, not the vanilla CACTUS item id.
+    protected override HashSet<string> DetectionItems => ["CACTUS", "BUILDER_CACTUS", "ENCHANTED_CACTUS_GREEN", "ENCHANTED_CACTUS"];
+    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_CACTUS_GREEN", 1100)];
+}
+
+public class MushroomFarmingTask : BaseGardenCropTask
+{
+    protected override string CropName => "Mushroom";
+    protected override string WikiPage => "Mushroom";
+    protected override string ToolTag => "FUNGI_CUTTER";
+    protected override string ToolName => "Fungi Cutter";
+    protected override HashSet<string> DetectionItems =>
+        ["RED_MUSHROOM", "BROWN_MUSHROOM", "BUILDER_BROWN_MUSHROOM", "BUILDER_RED_MUSHROOM", "ENCHANTED_RED_MUSHROOM", "ENCHANTED_BROWN_MUSHROOM"];
+    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_RED_MUSHROOM", 700), new("ENCHANTED_BROWN_MUSHROOM", 400)];
+}
+
+public class CocoaBeansFarmingTask : BaseGardenCropTask
+{
+    protected override string CropName => "Cocoa Beans";
+    protected override string WikiPage => "Cocoa_Beans";
+    protected override string ToolTag => "COCO_CHOPPER";
+    protected override string ToolName => "Cocoa Chopper";
+    protected override HashSet<string> DetectionItems => ["INK_SACK:3", "ENCHANTED_COCOA"];
+    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_COCOA", 1900)];
+}
+
+public class SunflowerFarmingTask : BaseGardenCropTask
+{
+    protected override string CropName => "Sunflower";
+    protected override string WikiPage => "Sunflower";
+    // No dedicated farming tool for Sunflower.
+    protected override string ToolTag => null;
+    protected override string ToolName => null;
+    protected override HashSet<string> DetectionItems => ["DOUBLE_PLANT", "ENCHANTED_SUNFLOWER", "COMPACTED_SUNFLOWER"];
+    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_SUNFLOWER", 1900)];
+}
+
+public class MoonflowerFarmingTask : BaseGardenCropTask
+{
+    protected override string CropName => "Moonflower";
+    protected override string WikiPage => "Moonflower";
+    // No dedicated farming tool for Moonflower.
+    protected override string ToolTag => null;
+    protected override string ToolName => null;
+    protected override HashSet<string> DetectionItems => ["MOONFLOWER", "ENCHANTED_MOONFLOWER"];
+    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_MOONFLOWER", 3300)];
+}
+
+public class WildRoseFarmingTask : BaseGardenCropTask
+{
+    protected override string CropName => "Wild Rose";
+    protected override string WikiPage => "Wild_Rose";
+    // No dedicated farming tool for Wild Rose.
+    protected override string ToolTag => null;
+    protected override string ToolName => null;
+    protected override HashSet<string> DetectionItems => ["WILD_ROSE", "ENCHANTED_WILD_ROSE"];
+    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_WILD_ROSE", 2300)];
 }

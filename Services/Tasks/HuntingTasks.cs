@@ -84,7 +84,8 @@ public class KadaKnightHuntingTask : BaseHuntingTask
 public class InvisibugHuntingTask : BaseHuntingTask
 {
     protected override string MethodName => "Invisibug (Hunting)";
-    protected override HashSet<string> Locations => ["Moonglade Marsh", "North Wetlands", "South Wetlands", "Evergreen Plateau"];
+    // "Tangleburg" added 2026-09-27: production showed 1,025 SHARD_INVISIBUG there in 4.5h.
+    protected override HashSet<string> Locations => ["Moonglade Marsh", "North Wetlands", "South Wetlands", "Evergreen Plateau", "Tangleburg"];
     protected override HashSet<string> DetectionItems => ["SHARD_INVISIBUG"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_INVISIBUG", 220)];
     protected override string HowTo => "Go to the marsh/wetland areas on Galatea and hunt Invisibugs. They are invisible until attacked, use AoE weapons.";

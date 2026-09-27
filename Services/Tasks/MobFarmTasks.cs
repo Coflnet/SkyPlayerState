@@ -315,75 +315,97 @@ public class GhostMobTask : MethodTask
 }
 
 // ── Combat farm tasks (discovered from unclassified production revenue 2026-09) ──
-public abstract class BaseCombatFarmTask : MethodTask
-{
-    public override List<StatFactor> StatFactors =>
-    [
-        new("skill:Combat", 0.7, 60),
-        new("gear:HUNT_WEAPON", 0.3, 5)
-    ];
-    protected override string Category => "Mob Farming";
-    protected override string ActionUnit => "kills";
-    protected override List<DropEffect> Effects =>
-    [
-        new() { Name = "Magic Find", Description = "Increases chance of rare drops", EstimatedMultiplier = 1.2 },
-        new() { Name = "Looting", Description = "Higher looting enchantment increases drop quantity", EstimatedMultiplier = 1.2 },
-        new() { Name = "Combat Level", Description = "Higher combat level increases kill speed", EstimatedMultiplier = 1.1 }
-    ];
-}
+// The shared BaseCombatFarmTask (skill:Combat 0.7 + gear:HUNT_WEAPON 0.3, a generic Looting effect)
+// was removed 2026-09: HUNT_WEAPON is the Galatea Hunting-axe ladder and has nothing to do with
+// Ghosts or Blazes, so it showed players irrelevant "how to replicate" info. Each task below now
+// carries its own accurate StatFactors/RequiredItems/Effects instead.
 
-public class GhostMistTask : BaseCombatFarmTask
+public class GhostMistTask : MethodTask
 {
     // Distinct from GhostHuntingTask (SHARD_GHOST, "Ghost (Hunting)") - both share The Mist, the
     // classifier's matched-value tie-break decides when a window has evidence for both.
     protected override string MethodName => "Ghost (The Mist)";
+    protected override string Category => "Mob Farming";
+    protected override string ActionUnit => "kills";
     protected override HashSet<string> Locations => ["The Mist"];
     protected override HashSet<string> DetectionItems => ["SORROW", "VOLTA", "PLASMA"];
-    protected override List<MethodDrop> FormulaDrops => [new("VOLTA", 40), new("SORROW", 20), new("PLASMA", 12)];
+    // Production medians (2026-09).
+    protected override List<MethodDrop> FormulaDrops => [new("VOLTA", 25), new("SORROW", 8), new("PLASMA", 10)];
     protected override double ActionsPerHour => 2000;
+    // Verified on the community wiki 2026-09: Ghosts have 1,000,000 HP and are immune to bows/arrows,
+    // magic and ability damage - only melee weapon hits work (Fire Aspect/Venomous enchant procs
+    // still apply on a melee hit). No gear:HUNT_WEAPON factor - that's the unrelated Galatea
+    // Hunting-axe ladder. Mining XII gates access to The Mist, so it matters as much as Combat here.
+    public override List<StatFactor> StatFactors => [new("skill:Combat", 0.6, 60), new("skill:Mining", 0.4, 60)];
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Ghost";
+    protected override List<RequiredItem> RequiredItems => [
+        new() { ItemTag = "GIANTS_SWORD", Reason = "High-damage melee weapon - Ghosts are immune to bows, magic and abilities" }
+    ];
+    protected override List<DropEffect> Effects =>
+    [
+        new() { Name = "Magic Find", Description = "More Sorrow/Plasma drops", EstimatedMultiplier = 1.2 },
+        new() { Name = "Strength & Crit Damage", Description = "Faster kills - Ghosts have 1M HP", EstimatedMultiplier = 1.15 }
+    ];
     protected override string HowTo =>
         "Type /warp mines and go down into The Mist (needs Mining XII). Ghosts have 1M HP and can only be "
-        + "damaged by melee or magic damage - bows do nothing. Target the ones standing on stone walls, and "
-        + "sell the Sorrow, Volta and Plasma they drop on the Bazaar.";
+        + "damaged by melee weapon hits - bows, magic and abilities do nothing. Target the ones standing on "
+        + "stone walls, and sell the Sorrow, Volta and Plasma they drop on the Bazaar.";
     protected override List<TaskStep> Steps =>
     [
         new() { Number = 1, Text = "Level Mining to XII - needed to reach The Mist." },
-        new() { Number = 2, Text = "Type /warp mines to get close.", OnClick = "/warp mines" },
-        new() { Number = 3, Text = "Go down into The Mist, in the Dwarven Mines.", OnClick = WhereWikiUrl },
-        new() { Number = 4, Text = "Ghosts have 1M HP and can only be damaged by melee or magic - bows do nothing.", OnClick = WikiUrl },
-        new() { Number = 5, Text = "Target the Ghosts standing on stone walls - they're the easiest to hit." },
-        new() { Number = 6, Text = "You're doing it right when you start collecting: SORROW, VOLTA, PLASMA. That's what we track for your coins/hour." },
-        new() { Number = 7, Text = "Sell Sorrow, Volta and Plasma on the Bazaar." },
-        new() { Number = 8, Text = "Check /cofl task again to see your real coins/hour." },
+        new() { Number = 2, Text = "Get a high-damage melee weapon: Giant's Sword, Emerald Blade or Dark Claymore." },
+        new() { Number = 3, Text = "Type /warp mines to get close.", OnClick = "/warp mines" },
+        new() { Number = 4, Text = "Go down into The Mist, in the Dwarven Mines.", OnClick = WhereWikiUrl },
+        new() { Number = 5, Text = "Ghosts have 1M HP and are immune to bows, magic and abilities - only melee weapon hits work.", OnClick = WikiUrl },
+        new() { Number = 6, Text = "Target the Ghosts standing on stone walls - they're the easiest to hit." },
+        new() { Number = 7, Text = "You're doing it right when you start collecting: SORROW, VOLTA, PLASMA. That's what we track for your coins/hour." },
+        new() { Number = 8, Text = "Sell Sorrow, Volta and Plasma on the Bazaar." },
+        new() { Number = 9, Text = "Check /cofl task again to see your real coins/hour." },
     ];
 }
 
-public class BlazeFarmingTask : BaseCombatFarmTask
+// Renamed from BlazeFarmingTask 2026-09 ("Blaze Farming (Smoldering Tomb)" -> "Blaze Slayer",
+// Category "Mob Farming" -> "Slayer"): Derelict Ashe is only dropped by the Inferno Demonlord
+// (Blaze Slayer boss), never by regular Blazes, so periods collecting DERELICT_ASHE are Blaze
+// Slayer sessions, not passive mob farming - production data (2026-09 median 4 Derelict Ashe + 25
+// Blaze Rods per period) shows this spread over Smoldering Tomb, The Wasteland, Stronghold, Magma
+// Chamber and Mystic Marsh, not just the Tomb.
+public class BlazeSlayerTask : MethodTask
 {
-    // Must not steal from BurningsoulTask (SHARD_BURNINGSOUL, "Inferno Demonlord") which also lists
-    // Smoldering Tomb - that task requires its own shard, this one requires the regular Blaze drops,
-    // so a window with only one of the two only ever matches the corresponding task.
-    protected override string MethodName => "Blaze Farming (Smoldering Tomb)";
-    protected override HashSet<string> Locations => ["Smoldering Tomb"];
-    protected override HashSet<string> DetectionItems => ["DERELICT_ASHE", "BLAZE_ASHES"];
-    protected override List<MethodDrop> FormulaDrops =>
-    [
-        new("DERELICT_ASHE", 6000), new("BLAZE_ROD", 5000), new("BLAZE_ASHES", 200),
-        new("CRUDE_GABAGOOL_DISTILLATE", 100), new("ENCHANTED_BLAZE_POWDER", 60)
-    ];
-    protected override double ActionsPerHour => 3000;
-    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Smoldering_Tomb";
+    protected override string MethodName => "Blaze Slayer";
+    protected override string Category => "Slayer";
+    protected override string ActionUnit => "kills";
+    // Bare island key (not just "Smoldering Tomb") - the boss/its Blazes are fought across the
+    // whole Crimson Isle. This is safe against false positives from unrelated Crimson Isle
+    // activity (Mycelium mining, fishing, ...) because the required DetectionItems below
+    // (DERELICT_ASHE) is exclusive to this boss - see BurningsoulTask's own comment for why a bare
+    // island name is normally risky for a slayer boss.
+    protected override HashSet<string> Locations => ["Crimson Isle"];
+    protected override string Where => "Smoldering Tomb";
+    // Must not steal from BurningsoulTask (SHARD_BURNINGSOUL, "Inferno Demonlord"): that task
+    // requires its own shard, this one requires only the boss-exclusive Derelict Ashe, so a window
+    // with only one of the two only ever matches the corresponding task.
+    protected override HashSet<string> DetectionItems => ["DERELICT_ASHE"];
+    // Production medians (2026-09): 4 Derelict Ashe + 25 Blaze Rods per period, per hour below.
+    protected override List<MethodDrop> FormulaDrops => [new("DERELICT_ASHE", 60), new("BLAZE_ROD", 400), new("BLAZE_ASHES", 20)];
+    protected override double ActionsPerHour => 4; // bosses, not regular kills
+    public override List<StatFactor> StatFactors => [new("skill:Combat", 1.0, 60)];
+    // No RequiredItems - the weapon choice is covered in the Steps below instead.
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Inferno_Demonlord";
     protected override string HowTo =>
-        "Type /warp isle and go to the Smoldering Tomb. Kill the Blazes there - they also give the Combat XP "
-        + "the Blaze Slayer needs. Sell the Derelict Ashe, Blaze Rods and Blaze Ashes they drop on the Bazaar.";
+        "Buy a Maddox Batphone, start a Blaze Slayer quest, and kill Blazes in the Smoldering Tomb for Combat "
+        + "XP until the Inferno Demonlord boss spawns. Kill the boss - it's the only source of Derelict Ashe. "
+        + "Sell Derelict Ashe and Blaze Rods on the Bazaar.";
     protected override List<TaskStep> Steps =>
     [
-        new() { Number = 1, Text = "Type /warp isle to get close.", OnClick = "/warp isle" },
-        new() { Number = 2, Text = "Go to the Smoldering Tomb on the Crimson Isle.", OnClick = WhereWikiUrl },
-        new() { Number = 3, Text = "Kill the Blazes there - they also give the Combat XP the Blaze Slayer needs.", OnClick = WikiUrl },
-        new() { Number = 4, Text = "You're doing it right when you start collecting: DERELICT_ASHE, BLAZE_ROD, BLAZE_ASHES. That's what we track for your coins/hour." },
-        new() { Number = 5, Text = "Sell your Derelict Ashe, Blaze Rods and Blaze Ashes on the Bazaar." },
-        new() { Number = 6, Text = "Check /cofl task again to see your real coins/hour." },
+        new() { Number = 1, Text = "The first time, buy a Maddox Batphone from Maddox (at the Hub Tavern) so you can start Slayer quests from anywhere, including the Crimson Isle.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Maddox_Batphone" },
+        new() { Number = 2, Text = "Type /warp isle to get close.", OnClick = "/warp isle" },
+        new() { Number = 3, Text = "Talk to Maddox (or use your Batphone) and start a Blaze Slayer quest.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Maddox" },
+        new() { Number = 4, Text = "Go to the Smoldering Tomb and kill regular Blazes there - that's the recommended spot for Blaze Slayer Combat XP.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Smoldering_Tomb" },
+        new() { Number = 5, Text = "Bring a Juju Shortbow or Terminator and Fire Resistance - Blazes and the boss hit hard with fire damage." },
+        new() { Number = 6, Text = "Once you've killed enough Blazes, the Inferno Demonlord boss spawns - kill it to finish the quest.", OnClick = WikiUrl },
+        new() { Number = 7, Text = "You're doing it right when you start collecting: DERELICT_ASHE, BLAZE_ROD, BLAZE_ASHES. That's what we track for your coins/hour." },
+        new() { Number = 8, Text = "Sell Derelict Ashe and Blaze Rods on the Bazaar." },
+        new() { Number = 9, Text = "Check /cofl task again to see your real coins/hour." },
     ];
 }

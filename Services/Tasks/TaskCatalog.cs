@@ -136,6 +136,9 @@ internal static class TaskCatalog
         tasks.Add<BarbarianDukeXTask>();
         tasks.Add<T4VoidgloomsTask>();
         tasks.Add<T4VoidgloomsFdTask>();
+        // Renamed from BlazeFarmingTask 2026-09 (was "Mob farm tasks"): Derelict Ashe only drops
+        // from the Inferno Demonlord boss, so this is a Blaze Slayer session, not mob farming.
+        tasks.Add<BlazeSlayerTask>();
 
         // Mob farm tasks (Galatea)
         // tasks.Add<CinderbatTask>();      // deactivated: Crimson Isle mob (not Galatea); SHARD_CINDER_BAT tag unconfirmed
@@ -167,7 +170,7 @@ internal static class TaskCatalog
 
         // Mob farm tasks - discovered from unclassified production revenue 2026-09
         tasks.Add<GhostMistTask>();
-        tasks.Add<BlazeFarmingTask>();
+        // BlazeFarmingTask renamed to BlazeSlayerTask and moved to the Slayer tasks section above.
 
         // Hunting tasks
         tasks.Add<RainSlimeHuntingTask>();
@@ -206,6 +209,10 @@ internal static class TaskCatalog
         tasks.Add<ObsidianMiningTask>();
         tasks.Add<TungstenMiningTask>();
         tasks.Add<UmberMiningTask>();
+        // discovered from unclassified production revenue 2026-09-27
+        tasks.Add<MithrilMiningTask>();
+        tasks.Add<GlaciteMiningTask>();
+        tasks.Add<FlintMiningTask>();
 
         // Mining tasks (special)
         tasks.Add<NucleusMiningTask>();
@@ -221,6 +228,8 @@ internal static class TaskCatalog
         // Foraging tasks - discovered from unclassified production revenue 2026-09
         tasks.Add<HelixForagingTask>();
         tasks.Add<FigForagingTask>();
+        // discovered from unclassified production revenue 2026-09-27
+        tasks.Add<MangroveForagingTask>();
 
         // Crafting tasks
         tasks.Add<ReaperScytheTask>();
@@ -253,7 +262,21 @@ internal static class TaskCatalog
 
         // Garden tasks
         tasks.Add<PestTask>();
-        tasks.Add<GardenFarmingTask>(); // discovered from unclassified production revenue 2026-09
+        // GardenFarmingTask (discovered from unclassified production revenue 2026-09) split 2026-09
+        // into one task per crop - see GardenTasks.cs/BaseGardenCropTask.
+        tasks.Add<WheatFarmingTask>();
+        tasks.Add<CarrotFarmingTask>();
+        tasks.Add<PotatoFarmingTask>();
+        tasks.Add<PumpkinFarmingTask>();
+        tasks.Add<MelonFarmingTask>();
+        tasks.Add<SugarCaneFarmingTask>();
+        tasks.Add<NetherWartFarmingTask>();
+        tasks.Add<CactusFarmingTask>();
+        tasks.Add<MushroomFarmingTask>();
+        tasks.Add<CocoaBeansFarmingTask>();
+        tasks.Add<SunflowerFarmingTask>();
+        tasks.Add<MoonflowerFarmingTask>();
+        tasks.Add<WildRoseFarmingTask>();
 
         // Misc tasks
         tasks.Add<ZealotsFdTask>();

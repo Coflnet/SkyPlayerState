@@ -494,29 +494,141 @@ public class TaskClassifierTests
     }
 
     [Test]
-    public void SmolderingTombWithDerelictAshe_ClassifiesToBlazeFarming()
+    public void SmolderingTombWithDerelictAshe_ClassifiesToBlazeSlayer()
     {
         var items = new Dictionary<string, int> { { "DERELICT_ASHE", 100 } };
         var result = Classifier.Classify("Smoldering Tomb", items, 10);
         result.Should().NotBeNull();
-        result!.TaskName.Should().Be("Blaze Farming (Smoldering Tomb)");
+        result!.TaskName.Should().Be("Blaze Slayer");
     }
 
     [Test]
-    public void GardenWithPestCountAndWheat_ClassifiesToGardenFarming()
+    public void GardenWithPestCountAndWheat_ClassifiesToWheatFarming()
     {
         var items = new Dictionary<string, int> { { "ENCHANTED_WHEAT", 50 } };
         var result = Classifier.Classify("The Garden  x3", items, 10);
         result.Should().NotBeNull();
-        result!.TaskName.Should().Be("Garden Farming");
+        result!.TaskName.Should().Be("Wheat Farming");
     }
 
     [Test]
-    public void RenamedPlotWithCarrot_ClassifiesToGardenFarming()
+    public void RenamedPlotWithCarrot_ClassifiesToCarrotFarming()
     {
         var items = new Dictionary<string, int> { { "CARROT_ITEM", 40 } };
         var result = Classifier.Classify("Plot - Left Farm 2", items, 10);
         result.Should().NotBeNull();
-        result!.TaskName.Should().Be("Garden Farming");
+        result!.TaskName.Should().Be("Carrot Farming");
+    }
+
+    [Test]
+    public void GardenWithEnchantedPotato_ClassifiesToPotatoFarming()
+    {
+        var items = new Dictionary<string, int> { { "ENCHANTED_POTATO", 40 } };
+        var result = Classifier.Classify("The Garden", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Potato Farming");
+    }
+
+    [Test]
+    public void GardenMixedCrops_MoreCoinValueInMelons_ClassifiesToMelonFarming()
+    {
+        var items = new Dictionary<string, int> { { "ENCHANTED_WHEAT", 50 }, { "ENCHANTED_MELON", 50 } };
+        var prices = new Dictionary<string, double> { { "ENCHANTED_WHEAT", 100 }, { "ENCHANTED_MELON", 10_000 } };
+        var result = Classifier.Classify("The Garden", items, 10, prices: prices);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Melon Farming", "the matched-value tie-break picks the more valuable matched crop");
+    }
+
+    [Test]
+    public void GardenWithBuilderCactus_ClassifiesToCactusFarming()
+    {
+        // Production tags the raw cactus drop as BUILDER_CACTUS, not the vanilla CACTUS item id.
+        var items = new Dictionary<string, int> { { "BUILDER_CACTUS", 60 } };
+        var result = Classifier.Classify("The Garden", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Cactus Farming");
+    }
+
+    [Test]
+    public void GardenWithPestKill_StillClassifiesToPest()
+    {
+        var items = new Dictionary<string, int> { { "PEST_KILL", 30 } };
+        var result = Classifier.Classify("The Garden", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Pest", "PestTask's own detection items must still win over the per-crop farming tasks");
+    }
+
+    // ── New tasks discovered from unclassified production revenue (2026-09-27) ──
+
+    [Test]
+    public void RampartsQuarryWithMithrilOre_ClassifiesToMithrilMining()
+    {
+        var items = new Dictionary<string, int> { { "MITHRIL_ORE", 400 }, { "TITANIUM_ORE", 40 } };
+        var result = Classifier.Classify("Rampart's Quarry", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Mithril Mining");
+    }
+
+    [Test]
+    public void GlaciteTunnelsWithGlacite_ClassifiesToGlaciteMining()
+    {
+        var items = new Dictionary<string, int> { { "GLACITE", 500 } };
+        var result = Classifier.Classify("Glacite Tunnels", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Glacite Mining");
+    }
+
+    [Test]
+    public void GlaciteTunnelsWithTungsten_StillClassifiesToTungstenMining()
+    {
+        var items = new Dictionary<string, int> { { "TUNGSTEN", 300 } };
+        var result = Classifier.Classify("Glacite Tunnels", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Tungsten Mining");
+    }
+
+    [Test]
+    public void GravelMinesWithFlint_ClassifiesToFlintMining()
+    {
+        var items = new Dictionary<string, int> { { "FLINT", 300 } };
+        var result = Classifier.Classify("Gravel Mines", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Flint Mining");
+    }
+
+    [Test]
+    public void MurkwaterLochWithMangroveLog_ClassifiesToMangroveForaging()
+    {
+        var items = new Dictionary<string, int> { { "MANGROVE_LOG", 300 } };
+        var result = Classifier.Classify("Murkwater Loch", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Mangrove Foraging");
+    }
+
+    [Test]
+    public void MurkwaterLochWithFigLog_StillClassifiesToFigForaging()
+    {
+        var items = new Dictionary<string, int> { { "FIG_LOG", 300 } };
+        var result = Classifier.Classify("Murkwater Loch", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Fig Foraging");
+    }
+
+    [Test]
+    public void StrongholdWithMagmaFish_ClassifiesToCrimsonFishing()
+    {
+        var items = new Dictionary<string, int> { { "MAGMA_FISH", 150 } };
+        var result = Classifier.Classify("Stronghold", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Crimson Fishing");
+    }
+
+    [Test]
+    public void TangleburgWithInvisibugShard_ClassifiesToInvisibugHunting()
+    {
+        var items = new Dictionary<string, int> { { "SHARD_INVISIBUG", 200 } };
+        var result = Classifier.Classify("Tangleburg", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Invisibug (Hunting)");
     }
 }

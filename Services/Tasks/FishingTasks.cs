@@ -92,14 +92,21 @@ public class QuarryFishingTask : BaseFishingTask
 public class CrimsonFishingTask : BaseFishingTask
 {
     protected override string MethodName => "Crimson Fishing";
-    protected override HashSet<string> Locations => ["Blazing Volcano", "Burning Desert", "Mystic Marsh", "Magma Chamber"];
+    // "Stronghold", "Crimson Fields", "Dragontail" and the bare "Crimson Isle" island key are
+    // data-derived (production log analysis 2026-09-27 showed 110 Magma Fish periods at Stronghold
+    // alone) - the wiki only documents Blazing Volcano as the lava fishing hotspot, but the
+    // scoreboard reports just "Crimson Isle" at spawn/other sub-zones, so it's included too.
+    protected override HashSet<string> Locations =>
+        ["Blazing Volcano", "Burning Desert", "Mystic Marsh", "Magma Chamber", "Stronghold", "Crimson Fields", "Dragontail", "Crimson Isle"];
     protected override bool ExcludeShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("MAGMA_FISH", 150)];
 }
 public class CrimsonHotspotFishingTask : BaseFishingTask
 {
     protected override string MethodName => "Crimson Hotspot Fishing";
-    protected override HashSet<string> Locations => ["Blazing Volcano", "Burning Desert", "Mystic Marsh", "Magma Chamber"];
+    // See CrimsonFishingTask - the extra zones are data-derived, not wiki-documented.
+    protected override HashSet<string> Locations =>
+        ["Blazing Volcano", "Burning Desert", "Mystic Marsh", "Magma Chamber", "Stronghold", "Crimson Fields", "Dragontail", "Crimson Isle"];
     protected override HashSet<string> DetectionItems => ["HOTSPOT_CATCH"];
     protected override bool ExcludeShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("MAGMA_FISH", 200)];

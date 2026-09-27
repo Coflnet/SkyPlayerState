@@ -370,3 +370,87 @@ public class GoblinHoldoutPowderMiningTask : BaseMiningTask
     protected override string HowTo => "Mine mithril ore in the Goblin Holdout for powder and mithril drops.";
     protected override double ActionsPerHour => 3200;
 }
+
+// ── Ore mining - discovered from unclassified production revenue 2026-09-27 ──
+public class MithrilMiningTask : BaseMiningTask
+{
+    protected override string MethodName => "Mithril Mining";
+    protected override HashSet<string> Locations =>
+        ["Rampart's Quarry", "Royal Mines", "Cliffside Veins", "Lava Springs", "Upper Mines", "Divan's Gateway", "Dwarven Mines"];
+    protected override HashSet<string> DetectionItems => ["MITHRIL_ORE", "ENCHANTED_MITHRIL"];
+    protected override List<MethodDrop> FormulaDrops => [new("MITHRIL_ORE", 3000), new("TITANIUM_ORE", 300)];
+    // Titanium Drill DR-X555 has Breaking Power 9, which mines both Mithril and Titanium fast.
+    protected override List<RequiredItem> RequiredItems =>
+        [new() { ItemTag = "TITANIUM_DRILL_1", Name = "Titanium Drill DR-X555", Reason = "Breaking Power 9 drill - mines Mithril and Titanium fast" }];
+    protected override string HowTo =>
+        "Mine Mithril ore (needs Mining XII and Breaking Power 4+ to unlock the Dwarven Mines) in the "
+        + "Rampart's Quarry, Royal Mines, Cliffside Veins, Lava Springs or Upper Mines - each ore drops "
+        + "1-5 Mithril and Mithril Powder, and Titanium veins spawn alongside the Mithril.";
+    protected override double ActionsPerHour => 3000;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Mithril_Ore";
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Level Mining to XII - you need it (plus a pickaxe with Breaking Power 4+) to get into the Dwarven Mines." },
+        new() { Number = 2, Text = "Get a Titanium Drill DR-X555 (Breaking Power 9 drill - mines Mithril and Titanium fast)." },
+        new() { Number = 3, Text = "Type /warp mines to get close.", OnClick = "/warp mines" },
+        new() { Number = 4, Text = "Go to Rampart's Quarry, Cliffside Veins, Upper Mines or Lava Springs and look for the light-blue/blue Mithril veins.", OnClick = WikiUrl },
+        new() { Number = 5, Text = "Mine the Mithril veins - Titanium veins spawn alongside them, mine those too." },
+        new() { Number = 6, Text = "You're doing it right when you collect: MITHRIL_ORE, TITANIUM_ORE. That's what we track for your coins/hour." },
+        new() { Number = 7, Text = "Sell Enchanted Mithril on the Bazaar." },
+        new() { Number = 8, Text = "Check /cofl task again to see your real coins/hour." },
+    ];
+}
+public class GlaciteMiningTask : BaseMiningTask
+{
+    protected override string MethodName => "Glacite Mining";
+    protected override HashSet<string> Locations => ["Glacite Tunnels", "Glacite Mineshafts"];
+    protected override HashSet<string> DetectionItems => ["GLACITE", "ENCHANTED_GLACITE"];
+    protected override List<MethodDrop> FormulaDrops => [new("GLACITE", 4000), new("GOLD_INGOT", 800)];
+    // Glacite needs Breaking Power 9 (block strength 6000) - same drill as Mithril Mining works.
+    protected override List<RequiredItem> RequiredItems =>
+        [new() { ItemTag = "TITANIUM_DRILL_1", Name = "Titanium Drill DR-X555", Reason = "Breaking Power 9 drill - Glacite has 6000 block strength" }];
+    protected override string HowTo =>
+        "Mine Glacite in the Glacite Tunnels, which need Heart of the Mountain tier VII (Secret Railroad "
+        + "Pass) to enter. Watch the Cold hazard - it reaches 100 and kills you, so warm up regularly.";
+    protected override double ActionsPerHour => 3000;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Glacite";
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Level Heart of the Mountain to tier VII and get the Secret Railroad Pass - both are needed to enter the Glacite Tunnels." },
+        new() { Number = 2, Text = "Get a Titanium Drill DR-X555 (Breaking Power 9 drill - Glacite has 6000 block strength)." },
+        new() { Number = 3, Text = GlaciteAccessNote },
+        new() { Number = 4, Text = "Mine the Glacite ore veins. Keep an eye on the Cold hazard meter - it reaches 100 and kills you, so warm up at a fire or heat source regularly.", OnClick = WikiUrl },
+        new() { Number = 5, Text = "You're doing it right when you collect: GLACITE, ENCHANTED_GLACITE. That's what we track for your coins/hour." },
+        new() { Number = 6, Text = "Sell Glacite on the Bazaar." },
+        new() { Number = 7, Text = "Check /cofl task again to see your real coins/hour." },
+    ];
+}
+public class FlintMiningTask : BaseMiningTask
+{
+    protected override string MethodName => "Flint Mining";
+    protected override HashSet<string> Locations => ["Gravel Mines"];
+    protected override HashSet<string> DetectionItems => ["FLINT", "ENCHANTED_FLINT"];
+    protected override List<MethodDrop> FormulaDrops => [new("FLINT", 3000)];
+    protected override List<RequiredItem> RequiredItems =>
+        [new() { ItemTag = "FLINT_SHOVEL", Name = "Flint Shovel", Reason = "Guarantees Flint from every Gravel block" }];
+    // Early-game grind - no HotM tier or Gemstone Gauntlet involved, just skill and speed.
+    public override List<StatFactor> StatFactors =>
+    [
+        new("skill:Mining", 0.7, 60), new("attr:Mining Speed", 0.3, 10)
+    ];
+    protected override string HowTo =>
+        "Craft a Flint Shovel (10 Flint + 2 Sticks, needs Flint Collection II) and dig up Gravel blocks in "
+        + "the Gravel Mines for guaranteed Flint.";
+    protected override double ActionsPerHour => 3000;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Flint";
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Type /warp spider to get close.", OnClick = "/warp spider" },
+        new() { Number = 2, Text = "Go to the Gravel Mines.", OnClick = WhereWikiUrl },
+        new() { Number = 3, Text = "Craft a Flint Shovel (10 Flint + 2 Sticks, needs Flint Collection II) - it guarantees a Flint drop from every Gravel block you dig.", OnClick = WikiUrl },
+        new() { Number = 4, Text = "Dig up the Gravel blocks with your Flint Shovel." },
+        new() { Number = 5, Text = "You're doing it right when you collect: FLINT, ENCHANTED_FLINT. That's what we track for your coins/hour." },
+        new() { Number = 6, Text = "Sell Flint and Enchanted Flint on the Bazaar." },
+        new() { Number = 7, Text = "Check /cofl task again to see your real coins/hour." },
+    ];
+}

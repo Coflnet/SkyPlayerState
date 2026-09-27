@@ -76,3 +76,34 @@ public class FigForagingTask : BaseForagingTask
         new() { Number = 6, Text = "Check /cofl task again to see your real coins/hour." },
     ];
 }
+
+// Discovered from unclassified production revenue 2026-09-27.
+public class MangroveForagingTask : BaseForagingTask
+{
+    protected override string MethodName => "Mangrove Foraging";
+    // Island key (Moonglade's own zones are Moonglade Marsh, Tangleburg, ... - see SkyblockZones);
+    // Where below names the actual spot to stand in.
+    protected override HashSet<string> Locations => ["Moonglade"];
+    protected override string Where => "Murkwater Loch";
+    protected override HashSet<string> DetectionItems => ["MANGROVE_LOG", "ENCHANTED_MANGROVE_LOG"];
+    protected override List<MethodDrop> FormulaDrops =>
+    [
+        new("MANGROVE_LOG", 3000), new("ENCHANTED_MANGROVE_LOG", 20), new("VINESAP", 40)
+    ];
+    protected override double ActionsPerHour => 3000;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Galatea";
+    protected override string HowTo =>
+        "Type /warp galatea (needs Foraging XII and Heart of the Forest tier 1, from a quest given by Hina "
+        + "in Tangleburg), then find Mangrove trees standing in the wetlands - South/North Wetlands, "
+        + "Murkwater Loch, or Moonglade Marsh. Cut the branches first, then the trunk, then the roots.";
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Level Foraging to XII and get Heart of the Forest tier 1 - both are needed. Heart of the Forest tier 1 comes from a quest given by Hina in Tangleburg." },
+        new() { Number = 2, Text = "Type /warp galatea to get close.", OnClick = "/warp galatea" },
+        new() { Number = 3, Text = "Look for Mangrove trees standing in the wetlands - South Wetlands, North Wetlands, Murkwater Loch, or Moonglade Marsh.", OnClick = WhereWikiUrl },
+        new() { Number = 4, Text = "Cut the branches first, then the trunk, then the roots, to fell the whole tree. A Fig Hew (Foraging XII) or Figstone Splitter (XV) axe makes this much faster.", OnClick = WikiUrl },
+        new() { Number = 5, Text = "You're doing it right when you start collecting: MANGROVE_LOG, ENCHANTED_MANGROVE_LOG. That's what we track for your coins/hour." },
+        new() { Number = 6, Text = "Sell your Mangrove Logs on the Bazaar." },
+        new() { Number = 7, Text = "Check /cofl task again to see your real coins/hour." },
+    ];
+}
