@@ -437,12 +437,63 @@ public class TaskClassifierTests
     }
 
     [Test]
-    public void CatacombsFloor7NormalMode_HasNoMatchingTask()
+    public void CatacombsFloor7NormalMode_ClassifiesToF7()
     {
-        // No floor-7 normal-mode dungeon task exists (only Master Mode M7/M7 Kismet) - this is
-        // expected, not a gap to fix here.
+        // Normal-mode Floor 7 now has its own task (F1Task..F7Task, DungeonTasks.cs) distinct from
+        // Master Mode M7/M7 Kismet - previously this zone had no matching task at all.
         var items = new Dictionary<string, int> { { "ESSENCE_WITHER", 10 } };
-        Classifier.Classify("The Catacombs (F7)", items, 10).Should().BeNull();
+        var result = Classifier.Classify("The Catacombs (F7)", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("F7");
+    }
+
+    [Test]
+    public void CatacombsF6Zone_WithRewardChestDrops_ClassifiesToF6()
+    {
+        // F6 is location-only (no DetectionItems), so it needs the classifier's generic >=5 items
+        // signal, same as any other location-only task.
+        var items = new Dictionary<string, int> { { "ENCHANTED_BOOK", 3 }, { "RECOMBOBULATOR_3000", 2 } };
+        var result = Classifier.Classify("The Catacombs (F6)", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("F6");
+    }
+
+    [Test]
+    public void DungeonHubClaimResolvedToM3_ClassifiesToM3()
+    {
+        // Simulates CollectionListener.StoreLocationProfit already having resolved a "Dungeon Hub"
+        // reward-claim period back to "The Catacombs (M3)" via Tasks.DungeonRewardAttribution -
+        // the classifier itself only ever sees the resolved location.
+        var items = new Dictionary<string, int> { { "ESSENCE_WITHER", 40 } };
+        var result = Classifier.Classify("The Catacombs (M3)", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("M3");
+    }
+
+    [Test]
+    public void M7ZoneWithKismetFeatherConsumed_ClassifiesToM7Kismet()
+    {
+        var items = new Dictionary<string, int> { { "ESSENCE_WITHER", 40 }, { "KISMET_FEATHER", -2 } };
+        var result = Classifier.Classify("The Catacombs (M7)", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("M7 (Kismet)");
+    }
+
+    /// <summary>
+    /// Purchase evidence must still win the tie inside the classifier even when it happens right
+    /// after a dungeon run in the same zone (e.g. buying a Hyperion in the Dungeon Hub right after
+    /// clearing M7, before walking away) - TaskClassifier orders item-evidence matches ahead of
+    /// location-only matches regardless of matchedValue, so the floor task (location-only, no
+    /// DetectionItems) never outranks the AUCTION_PURCHASE-matched hidden task.
+    /// </summary>
+    [Test]
+    public void AuctionPurchaseInDungeonZone_ClassifiesToAuctionPurchases_NotTheFloorTask()
+    {
+        var items = new Dictionary<string, int> { { "HYPERION", 1 }, { PseudoItems.AUCTION_PURCHASE, 970_000_000 } };
+        var prices = new Dictionary<string, double> { { "HYPERION", 970_000_000 } };
+        var result = Classifier.Classify("The Catacombs (M7)", items, 10, prices: prices);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Auction Purchases");
     }
 
     // ── New tasks discovered from unclassified production revenue (2026-09) ──
@@ -630,5 +681,56 @@ public class TaskClassifierTests
         var result = Classifier.Classify("Tangleburg", items, 10);
         result.Should().NotBeNull();
         result!.TaskName.Should().Be("Invisibug (Hunting)");
+    }
+
+    // ── Hidden accounting tasks (HiddenTasks.cs / PseudoItems.cs) ──
+
+    [Test]
+    public void YourIsland_WithMinionProductAndEnchantedForm_ClassifiesToMinionCollection()
+    {
+        // "Your Island" is deliberately ambiguous/unmapped in SkyblockZones (AmbiguousZones), but
+        // SkyblockZones.Matches checks a task's Locations against the exact zone string first, so
+        // MinionCollectionTask's literal ["Your Island"] Locations still matches directly.
+        var items = new Dictionary<string, int> { { "SLIME_BALL", 300 }, { "ENCHANTED_SLIME_BALL", 5 } };
+        var result = Classifier.Classify("Your Island", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Minion Collection");
+    }
+
+    [Test]
+    public void YourIsland_WithNonMinionItem_DoesNotClassify()
+    {
+        var items = new Dictionary<string, int> { { "HYPERION", 1 } };
+        Classifier.Classify("Your Island", items, 10).Should().BeNull(
+            "no minion product and too few items for a location-only fallback (MinionCollectionTask always needs its own DetectionItems)");
+    }
+
+    [Test]
+    public void BazaarPurchase_DominatingWindow_ClassifiesToBazaarPurchases()
+    {
+        var items = new Dictionary<string, int> { { "BAZAAR_PURCHASE", 50_000_000 }, { "ENCHANTED_WHEAT", 2000 } };
+        var prices = new Dictionary<string, double> { { "ENCHANTED_WHEAT", 200 } };
+        var result = Classifier.Classify("Bazaar Alley", items, 10, prices: prices);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Bazaar Purchases", "50,000,000 coins spent beats the 400,000 matched grind value");
+    }
+
+    [Test]
+    public void GardenGrindValue_BeatsSmallerBazaarPurchase_ClassifiesToWheatFarming()
+    {
+        var items = new Dictionary<string, int> { { "WHEAT", 3000 }, { "BAZAAR_PURCHASE", 20_000 } };
+        var prices = new Dictionary<string, double> { { "WHEAT", 10 } };
+        var result = Classifier.Classify("Plot - 3", items, 10, prices: prices);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Wheat Farming", "30,000 coins of grind value beats the 20,000 spent buying");
+    }
+
+    [Test]
+    public void AuctionPurchase_DominatingWindow_ClassifiesToAuctionPurchases()
+    {
+        var items = new Dictionary<string, int> { { "AUCTION_PURCHASE", 973_000_000 }, { "HYPERION", 2 } };
+        var result = Classifier.Classify("Village", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Auction Purchases");
     }
 }

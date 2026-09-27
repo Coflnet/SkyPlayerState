@@ -81,7 +81,9 @@ public class TaskExecutionService
     /// </summary>
     public async Task<List<TaskResult>> ExecuteAll(TaskParams parameters)
     {
-        var all = await Task.WhenAll(registry.Tasks.Select(task => ExecuteSafe(task, parameters)));
+        // hidden accounting tasks (see MethodTask.Hidden) are excluded from this player-facing
+        // listing - ExecuteOne(name) below deliberately still returns them for debugging.
+        var all = await Task.WhenAll(registry.PublicTasks.Select(task => ExecuteSafe(task, parameters)));
         return all
             .OrderBy(r => r.IsAccessible ? 0 : 1)
             .ThenByDescending(r => r.ProfitPerHour)

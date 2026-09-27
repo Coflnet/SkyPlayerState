@@ -17,6 +17,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Source of truth for minion product tags (Tasks/HiddenTasks.cs MinionCollectionTask) - kept
+         byte-identical to the copy in SkyBackendForFrontend/Services/minion_data.json (see
+         Tasks/MinionData.cs and its regression test). -->
+    <EmbeddedResource Include="Services\Tasks\minion_data.json" LogicalName="Coflnet.Sky.PlayerState.Tasks.minion_data.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Coflnet.Sky.Api.Client" Version="0.7.8" />
     <PackageReference Include="Coflnet.Sky.Settings.Client" Version="0.3.0" />
     <PackageReference Include="Coflnet.Sky.Sniper.Client" Version="0.13.1" />

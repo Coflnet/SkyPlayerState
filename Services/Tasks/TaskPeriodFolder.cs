@@ -76,7 +76,7 @@ public class TaskPeriodFolder
             await coinValues.EnsureFresh();
 
             // subtract items received from other players / market during the window
-            var owned = await SubtractExternalItems(period, span);
+            var owned = await SubtractExternalItems(period, span, methodTask);
             if (owned.Count == 0)
             {
                 span?.SetTag("dropped", "no_owned_items");
@@ -88,19 +88,8 @@ public class TaskPeriodFolder
 
             // value each item; separate rare, high value, infrequent drops into an EV pool
             var bucketAgg = aggregates.GetSnapshot().GetValueOrDefault((task, bucket));
-            var commonCounts = new Dictionary<string, double>();
-            double rareCoins = 0, itemValue = 0;
-            foreach (var (tag, count) in owned)
-            {
-                var unit = coinValues.Value(tag, prices);
-                var total = unit * count;
-                itemValue += total;
-                bool isRare = unit > RarePriceThreshold && IsInfrequent(tag, bucketAgg);
-                if (isRare)
-                    rareCoins += total;
-                else
-                    commonCounts[tag] = count;
-            }
+            var (commonCounts, rareCoins, itemValue) = SplitRareAndCommon(
+                owned, tag => coinValues.Value(tag, prices), tag => IsInfrequent(tag, bucketAgg));
 
             // winsorize the common coin rate against the current bucket estimate
             var hours = minutes / 60.0;
@@ -199,6 +188,38 @@ public class TaskPeriodFolder
         }
     }
 
+    /// <summary>
+    /// Values each owned item and separates it into the common pool (folded like a normal rate) or
+    /// the rare/EV pool (a high value, infrequent drop, valued separately so one lucky drop doesn't
+    /// blow out the winsorized common rate) - pulled out of <see cref="Fold"/> as a pure static so
+    /// this split is unit testable without the Cassandra-backed dependencies the rest of Fold needs.
+    /// <para>
+    /// A negative <paramref name="owned"/> count is a real cost (see <see cref="FilterOwnedItems"/> -
+    /// a <see cref="PseudoItems.IsCost"/> tag, or a FormulaCosts consumable like KISMET_FEATHER) - its
+    /// value is negative and folds into <c>itemValue</c>/the common pool like anything else (so it
+    /// reduces the period's coin value), but it must never be shunted into the rare/EV pool
+    /// regardless of its unit price - a cost is not a "rare drop".
+    /// </para>
+    /// </summary>
+    internal static (Dictionary<string, double> CommonCounts, double RareCoins, double ItemValue) SplitRareAndCommon(
+        Dictionary<string, int> owned, Func<string, double> unitPriceOf, Func<string, bool> isInfrequent)
+    {
+        var commonCounts = new Dictionary<string, double>();
+        double rareCoins = 0, itemValue = 0;
+        foreach (var (tag, count) in owned)
+        {
+            var unit = unitPriceOf(tag);
+            var total = unit * count;
+            itemValue += total;
+            bool isRare = count > 0 && unit > RarePriceThreshold && isInfrequent(tag);
+            if (isRare)
+                rareCoins += total;
+            else
+                commonCounts[tag] = count;
+        }
+        return (commonCounts, rareCoins, itemValue);
+    }
+
     private static bool IsInfrequent(string tag, BucketAggregate bucketAgg)
     {
         if (bucketAgg == null || bucketAgg.WPeriods <= 0)
@@ -228,13 +249,18 @@ public class TaskPeriodFolder
     }
 
     /// <summary>
-    /// Remove items the player received via trade/bazaar/AH during the window so
-    /// picking up other players' items does not inflate the estimate.
+    /// Remove items the player received via trade/bazaar/AH during the window so picking up other
+    /// players' items does not inflate the estimate. A plain positive-count filter would also drop
+    /// every real COST (a negative count - see PseudoItems.IsCost, e.g. DUNGEON_CHEST_COST, and a
+    /// negative count of a tag the classified <paramref name="methodTask"/> declares in its own
+    /// FormulaCosts, e.g. KISMET_FEATHER for "M7 (Kismet)") before it ever reaches the aggregates/
+    /// player stats - those must survive so they reduce the folded coin value like any other real
+    /// economic activity (see Fold's isRare guard and MethodTask.ComputeFromPlayerData's Costs split
+    /// for how the rest of the pipeline keeps them out of the rare-drop pool and user-facing Drops).
     /// </summary>
-    private async Task<Dictionary<string, int>> SubtractExternalItems(Period period, Activity span)
+    private async Task<Dictionary<string, int>> SubtractExternalItems(Period period, Activity span, MethodTask methodTask)
     {
-        var result = new Dictionary<string, int>(period.ItemsCollected.Where(e => e.Value > 0)
-            .ToDictionary(e => e.Key, e => e.Value));
+        var result = FilterOwnedItems(period.ItemsCollected, methodTask);
         try
         {
             if (!Guid.TryParse(period.PlayerUuid, out var uuid))
@@ -267,6 +293,26 @@ public class TaskPeriodFolder
             logger.LogError(e, "failed to subtract external items for {player}", period.PlayerUuid);
         }
         return result;
+    }
+
+    /// <summary>
+    /// The positive-count-plus-real-costs filter <see cref="SubtractExternalItems"/> starts from,
+    /// pulled out as a pure static so it is unit testable without the Cassandra-backed
+    /// <see cref="ITransactionService"/> the rest of that method needs (see the doc comment there):
+    /// a plain "keep only positive counts" filter would also drop every real COST before it ever
+    /// reaches the aggregates/player stats - keep (a) any <see cref="PseudoItems.IsCost"/> tag
+    /// regardless of sign (already negative by construction) and (b) a negative count of a real item
+    /// tag <paramref name="methodTask"/> declares in its own <see cref="MethodTask.FormulaCostsForTest"/>
+    /// (e.g. KISMET_FEATHER for "M7 (Kismet)"). Any other negative count (not a declared cost) is
+    /// dropped, same as before this change.
+    /// </summary>
+    internal static Dictionary<string, int> FilterOwnedItems(Dictionary<string, int> itemsCollected, MethodTask methodTask)
+    {
+        var formulaCostTags = new HashSet<string>(
+            methodTask?.FormulaCostsForTest.Select(c => c.ItemTag) ?? [], StringComparer.OrdinalIgnoreCase);
+        return new Dictionary<string, int>(itemsCollected
+            .Where(e => e.Value > 0 || PseudoItems.IsCost(e.Key) || (e.Value < 0 && formulaCostTags.Contains(e.Key)))
+            .ToDictionary(e => e.Key, e => e.Value));
     }
 
     private async Task<double> GetCumulativeMinutes(string playerUuid, string task)

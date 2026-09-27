@@ -43,6 +43,7 @@ public class CollectionListener : UpdateListener
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.INVENTORY)
         {
             HandleInventory(args);
+            HandleCroesusChest(args);
         }
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.Tab)
         {
@@ -250,6 +251,26 @@ public class CollectionListener : UpdateListener
         args.currentState.ItemsCollectedRecently[tag] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(tag, 0) + count;
     }
 
+    /// <summary>
+    /// Coin value of one flushed location fragment's collected items, routing pseudo tags
+    /// (Tasks.PseudoItems - bazaar/auction purchase evidence, dungeon chest cost) through their
+    /// fixed coin value instead of the market price lookup: an EVIDENCE tag (spending coins to buy
+    /// something) is never profit (0/unit, regardless of how many "coins" were collected), and a
+    /// COST tag's already-negative count is worth exactly 1 coin/unit so it reduces profit by
+    /// exactly what was spent. Exposed (internal, static) so it is unit testable without the full
+    /// UpdateArgs/service plumbing StoreLocationProfit needs.
+    /// </summary>
+    internal static long ComputeProfit(Dictionary<string, int> collected, Dictionary<string, double> cleanPrices)
+    {
+        return (long)collected.Select(c =>
+        {
+            var price = Tasks.PseudoItems.TryGetCoinValue(c.Key, out var pseudoValue)
+                ? pseudoValue
+                : cleanPrices.GetValueOrDefault(c.Key);
+            return price * c.Value;
+        }).Sum();
+    }
+
     private async Task HandleSackNotification(UpdateArgs args, string uploadedLine)
     {
         if (NametoTagLookup == null)
@@ -453,7 +474,61 @@ public class CollectionListener : UpdateListener
             args.currentState.ExtractedInfo.CurrentLocationSince = now;
             args.currentState.ExtractedInfo.CurrentLocationSeenAt = now;
         }
+        // Track the last confirmed Catacombs floor zone (Entrance excluded - no reward chests there)
+        // so a later "Dungeon Hub" reward-claim period can be folded back into the run it belongs to
+        // - see Tasks.DungeonRewardAttribution/StoreLocationProfit. Bumped on every tick (not just a
+        // zone change) so LastDungeonFloorAt ends up as the time the player was last seen inside.
+        if (Tasks.DungeonRewardAttribution.IsFloorZone(currentLocation))
+        {
+            args.currentState.ExtractedInfo.LastDungeonFloor = currentLocation;
+            args.currentState.ExtractedInfo.LastDungeonFloorAt = now;
+        }
         await ClassifyLive(args);
+    }
+
+    /// <summary>
+    /// A chest view whose title names a Catacombs floor (Croesus' reward-claim menu, e.g. "Catacombs
+    /// - Floor VII"/"Master Mode Catacombs - Floor III", possibly truncated by the 32 char inventory
+    /// title limit) names the floor whose chests are being claimed. This OVERRIDES the zone-sequence
+    /// tracking in <see cref="HandleScoreboard"/> - a Croesus claim can be for an older run than the
+    /// player's last actual floor visit - so it always wins regardless of what
+    /// <see cref="Models.ExtractedInfo.LastDungeonFloor"/> currently holds.
+    /// </summary>
+    private static readonly Regex CroesusFloorTitleRegex = new(@"^(Master Mode )?(The )?Catacombs - Floor ([IVX]+)", RegexOptions.Compiled);
+    private static readonly Dictionary<string, int> RomanFloorNumerals = new(StringComparer.Ordinal)
+    {
+        ["I"] = 1, ["II"] = 2, ["III"] = 3, ["IV"] = 4, ["V"] = 5, ["VI"] = 6, ["VII"] = 7
+    };
+
+    /// <summary>
+    /// Parses a Croesus reward-claim chest title into the floor zone string
+    /// (<see cref="Models.ExtractedInfo.LastDungeonFloor"/> format, e.g. "The Catacombs (M3)"), or
+    /// null when <paramref name="chestName"/> is not a Croesus floor title (or its roman numeral was
+    /// truncated past a recognizable I-VII value - tolerant parsing means never guessing wrong,
+    /// not forcing a match). Note the 32 char inventory title limit makes "Master Mode Catacombs -
+    /// Floor III" (33 chars) truncate to exactly "Master Mode Catacombs - Floor II" - an irreducible
+    /// ambiguity in the source data (M1/M2 fit within 32 chars and are unaffected), not something
+    /// this parser can resolve; it is accepted as a known limitation rather than guessed around.
+    /// </summary>
+    internal static string TryParseCroesusFloor(string chestName)
+    {
+        if (string.IsNullOrEmpty(chestName))
+            return null;
+        var clean = Tasks.SkyblockZones.Canonical(chestName);
+        var match = CroesusFloorTitleRegex.Match(clean);
+        if (!match.Success || !RomanFloorNumerals.TryGetValue(match.Groups[3].Value, out var floorNumber))
+            return null;
+        var isMaster = match.Groups[1].Success;
+        return $"The Catacombs ({(isMaster ? "M" : "F")}{floorNumber})";
+    }
+
+    private static void HandleCroesusChest(UpdateArgs args)
+    {
+        var floor = TryParseCroesusFloor(args.msg.Chest?.Name);
+        if (floor == null)
+            return;
+        args.currentState.ExtractedInfo.LastDungeonFloor = floor;
+        args.currentState.ExtractedInfo.LastDungeonFloorAt = DateTime.UtcNow;
     }
 
     /// <summary>
@@ -512,21 +587,27 @@ public class CollectionListener : UpdateListener
         var now = DateTime.UtcNow;
         var profit = 0L;
         var collected = args.currentState.ItemsCollectedRecently;
+        var info = args.currentState.ExtractedInfo;
+        var periodStart = info.LastLocationChange;
+        // A "Dungeon Hub" period shortly after the player's last confirmed Catacombs floor is really
+        // the run's own reward-claim, not hub activity - fold it back into the floor so its loot
+        // (essence, fragments, ...) counts toward that floor's task/session instead of going
+        // unclassified. See Tasks.DungeonRewardAttribution for the resolution rule.
+        var resolvedLocation = Tasks.DungeonRewardAttribution.ResolveLocation(
+            previousLocation, info.LastDungeonFloor, info.LastDungeonFloorAt, periodStart);
+        if (resolvedLocation != previousLocation)
+            Logger.LogInformation("Attributed Dungeon Hub reward claim of {playerId} to {floor}", args.currentState.PlayerId, resolvedLocation);
         Dictionary<string, double> cleanPrices = null;
         if (collected.Count > 0)
         {
             cleanPrices = await GetCleanPrices(args);
 
-            profit = (long)collected.Select(c =>
-            {
-                var price = cleanPrices.GetValueOrDefault(c.Key);
-                return price * c.Value;
-            }).Sum();
+            profit = ComputeProfit(collected, cleanPrices);
             var period = new TrackedProfitService.Period()
             {
                 EndTime = now,
-                StartTime = args.currentState.ExtractedInfo.LastLocationChange,
-                Location = previousLocation,
+                StartTime = periodStart,
+                Location = resolvedLocation,
                 PlayerUuid = args.currentState.McInfo.Uuid.ToString("N"),
                 Server = args.currentState.ExtractedInfo.CurrentServer,
                 ItemsCollected = new Dictionary<string, int>(args.currentState.ItemsCollectedRecently),
@@ -543,11 +624,11 @@ public class CollectionListener : UpdateListener
                 Logger.LogError(ex, "Failed to record method aggregate");
             }
             UnlockCollectionAchievements(args, period.ItemsCollected);
-            args.SendDebugMessage("You collected a total of " + profit + " coins worth of items in " + previousLocation + " " + string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}")));
-            Logger.LogInformation("Profit summary for {playerId} at {location}: {profit} coins from {items}", args.currentState.PlayerId, previousLocation, profit, string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}")));
+            args.SendDebugMessage("You collected a total of " + profit + " coins worth of items in " + resolvedLocation + " " + string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}")));
+            Logger.LogInformation("Profit summary for {playerId} at {location}: {profit} coins from {items}", args.currentState.PlayerId, resolvedLocation, profit, string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}")));
         }
         // fold task attribution per session (spanning locations), not per location fragment
-        await AccumulateSession(args, previousLocation, collected, cleanPrices, now);
+        await AccumulateSession(args, resolvedLocation, collected, cleanPrices, now);
         args.currentState.ItemsCollectedRecently.Clear();
         args.currentState.ExtractedInfo.LastLocationChange = now;
     }

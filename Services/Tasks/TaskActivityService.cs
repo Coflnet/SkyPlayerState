@@ -73,6 +73,11 @@ public class TaskActivityService
             var db = redis.GetDatabase();
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var cutoff = now - (long)ActiveWindow.TotalSeconds;
+            // Deliberately registry.MethodTasks (not PublicMethodTasks): hidden accounting tasks
+            // (bazaar/auction purchase absorption, minion collection - see MethodTask.Hidden) are
+            // never offered to players as something to do, but their doer counts/tracked hours are
+            // legitimate operational signal (e.g. "how much production revenue is purchase noise
+            // right now") - /Task/metrics intentionally still includes them.
             var names = registry.MethodTasks.Select(t => t.GetDetectionSignature().MethodName).Distinct().ToList();
             var tasks = names.Select(async name =>
                 (name, count: (int)await db.SortedSetLengthAsync(KeyPrefix + name, cutoff, now))).ToList();

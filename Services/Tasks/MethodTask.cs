@@ -20,6 +20,22 @@ public record MethodDrop(string ItemTag, double RatePerHour);
 public abstract class MethodTask : ProfitTask
 {
     protected abstract string MethodName { get; }
+    /// <summary>
+    /// When true, this task still fully takes part in <see cref="TaskClassifier"/> and the
+    /// aggregation/fold pipeline (that is the whole point - it absorbs periods that would otherwise
+    /// be misattributed or left unclassified) but is excluded from everything user-facing: the
+    /// <c>/Task/methods</c> list, <see cref="TaskEstimator.EstimateAll"/>, and
+    /// <see cref="TaskExecutionService.ExecuteAll(string,System.Threading.CancellationToken)"/> (which
+    /// feeds <c>/Task/{player}/results</c>, i.e. <c>/cofl task</c>). See <see cref="TaskRegistry.PublicTasks"/>/
+    /// <see cref="TaskRegistry.PublicMethodTasks"/>. <see cref="TaskExecutionService.ExecuteOne(string,string,System.Threading.CancellationToken)"/>
+    /// (by name) deliberately still returns hidden tasks - useful for debugging - and
+    /// <see cref="TaskActivityService"/>/the <c>/Task/metrics</c> endpoint deliberately still include
+    /// them too (their doer counts/tracked hours are legitimate operational signal, just not surfaced
+    /// as a "thing you should do" in the task list).
+    /// </summary>
+    protected virtual bool Hidden => false;
+    /// <summary>Public accessor for the registry/tests - see <see cref="Hidden"/>.</summary>
+    public bool IsHidden => Hidden;
     protected virtual HashSet<string> Locations => [];
     /// <summary>
     /// Items that must be present to attribute a period to this method.
@@ -397,12 +413,24 @@ public abstract class MethodTask : ProfitTask
             });
 
         var perHour = totalProfit / totalHours;
-        var items = periods
+        var allItems = periods
             .Where(p => p.ItemsCollected != null)
             .SelectMany(p => p.ItemsCollected)
             .GroupBy(i => i.Key)
-            .ToDictionary(g => g.Key, g => (long)g.Sum(v => v.Value))
-            .OrderByDescending(i => i.Value);
+            .ToDictionary(g => g.Key, g => (long)g.Sum(v => v.Value));
+
+        // Pseudo tags are accounting signal, never real drops - see PseudoItems. EVIDENCE tags
+        // (bazaar/auction purchases) are excluded from the breakdown entirely; COST tags (e.g.
+        // DUNGEON_CHEST_COST) are real economic activity, shown as a cost line below instead of a
+        // drop. This applies even to a real task's own period (e.g. a farmer who also bought seeds),
+        // not just the hidden accounting tasks that key off these tags themselves. A negative count
+        // of a REAL item tag this task declares in its own FormulaCosts (e.g. KISMET_FEATHER for
+        // "M7 (Kismet)" - see TaskPeriodFolder.SubtractExternalItems, which is what lets such a
+        // negative count reach here at all) is the same kind of cost and must render the same way,
+        // never as a negative-rate "drop".
+        var formulaCostTags = new HashSet<string>(FormulaCosts.Select(c => c.ItemTag), StringComparer.OrdinalIgnoreCase);
+        var items = allItems.Where(i => !PseudoItems.IsPseudo(i.Key) && i.Value > 0).OrderByDescending(i => i.Value);
+        var costItems = allItems.Where(i => PseudoItems.IsCost(i.Key) || (i.Value < 0 && formulaCostTags.Contains(i.Key))).ToList();
 
         var fmt = parameters.Formatter;
         var formattedDuration = fmt.FormatTime(TimeSpan.FromHours(totalHours));
@@ -422,6 +450,26 @@ public abstract class MethodTask : ProfitTask
             ContributionPerHour = totalHours > 0 ? i.Value / totalHours * prices.GetValueOrDefault(i.Key, 0) : 0
         }).ToList();
 
+        // COST pseudo tags (count already negative coins, coin value 1/unit - see PseudoItems) render
+        // as a cost line, matching the FormulaCosts display convention elsewhere. A negative count of
+        // a REAL item this task declares in FormulaCosts (e.g. KISMET_FEATHER) is a count of items,
+        // not coins, so its contribution needs the real market price instead of the pseudo-tag's
+        // fixed 1/unit (ContributionPerHour ends up negative either way - no separate "-" prefix
+        // needed by consumers).
+        var costs = costItems.Select(i =>
+        {
+            var priceEach = PseudoItems.IsCost(i.Key) ? 1 : prices.GetValueOrDefault(i.Key, 0);
+            var rate = totalHours > 0 ? i.Value / totalHours : 0;
+            return new DropInfo
+            {
+                ItemTag = i.Key,
+                Name = parameters.Names.GetValueOrDefault(i.Key, i.Key),
+                RatePerHour = rate,
+                PriceEach = priceEach,
+                ContributionPerHour = rate * priceEach
+            };
+        }).ToList();
+
         var reqItems = BuildRequiredItems(parameters);
 
         var result = new TaskResult
@@ -436,6 +484,7 @@ public abstract class MethodTask : ProfitTask
                 HowTo = HowTo,
                 RequiredItems = reqItems,
                 Drops = drops,
+                Costs = costs,
                 ActionsPerHour = ActionsPerHour > 0 ? ActionsPerHour : (totalHours > 0 ? itemCount / totalHours : 0),
                 ActionUnit = ActionUnit,
                 Effects = Effects,

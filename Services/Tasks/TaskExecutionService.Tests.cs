@@ -96,8 +96,10 @@ public class TaskExecutionServiceTests
 
         var results = await service.ExecuteAll(MakeParams());
 
-        results.Should().HaveCount(registry.Tasks.Count,
-            "every registered task should produce exactly one result, even with no tracked data");
+        // hidden accounting tasks (MethodTask.Hidden - HiddenTasks.cs) are deliberately excluded from
+        // this player-facing listing, so the count is against PublicTasks, not the full registry.
+        results.Should().HaveCount(registry.PublicTasks.Count(),
+            "every PUBLIC registered task should produce exactly one result, even with no tracked data");
         var accessibleEnds = results.Select(r => r.IsAccessible ? 0 : 1).ToList();
         accessibleEnds.Should().BeInAscendingOrder("accessible tasks must be listed before inaccessible ones");
         foreach (var group in results.GroupBy(r => r.IsAccessible))

@@ -25,7 +25,9 @@ public class TaskGuidanceTests
         // well-formed one if present - MethodTask/IslandTask/IndividualSlayerTask all fall back to
         // their island's wiki page when no method-specific page is curated (see SkyblockZones),
         // so this only fails for a task with neither a curated WikiUrl nor a resolvable Where/Island.
-        var violations = Registry.Tasks
+        // Hidden accounting tasks (MethodTask.Hidden - HiddenTasks.cs) never appear in /cofl task,
+        // so they need no wiki link (e.g. BazaarPurchaseTask has no Locations at all).
+        var violations = Registry.PublicTasks
             .Where(t => string.IsNullOrEmpty(t.WikiUrlForTest))
             .Select(t => t.Name)
             .ToList();
@@ -89,7 +91,8 @@ public class TaskGuidanceTests
     [Test]
     public void EveryTask_HasAWarpOrIsExplicitlyExempt()
     {
-        var missing = Registry.Tasks
+        // Same hidden-task exclusion as EveryRegisteredTask_HasAWikiUrl above.
+        var missing = Registry.PublicTasks
             .Where(t => t.EffectiveWarpCommandForTest == null)
             .Select(t => t.Name)
             .Where(name => !NoWarpIsExpected.Contains(name))

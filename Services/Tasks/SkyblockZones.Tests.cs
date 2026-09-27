@@ -323,4 +323,16 @@ public class SkyblockZonesTests
         SkyblockZones.IslandOf("Wizard Tower").Should().BeNull();
         SkyblockZones.IslandOf("Community Center").Should().BeNull();
     }
+
+    [Test]
+    public void Matches_YourIsland_LiteralMatch_DespiteBeingAnAmbiguousZone()
+    {
+        // "Your Island" (MinionCollectionTask's Locations - HiddenTasks.cs) is deliberately
+        // ambiguous/unmapped (AmbiguousZones -> IslandOf returns null for it), but Matches() checks
+        // a task's Locations against the exact zone string BEFORE ever consulting the island map, so
+        // a task that literally declares "Your Island" still matches it directly.
+        SkyblockZones.IslandOf("Your Island").Should().BeNull("private islands are ambiguous/unmapped by design");
+        var taskLocations = new HashSet<string> { "Your Island" };
+        SkyblockZones.Matches(taskLocations, "Your Island").Should().BeTrue("the literal zone string must still match directly");
+    }
 }

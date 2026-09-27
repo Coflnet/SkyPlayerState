@@ -124,7 +124,9 @@ public class TaskController : ControllerBase
     [ResponseCache(Duration = 300)]
     public List<MethodMetadata> GetMethods()
     {
-        return registry.Tasks.OfType<MethodTask>()
+        // hidden accounting tasks (bazaar/auction purchase absorption, minion collection - see
+        // MethodTask.Hidden) must never be offered to players as a "thing you can do".
+        return registry.PublicMethodTasks
             .Select(t => new MethodMetadata { Name = t.Name, Description = t.Description })
             .ToList();
     }

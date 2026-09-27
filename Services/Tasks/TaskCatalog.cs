@@ -254,6 +254,16 @@ internal static class TaskCatalog
         // tasks.Add<ExportableCarrotsTask>();      // deactivated: fabricated CARROT_ITEM->EXPORTABLE recipe
 
         // Dungeon tasks
+        tasks.Add<F1Task>();
+        tasks.Add<F2Task>();
+        tasks.Add<F3Task>();
+        tasks.Add<F4Task>();
+        tasks.Add<F5Task>();
+        tasks.Add<F6Task>();
+        tasks.Add<F7Task>();
+        tasks.Add<M1Task>();
+        tasks.Add<M2Task>();
+        tasks.Add<M3Task>();
         tasks.Add<M4Task>();
         tasks.Add<M5Task>();
         tasks.Add<M6Task>();
@@ -292,6 +302,13 @@ internal static class TaskCatalog
         tasks.Add<ExperimentationTableTask>();
         // tasks.Add<RiftAccessTask>();     // deactivated: MOTES are non-transferable, no coin value
         tasks.Add<ViperShardNpcFlipTask>();
+
+        // ── Hidden accounting tasks ── (HiddenTasks.cs) - never shown to players (MethodTask.Hidden),
+        // but fully classify/fold so purchase spending and minion collection stop swamping the
+        // unclassified-revenue signal - see the class doc comment in HiddenTasks.cs.
+        tasks.Add<BazaarPurchaseTask>();
+        tasks.Add<AuctionPurchaseTask>();
+        tasks.Add<MinionCollectionTask>();
 
         return tasks;
     }

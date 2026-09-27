@@ -1,0 +1,8486 @@
+[
+ {
+  "name": "Revenant Minion",
+  "tierDelay": [
+   29,
+   29,
+   26,
+   26,
+   23,
+   23,
+   19,
+   19,
+   14.5,
+   14.5,
+   10,
+   8
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Slayer",
+  "upgrade": [
+   [
+    {
+     "itemName": "Enchanted Rotten Flesh",
+     "quantity": 256,
+     "tag": "ENCHANTED_ROTTEN_FLESH"
+    },
+    {
+     "itemName": "Enchanted Diamond",
+     "quantity": 256,
+     "tag": "ENCHANTED_DIAMOND"
+    },
+    {
+     "itemName": "Revenant Flesh",
+     "quantity": 80,
+     "tag": "REVENANT_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Revenant Flesh",
+     "quantity": 140,
+     "tag": "REVENANT_FLESH"
+    },
+    {
+     "itemName": "Rotten Flesh",
+     "quantity": 80,
+     "tag": "ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Revenant Flesh",
+     "quantity": 280,
+     "tag": "REVENANT_FLESH"
+    },
+    {
+     "itemName": "Rotten Flesh",
+     "quantity": 240,
+     "tag": "ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Revenant Flesh",
+     "quantity": 448,
+     "tag": "REVENANT_FLESH"
+    },
+    {
+     "itemName": "Rotten Flesh",
+     "quantity": 560,
+     "tag": "ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Revenant Viscera",
+     "quantity": 7,
+     "tag": "REVENANT_VISCERA"
+    },
+    {
+     "itemName": "Rotten Flesh",
+     "quantity": 1072,
+     "tag": "ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Revenant Viscera",
+     "quantity": 14,
+     "tag": "REVENANT_VISCERA"
+    },
+    {
+     "itemName": "Enchanted Rotten Flesh",
+     "quantity": 8,
+     "tag": "ENCHANTED_ROTTEN_FLESH"
+    },
+    {
+     "itemName": "Rotten Flesh",
+     "quantity": 1072,
+     "tag": "ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Revenant Viscera",
+     "quantity": 28,
+     "tag": "REVENANT_VISCERA"
+    },
+    {
+     "itemName": "Enchanted Rotten Flesh",
+     "quantity": 24,
+     "tag": "ENCHANTED_ROTTEN_FLESH"
+    },
+    {
+     "itemName": "Rotten Flesh",
+     "quantity": 1072,
+     "tag": "ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Revenant Viscera",
+     "quantity": 56,
+     "tag": "REVENANT_VISCERA"
+    },
+    {
+     "itemName": "Enchanted Rotten Flesh",
+     "quantity": 56,
+     "tag": "ENCHANTED_ROTTEN_FLESH"
+    },
+    {
+     "itemName": "Rotten Flesh",
+     "quantity": 1072,
+     "tag": "ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Revenant Viscera",
+     "quantity": 112,
+     "tag": "REVENANT_VISCERA"
+    },
+    {
+     "itemName": "Enchanted Rotten Flesh",
+     "quantity": 120,
+     "tag": "ENCHANTED_ROTTEN_FLESH"
+    },
+    {
+     "itemName": "Rotten Flesh",
+     "quantity": 1072,
+     "tag": "ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Revenant Viscera",
+     "quantity": 224,
+     "tag": "REVENANT_VISCERA"
+    },
+    {
+     "itemName": "Enchanted Rotten Flesh",
+     "quantity": 248,
+     "tag": "ENCHANTED_ROTTEN_FLESH"
+    },
+    {
+     "itemName": "Rotten Flesh",
+     "quantity": 1072,
+     "tag": "ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Revenant Viscera",
+     "quantity": 448,
+     "tag": "REVENANT_VISCERA"
+    },
+    {
+     "itemName": "Enchanted Rotten Flesh",
+     "quantity": 504,
+     "tag": "ENCHANTED_ROTTEN_FLESH"
+    },
+    {
+     "itemName": "Rotten Flesh",
+     "quantity": 1072,
+     "tag": "ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Revenant Viscera",
+     "quantity": 64,
+     "tag": "REVENANT_VISCERA"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Rotten Flesh",
+    "perTime": 3,
+    "npcPrice": 2,
+    "exp": null,
+    "expType": null,
+    "tag": "ROTTEN_FLESH"
+   },
+   {
+    "itemName": "Diamond",
+    "perTime": 0.2,
+    "npcPrice": 8,
+    "exp": null,
+    "expType": null,
+    "tag": "DIAMOND"
+   }
+  ]
+ },
+ {
+  "name": "Tarantula Minion",
+  "tierDelay": [
+   29,
+   29,
+   26,
+   26,
+   23,
+   23,
+   19,
+   19,
+   14.5,
+   14.5,
+   10,
+   8
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Slayer",
+  "upgrade": [
+   [
+    {
+     "itemName": "Enchanted Fermented Spider Eye",
+     "quantity": 1,
+     "tag": "ENCHANTED_FERMENTED_SPIDER_EYE"
+    },
+    {
+     "itemName": "Tarantula Web",
+     "quantity": 80,
+     "tag": "TARANTULA_WEB"
+    }
+   ],
+   [
+    {
+     "itemName": "Tarantula Web",
+     "quantity": 140,
+     "tag": "TARANTULA_WEB"
+    },
+    {
+     "itemName": "String",
+     "quantity": 80,
+     "tag": "STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "Tarantula Web",
+     "quantity": 280,
+     "tag": "TARANTULA_WEB"
+    },
+    {
+     "itemName": "String",
+     "quantity": 240,
+     "tag": "STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "Tarantula Web",
+     "quantity": 448,
+     "tag": "TARANTULA_WEB"
+    },
+    {
+     "itemName": "String",
+     "quantity": 560,
+     "tag": "STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "Tarantula Silk",
+     "quantity": 7,
+     "tag": "TARANTULA_SILK"
+    },
+    {
+     "itemName": "String",
+     "quantity": 1072,
+     "tag": "STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "Tarantula Silk",
+     "quantity": 14,
+     "tag": "TARANTULA_SILK"
+    },
+    {
+     "itemName": "Enchanted String",
+     "quantity": 8,
+     "tag": "ENCHANTED_STRING"
+    },
+    {
+     "itemName": "String",
+     "quantity": 1072,
+     "tag": "STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "Tarantula Silk",
+     "quantity": 28,
+     "tag": "TARANTULA_SILK"
+    },
+    {
+     "itemName": "Enchanted String",
+     "quantity": 24,
+     "tag": "ENCHANTED_STRING"
+    },
+    {
+     "itemName": "String",
+     "quantity": 1072,
+     "tag": "STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "Tarantula Silk",
+     "quantity": 56,
+     "tag": "TARANTULA_SILK"
+    },
+    {
+     "itemName": "Enchanted String",
+     "quantity": 56,
+     "tag": "ENCHANTED_STRING"
+    },
+    {
+     "itemName": "String",
+     "quantity": 1072,
+     "tag": "STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "Tarantula Silk",
+     "quantity": 112,
+     "tag": "TARANTULA_SILK"
+    },
+    {
+     "itemName": "Enchanted String",
+     "quantity": 120,
+     "tag": "ENCHANTED_STRING"
+    },
+    {
+     "itemName": "String",
+     "quantity": 1072,
+     "tag": "STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "Tarantula Silk",
+     "quantity": 224,
+     "tag": "TARANTULA_SILK"
+    },
+    {
+     "itemName": "Enchanted String",
+     "quantity": 248,
+     "tag": "ENCHANTED_STRING"
+    },
+    {
+     "itemName": "String",
+     "quantity": 1072,
+     "tag": "STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "Tarantula Silk",
+     "quantity": 448,
+     "tag": "TARANTULA_SILK"
+    },
+    {
+     "itemName": "Enchanted String",
+     "quantity": 504,
+     "tag": "ENCHANTED_STRING"
+    },
+    {
+     "itemName": "String",
+     "quantity": 1072,
+     "tag": "STRING"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "String",
+    "perTime": 3.16,
+    "npcPrice": 3,
+    "exp": null,
+    "expType": null,
+    "tag": "STRING"
+   },
+   {
+    "itemName": "Spider Eye",
+    "perTime": 1,
+    "npcPrice": 3,
+    "exp": null,
+    "expType": null,
+    "tag": "SPIDER_EYE"
+   },
+   {
+    "itemName": "Iron Ingot",
+    "perTime": 0.2,
+    "npcPrice": 3,
+    "exp": null,
+    "expType": null,
+    "tag": "IRON_INGOT"
+   }
+  ]
+ },
+ {
+  "name": "Potato Minion",
+  "tierDelay": [
+   20,
+   20,
+   18,
+   18,
+   16,
+   16,
+   14,
+   14,
+   12,
+   12,
+   10,
+   8
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Farming",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Hoe",
+     "quantity": 1,
+     "tag": "WOOD_HOE"
+    },
+    {
+     "itemName": "Potato",
+     "quantity": 128,
+     "tag": "POTATO_ITEM"
+    }
+   ],
+   [
+    {
+     "itemName": "Potato",
+     "quantity": 256,
+     "tag": "POTATO_ITEM"
+    }
+   ],
+   [
+    {
+     "itemName": "Potato",
+     "quantity": 512,
+     "tag": "POTATO_ITEM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Potato",
+     "quantity": 8,
+     "tag": "ENCHANTED_POTATO"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Potato",
+     "quantity": 24,
+     "tag": "ENCHANTED_POTATO"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Potato",
+     "quantity": 64,
+     "tag": "ENCHANTED_POTATO"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Potato",
+     "quantity": 128,
+     "tag": "ENCHANTED_POTATO"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Potato",
+     "quantity": 256,
+     "tag": "ENCHANTED_POTATO"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Potato",
+     "quantity": 512,
+     "tag": "ENCHANTED_POTATO"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Baked Potato",
+     "quantity": 8,
+     "tag": "ENCHANTED_BAKED_POTATO"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Baked Potato",
+     "quantity": 16,
+     "tag": "ENCHANTED_BAKED_POTATO"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Baked Potato",
+     "quantity": 32,
+     "tag": "ENCHANTED_BAKED_POTATO"
+    },
+    {
+     "itemName": "Pelts",
+     "quantity": 75,
+     "tag": null
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Potato",
+    "perTime": 3,
+    "npcPrice": 1,
+    "exp": null,
+    "expType": null,
+    "tag": "POTATO_ITEM"
+   }
+  ]
+ },
+ {
+  "name": "Cow Minion",
+  "tierDelay": [
+   26,
+   26,
+   24,
+   24,
+   22,
+   22,
+   20,
+   20,
+   17,
+   17,
+   13,
+   10
+  ],
+  "storage": [
+   128,
+   256,
+   256,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Farming",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Sword",
+     "quantity": 1,
+     "tag": "WOOD_SWORD"
+    },
+    {
+     "itemName": "Raw Beef",
+     "quantity": 64,
+     "tag": "RAW_BEEF"
+    }
+   ],
+   [
+    {
+     "itemName": "Raw Beef",
+     "quantity": 128,
+     "tag": "RAW_BEEF"
+    }
+   ],
+   [
+    {
+     "itemName": "Raw Beef",
+     "quantity": 256,
+     "tag": "RAW_BEEF"
+    }
+   ],
+   [
+    {
+     "itemName": "Raw Beef",
+     "quantity": 512,
+     "tag": "RAW_BEEF"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Beef",
+     "quantity": 8,
+     "tag": "ENCHANTED_RAW_BEEF"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Beef",
+     "quantity": 24,
+     "tag": "ENCHANTED_RAW_BEEF"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Beef",
+     "quantity": 64,
+     "tag": "ENCHANTED_RAW_BEEF"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Beef",
+     "quantity": 128,
+     "tag": "ENCHANTED_RAW_BEEF"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Beef",
+     "quantity": 256,
+     "tag": "ENCHANTED_RAW_BEEF"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Beef",
+     "quantity": 512,
+     "tag": "ENCHANTED_RAW_BEEF"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Leather",
+     "quantity": 256,
+     "tag": "ENCHANTED_LEATHER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Leather",
+     "quantity": 512,
+     "tag": "ENCHANTED_LEATHER"
+    },
+    {
+     "itemName": "Pelts",
+     "quantity": 75,
+     "tag": null
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Raw Beef",
+    "perTime": 1,
+    "npcPrice": 4,
+    "exp": null,
+    "expType": null,
+    "tag": "RAW_BEEF"
+   },
+   {
+    "itemName": "Leather",
+    "perTime": 1,
+    "npcPrice": 3,
+    "exp": null,
+    "expType": null,
+    "tag": "LEATHER"
+   }
+  ]
+ },
+ {
+  "name": "Chicken Minion",
+  "tierDelay": [
+   26,
+   26,
+   24,
+   24,
+   22,
+   22,
+   20,
+   20,
+   18,
+   18,
+   15,
+   12
+  ],
+  "storage": [
+   192,
+   320,
+   320,
+   448,
+   448,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Farming",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Sword",
+     "quantity": 1,
+     "tag": "WOOD_SWORD"
+    },
+    {
+     "itemName": "Raw Chicken",
+     "quantity": 64,
+     "tag": "RAW_CHICKEN"
+    }
+   ],
+   [
+    {
+     "itemName": "Raw Chicken",
+     "quantity": 128,
+     "tag": "RAW_CHICKEN"
+    }
+   ],
+   [
+    {
+     "itemName": "Raw Chicken",
+     "quantity": 256,
+     "tag": "RAW_CHICKEN"
+    }
+   ],
+   [
+    {
+     "itemName": "Raw Chicken",
+     "quantity": 512,
+     "tag": "RAW_CHICKEN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Chicken",
+     "quantity": 8,
+     "tag": "ENCHANTED_RAW_CHICKEN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Chicken",
+     "quantity": 16,
+     "tag": "ENCHANTED_RAW_CHICKEN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Chicken",
+     "quantity": 32,
+     "tag": "ENCHANTED_RAW_CHICKEN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Chicken",
+     "quantity": 64,
+     "tag": "ENCHANTED_RAW_CHICKEN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Chicken",
+     "quantity": 128,
+     "tag": "ENCHANTED_RAW_CHICKEN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Chicken",
+     "quantity": 256,
+     "tag": "ENCHANTED_RAW_CHICKEN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Chicken",
+     "quantity": 512,
+     "tag": "ENCHANTED_RAW_CHICKEN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Chicken",
+     "quantity": 1024,
+     "tag": "ENCHANTED_RAW_CHICKEN"
+    },
+    {
+     "itemName": "Pelts",
+     "quantity": 75,
+     "tag": null
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Raw Chicken",
+    "perTime": 1,
+    "npcPrice": 4,
+    "exp": null,
+    "expType": null,
+    "tag": "RAW_CHICKEN"
+   },
+   {
+    "itemName": "Feather",
+    "perTime": 1,
+    "npcPrice": 3,
+    "exp": null,
+    "expType": null,
+    "tag": "FEATHER"
+   },
+   {
+    "itemName": "Egg",
+    "perTime": 1,
+    "npcPrice": 3,
+    "exp": null,
+    "expType": null,
+    "tag": "EGG"
+   }
+  ]
+ },
+ {
+  "name": "Sheep Minion",
+  "tierDelay": [
+   24,
+   24,
+   22,
+   22,
+   20,
+   20,
+   18,
+   18,
+   16,
+   16,
+   12,
+   9
+  ],
+  "storage": [
+   128,
+   256,
+   256,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Farming",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Sword",
+     "quantity": 1,
+     "tag": "WOOD_SWORD"
+    },
+    {
+     "itemName": "Mutton",
+     "quantity": 64,
+     "tag": "MUTTON"
+    }
+   ],
+   [
+    {
+     "itemName": "Mutton",
+     "quantity": 128,
+     "tag": "MUTTON"
+    }
+   ],
+   [
+    {
+     "itemName": "Mutton",
+     "quantity": 256,
+     "tag": "MUTTON"
+    }
+   ],
+   [
+    {
+     "itemName": "Mutton",
+     "quantity": 512,
+     "tag": "MUTTON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mutton",
+     "quantity": 8,
+     "tag": "ENCHANTED_MUTTON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mutton",
+     "quantity": 24,
+     "tag": "ENCHANTED_MUTTON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mutton",
+     "quantity": 64,
+     "tag": "ENCHANTED_MUTTON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mutton",
+     "quantity": 128,
+     "tag": "ENCHANTED_MUTTON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mutton",
+     "quantity": 256,
+     "tag": "ENCHANTED_MUTTON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mutton",
+     "quantity": 512,
+     "tag": "ENCHANTED_MUTTON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cooked Mutton",
+     "quantity": 8,
+     "tag": "ENCHANTED_COOKED_MUTTON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cooked Mutton",
+     "quantity": 16,
+     "tag": "ENCHANTED_COOKED_MUTTON"
+    },
+    {
+     "itemName": "Pelts",
+     "quantity": 75,
+     "tag": null
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Mutton",
+    "perTime": 1,
+    "npcPrice": 5,
+    "exp": null,
+    "expType": null,
+    "tag": "MUTTON"
+   },
+   {
+    "itemName": "White Wool",
+    "perTime": 1,
+    "npcPrice": 2,
+    "exp": null,
+    "expType": null,
+    "tag": "WOOL"
+   }
+  ]
+ },
+ {
+  "name": "Lapis Minion",
+  "tierDelay": [
+   29,
+   29,
+   27,
+   27,
+   25,
+   25,
+   23,
+   23,
+   21,
+   21,
+   18,
+   16
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Pickaxe",
+     "quantity": 1,
+     "tag": "WOOD_PICKAXE"
+    },
+    {
+     "itemName": "Lapis Lazuli",
+     "quantity": 256,
+     "tag": "INK_SACK:4"
+    }
+   ],
+   [
+    {
+     "itemName": "Lapis Lazuli",
+     "quantity": 512,
+     "tag": "INK_SACK:4"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Lapis Lazuli",
+     "quantity": 8,
+     "tag": "ENCHANTED_LAPIS_LAZULI"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Lapis Lazuli",
+     "quantity": 24,
+     "tag": "ENCHANTED_LAPIS_LAZULI"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Lapis Lazuli",
+     "quantity": 64,
+     "tag": "ENCHANTED_LAPIS_LAZULI"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Lapis Lazuli",
+     "quantity": 128,
+     "tag": "ENCHANTED_LAPIS_LAZULI"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Lapis Lazuli",
+     "quantity": 256,
+     "tag": "ENCHANTED_LAPIS_LAZULI"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Lapis Lazuli",
+     "quantity": 512,
+     "tag": "ENCHANTED_LAPIS_LAZULI"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Lapis Block",
+     "quantity": 8,
+     "tag": "ENCHANTED_LAPIS_LAZULI_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Lapis Block",
+     "quantity": 16,
+     "tag": "ENCHANTED_LAPIS_LAZULI_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Lapis Block",
+     "quantity": 32,
+     "tag": "ENCHANTED_LAPIS_LAZULI_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Lapis Block",
+     "quantity": 64,
+     "tag": "ENCHANTED_LAPIS_LAZULI_BLOCK"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Lapis Lazuli",
+    "perTime": 6,
+    "npcPrice": 1,
+    "exp": null,
+    "expType": null,
+    "tag": "INK_SACK:4"
+   }
+  ]
+ },
+ {
+  "name": "Gravel Minion",
+  "tierDelay": [
+   26,
+   26,
+   24,
+   24,
+   22,
+   22,
+   19,
+   19,
+   16,
+   16,
+   13
+  ],
+  "storage": [
+   128,
+   256,
+   256,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Shovel",
+     "quantity": 1,
+     "tag": "WOOD_SPADE"
+    },
+    {
+     "itemName": "Gravel",
+     "quantity": 80,
+     "tag": "GRAVEL"
+    }
+   ],
+   [
+    {
+     "itemName": "Gravel",
+     "quantity": 160,
+     "tag": "GRAVEL"
+    }
+   ],
+   [
+    {
+     "itemName": "Gravel",
+     "quantity": 320,
+     "tag": "GRAVEL"
+    }
+   ],
+   [
+    {
+     "itemName": "Gravel",
+     "quantity": 512,
+     "tag": "GRAVEL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Flint",
+     "quantity": 8,
+     "tag": "ENCHANTED_FLINT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Flint",
+     "quantity": 16,
+     "tag": "ENCHANTED_FLINT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Flint",
+     "quantity": 32,
+     "tag": "ENCHANTED_FLINT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Flint",
+     "quantity": 64,
+     "tag": "ENCHANTED_FLINT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Flint",
+     "quantity": 128,
+     "tag": "ENCHANTED_FLINT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Flint",
+     "quantity": 256,
+     "tag": "ENCHANTED_FLINT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Flint",
+     "quantity": 512,
+     "tag": "ENCHANTED_FLINT"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Gravel",
+    "perTime": 1,
+    "npcPrice": 3,
+    "exp": null,
+    "expType": null,
+    "tag": "GRAVEL"
+   },
+   {
+    "itemName": "Flint",
+    "perTime": 1,
+    "npcPrice": 4,
+    "exp": null,
+    "expType": null,
+    "tag": "FLINT"
+   }
+  ]
+ },
+ {
+  "name": "Blaze Minion",
+  "tierDelay": [
+   33,
+   33,
+   31,
+   31,
+   28.5,
+   28.5,
+   25,
+   25,
+   21,
+   21,
+   16.5,
+   15
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Combat",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Sword",
+     "quantity": 1,
+     "tag": "WOOD_SWORD"
+    },
+    {
+     "itemName": "Blaze Rod",
+     "quantity": 80,
+     "tag": "BLAZE_ROD"
+    }
+   ],
+   [
+    {
+     "itemName": "Blaze Rod",
+     "quantity": 160,
+     "tag": "BLAZE_ROD"
+    }
+   ],
+   [
+    {
+     "itemName": "Blaze Rod",
+     "quantity": 320,
+     "tag": "BLAZE_ROD"
+    }
+   ],
+   [
+    {
+     "itemName": "Blaze Rod",
+     "quantity": 512,
+     "tag": "BLAZE_ROD"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Blaze Powder",
+     "quantity": 8,
+     "tag": "ENCHANTED_BLAZE_POWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Blaze Powder",
+     "quantity": 24,
+     "tag": "ENCHANTED_BLAZE_POWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Blaze Powder",
+     "quantity": 64,
+     "tag": "ENCHANTED_BLAZE_POWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Blaze Powder",
+     "quantity": 128,
+     "tag": "ENCHANTED_BLAZE_POWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Blaze Powder",
+     "quantity": 256,
+     "tag": "ENCHANTED_BLAZE_POWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Blaze Powder",
+     "quantity": 512,
+     "tag": "ENCHANTED_BLAZE_POWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Blaze Rod",
+     "quantity": 8,
+     "tag": "ENCHANTED_BLAZE_ROD"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Blaze Rod",
+     "quantity": 16,
+     "tag": "ENCHANTED_BLAZE_ROD"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Blaze Rod",
+    "perTime": 1,
+    "npcPrice": 9,
+    "exp": null,
+    "expType": null,
+    "tag": "BLAZE_ROD"
+   }
+  ]
+ },
+ {
+  "name": "Wheat Minion",
+  "tierDelay": [
+   15,
+   15,
+   13,
+   13,
+   11,
+   11,
+   10,
+   10,
+   9,
+   9,
+   8,
+   7
+  ],
+  "storage": [
+   128,
+   256,
+   256,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Farming",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Hoe",
+     "quantity": 1,
+     "tag": "WOOD_HOE"
+    },
+    {
+     "itemName": "Wheat",
+     "quantity": 80,
+     "tag": "WHEAT"
+    }
+   ],
+   [
+    {
+     "itemName": "Wheat",
+     "quantity": 160,
+     "tag": "WHEAT"
+    }
+   ],
+   [
+    {
+     "itemName": "Wheat",
+     "quantity": 320,
+     "tag": "WHEAT"
+    }
+   ],
+   [
+    {
+     "itemName": "Wheat",
+     "quantity": 512,
+     "tag": "WHEAT"
+    }
+   ],
+   [
+    {
+     "itemName": "Hay Bale",
+     "quantity": 96,
+     "tag": "HAY_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Hay Bale",
+     "quantity": 192,
+     "tag": "HAY_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Hay Bale",
+     "quantity": 384,
+     "tag": "HAY_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Hay Bale",
+     "quantity": 512,
+     "tag": "HAY_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Hay Bale",
+     "quantity": 8,
+     "tag": "ENCHANTED_HAY_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Hay Bale",
+     "quantity": 16,
+     "tag": "ENCHANTED_HAY_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Hay Bale",
+     "quantity": 32,
+     "tag": "ENCHANTED_HAY_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Hay Bale",
+     "quantity": 64,
+     "tag": "ENCHANTED_HAY_BLOCK"
+    },
+    {
+     "itemName": "Pelts",
+     "quantity": 75,
+     "tag": null
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Wheat",
+    "perTime": 1,
+    "npcPrice": 1,
+    "exp": null,
+    "expType": null,
+    "tag": "WHEAT"
+   },
+   {
+    "itemName": "Seeds",
+    "perTime": 1,
+    "npcPrice": 0.5,
+    "exp": null,
+    "expType": null,
+    "tag": "SEEDS"
+   }
+  ]
+ },
+ {
+  "name": "Carrot Minion",
+  "tierDelay": [
+   20,
+   20,
+   18,
+   18,
+   16,
+   16,
+   14,
+   14,
+   12,
+   12,
+   10,
+   8
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Farming",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Hoe",
+     "quantity": 1,
+     "tag": "WOOD_HOE"
+    },
+    {
+     "itemName": "Carrot",
+     "quantity": 128,
+     "tag": "CARROT_ITEM"
+    }
+   ],
+   [
+    {
+     "itemName": "Carrot",
+     "quantity": 256,
+     "tag": "CARROT_ITEM"
+    }
+   ],
+   [
+    {
+     "itemName": "Carrot",
+     "quantity": 512,
+     "tag": "CARROT_ITEM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Carrot",
+     "quantity": 8,
+     "tag": "ENCHANTED_CARROT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Carrot",
+     "quantity": 24,
+     "tag": "ENCHANTED_CARROT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Carrot",
+     "quantity": 64,
+     "tag": "ENCHANTED_CARROT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Carrot",
+     "quantity": 128,
+     "tag": "ENCHANTED_CARROT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Carrot",
+     "quantity": 256,
+     "tag": "ENCHANTED_CARROT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Carrot",
+     "quantity": 512,
+     "tag": "ENCHANTED_CARROT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Golden Carrot",
+     "quantity": 8,
+     "tag": "ENCHANTED_GOLDEN_CARROT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Golden Carrot",
+     "quantity": 16,
+     "tag": "ENCHANTED_GOLDEN_CARROT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Golden Carrot",
+     "quantity": 32,
+     "tag": "ENCHANTED_GOLDEN_CARROT"
+    },
+    {
+     "itemName": "Pelts",
+     "quantity": 75,
+     "tag": null
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Carrot",
+    "perTime": 3,
+    "npcPrice": 1,
+    "exp": null,
+    "expType": null,
+    "tag": "CARROT_ITEM"
+   }
+  ]
+ },
+ {
+  "name": "Pumpkin Minion",
+  "tierDelay": [
+   32,
+   32,
+   30,
+   30,
+   27,
+   27,
+   24,
+   24,
+   20,
+   20,
+   16,
+   12
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Farming",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Hoe",
+     "quantity": 1,
+     "tag": "WOOD_HOE"
+    },
+    {
+     "itemName": "Pumpkin",
+     "quantity": 80,
+     "tag": "PUMPKIN"
+    }
+   ],
+   [
+    {
+     "itemName": "Pumpkin",
+     "quantity": 160,
+     "tag": "PUMPKIN"
+    }
+   ],
+   [
+    {
+     "itemName": "Pumpkin",
+     "quantity": 320,
+     "tag": "PUMPKIN"
+    }
+   ],
+   [
+    {
+     "itemName": "Pumpkin",
+     "quantity": 512,
+     "tag": "PUMPKIN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Pumpkin",
+     "quantity": 8,
+     "tag": "ENCHANTED_PUMPKIN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Pumpkin",
+     "quantity": 16,
+     "tag": "ENCHANTED_PUMPKIN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Pumpkin",
+     "quantity": 32,
+     "tag": "ENCHANTED_PUMPKIN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Pumpkin",
+     "quantity": 64,
+     "tag": "ENCHANTED_PUMPKIN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Pumpkin",
+     "quantity": 128,
+     "tag": "ENCHANTED_PUMPKIN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Pumpkin",
+     "quantity": 256,
+     "tag": "ENCHANTED_PUMPKIN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Pumpkin",
+     "quantity": 512,
+     "tag": "ENCHANTED_PUMPKIN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Pumpkin",
+     "quantity": 1024,
+     "tag": "ENCHANTED_PUMPKIN"
+    },
+    {
+     "itemName": "Pelts",
+     "quantity": 75,
+     "tag": null
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Pumpkin",
+    "perTime": 1,
+    "npcPrice": 4,
+    "exp": null,
+    "expType": null,
+    "tag": "PUMPKIN"
+   }
+  ]
+ },
+ {
+  "name": "Melon Minion",
+  "tierDelay": [
+   24,
+   24,
+   22.5,
+   22.5,
+   21,
+   21,
+   18.5,
+   18.5,
+   16,
+   16,
+   13,
+   10
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Farming",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Hoe",
+     "quantity": 1,
+     "tag": "WOOD_HOE"
+    },
+    {
+     "itemName": "Melon",
+     "quantity": 256,
+     "tag": "MELON"
+    }
+   ],
+   [
+    {
+     "itemName": "Melon",
+     "quantity": 512,
+     "tag": "MELON"
+    }
+   ],
+   [
+    {
+     "itemName": "Melon",
+     "quantity": 1152,
+     "tag": "MELON"
+    }
+   ],
+   [
+    {
+     "itemName": "Melon",
+     "quantity": 2304,
+     "tag": "MELON"
+    }
+   ],
+   [
+    {
+     "itemName": "Melon",
+     "quantity": 4608,
+     "tag": "MELON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Melon",
+     "quantity": 64,
+     "tag": "ENCHANTED_MELON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Melon",
+     "quantity": 128,
+     "tag": "ENCHANTED_MELON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Melon",
+     "quantity": 256,
+     "tag": "ENCHANTED_MELON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Melon",
+     "quantity": 512,
+     "tag": "ENCHANTED_MELON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Melon Block",
+     "quantity": 8,
+     "tag": "ENCHANTED_MELON_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Melon Block",
+     "quantity": 16,
+     "tag": "ENCHANTED_MELON_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Melon Block",
+     "quantity": 32,
+     "tag": "ENCHANTED_MELON_BLOCK"
+    },
+    {
+     "itemName": "Pelts",
+     "quantity": 75,
+     "tag": null
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Melon",
+    "perTime": 6,
+    "npcPrice": 0.5,
+    "exp": null,
+    "expType": null,
+    "tag": "MELON"
+   }
+  ]
+ },
+ {
+  "name": "Mushroom Minion",
+  "tierDelay": [
+   30,
+   30,
+   28,
+   28,
+   26,
+   26,
+   23,
+   23,
+   20,
+   20,
+   16,
+   12
+  ],
+  "storage": [
+   128,
+   256,
+   256,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Farming",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Hoe",
+     "quantity": 1,
+     "tag": "WOOD_HOE"
+    },
+    {
+     "itemName": "Brown Mushroom",
+     "quantity": 80,
+     "tag": "BROWN_MUSHROOM"
+    }
+   ],
+   [
+    {
+     "itemName": "Brown Mushroom",
+     "quantity": 160,
+     "tag": "BROWN_MUSHROOM"
+    }
+   ],
+   [
+    {
+     "itemName": "Brown Mushroom",
+     "quantity": 320,
+     "tag": "BROWN_MUSHROOM"
+    }
+   ],
+   [
+    {
+     "itemName": "Brown Mushroom",
+     "quantity": 512,
+     "tag": "BROWN_MUSHROOM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Brown Mushroom",
+     "quantity": 8,
+     "tag": "ENCHANTED_BROWN_MUSHROOM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Brown Mushroom",
+     "quantity": 16,
+     "tag": "ENCHANTED_BROWN_MUSHROOM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Brown Mushroom",
+     "quantity": 32,
+     "tag": "ENCHANTED_BROWN_MUSHROOM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Brown Mushroom",
+     "quantity": 64,
+     "tag": "ENCHANTED_BROWN_MUSHROOM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Brown Mushroom",
+     "quantity": 128,
+     "tag": "ENCHANTED_BROWN_MUSHROOM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Brown Mushroom",
+     "quantity": 256,
+     "tag": "ENCHANTED_BROWN_MUSHROOM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Brown Mushroom",
+     "quantity": 512,
+     "tag": "ENCHANTED_BROWN_MUSHROOM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Brown Mushroom",
+     "quantity": 512,
+     "tag": "ENCHANTED_BROWN_MUSHROOM"
+    },
+    {
+     "itemName": "Enchanted Red Mushroom",
+     "quantity": 512,
+     "tag": "ENCHANTED_RED_MUSHROOM"
+    },
+    {
+     "itemName": "Pelts",
+     "quantity": 75,
+     "tag": null
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Red Mushroom",
+    "perTime": 0.5,
+    "npcPrice": 4,
+    "exp": null,
+    "expType": null,
+    "tag": "RED_MUSHROOM"
+   },
+   {
+    "itemName": "Brown Mushroom",
+    "perTime": 0.5,
+    "npcPrice": 4,
+    "exp": null,
+    "expType": null,
+    "tag": "BROWN_MUSHROOM"
+   }
+  ]
+ },
+ {
+  "name": "Cocoa Beans Minion",
+  "tierDelay": [
+   27,
+   27,
+   25,
+   25,
+   23,
+   23,
+   21,
+   21,
+   18,
+   18,
+   15,
+   12
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Farming",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Hoe",
+     "quantity": 1,
+     "tag": "WOOD_HOE"
+    },
+    {
+     "itemName": "Cocoa Beans",
+     "quantity": 80,
+     "tag": "INK_SACK:3"
+    }
+   ],
+   [
+    {
+     "itemName": "Cocoa Beans",
+     "quantity": 160,
+     "tag": "INK_SACK:3"
+    }
+   ],
+   [
+    {
+     "itemName": "Cocoa Beans",
+     "quantity": 320,
+     "tag": "INK_SACK:3"
+    }
+   ],
+   [
+    {
+     "itemName": "Cocoa Beans",
+     "quantity": 512,
+     "tag": "INK_SACK:3"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cocoa Bean",
+     "quantity": 8,
+     "tag": "ENCHANTED_COCOA"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cocoa Bean",
+     "quantity": 24,
+     "tag": "ENCHANTED_COCOA"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cocoa Bean",
+     "quantity": 64,
+     "tag": "ENCHANTED_COCOA"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cocoa Bean",
+     "quantity": 128,
+     "tag": "ENCHANTED_COCOA"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cocoa Bean",
+     "quantity": 256,
+     "tag": "ENCHANTED_COCOA"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cocoa Bean",
+     "quantity": 512,
+     "tag": "ENCHANTED_COCOA"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cookie",
+     "quantity": 8,
+     "tag": "ENCHANTED_COOKIE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cookie",
+     "quantity": 16,
+     "tag": "ENCHANTED_COOKIE"
+    },
+    {
+     "itemName": "Pelts",
+     "quantity": 75,
+     "tag": null
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Cocoa Beans",
+    "perTime": 3,
+    "npcPrice": 3,
+    "exp": null,
+    "expType": null,
+    "tag": "INK_SACK:3"
+   }
+  ]
+ },
+ {
+  "name": "Cactus Minion",
+  "tierDelay": [
+   27,
+   27,
+   25,
+   25,
+   23,
+   23,
+   21,
+   21,
+   18,
+   18,
+   15,
+   12
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Farming",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Hoe",
+     "quantity": 1,
+     "tag": "WOOD_HOE"
+    },
+    {
+     "itemName": "Cactus",
+     "quantity": 128,
+     "tag": "CACTUS"
+    }
+   ],
+   [
+    {
+     "itemName": "Cactus",
+     "quantity": 256,
+     "tag": "CACTUS"
+    }
+   ],
+   [
+    {
+     "itemName": "Cactus",
+     "quantity": 512,
+     "tag": "CACTUS"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cactus Green",
+     "quantity": 8,
+     "tag": "ENCHANTED_CACTUS_GREEN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cactus Green",
+     "quantity": 24,
+     "tag": "ENCHANTED_CACTUS_GREEN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cactus Green",
+     "quantity": 64,
+     "tag": "ENCHANTED_CACTUS_GREEN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cactus Green",
+     "quantity": 128,
+     "tag": "ENCHANTED_CACTUS_GREEN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cactus Green",
+     "quantity": 256,
+     "tag": "ENCHANTED_CACTUS_GREEN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cactus Green",
+     "quantity": 512,
+     "tag": "ENCHANTED_CACTUS_GREEN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cactus",
+     "quantity": 8,
+     "tag": "ENCHANTED_CACTUS"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cactus",
+     "quantity": 16,
+     "tag": "ENCHANTED_CACTUS"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cactus",
+     "quantity": 32,
+     "tag": "ENCHANTED_CACTUS"
+    },
+    {
+     "itemName": "Pelts",
+     "quantity": 75,
+     "tag": null
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Cactus",
+    "perTime": 1,
+    "npcPrice": 1,
+    "exp": null,
+    "expType": null,
+    "tag": "CACTUS"
+   }
+  ]
+ },
+ {
+  "name": "Sugar Cane Minion",
+  "tierDelay": [
+   22,
+   22,
+   20,
+   20,
+   18,
+   18,
+   16,
+   16,
+   14.5,
+   14.5,
+   12,
+   9
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Farming",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Hoe",
+     "quantity": 1,
+     "tag": "WOOD_HOE"
+    },
+    {
+     "itemName": "Sugar Cane",
+     "quantity": 128,
+     "tag": "SUGAR_CANE"
+    }
+   ],
+   [
+    {
+     "itemName": "Sugar Cane",
+     "quantity": 256,
+     "tag": "SUGAR_CANE"
+    }
+   ],
+   [
+    {
+     "itemName": "Sugar Cane",
+     "quantity": 512,
+     "tag": "SUGAR_CANE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sugar",
+     "quantity": 8,
+     "tag": "ENCHANTED_SUGAR"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sugar",
+     "quantity": 24,
+     "tag": "ENCHANTED_SUGAR"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sugar",
+     "quantity": 64,
+     "tag": "ENCHANTED_SUGAR"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sugar",
+     "quantity": 128,
+     "tag": "ENCHANTED_SUGAR"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sugar",
+     "quantity": 256,
+     "tag": "ENCHANTED_SUGAR"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sugar",
+     "quantity": 512,
+     "tag": "ENCHANTED_SUGAR"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sugar Cane",
+     "quantity": 8,
+     "tag": "ENCHANTED_SUGAR_CANE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sugar Cane",
+     "quantity": 16,
+     "tag": "ENCHANTED_SUGAR_CANE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sugar Cane",
+     "quantity": 32,
+     "tag": "ENCHANTED_SUGAR_CANE"
+    },
+    {
+     "itemName": "Pelts",
+     "quantity": 75,
+     "tag": null
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Sugar Cane",
+    "perTime": 1,
+    "npcPrice": 2,
+    "exp": null,
+    "expType": null,
+    "tag": "SUGAR_CANE"
+   }
+  ]
+ },
+ {
+  "name": "Pig Minion",
+  "tierDelay": [
+   26,
+   26,
+   24,
+   24,
+   22,
+   22,
+   20,
+   20,
+   17,
+   17,
+   13,
+   10
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Farming",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Sword",
+     "quantity": 1,
+     "tag": "WOOD_SWORD"
+    },
+    {
+     "itemName": "Raw Porkchop",
+     "quantity": 64,
+     "tag": "PORK"
+    }
+   ],
+   [
+    {
+     "itemName": "Raw Porkchop",
+     "quantity": 128,
+     "tag": "PORK"
+    }
+   ],
+   [
+    {
+     "itemName": "Raw Porkchop",
+     "quantity": 256,
+     "tag": "PORK"
+    }
+   ],
+   [
+    {
+     "itemName": "Raw Porkchop",
+     "quantity": 512,
+     "tag": "PORK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Pork",
+     "quantity": 8,
+     "tag": "ENCHANTED_PORK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Pork",
+     "quantity": 24,
+     "tag": "ENCHANTED_PORK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Pork",
+     "quantity": 64,
+     "tag": "ENCHANTED_PORK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Pork",
+     "quantity": 128,
+     "tag": "ENCHANTED_PORK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Pork",
+     "quantity": 256,
+     "tag": "ENCHANTED_PORK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Pork",
+     "quantity": 512,
+     "tag": "ENCHANTED_PORK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Grilled Pork",
+     "quantity": 8,
+     "tag": "ENCHANTED_GRILLED_PORK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Grilled Pork",
+     "quantity": 16,
+     "tag": "ENCHANTED_GRILLED_PORK"
+    },
+    {
+     "itemName": "Pelts",
+     "quantity": 75,
+     "tag": null
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Raw Porkchop",
+    "perTime": 1,
+    "npcPrice": 5,
+    "exp": null,
+    "expType": null,
+    "tag": "PORK"
+   }
+  ]
+ },
+ {
+  "name": "Rabbit Minion",
+  "tierDelay": [
+   26,
+   26,
+   24,
+   24,
+   22,
+   22,
+   20,
+   20,
+   17,
+   17,
+   13,
+   10
+  ],
+  "storage": [
+   192,
+   320,
+   320,
+   448,
+   448,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Farming",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Sword",
+     "quantity": 1,
+     "tag": "WOOD_SWORD"
+    },
+    {
+     "itemName": "Raw Rabbit",
+     "quantity": 64,
+     "tag": "RABBIT"
+    }
+   ],
+   [
+    {
+     "itemName": "Raw Rabbit",
+     "quantity": 128,
+     "tag": "RABBIT"
+    }
+   ],
+   [
+    {
+     "itemName": "Raw Rabbit",
+     "quantity": 256,
+     "tag": "RABBIT"
+    }
+   ],
+   [
+    {
+     "itemName": "Raw Rabbit",
+     "quantity": 512,
+     "tag": "RABBIT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Rabbit Foot",
+     "quantity": 32,
+     "tag": "ENCHANTED_RABBIT_FOOT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Rabbit Foot",
+     "quantity": 64,
+     "tag": "ENCHANTED_RABBIT_FOOT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Rabbit Foot",
+     "quantity": 128,
+     "tag": "ENCHANTED_RABBIT_FOOT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Rabbit Foot",
+     "quantity": 256,
+     "tag": "ENCHANTED_RABBIT_FOOT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Rabbit Foot",
+     "quantity": 512,
+     "tag": "ENCHANTED_RABBIT_FOOT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Rabbit Hide",
+     "quantity": 256,
+     "tag": "ENCHANTED_RABBIT_HIDE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Rabbit Hide",
+     "quantity": 512,
+     "tag": "ENCHANTED_RABBIT_HIDE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Rabbit Hide",
+     "quantity": 1024,
+     "tag": "ENCHANTED_RABBIT_HIDE"
+    },
+    {
+     "itemName": "Pelts",
+     "quantity": 75,
+     "tag": null
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Raw Rabbit",
+    "perTime": 1,
+    "npcPrice": 4,
+    "exp": null,
+    "expType": null,
+    "tag": "RABBIT"
+   },
+   {
+    "itemName": "Rabbit's Foot",
+    "perTime": 0.35,
+    "npcPrice": 5,
+    "exp": null,
+    "expType": null,
+    "tag": "RABBIT_FOOT"
+   },
+   {
+    "itemName": "Rabbit Hide",
+    "perTime": 0.35,
+    "npcPrice": 5,
+    "exp": null,
+    "expType": null,
+    "tag": "RABBIT_HIDE"
+   }
+  ]
+ },
+ {
+  "name": "Nether Wart Minion",
+  "tierDelay": [
+   50,
+   50,
+   47,
+   47,
+   44,
+   44,
+   41,
+   41,
+   38,
+   38,
+   32,
+   27
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Farming",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Hoe",
+     "quantity": 1,
+     "tag": "WOOD_HOE"
+    },
+    {
+     "itemName": "Nether Wart",
+     "quantity": 80,
+     "tag": "NETHER_STALK"
+    }
+   ],
+   [
+    {
+     "itemName": "Nether Wart",
+     "quantity": 160,
+     "tag": "NETHER_STALK"
+    }
+   ],
+   [
+    {
+     "itemName": "Nether Wart",
+     "quantity": 320,
+     "tag": "NETHER_STALK"
+    }
+   ],
+   [
+    {
+     "itemName": "Nether Wart",
+     "quantity": 512,
+     "tag": "NETHER_STALK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Nether Wart",
+     "quantity": 8,
+     "tag": "ENCHANTED_NETHER_STALK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Nether Wart",
+     "quantity": 16,
+     "tag": "ENCHANTED_NETHER_STALK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Nether Wart",
+     "quantity": 32,
+     "tag": "ENCHANTED_NETHER_STALK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Nether Wart",
+     "quantity": 64,
+     "tag": "ENCHANTED_NETHER_STALK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Nether Wart",
+     "quantity": 128,
+     "tag": "ENCHANTED_NETHER_STALK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Nether Wart",
+     "quantity": 256,
+     "tag": "ENCHANTED_NETHER_STALK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Nether Wart",
+     "quantity": 512,
+     "tag": "ENCHANTED_NETHER_STALK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Nether Wart",
+     "quantity": 1024,
+     "tag": "ENCHANTED_NETHER_STALK"
+    },
+    {
+     "itemName": "Pelts",
+     "quantity": 75,
+     "tag": null
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Nether Wart",
+    "perTime": 1,
+    "npcPrice": 3,
+    "exp": null,
+    "expType": null,
+    "tag": "NETHER_STALK"
+   }
+  ]
+ },
+ {
+  "name": "Cobblestone Minion",
+  "tierDelay": [
+   14,
+   14,
+   12,
+   12,
+   10,
+   10,
+   9,
+   9,
+   8,
+   8,
+   7,
+   6
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Pickaxe",
+     "quantity": 1,
+     "tag": "WOOD_PICKAXE"
+    },
+    {
+     "itemName": "Cobblestone",
+     "quantity": 80,
+     "tag": "COBBLESTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Cobblestone",
+     "quantity": 160,
+     "tag": "COBBLESTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Cobblestone",
+     "quantity": 320,
+     "tag": "COBBLESTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Cobblestone",
+     "quantity": 512,
+     "tag": "COBBLESTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cobblestone",
+     "quantity": 8,
+     "tag": "ENCHANTED_COBBLESTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cobblestone",
+     "quantity": 16,
+     "tag": "ENCHANTED_COBBLESTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cobblestone",
+     "quantity": 32,
+     "tag": "ENCHANTED_COBBLESTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cobblestone",
+     "quantity": 64,
+     "tag": "ENCHANTED_COBBLESTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cobblestone",
+     "quantity": 128,
+     "tag": "ENCHANTED_COBBLESTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cobblestone",
+     "quantity": 256,
+     "tag": "ENCHANTED_COBBLESTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cobblestone",
+     "quantity": 512,
+     "tag": "ENCHANTED_COBBLESTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cobblestone",
+     "quantity": 1024,
+     "tag": "ENCHANTED_COBBLESTONE"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Cobblestone",
+    "perTime": 1,
+    "npcPrice": 1,
+    "exp": null,
+    "expType": null,
+    "tag": "COBBLESTONE"
+   }
+  ]
+ },
+ {
+  "name": "Gold Minion",
+  "tierDelay": [
+   22,
+   22,
+   20,
+   20,
+   18,
+   18,
+   16,
+   16,
+   14,
+   14,
+   11,
+   9
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Pickaxe",
+     "quantity": 1,
+     "tag": "WOOD_PICKAXE"
+    },
+    {
+     "itemName": "Gold Ingot",
+     "quantity": 80,
+     "tag": "GOLD_INGOT"
+    }
+   ],
+   [
+    {
+     "itemName": "Gold Ingot",
+     "quantity": 160,
+     "tag": "GOLD_INGOT"
+    }
+   ],
+   [
+    {
+     "itemName": "Gold Ingot",
+     "quantity": 320,
+     "tag": "GOLD_INGOT"
+    }
+   ],
+   [
+    {
+     "itemName": "Gold Ingot",
+     "quantity": 512,
+     "tag": "GOLD_INGOT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Gold",
+     "quantity": 8,
+     "tag": "ENCHANTED_GOLD"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Gold",
+     "quantity": 24,
+     "tag": "ENCHANTED_GOLD"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Gold",
+     "quantity": 64,
+     "tag": "ENCHANTED_GOLD"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Gold",
+     "quantity": 128,
+     "tag": "ENCHANTED_GOLD"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Gold",
+     "quantity": 256,
+     "tag": "ENCHANTED_GOLD"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Gold",
+     "quantity": 512,
+     "tag": "ENCHANTED_GOLD"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Gold Block",
+     "quantity": 8,
+     "tag": "ENCHANTED_GOLD_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Gold Block",
+     "quantity": 16,
+     "tag": "ENCHANTED_GOLD_BLOCK"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Gold Ingot",
+    "perTime": 1,
+    "npcPrice": 4,
+    "exp": null,
+    "expType": null,
+    "tag": "GOLD_INGOT"
+   }
+  ]
+ },
+ {
+  "name": "Diamond Minion",
+  "tierDelay": [
+   29,
+   29,
+   27,
+   27,
+   25,
+   25,
+   22,
+   22,
+   19,
+   19,
+   15,
+   12
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Pickaxe",
+     "quantity": 1,
+     "tag": "WOOD_PICKAXE"
+    },
+    {
+     "itemName": "Diamond",
+     "quantity": 80,
+     "tag": "DIAMOND"
+    }
+   ],
+   [
+    {
+     "itemName": "Diamond",
+     "quantity": 160,
+     "tag": "DIAMOND"
+    }
+   ],
+   [
+    {
+     "itemName": "Diamond",
+     "quantity": 320,
+     "tag": "DIAMOND"
+    }
+   ],
+   [
+    {
+     "itemName": "Diamond",
+     "quantity": 512,
+     "tag": "DIAMOND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Diamond",
+     "quantity": 8,
+     "tag": "ENCHANTED_DIAMOND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Diamond",
+     "quantity": 24,
+     "tag": "ENCHANTED_DIAMOND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Diamond",
+     "quantity": 64,
+     "tag": "ENCHANTED_DIAMOND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Diamond",
+     "quantity": 128,
+     "tag": "ENCHANTED_DIAMOND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Diamond",
+     "quantity": 256,
+     "tag": "ENCHANTED_DIAMOND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Diamond",
+     "quantity": 512,
+     "tag": "ENCHANTED_DIAMOND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Diamond Block",
+     "quantity": 8,
+     "tag": "ENCHANTED_DIAMOND_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Diamond Block",
+     "quantity": 16,
+     "tag": "ENCHANTED_DIAMOND_BLOCK"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Diamond",
+    "perTime": 1,
+    "npcPrice": 8,
+    "exp": null,
+    "expType": null,
+    "tag": "DIAMOND"
+   }
+  ]
+ },
+ {
+  "name": "Emerald Minion",
+  "tierDelay": [
+   28,
+   28,
+   26,
+   26,
+   24,
+   24,
+   21,
+   21,
+   18,
+   18,
+   14,
+   12
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Pickaxe",
+     "quantity": 1,
+     "tag": "WOOD_PICKAXE"
+    },
+    {
+     "itemName": "Emerald",
+     "quantity": 80,
+     "tag": "EMERALD"
+    }
+   ],
+   [
+    {
+     "itemName": "Emerald",
+     "quantity": 160,
+     "tag": "EMERALD"
+    }
+   ],
+   [
+    {
+     "itemName": "Emerald",
+     "quantity": 320,
+     "tag": "EMERALD"
+    }
+   ],
+   [
+    {
+     "itemName": "Emerald",
+     "quantity": 512,
+     "tag": "EMERALD"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Emerald",
+     "quantity": 8,
+     "tag": "ENCHANTED_EMERALD"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Emerald",
+     "quantity": 24,
+     "tag": "ENCHANTED_EMERALD"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Emerald",
+     "quantity": 64,
+     "tag": "ENCHANTED_EMERALD"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Emerald",
+     "quantity": 128,
+     "tag": "ENCHANTED_EMERALD"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Emerald",
+     "quantity": 256,
+     "tag": "ENCHANTED_EMERALD"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Emerald",
+     "quantity": 512,
+     "tag": "ENCHANTED_EMERALD"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Emerald Block",
+     "quantity": 8,
+     "tag": "ENCHANTED_EMERALD_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Emerald Block",
+     "quantity": 16,
+     "tag": "ENCHANTED_EMERALD_BLOCK"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Emerald",
+    "perTime": 1,
+    "npcPrice": 6,
+    "exp": null,
+    "expType": null,
+    "tag": "EMERALD"
+   }
+  ]
+ },
+ {
+  "name": "Redstone Minion",
+  "tierDelay": [
+   29,
+   29,
+   27,
+   27,
+   25,
+   25,
+   23,
+   23,
+   21,
+   21,
+   18,
+   16
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Pickaxe",
+     "quantity": 1,
+     "tag": "WOOD_PICKAXE"
+    },
+    {
+     "itemName": "Redstone",
+     "quantity": 128,
+     "tag": "REDSTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Redstone",
+     "quantity": 256,
+     "tag": "REDSTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Redstone",
+     "quantity": 512,
+     "tag": "REDSTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Redstone",
+     "quantity": 8,
+     "tag": "ENCHANTED_REDSTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Redstone",
+     "quantity": 24,
+     "tag": "ENCHANTED_REDSTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Redstone",
+     "quantity": 64,
+     "tag": "ENCHANTED_REDSTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Redstone",
+     "quantity": 128,
+     "tag": "ENCHANTED_REDSTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Redstone",
+     "quantity": 256,
+     "tag": "ENCHANTED_REDSTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Redstone",
+     "quantity": 512,
+     "tag": "ENCHANTED_REDSTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Redstone Block",
+     "quantity": 8,
+     "tag": "ENCHANTED_REDSTONE_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Redstone Block",
+     "quantity": 16,
+     "tag": "ENCHANTED_REDSTONE_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Redstone Block",
+     "quantity": 32,
+     "tag": "ENCHANTED_REDSTONE_BLOCK"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Redstone",
+    "perTime": 4.5,
+    "npcPrice": 1,
+    "exp": null,
+    "expType": null,
+    "tag": "REDSTONE"
+   }
+  ]
+ },
+ {
+  "name": "Quartz Minion",
+  "tierDelay": [
+   22.5,
+   22.5,
+   21,
+   21,
+   19,
+   19,
+   17,
+   17,
+   14.5,
+   14.5,
+   11.5,
+   10
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Pickaxe",
+     "quantity": 1,
+     "tag": "WOOD_PICKAXE"
+    },
+    {
+     "itemName": "Nether Quartz",
+     "quantity": 80,
+     "tag": "QUARTZ"
+    }
+   ],
+   [
+    {
+     "itemName": "Nether Quartz",
+     "quantity": 160,
+     "tag": "QUARTZ"
+    }
+   ],
+   [
+    {
+     "itemName": "Nether Quartz",
+     "quantity": 320,
+     "tag": "QUARTZ"
+    }
+   ],
+   [
+    {
+     "itemName": "Nether Quartz",
+     "quantity": 512,
+     "tag": "QUARTZ"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Quartz",
+     "quantity": 8,
+     "tag": "ENCHANTED_QUARTZ"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Quartz",
+     "quantity": 24,
+     "tag": "ENCHANTED_QUARTZ"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Quartz",
+     "quantity": 64,
+     "tag": "ENCHANTED_QUARTZ"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Quartz",
+     "quantity": 128,
+     "tag": "ENCHANTED_QUARTZ"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Quartz",
+     "quantity": 256,
+     "tag": "ENCHANTED_QUARTZ"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Quartz",
+     "quantity": 512,
+     "tag": "ENCHANTED_QUARTZ"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Quartz Block",
+     "quantity": 8,
+     "tag": "ENCHANTED_QUARTZ_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Quartz Block",
+     "quantity": 16,
+     "tag": "ENCHANTED_QUARTZ_BLOCK"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Nether Quartz",
+    "perTime": 1,
+    "npcPrice": 4,
+    "exp": null,
+    "expType": null,
+    "tag": "QUARTZ"
+   }
+  ]
+ },
+ {
+  "name": "Obsidian Minion",
+  "tierDelay": [
+   45,
+   45,
+   42,
+   42,
+   39,
+   39,
+   35,
+   35,
+   30,
+   30,
+   24,
+   21
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Pickaxe",
+     "quantity": 1,
+     "tag": "WOOD_PICKAXE"
+    },
+    {
+     "itemName": "Obsidian",
+     "quantity": 80,
+     "tag": "OBSIDIAN"
+    }
+   ],
+   [
+    {
+     "itemName": "Obsidian",
+     "quantity": 160,
+     "tag": "OBSIDIAN"
+    }
+   ],
+   [
+    {
+     "itemName": "Obsidian",
+     "quantity": 320,
+     "tag": "OBSIDIAN"
+    }
+   ],
+   [
+    {
+     "itemName": "Obsidian",
+     "quantity": 512,
+     "tag": "OBSIDIAN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Obsidian",
+     "quantity": 8,
+     "tag": "ENCHANTED_OBSIDIAN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Obsidian",
+     "quantity": 16,
+     "tag": "ENCHANTED_OBSIDIAN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Obsidian",
+     "quantity": 32,
+     "tag": "ENCHANTED_OBSIDIAN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Obsidian",
+     "quantity": 64,
+     "tag": "ENCHANTED_OBSIDIAN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Obsidian",
+     "quantity": 128,
+     "tag": "ENCHANTED_OBSIDIAN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Obsidian",
+     "quantity": 256,
+     "tag": "ENCHANTED_OBSIDIAN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Obsidian",
+     "quantity": 512,
+     "tag": "ENCHANTED_OBSIDIAN"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Obsidian",
+     "quantity": 1024,
+     "tag": "ENCHANTED_OBSIDIAN"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Obsidian",
+    "perTime": 1,
+    "npcPrice": 12,
+    "exp": null,
+    "expType": null,
+    "tag": "OBSIDIAN"
+   }
+  ]
+ },
+ {
+  "name": "Glowstone Minion",
+  "tierDelay": [
+   25,
+   25,
+   23,
+   23,
+   21,
+   21,
+   19,
+   19,
+   16,
+   16,
+   13,
+   11
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Pickaxe",
+     "quantity": 1,
+     "tag": "WOOD_PICKAXE"
+    },
+    {
+     "itemName": "Glowstone Dust",
+     "quantity": 128,
+     "tag": "GLOWSTONE_DUST"
+    }
+   ],
+   [
+    {
+     "itemName": "Glowstone Dust",
+     "quantity": 256,
+     "tag": "GLOWSTONE_DUST"
+    }
+   ],
+   [
+    {
+     "itemName": "Glowstone Dust",
+     "quantity": 512,
+     "tag": "GLOWSTONE_DUST"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Glowstone Dust",
+     "quantity": 8,
+     "tag": "ENCHANTED_GLOWSTONE_DUST"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Glowstone Dust",
+     "quantity": 24,
+     "tag": "ENCHANTED_GLOWSTONE_DUST"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Glowstone Dust",
+     "quantity": 64,
+     "tag": "ENCHANTED_GLOWSTONE_DUST"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Glowstone Dust",
+     "quantity": 128,
+     "tag": "ENCHANTED_GLOWSTONE_DUST"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Glowstone Dust",
+     "quantity": 256,
+     "tag": "ENCHANTED_GLOWSTONE_DUST"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Glowstone Dust",
+     "quantity": 512,
+     "tag": "ENCHANTED_GLOWSTONE_DUST"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Glowstone",
+     "quantity": 8,
+     "tag": "ENCHANTED_GLOWSTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Glowstone",
+     "quantity": 16,
+     "tag": "ENCHANTED_GLOWSTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Glowstone",
+     "quantity": 32,
+     "tag": "ENCHANTED_GLOWSTONE"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Glowstone Dust",
+    "perTime": 3,
+    "npcPrice": 2,
+    "exp": null,
+    "expType": null,
+    "tag": "GLOWSTONE_DUST"
+   }
+  ]
+ },
+ {
+  "name": "Ice Minion",
+  "tierDelay": [
+   14,
+   14,
+   12,
+   12,
+   10,
+   10,
+   9,
+   9,
+   8,
+   8,
+   7,
+   6
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Pickaxe",
+     "quantity": 1,
+     "tag": "WOOD_PICKAXE"
+    },
+    {
+     "itemName": "Ice",
+     "quantity": 80,
+     "tag": "ICE"
+    }
+   ],
+   [
+    {
+     "itemName": "Ice",
+     "quantity": 160,
+     "tag": "ICE"
+    }
+   ],
+   [
+    {
+     "itemName": "Ice",
+     "quantity": 320,
+     "tag": "ICE"
+    }
+   ],
+   [
+    {
+     "itemName": "Ice",
+     "quantity": 512,
+     "tag": "ICE"
+    }
+   ],
+   [
+    {
+     "itemName": "Packed Ice",
+     "quantity": 128,
+     "tag": "PACKED_ICE"
+    }
+   ],
+   [
+    {
+     "itemName": "Packed Ice",
+     "quantity": 256,
+     "tag": "PACKED_ICE"
+    }
+   ],
+   [
+    {
+     "itemName": "Packed Ice",
+     "quantity": 512,
+     "tag": "PACKED_ICE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Ice",
+     "quantity": 64,
+     "tag": "ENCHANTED_ICE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Ice",
+     "quantity": 128,
+     "tag": "ENCHANTED_ICE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Ice",
+     "quantity": 256,
+     "tag": "ENCHANTED_ICE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Ice",
+     "quantity": 512,
+     "tag": "ENCHANTED_ICE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Ice",
+     "quantity": 1024,
+     "tag": "ENCHANTED_ICE"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 1000000,
+     "tag": "BURNING_COINS"
+    },
+    {
+     "itemName": "North Stars",
+     "quantity": 300,
+     "tag": null
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Ice",
+    "perTime": 1,
+    "npcPrice": 0.5,
+    "exp": null,
+    "expType": null,
+    "tag": "ICE"
+   }
+  ]
+ },
+ {
+  "name": "Sand Minion",
+  "tierDelay": [
+   26,
+   26,
+   24,
+   24,
+   22,
+   22,
+   19,
+   19,
+   16,
+   16,
+   13
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Shovel",
+     "quantity": 1,
+     "tag": "WOOD_SPADE"
+    },
+    {
+     "itemName": "Sand",
+     "quantity": 80,
+     "tag": "SAND"
+    }
+   ],
+   [
+    {
+     "itemName": "Sand",
+     "quantity": 160,
+     "tag": "SAND"
+    }
+   ],
+   [
+    {
+     "itemName": "Sand",
+     "quantity": 320,
+     "tag": "SAND"
+    }
+   ],
+   [
+    {
+     "itemName": "Sand",
+     "quantity": 512,
+     "tag": "SAND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sand",
+     "quantity": 8,
+     "tag": "ENCHANTED_SAND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sand",
+     "quantity": 16,
+     "tag": "ENCHANTED_SAND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sand",
+     "quantity": 32,
+     "tag": "ENCHANTED_SAND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sand",
+     "quantity": 64,
+     "tag": "ENCHANTED_SAND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sand",
+     "quantity": 128,
+     "tag": "ENCHANTED_SAND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sand",
+     "quantity": 256,
+     "tag": "ENCHANTED_SAND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sand",
+     "quantity": 512,
+     "tag": "ENCHANTED_SAND"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Sand",
+    "perTime": 1,
+    "npcPrice": 2,
+    "exp": null,
+    "expType": null,
+    "tag": "SAND"
+   }
+  ]
+ },
+ {
+  "name": "End Stone Minion",
+  "tierDelay": [
+   26,
+   26,
+   24,
+   24,
+   22,
+   22,
+   19,
+   19,
+   16,
+   16,
+   13
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Pickaxe",
+     "quantity": 1,
+     "tag": "WOOD_PICKAXE"
+    },
+    {
+     "itemName": "End Stone",
+     "quantity": 80,
+     "tag": "ENDER_STONE"
+    }
+   ],
+   [
+    {
+     "itemName": "End Stone",
+     "quantity": 160,
+     "tag": "ENDER_STONE"
+    }
+   ],
+   [
+    {
+     "itemName": "End Stone",
+     "quantity": 320,
+     "tag": "ENDER_STONE"
+    }
+   ],
+   [
+    {
+     "itemName": "End Stone",
+     "quantity": 512,
+     "tag": "ENDER_STONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted End Stone",
+     "quantity": 8,
+     "tag": "ENCHANTED_ENDSTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted End Stone",
+     "quantity": 16,
+     "tag": "ENCHANTED_ENDSTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted End Stone",
+     "quantity": 32,
+     "tag": "ENCHANTED_ENDSTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted End Stone",
+     "quantity": 64,
+     "tag": "ENCHANTED_ENDSTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted End Stone",
+     "quantity": 128,
+     "tag": "ENCHANTED_ENDSTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted End Stone",
+     "quantity": 256,
+     "tag": "ENCHANTED_ENDSTONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted End Stone",
+     "quantity": 512,
+     "tag": "ENCHANTED_ENDSTONE"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "End Stone",
+    "perTime": 1,
+    "npcPrice": 2,
+    "exp": null,
+    "expType": null,
+    "tag": "ENDER_STONE"
+   }
+  ]
+ },
+ {
+  "name": "Clay Minion",
+  "tierDelay": [
+   32,
+   32,
+   30,
+   30,
+   27.5,
+   27.5,
+   24,
+   24,
+   20,
+   20,
+   16,
+   14
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Fishing",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Pickaxe",
+     "quantity": 1,
+     "tag": "WOOD_PICKAXE"
+    },
+    {
+     "itemName": "Clay",
+     "quantity": 80,
+     "tag": "CLAY_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Clay",
+     "quantity": 160,
+     "tag": "CLAY_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Clay",
+     "quantity": 320,
+     "tag": "CLAY_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Clay",
+     "quantity": 512,
+     "tag": "CLAY_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Clay",
+     "quantity": 8,
+     "tag": "ENCHANTED_CLAY_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Clay",
+     "quantity": 16,
+     "tag": "ENCHANTED_CLAY_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Clay",
+     "quantity": 32,
+     "tag": "ENCHANTED_CLAY_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Clay",
+     "quantity": 64,
+     "tag": "ENCHANTED_CLAY_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Clay",
+     "quantity": 128,
+     "tag": "ENCHANTED_CLAY_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Clay",
+     "quantity": 256,
+     "tag": "ENCHANTED_CLAY_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Clay",
+     "quantity": 512,
+     "tag": "ENCHANTED_CLAY_BALL"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Clay",
+    "perTime": 4,
+    "npcPrice": 3,
+    "exp": null,
+    "expType": null,
+    "tag": "CLAY_BALL"
+   }
+  ]
+ },
+ {
+  "name": "Zombie Minion",
+  "tierDelay": [
+   26,
+   26,
+   24,
+   24,
+   22,
+   22,
+   20,
+   20,
+   17,
+   17,
+   13
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Combat",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Sword",
+     "quantity": 1,
+     "tag": "WOOD_SWORD"
+    },
+    {
+     "itemName": "Rotten Flesh",
+     "quantity": 80,
+     "tag": "ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Rotten Flesh",
+     "quantity": 160,
+     "tag": "ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Rotten Flesh",
+     "quantity": 320,
+     "tag": "ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Rotten Flesh",
+     "quantity": 512,
+     "tag": "ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Rotten Flesh",
+     "quantity": 8,
+     "tag": "ENCHANTED_ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Rotten Flesh",
+     "quantity": 16,
+     "tag": "ENCHANTED_ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Rotten Flesh",
+     "quantity": 32,
+     "tag": "ENCHANTED_ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Rotten Flesh",
+     "quantity": 64,
+     "tag": "ENCHANTED_ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Rotten Flesh",
+     "quantity": 128,
+     "tag": "ENCHANTED_ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Rotten Flesh",
+     "quantity": 256,
+     "tag": "ENCHANTED_ROTTEN_FLESH"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Rotten Flesh",
+     "quantity": 512,
+     "tag": "ENCHANTED_ROTTEN_FLESH"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Rotten Flesh",
+    "perTime": 1,
+    "npcPrice": 2,
+    "exp": null,
+    "expType": null,
+    "tag": "ROTTEN_FLESH"
+   },
+   {
+    "itemName": "Poisonous Potato",
+    "perTime": 0.02,
+    "npcPrice": 10,
+    "exp": null,
+    "expType": null,
+    "tag": "POISONOUS_POTATO"
+   },
+   {
+    "itemName": "Potato",
+    "perTime": 0.01,
+    "npcPrice": 1,
+    "exp": null,
+    "expType": null,
+    "tag": "POTATO_ITEM"
+   },
+   {
+    "itemName": "Carrot",
+    "perTime": 0.01,
+    "npcPrice": 1,
+    "exp": null,
+    "expType": null,
+    "tag": "CARROT_ITEM"
+   }
+  ]
+ },
+ {
+  "name": "Skeleton Minion",
+  "tierDelay": [
+   26,
+   26,
+   24,
+   24,
+   22,
+   22,
+   20,
+   20,
+   17,
+   17,
+   13
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Combat",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Sword",
+     "quantity": 1,
+     "tag": "WOOD_SWORD"
+    },
+    {
+     "itemName": "Bone",
+     "quantity": 80,
+     "tag": "BONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Bone",
+     "quantity": 160,
+     "tag": "BONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Bone",
+     "quantity": 320,
+     "tag": "BONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Bone",
+     "quantity": 512,
+     "tag": "BONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Bone",
+     "quantity": 8,
+     "tag": "ENCHANTED_BONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Bone",
+     "quantity": 16,
+     "tag": "ENCHANTED_BONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Bone",
+     "quantity": 32,
+     "tag": "ENCHANTED_BONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Bone",
+     "quantity": 64,
+     "tag": "ENCHANTED_BONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Bone",
+     "quantity": 128,
+     "tag": "ENCHANTED_BONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Bone",
+     "quantity": 256,
+     "tag": "ENCHANTED_BONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Bone",
+     "quantity": 512,
+     "tag": "ENCHANTED_BONE"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Bone",
+    "perTime": 1,
+    "npcPrice": 2,
+    "exp": null,
+    "expType": null,
+    "tag": "BONE"
+   }
+  ]
+ },
+ {
+  "name": "Spider Minion",
+  "tierDelay": [
+   26,
+   26,
+   24,
+   24,
+   22,
+   22,
+   20,
+   20,
+   17,
+   17,
+   13
+  ],
+  "storage": [
+   128,
+   256,
+   256,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Combat",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Sword",
+     "quantity": 1,
+     "tag": "WOOD_SWORD"
+    },
+    {
+     "itemName": "String",
+     "quantity": 80,
+     "tag": "STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "String",
+     "quantity": 160,
+     "tag": "STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "String",
+     "quantity": 320,
+     "tag": "STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "String",
+     "quantity": 512,
+     "tag": "STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted String",
+     "quantity": 8,
+     "tag": "ENCHANTED_STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted String",
+     "quantity": 16,
+     "tag": "ENCHANTED_STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted String",
+     "quantity": 32,
+     "tag": "ENCHANTED_STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted String",
+     "quantity": 64,
+     "tag": "ENCHANTED_STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted String",
+     "quantity": 128,
+     "tag": "ENCHANTED_STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted String",
+     "quantity": 256,
+     "tag": "ENCHANTED_STRING"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted String",
+     "quantity": 512,
+     "tag": "ENCHANTED_STRING"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "String",
+    "perTime": 1,
+    "npcPrice": 3,
+    "exp": null,
+    "expType": null,
+    "tag": "STRING"
+   },
+   {
+    "itemName": "Spider Eye",
+    "perTime": 0.5,
+    "npcPrice": 3,
+    "exp": null,
+    "expType": null,
+    "tag": "SPIDER_EYE"
+   }
+  ]
+ },
+ {
+  "name": "Cave Spider Minion",
+  "tierDelay": [
+   26,
+   26,
+   24,
+   24,
+   22,
+   22,
+   20,
+   20,
+   17,
+   17,
+   13
+  ],
+  "storage": [
+   128,
+   256,
+   256,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Combat",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Sword",
+     "quantity": 1,
+     "tag": "WOOD_SWORD"
+    },
+    {
+     "itemName": "Spider Eye",
+     "quantity": 80,
+     "tag": "SPIDER_EYE"
+    }
+   ],
+   [
+    {
+     "itemName": "Spider Eye",
+     "quantity": 160,
+     "tag": "SPIDER_EYE"
+    }
+   ],
+   [
+    {
+     "itemName": "Spider Eye",
+     "quantity": 320,
+     "tag": "SPIDER_EYE"
+    }
+   ],
+   [
+    {
+     "itemName": "Spider Eye",
+     "quantity": 512,
+     "tag": "SPIDER_EYE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Spider Eye",
+     "quantity": 8,
+     "tag": "ENCHANTED_SPIDER_EYE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Spider Eye",
+     "quantity": 24,
+     "tag": "ENCHANTED_SPIDER_EYE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Spider Eye",
+     "quantity": 64,
+     "tag": "ENCHANTED_SPIDER_EYE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Spider Eye",
+     "quantity": 128,
+     "tag": "ENCHANTED_SPIDER_EYE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Spider Eye",
+     "quantity": 256,
+     "tag": "ENCHANTED_SPIDER_EYE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Spider Eye",
+     "quantity": 512,
+     "tag": "ENCHANTED_SPIDER_EYE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Fermented Spider Eye",
+     "quantity": 16,
+     "tag": "ENCHANTED_FERMENTED_SPIDER_EYE"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "String",
+    "perTime": 0.5,
+    "npcPrice": 3,
+    "exp": null,
+    "expType": null,
+    "tag": "STRING"
+   },
+   {
+    "itemName": "Spider Eye",
+    "perTime": 1,
+    "npcPrice": 3,
+    "exp": null,
+    "expType": null,
+    "tag": "SPIDER_EYE"
+   }
+  ]
+ },
+ {
+  "name": "Creeper Minion",
+  "tierDelay": [
+   27,
+   27,
+   25,
+   25,
+   23,
+   23,
+   21,
+   21,
+   18,
+   18,
+   14
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Combat",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Sword",
+     "quantity": 1,
+     "tag": "WOOD_SWORD"
+    },
+    {
+     "itemName": "Gunpowder",
+     "quantity": 80,
+     "tag": "SULPHUR"
+    }
+   ],
+   [
+    {
+     "itemName": "Gunpowder",
+     "quantity": 160,
+     "tag": "SULPHUR"
+    }
+   ],
+   [
+    {
+     "itemName": "Gunpowder",
+     "quantity": 320,
+     "tag": "SULPHUR"
+    }
+   ],
+   [
+    {
+     "itemName": "Gunpowder",
+     "quantity": 512,
+     "tag": "SULPHUR"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Gunpowder",
+     "quantity": 8,
+     "tag": "ENCHANTED_GUNPOWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Gunpowder",
+     "quantity": 24,
+     "tag": "ENCHANTED_GUNPOWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Gunpowder",
+     "quantity": 64,
+     "tag": "ENCHANTED_GUNPOWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Gunpowder",
+     "quantity": 128,
+     "tag": "ENCHANTED_GUNPOWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Gunpowder",
+     "quantity": 256,
+     "tag": "ENCHANTED_GUNPOWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Gunpowder",
+     "quantity": 512,
+     "tag": "ENCHANTED_GUNPOWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Firework Rocket",
+     "quantity": 16,
+     "tag": "ENCHANTED_FIREWORK_ROCKET"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Gunpowder",
+    "perTime": 1,
+    "npcPrice": 4,
+    "exp": null,
+    "expType": null,
+    "tag": "SULPHUR"
+   }
+  ]
+ },
+ {
+  "name": "Enderman Minion",
+  "tierDelay": [
+   32,
+   32,
+   30,
+   30,
+   28,
+   28,
+   25,
+   25,
+   22,
+   22,
+   18
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Combat",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Sword",
+     "quantity": 1,
+     "tag": "WOOD_SWORD"
+    },
+    {
+     "itemName": "Ender Pearl",
+     "quantity": 64,
+     "tag": "ENDER_PEARL"
+    }
+   ],
+   [
+    {
+     "itemName": "Ender Pearl",
+     "quantity": 128,
+     "tag": "ENDER_PEARL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Ender Pearl",
+     "quantity": 8,
+     "tag": "ENCHANTED_ENDER_PEARL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Ender Pearl",
+     "quantity": 24,
+     "tag": "ENCHANTED_ENDER_PEARL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Ender Pearl",
+     "quantity": 48,
+     "tag": "ENCHANTED_ENDER_PEARL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Ender Pearl",
+     "quantity": 96,
+     "tag": "ENCHANTED_ENDER_PEARL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Eye of Ender",
+     "quantity": 8,
+     "tag": "ENCHANTED_EYE_OF_ENDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Eye of Ender",
+     "quantity": 24,
+     "tag": "ENCHANTED_EYE_OF_ENDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Eye of Ender",
+     "quantity": 48,
+     "tag": "ENCHANTED_EYE_OF_ENDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Eye of Ender",
+     "quantity": 96,
+     "tag": "ENCHANTED_EYE_OF_ENDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Eye of Ender",
+     "quantity": 192,
+     "tag": "ENCHANTED_EYE_OF_ENDER"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Ender Pearl",
+    "perTime": 1,
+    "npcPrice": 7,
+    "exp": null,
+    "expType": null,
+    "tag": "ENDER_PEARL"
+   }
+  ]
+ },
+ {
+  "name": "Ghast Minion",
+  "tierDelay": [
+   50,
+   50,
+   47,
+   47,
+   44,
+   44,
+   41,
+   41,
+   38,
+   38,
+   32,
+   30
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Combat",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Sword",
+     "quantity": 1,
+     "tag": "WOOD_SWORD"
+    },
+    {
+     "itemName": "Ghast Tear",
+     "quantity": 64,
+     "tag": "GHAST_TEAR"
+    }
+   ],
+   [
+    {
+     "itemName": "Ghast Tear",
+     "quantity": 128,
+     "tag": "GHAST_TEAR"
+    }
+   ],
+   [
+    {
+     "itemName": "Ghast Tear",
+     "quantity": 256,
+     "tag": "GHAST_TEAR"
+    }
+   ],
+   [
+    {
+     "itemName": "Ghast Tear",
+     "quantity": 512,
+     "tag": "GHAST_TEAR"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Ghast Tear",
+     "quantity": 256,
+     "tag": "ENCHANTED_GHAST_TEAR"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Ghast Tear",
+     "quantity": 512,
+     "tag": "ENCHANTED_GHAST_TEAR"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Ghast Tear",
+     "quantity": 800,
+     "tag": "ENCHANTED_GHAST_TEAR"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Ghast Tear",
+     "quantity": 1600,
+     "tag": "ENCHANTED_GHAST_TEAR"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Ghast Tear",
+     "quantity": 3200,
+     "tag": "ENCHANTED_GHAST_TEAR"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Ghast Tear",
+     "quantity": 6400,
+     "tag": "ENCHANTED_GHAST_TEAR"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Ghast Tear",
+     "quantity": 12800,
+     "tag": "ENCHANTED_GHAST_TEAR"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Ghast Tear",
+     "quantity": 25600,
+     "tag": "ENCHANTED_GHAST_TEAR"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Ghast Tear",
+    "perTime": 1,
+    "npcPrice": 16,
+    "exp": null,
+    "expType": null,
+    "tag": "GHAST_TEAR"
+   }
+  ]
+ },
+ {
+  "name": "Slime Minion",
+  "tierDelay": [
+   26,
+   26,
+   24,
+   24,
+   22,
+   22,
+   19,
+   19,
+   16,
+   16,
+   12
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Combat",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Sword",
+     "quantity": 1,
+     "tag": "WOOD_SWORD"
+    },
+    {
+     "itemName": "Slimeball",
+     "quantity": 80,
+     "tag": "SLIME_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Slimeball",
+     "quantity": 160,
+     "tag": "SLIME_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Slimeball",
+     "quantity": 320,
+     "tag": "SLIME_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Slimeball",
+     "quantity": 512,
+     "tag": "SLIME_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Slimeball",
+     "quantity": 8,
+     "tag": "ENCHANTED_SLIME_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Slimeball",
+     "quantity": 24,
+     "tag": "ENCHANTED_SLIME_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Slimeball",
+     "quantity": 64,
+     "tag": "ENCHANTED_SLIME_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Slimeball",
+     "quantity": 128,
+     "tag": "ENCHANTED_SLIME_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Slimeball",
+     "quantity": 256,
+     "tag": "ENCHANTED_SLIME_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Slimeball",
+     "quantity": 512,
+     "tag": "ENCHANTED_SLIME_BALL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Slime Block",
+     "quantity": 8,
+     "tag": "ENCHANTED_SLIME_BLOCK"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Slimeball",
+    "perTime": 1.8,
+    "npcPrice": 5,
+    "exp": null,
+    "expType": null,
+    "tag": "SLIME_BALL"
+   }
+  ]
+ },
+ {
+  "name": "Magma Cube Minion",
+  "tierDelay": [
+   32,
+   32,
+   30,
+   30,
+   28,
+   28,
+   25,
+   25,
+   22,
+   22,
+   18,
+   16
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Combat",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Sword",
+     "quantity": 1,
+     "tag": "WOOD_SWORD"
+    },
+    {
+     "itemName": "Magma Cream",
+     "quantity": 80,
+     "tag": "MAGMA_CREAM"
+    }
+   ],
+   [
+    {
+     "itemName": "Magma Cream",
+     "quantity": 160,
+     "tag": "MAGMA_CREAM"
+    }
+   ],
+   [
+    {
+     "itemName": "Magma Cream",
+     "quantity": 320,
+     "tag": "MAGMA_CREAM"
+    }
+   ],
+   [
+    {
+     "itemName": "Magma Cream",
+     "quantity": 512,
+     "tag": "MAGMA_CREAM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Magma Cream",
+     "quantity": 8,
+     "tag": "ENCHANTED_MAGMA_CREAM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Magma Cream",
+     "quantity": 16,
+     "tag": "ENCHANTED_MAGMA_CREAM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Magma Cream",
+     "quantity": 32,
+     "tag": "ENCHANTED_MAGMA_CREAM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Magma Cream",
+     "quantity": 64,
+     "tag": "ENCHANTED_MAGMA_CREAM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Magma Cream",
+     "quantity": 128,
+     "tag": "ENCHANTED_MAGMA_CREAM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Magma Cream",
+     "quantity": 256,
+     "tag": "ENCHANTED_MAGMA_CREAM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Magma Cream",
+     "quantity": 512,
+     "tag": "ENCHANTED_MAGMA_CREAM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Blaze Rod",
+     "quantity": 1024,
+     "tag": "ENCHANTED_BLAZE_ROD"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Magma Cream",
+    "perTime": 1.8,
+    "npcPrice": 8,
+    "exp": null,
+    "expType": null,
+    "tag": "MAGMA_CREAM"
+   }
+  ]
+ },
+ {
+  "name": "Oak Minion",
+  "tierDelay": [
+   48,
+   48,
+   45,
+   45,
+   42,
+   42,
+   38,
+   38,
+   33,
+   33,
+   27
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Foraging",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Axe",
+     "quantity": 1,
+     "tag": "WOOD_AXE"
+    },
+    {
+     "itemName": "Oak Wood",
+     "quantity": 80,
+     "tag": "LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Oak Wood",
+     "quantity": 160,
+     "tag": "LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Oak Wood",
+     "quantity": 320,
+     "tag": "LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Oak Wood",
+     "quantity": 512,
+     "tag": "LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Oak Wood",
+     "quantity": 8,
+     "tag": "ENCHANTED_OAK_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Oak Wood",
+     "quantity": 16,
+     "tag": "ENCHANTED_OAK_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Oak Wood",
+     "quantity": 32,
+     "tag": "ENCHANTED_OAK_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Oak Wood",
+     "quantity": 64,
+     "tag": "ENCHANTED_OAK_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Oak Wood",
+     "quantity": 128,
+     "tag": "ENCHANTED_OAK_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Oak Wood",
+     "quantity": 256,
+     "tag": "ENCHANTED_OAK_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Oak Wood",
+     "quantity": 512,
+     "tag": "ENCHANTED_OAK_LOG"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Oak Wood",
+    "perTime": 4,
+    "npcPrice": 2,
+    "exp": null,
+    "expType": null,
+    "tag": "LOG"
+   }
+  ]
+ },
+ {
+  "name": "Spruce Minion",
+  "tierDelay": [
+   48,
+   48,
+   45,
+   45,
+   42,
+   42,
+   38,
+   38,
+   33,
+   33,
+   27
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Foraging",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Axe",
+     "quantity": 1,
+     "tag": "WOOD_AXE"
+    },
+    {
+     "itemName": "Spruce Wood",
+     "quantity": 80,
+     "tag": "LOG:1"
+    }
+   ],
+   [
+    {
+     "itemName": "Spruce Wood",
+     "quantity": 160,
+     "tag": "LOG:1"
+    }
+   ],
+   [
+    {
+     "itemName": "Spruce Wood",
+     "quantity": 320,
+     "tag": "LOG:1"
+    }
+   ],
+   [
+    {
+     "itemName": "Spruce Wood",
+     "quantity": 512,
+     "tag": "LOG:1"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Spruce Wood",
+     "quantity": 8,
+     "tag": "ENCHANTED_SPRUCE_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Spruce Wood",
+     "quantity": 16,
+     "tag": "ENCHANTED_SPRUCE_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Spruce Wood",
+     "quantity": 32,
+     "tag": "ENCHANTED_SPRUCE_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Spruce Wood",
+     "quantity": 64,
+     "tag": "ENCHANTED_SPRUCE_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Spruce Wood",
+     "quantity": 128,
+     "tag": "ENCHANTED_SPRUCE_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Spruce Wood",
+     "quantity": 256,
+     "tag": "ENCHANTED_SPRUCE_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Spruce Wood",
+     "quantity": 512,
+     "tag": "ENCHANTED_SPRUCE_LOG"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Spruce Wood",
+    "perTime": 4,
+    "npcPrice": 2,
+    "exp": null,
+    "expType": null,
+    "tag": "LOG:1"
+   }
+  ]
+ },
+ {
+  "name": "Birch Minion",
+  "tierDelay": [
+   48,
+   48,
+   45,
+   45,
+   42,
+   42,
+   38,
+   38,
+   33,
+   33,
+   27
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Foraging",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Axe",
+     "quantity": 1,
+     "tag": "WOOD_AXE"
+    },
+    {
+     "itemName": "Birch Wood",
+     "quantity": 80,
+     "tag": "LOG:2"
+    }
+   ],
+   [
+    {
+     "itemName": "Birch Wood",
+     "quantity": 160,
+     "tag": "LOG:2"
+    }
+   ],
+   [
+    {
+     "itemName": "Birch Wood",
+     "quantity": 320,
+     "tag": "LOG:2"
+    }
+   ],
+   [
+    {
+     "itemName": "Birch Wood",
+     "quantity": 512,
+     "tag": "LOG:2"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Birch Wood",
+     "quantity": 8,
+     "tag": "ENCHANTED_BIRCH_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Birch Wood",
+     "quantity": 16,
+     "tag": "ENCHANTED_BIRCH_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Birch Wood",
+     "quantity": 32,
+     "tag": "ENCHANTED_BIRCH_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Birch Wood",
+     "quantity": 64,
+     "tag": "ENCHANTED_BIRCH_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Birch Wood",
+     "quantity": 128,
+     "tag": "ENCHANTED_BIRCH_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Birch Wood",
+     "quantity": 256,
+     "tag": "ENCHANTED_BIRCH_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Birch Wood",
+     "quantity": 512,
+     "tag": "ENCHANTED_BIRCH_LOG"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Birch Wood",
+    "perTime": 4,
+    "npcPrice": 2,
+    "exp": null,
+    "expType": null,
+    "tag": "LOG:2"
+   }
+  ]
+ },
+ {
+  "name": "Dark Oak Minion",
+  "tierDelay": [
+   48,
+   48,
+   45,
+   45,
+   42,
+   42,
+   38,
+   38,
+   33,
+   33,
+   27
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Foraging",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Axe",
+     "quantity": 1,
+     "tag": "WOOD_AXE"
+    },
+    {
+     "itemName": "Dark Oak Wood",
+     "quantity": 80,
+     "tag": "LOG_2:1"
+    }
+   ],
+   [
+    {
+     "itemName": "Dark Oak Wood",
+     "quantity": 160,
+     "tag": "LOG_2:1"
+    }
+   ],
+   [
+    {
+     "itemName": "Dark Oak Wood",
+     "quantity": 320,
+     "tag": "LOG_2:1"
+    }
+   ],
+   [
+    {
+     "itemName": "Dark Oak Wood",
+     "quantity": 512,
+     "tag": "LOG_2:1"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Dark Oak Wood",
+     "quantity": 8,
+     "tag": "ENCHANTED_DARK_OAK_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Dark Oak Wood",
+     "quantity": 16,
+     "tag": "ENCHANTED_DARK_OAK_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Dark Oak Wood",
+     "quantity": 32,
+     "tag": "ENCHANTED_DARK_OAK_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Dark Oak Wood",
+     "quantity": 64,
+     "tag": "ENCHANTED_DARK_OAK_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Dark Oak Wood",
+     "quantity": 128,
+     "tag": "ENCHANTED_DARK_OAK_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Dark Oak Wood",
+     "quantity": 256,
+     "tag": "ENCHANTED_DARK_OAK_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Dark Oak Wood",
+     "quantity": 512,
+     "tag": "ENCHANTED_DARK_OAK_LOG"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Dark Oak Wood",
+    "perTime": 4,
+    "npcPrice": 2,
+    "exp": null,
+    "expType": null,
+    "tag": "LOG_2:1"
+   }
+  ]
+ },
+ {
+  "name": "Acacia Minion",
+  "tierDelay": [
+   48,
+   48,
+   45,
+   45,
+   42,
+   42,
+   38,
+   38,
+   33,
+   33,
+   27
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Foraging",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Axe",
+     "quantity": 1,
+     "tag": "WOOD_AXE"
+    },
+    {
+     "itemName": "Acacia Wood",
+     "quantity": 80,
+     "tag": "LOG_2"
+    }
+   ],
+   [
+    {
+     "itemName": "Acacia Wood",
+     "quantity": 160,
+     "tag": "LOG_2"
+    }
+   ],
+   [
+    {
+     "itemName": "Acacia Wood",
+     "quantity": 320,
+     "tag": "LOG_2"
+    }
+   ],
+   [
+    {
+     "itemName": "Acacia Wood",
+     "quantity": 512,
+     "tag": "LOG_2"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Acacia Wood",
+     "quantity": 8,
+     "tag": "ENCHANTED_ACACIA_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Acacia Wood",
+     "quantity": 16,
+     "tag": "ENCHANTED_ACACIA_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Acacia Wood",
+     "quantity": 32,
+     "tag": "ENCHANTED_ACACIA_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Acacia Wood",
+     "quantity": 64,
+     "tag": "ENCHANTED_ACACIA_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Acacia Wood",
+     "quantity": 128,
+     "tag": "ENCHANTED_ACACIA_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Acacia Wood",
+     "quantity": 256,
+     "tag": "ENCHANTED_ACACIA_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Acacia Wood",
+     "quantity": 512,
+     "tag": "ENCHANTED_ACACIA_LOG"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Acacia Wood",
+    "perTime": 4,
+    "npcPrice": 2,
+    "exp": null,
+    "expType": null,
+    "tag": "LOG_2"
+   }
+  ]
+ },
+ {
+  "name": "Jungle Minion",
+  "tierDelay": [
+   48,
+   48,
+   45,
+   45,
+   42,
+   42,
+   38,
+   38,
+   33,
+   33,
+   27
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Foraging",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Axe",
+     "quantity": 1,
+     "tag": "WOOD_AXE"
+    },
+    {
+     "itemName": "Jungle Wood",
+     "quantity": 80,
+     "tag": "LOG:3"
+    }
+   ],
+   [
+    {
+     "itemName": "Jungle Wood",
+     "quantity": 160,
+     "tag": "LOG:3"
+    }
+   ],
+   [
+    {
+     "itemName": "Jungle Wood",
+     "quantity": 320,
+     "tag": "LOG:3"
+    }
+   ],
+   [
+    {
+     "itemName": "Jungle Wood",
+     "quantity": 512,
+     "tag": "LOG:3"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Jungle Wood",
+     "quantity": 8,
+     "tag": "ENCHANTED_JUNGLE_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Jungle Wood",
+     "quantity": 16,
+     "tag": "ENCHANTED_JUNGLE_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Jungle Wood",
+     "quantity": 32,
+     "tag": "ENCHANTED_JUNGLE_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Jungle Wood",
+     "quantity": 64,
+     "tag": "ENCHANTED_JUNGLE_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Jungle Wood",
+     "quantity": 128,
+     "tag": "ENCHANTED_JUNGLE_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Jungle Wood",
+     "quantity": 256,
+     "tag": "ENCHANTED_JUNGLE_LOG"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Jungle Wood",
+     "quantity": 512,
+     "tag": "ENCHANTED_JUNGLE_LOG"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Jungle Wood",
+    "perTime": 4,
+    "npcPrice": 2,
+    "exp": null,
+    "expType": null,
+    "tag": "LOG:3"
+   }
+  ]
+ },
+ {
+  "name": "Fishing Minion",
+  "tierDelay": [
+   78,
+   75,
+   72,
+   72,
+   68,
+   68,
+   62.5,
+   62.5,
+   53,
+   53,
+   35,
+   30
+  ],
+  "storage": [
+   640,
+   640,
+   640,
+   704,
+   704,
+   768,
+   768,
+   832,
+   832,
+   896,
+   960,
+   960
+  ],
+  "type": "Fishing",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Sword",
+     "quantity": 1,
+     "tag": "WOOD_SWORD"
+    },
+    {
+     "itemName": "Raw Fish",
+     "quantity": 64,
+     "tag": "RAW_FISH"
+    }
+   ],
+   [
+    {
+     "itemName": "Raw Fish",
+     "quantity": 128,
+     "tag": "RAW_FISH"
+    }
+   ],
+   [
+    {
+     "itemName": "Raw Fish",
+     "quantity": 256,
+     "tag": "RAW_FISH"
+    }
+   ],
+   [
+    {
+     "itemName": "Raw Fish",
+     "quantity": 512,
+     "tag": "RAW_FISH"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Fish",
+     "quantity": 8,
+     "tag": "ENCHANTED_RAW_FISH"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Fish",
+     "quantity": 24,
+     "tag": "ENCHANTED_RAW_FISH"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Fish",
+     "quantity": 64,
+     "tag": "ENCHANTED_RAW_FISH"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Fish",
+     "quantity": 128,
+     "tag": "ENCHANTED_RAW_FISH"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Fish",
+     "quantity": 256,
+     "tag": "ENCHANTED_RAW_FISH"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Raw Fish",
+     "quantity": 512,
+     "tag": "ENCHANTED_RAW_FISH"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Cooked Fish",
+     "quantity": 8,
+     "tag": "ENCHANTED_COOKED_FISH"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Raw Fish",
+    "perTime": 0.5,
+    "npcPrice": 6,
+    "exp": null,
+    "expType": null,
+    "tag": "RAW_FISH"
+   },
+   {
+    "itemName": "Raw Salmon",
+    "perTime": 0.25,
+    "npcPrice": 10,
+    "exp": null,
+    "expType": null,
+    "tag": "RAW_FISH:1"
+   },
+   {
+    "itemName": "Pufferfish",
+    "perTime": 0.12,
+    "npcPrice": 15,
+    "exp": null,
+    "expType": null,
+    "tag": "RAW_FISH:3"
+   },
+   {
+    "itemName": "Clownfish",
+    "perTime": 0.04,
+    "npcPrice": 20,
+    "exp": null,
+    "expType": null,
+    "tag": "RAW_FISH:2"
+   },
+   {
+    "itemName": "Prismarine Crystals",
+    "perTime": 0.03,
+    "npcPrice": 5,
+    "exp": null,
+    "expType": null,
+    "tag": "PRISMARINE_CRYSTALS"
+   },
+   {
+    "itemName": "Prismarine Shard",
+    "perTime": 0.03,
+    "npcPrice": 5,
+    "exp": null,
+    "expType": null,
+    "tag": "PRISMARINE_SHARD"
+   },
+   {
+    "itemName": "Sponge",
+    "perTime": 0.03,
+    "npcPrice": 50,
+    "exp": null,
+    "expType": null,
+    "tag": "SPONGE"
+   }
+  ]
+ },
+ {
+  "name": "Snow Minion",
+  "tierDelay": [
+   13,
+   13,
+   12,
+   12,
+   11,
+   11,
+   9.5,
+   9.5,
+   8,
+   8,
+   6.5,
+   5.8
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Red Gift",
+     "quantity": 83.33333,
+     "tag": "RED_GIFT"
+    }
+   ],
+   [
+    {
+     "itemName": "Snow Block",
+     "quantity": 32,
+     "tag": "SNOW_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Snow Block",
+     "quantity": 64,
+     "tag": "SNOW_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Snow Block",
+     "quantity": 128,
+     "tag": "SNOW_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Snow Block",
+     "quantity": 256,
+     "tag": "SNOW_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Snow Block",
+     "quantity": 512,
+     "tag": "SNOW_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Snow Block",
+     "quantity": 8,
+     "tag": "ENCHANTED_SNOW_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Snow Block",
+     "quantity": 16,
+     "tag": "ENCHANTED_SNOW_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Snow Block",
+     "quantity": 32,
+     "tag": "ENCHANTED_SNOW_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Snow Block",
+     "quantity": 64,
+     "tag": "ENCHANTED_SNOW_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Snow Block",
+     "quantity": 128,
+     "tag": "ENCHANTED_SNOW_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Snow Block",
+     "quantity": 1024,
+     "tag": "ENCHANTED_SNOW_BLOCK"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    },
+    {
+     "itemName": "North Stars",
+     "quantity": 500,
+     "tag": null
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Snowball",
+    "perTime": 4,
+    "npcPrice": 1,
+    "exp": null,
+    "expType": null,
+    "tag": "SNOW_BALL"
+   }
+  ]
+ },
+ {
+  "name": "Coal Minion",
+  "tierDelay": [
+   15,
+   15,
+   13,
+   13,
+   12,
+   12,
+   10,
+   10,
+   9,
+   9,
+   7,
+   6
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Pickaxe",
+     "quantity": 1,
+     "tag": "WOOD_PICKAXE"
+    },
+    {
+     "itemName": "Coal",
+     "quantity": 80,
+     "tag": "COAL"
+    }
+   ],
+   [
+    {
+     "itemName": "Coal",
+     "quantity": 160,
+     "tag": "COAL"
+    }
+   ],
+   [
+    {
+     "itemName": "Coal",
+     "quantity": 320,
+     "tag": "COAL"
+    }
+   ],
+   [
+    {
+     "itemName": "Coal",
+     "quantity": 512,
+     "tag": "COAL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Coal",
+     "quantity": 8,
+     "tag": "ENCHANTED_COAL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Coal",
+     "quantity": 24,
+     "tag": "ENCHANTED_COAL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Coal",
+     "quantity": 64,
+     "tag": "ENCHANTED_COAL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Coal",
+     "quantity": 128,
+     "tag": "ENCHANTED_COAL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Coal",
+     "quantity": 256,
+     "tag": "ENCHANTED_COAL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Coal",
+     "quantity": 512,
+     "tag": "ENCHANTED_COAL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Block of Coal",
+     "quantity": 8,
+     "tag": "ENCHANTED_COAL_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Block of Coal",
+     "quantity": 16,
+     "tag": "ENCHANTED_COAL_BLOCK"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Coal",
+    "perTime": 1,
+    "npcPrice": 2,
+    "exp": null,
+    "expType": null,
+    "tag": "COAL"
+   }
+  ]
+ },
+ {
+  "name": "Iron Minion",
+  "tierDelay": [
+   17,
+   17,
+   15,
+   15,
+   14,
+   14,
+   12,
+   12,
+   10,
+   10,
+   8,
+   7
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Pickaxe",
+     "quantity": 1,
+     "tag": "WOOD_PICKAXE"
+    },
+    {
+     "itemName": "Iron Ingot",
+     "quantity": 80,
+     "tag": "IRON_INGOT"
+    }
+   ],
+   [
+    {
+     "itemName": "Iron Ingot",
+     "quantity": 160,
+     "tag": "IRON_INGOT"
+    }
+   ],
+   [
+    {
+     "itemName": "Iron Ingot",
+     "quantity": 320,
+     "tag": "IRON_INGOT"
+    }
+   ],
+   [
+    {
+     "itemName": "Iron Ingot",
+     "quantity": 512,
+     "tag": "IRON_INGOT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Iron",
+     "quantity": 8,
+     "tag": "ENCHANTED_IRON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Iron",
+     "quantity": 24,
+     "tag": "ENCHANTED_IRON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Iron",
+     "quantity": 64,
+     "tag": "ENCHANTED_IRON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Iron",
+     "quantity": 128,
+     "tag": "ENCHANTED_IRON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Iron",
+     "quantity": 256,
+     "tag": "ENCHANTED_IRON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Iron",
+     "quantity": 512,
+     "tag": "ENCHANTED_IRON"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Iron Block",
+     "quantity": 8,
+     "tag": "ENCHANTED_IRON_BLOCK"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Iron Block",
+     "quantity": 16,
+     "tag": "ENCHANTED_IRON_BLOCK"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Iron Ingot",
+    "perTime": 1,
+    "npcPrice": 3,
+    "exp": null,
+    "expType": null,
+    "tag": "IRON_INGOT"
+   }
+  ]
+ },
+ {
+  "name": "Mithril Minion",
+  "tierDelay": [
+   80,
+   80,
+   75,
+   75,
+   70,
+   70,
+   65,
+   65,
+   60,
+   60,
+   55,
+   50
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Pickaxe",
+     "quantity": 1,
+     "tag": "WOOD_PICKAXE"
+    },
+    {
+     "itemName": "Mithril",
+     "quantity": 80,
+     "tag": "MITHRIL_ORE"
+    }
+   ],
+   [
+    {
+     "itemName": "Mithril",
+     "quantity": 160,
+     "tag": "MITHRIL_ORE"
+    }
+   ],
+   [
+    {
+     "itemName": "Mithril",
+     "quantity": 320,
+     "tag": "MITHRIL_ORE"
+    }
+   ],
+   [
+    {
+     "itemName": "Mithril",
+     "quantity": 512,
+     "tag": "MITHRIL_ORE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mithril",
+     "quantity": 8,
+     "tag": "ENCHANTED_MITHRIL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mithril",
+     "quantity": 24,
+     "tag": "ENCHANTED_MITHRIL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mithril",
+     "quantity": 64,
+     "tag": "ENCHANTED_MITHRIL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mithril",
+     "quantity": 128,
+     "tag": "ENCHANTED_MITHRIL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mithril",
+     "quantity": 256,
+     "tag": "ENCHANTED_MITHRIL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mithril",
+     "quantity": 512,
+     "tag": "ENCHANTED_MITHRIL"
+    }
+   ],
+   [
+    {
+     "itemName": "Refined Mithril",
+     "quantity": 8,
+     "tag": "REFINED_MITHRIL"
+    }
+   ],
+   [
+    {
+     "itemName": "Refined Mithril",
+     "quantity": 16,
+     "tag": "REFINED_MITHRIL"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Mithril",
+    "perTime": 1,
+    "npcPrice": 10,
+    "exp": null,
+    "expType": null,
+    "tag": "MITHRIL_ORE"
+   }
+  ]
+ },
+ {
+  "name": "Voidling Minion",
+  "tierDelay": [
+   45,
+   45,
+   42,
+   42,
+   39,
+   39,
+   35,
+   35,
+   30,
+   30,
+   24
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Slayer",
+  "upgrade": [
+   [
+    {
+     "itemName": "Null Sphere",
+     "quantity": 80,
+     "tag": "NULL_SPHERE"
+    },
+    {
+     "itemName": "Ender Pearl",
+     "quantity": 64,
+     "tag": "ENDER_PEARL"
+    }
+   ],
+   [
+    {
+     "itemName": "Null Sphere",
+     "quantity": 140,
+     "tag": "NULL_SPHERE"
+    },
+    {
+     "itemName": "Obsidian",
+     "quantity": 80,
+     "tag": "OBSIDIAN"
+    }
+   ],
+   [
+    {
+     "itemName": "Null Sphere",
+     "quantity": 280,
+     "tag": "NULL_SPHERE"
+    },
+    {
+     "itemName": "Ender Pearl",
+     "quantity": 192,
+     "tag": "ENDER_PEARL"
+    }
+   ],
+   [
+    {
+     "itemName": "Null Sphere",
+     "quantity": 448,
+     "tag": "NULL_SPHERE"
+    },
+    {
+     "itemName": "Obsidian",
+     "quantity": 560,
+     "tag": "OBSIDIAN"
+    }
+   ],
+   [
+    {
+     "itemName": "Null Ovoid",
+     "quantity": 7,
+     "tag": "NULL_OVOID"
+    },
+    {
+     "itemName": "Enchanted Ender Pearl",
+     "quantity": 32,
+     "tag": "ENCHANTED_ENDER_PEARL"
+    },
+    {
+     "itemName": "Ender Pearl",
+     "quantity": 192,
+     "tag": "ENDER_PEARL"
+    }
+   ],
+   [
+    {
+     "itemName": "Null Ovoid",
+     "quantity": 14,
+     "tag": "NULL_OVOID"
+    },
+    {
+     "itemName": "Enchanted Obsidian",
+     "quantity": 8,
+     "tag": "ENCHANTED_OBSIDIAN"
+    },
+    {
+     "itemName": "Obsidian",
+     "quantity": 1072,
+     "tag": "OBSIDIAN"
+    }
+   ],
+   [
+    {
+     "itemName": "Null Ovoid",
+     "quantity": 28,
+     "tag": "NULL_OVOID"
+    },
+    {
+     "itemName": "Enchanted Ender Pearl",
+     "quantity": 176,
+     "tag": "ENCHANTED_ENDER_PEARL"
+    },
+    {
+     "itemName": "Ender Pearl",
+     "quantity": 192,
+     "tag": "ENDER_PEARL"
+    }
+   ],
+   [
+    {
+     "itemName": "Null Ovoid",
+     "quantity": 56,
+     "tag": "NULL_OVOID"
+    },
+    {
+     "itemName": "Enchanted Obsidian",
+     "quantity": 56,
+     "tag": "ENCHANTED_OBSIDIAN"
+    },
+    {
+     "itemName": "Obsidian",
+     "quantity": 1072,
+     "tag": "OBSIDIAN"
+    }
+   ],
+   [
+    {
+     "itemName": "Null Ovoid",
+     "quantity": 112,
+     "tag": "NULL_OVOID"
+    },
+    {
+     "itemName": "Enchanted Eye of Ender",
+     "quantity": 32,
+     "tag": "ENCHANTED_EYE_OF_ENDER"
+    },
+    {
+     "itemName": "Enchanted Ender Pearl",
+     "quantity": 176,
+     "tag": "ENCHANTED_ENDER_PEARL"
+    },
+    {
+     "itemName": "Ender Pearl",
+     "quantity": 192,
+     "tag": "ENDER_PEARL"
+    }
+   ],
+   [
+    {
+     "itemName": "Null Ovoid",
+     "quantity": 224,
+     "tag": "NULL_OVOID"
+    },
+    {
+     "itemName": "Enchanted Obsidian",
+     "quantity": 248,
+     "tag": "ENCHANTED_OBSIDIAN"
+    },
+    {
+     "itemName": "Obsidian",
+     "quantity": 1072,
+     "tag": "OBSIDIAN"
+    }
+   ],
+   [
+    {
+     "itemName": "Null Ovoid",
+     "quantity": 448,
+     "tag": "NULL_OVOID"
+    },
+    {
+     "itemName": "Enchanted Eye of Ender",
+     "quantity": 176,
+     "tag": "ENCHANTED_EYE_OF_ENDER"
+    },
+    {
+     "itemName": "Enchanted Ender Pearl",
+     "quantity": 176,
+     "tag": "ENCHANTED_ENDER_PEARL"
+    },
+    {
+     "itemName": "Ender Pearl",
+     "quantity": 192,
+     "tag": "ENDER_PEARL"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Nether Quartz",
+    "perTime": 0.4,
+    "npcPrice": 4,
+    "exp": null,
+    "expType": null,
+    "tag": "QUARTZ"
+   },
+   {
+    "itemName": "Obsidian",
+    "perTime": 2.42,
+    "npcPrice": 12,
+    "exp": null,
+    "expType": null,
+    "tag": "OBSIDIAN"
+   }
+  ]
+ },
+ {
+  "name": "Hard Stone Minion",
+  "tierDelay": [
+   14,
+   14,
+   12,
+   12,
+   10,
+   10,
+   9,
+   9,
+   8,
+   8,
+   7,
+   6
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Pickaxe",
+     "quantity": 1,
+     "tag": "WOOD_PICKAXE"
+    },
+    {
+     "itemName": "Hard Stone",
+     "quantity": 256,
+     "tag": "HARD_STONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Hard Stone",
+     "quantity": 512,
+     "tag": "HARD_STONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Hard Stone",
+     "quantity": 8,
+     "tag": "ENCHANTED_HARD_STONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Hard Stone",
+     "quantity": 16,
+     "tag": "ENCHANTED_HARD_STONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Hard Stone",
+     "quantity": 32,
+     "tag": "ENCHANTED_HARD_STONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Hard Stone",
+     "quantity": 64,
+     "tag": "ENCHANTED_HARD_STONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Hard Stone",
+     "quantity": 128,
+     "tag": "ENCHANTED_HARD_STONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Hard Stone",
+     "quantity": 256,
+     "tag": "ENCHANTED_HARD_STONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Hard Stone",
+     "quantity": 512,
+     "tag": "ENCHANTED_HARD_STONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Concentrated Stone",
+     "quantity": 8,
+     "tag": "CONCENTRATED_STONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Concentrated Stone",
+     "quantity": 16,
+     "tag": "CONCENTRATED_STONE"
+    }
+   ],
+   [
+    {
+     "itemName": "Concentrated Stone",
+     "quantity": 32,
+     "tag": "CONCENTRATED_STONE"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Hard Stone",
+    "perTime": 1,
+    "npcPrice": 1,
+    "exp": null,
+    "expType": null,
+    "tag": "HARD_STONE"
+   }
+  ]
+ },
+ {
+  "name": "Flower Minion",
+  "tierDelay": [
+   30,
+   29,
+   28,
+   27,
+   26,
+   25,
+   24,
+   23,
+   22,
+   20,
+   18,
+   15
+  ],
+  "storage": [
+   960,
+   960,
+   960,
+   960,
+   960,
+   960,
+   960,
+   960,
+   960,
+   960,
+   960,
+   960
+  ],
+  "type": "Foraging",
+  "upgrade": [
+   [
+    {
+     "itemName": "Dark Auction purchase",
+     "quantity": 1,
+     "tag": null
+    }
+   ],
+   [
+    {
+     "itemName": "Dandelion",
+     "quantity": 160,
+     "tag": "YELLOW_FLOWER"
+    }
+   ],
+   [
+    {
+     "itemName": "Dandelion",
+     "quantity": 320,
+     "tag": "YELLOW_FLOWER"
+    }
+   ],
+   [
+    {
+     "itemName": "Dandelion",
+     "quantity": 512,
+     "tag": "YELLOW_FLOWER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Dandelion",
+     "quantity": 8,
+     "tag": "ENCHANTED_DANDELION"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Dandelion",
+     "quantity": 24,
+     "tag": "ENCHANTED_DANDELION"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Dandelion",
+     "quantity": 64,
+     "tag": "ENCHANTED_DANDELION"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Dandelion",
+     "quantity": 128,
+     "tag": "ENCHANTED_DANDELION"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Dandelion",
+     "quantity": 256,
+     "tag": "ENCHANTED_DANDELION"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Dandelion",
+     "quantity": 512,
+     "tag": "ENCHANTED_DANDELION"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Poppy",
+     "quantity": 8,
+     "tag": "ENCHANTED_POPPY"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Poppy",
+     "quantity": 16,
+     "tag": "ENCHANTED_POPPY"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Flower",
+    "perTime": 0.35,
+    "npcPrice": 1,
+    "exp": null,
+    "expType": null,
+    "tag": "YELLOW_FLOWER"
+   },
+   {
+    "itemName": "Poppy",
+    "perTime": 0.15,
+    "npcPrice": 1,
+    "exp": null,
+    "expType": null,
+    "tag": "RED_ROSE"
+   }
+  ]
+ },
+ {
+  "name": "Red Sand Minion",
+  "tierDelay": [
+   26,
+   25,
+   24,
+   23,
+   22,
+   21,
+   20,
+   19,
+   18,
+   16,
+   13,
+   11
+  ],
+  "storage": [
+   64,
+   128,
+   192,
+   320,
+   384,
+   512,
+   576,
+   704,
+   768,
+   896,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Shovel",
+     "quantity": 1,
+     "tag": "WOOD_SPADE"
+    },
+    {
+     "itemName": "Red Sand",
+     "quantity": 80,
+     "tag": "SAND:1"
+    }
+   ],
+   [
+    {
+     "itemName": "Red Sand",
+     "quantity": 256,
+     "tag": "SAND:1"
+    }
+   ],
+   [
+    {
+     "itemName": "Red Sand",
+     "quantity": 512,
+     "tag": "SAND:1"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Red Sand",
+     "quantity": 16,
+     "tag": "ENCHANTED_RED_SAND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Red Sand",
+     "quantity": 32,
+     "tag": "ENCHANTED_RED_SAND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Red Sand",
+     "quantity": 64,
+     "tag": "ENCHANTED_RED_SAND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Red Sand",
+     "quantity": 128,
+     "tag": "ENCHANTED_RED_SAND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Red Sand",
+     "quantity": 256,
+     "tag": "ENCHANTED_RED_SAND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Red Sand",
+     "quantity": 512,
+     "tag": "ENCHANTED_RED_SAND"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Red Sand Cube",
+     "quantity": 8,
+     "tag": "ENCHANTED_RED_SAND_CUBE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Red Sand Cube",
+     "quantity": 16,
+     "tag": "ENCHANTED_RED_SAND_CUBE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Red Sand Cube",
+     "quantity": 32,
+     "tag": "ENCHANTED_RED_SAND_CUBE"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Red Sand",
+    "perTime": 1,
+    "npcPrice": 2,
+    "exp": null,
+    "expType": null,
+    "tag": "SAND:1"
+   }
+  ]
+ },
+ {
+  "name": "Mycelium Minion",
+  "tierDelay": [
+   26,
+   25,
+   24,
+   23,
+   22,
+   21,
+   20,
+   19,
+   18,
+   16,
+   13,
+   11
+  ],
+  "storage": [
+   64,
+   128,
+   192,
+   320,
+   384,
+   512,
+   576,
+   704,
+   768,
+   896,
+   960,
+   960
+  ],
+  "type": "Mining",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Shovel",
+     "quantity": 1,
+     "tag": "WOOD_SPADE"
+    },
+    {
+     "itemName": "Mycelium",
+     "quantity": 80,
+     "tag": "MYCEL"
+    }
+   ],
+   [
+    {
+     "itemName": "Mycelium",
+     "quantity": 256,
+     "tag": "MYCEL"
+    }
+   ],
+   [
+    {
+     "itemName": "Mycelium",
+     "quantity": 512,
+     "tag": "MYCEL"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mycelium",
+     "quantity": 16,
+     "tag": "ENCHANTED_MYCELIUM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mycelium",
+     "quantity": 32,
+     "tag": "ENCHANTED_MYCELIUM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mycelium",
+     "quantity": 64,
+     "tag": "ENCHANTED_MYCELIUM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mycelium",
+     "quantity": 128,
+     "tag": "ENCHANTED_MYCELIUM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mycelium",
+     "quantity": 256,
+     "tag": "ENCHANTED_MYCELIUM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mycelium",
+     "quantity": 512,
+     "tag": "ENCHANTED_MYCELIUM"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mycelium Cube",
+     "quantity": 8,
+     "tag": "ENCHANTED_MYCELIUM_CUBE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mycelium Cube",
+     "quantity": 16,
+     "tag": "ENCHANTED_MYCELIUM_CUBE"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Mycelium Cube",
+     "quantity": 32,
+     "tag": "ENCHANTED_MYCELIUM_CUBE"
+    },
+    {
+     "itemName": "Coins",
+     "quantity": 2000000,
+     "tag": "BURNING_COINS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Mycelium",
+    "perTime": 1,
+    "npcPrice": 5,
+    "exp": null,
+    "expType": null,
+    "tag": "MYCEL"
+   }
+  ]
+ },
+ {
+  "name": "Inferno Minion",
+  "tierDelay": [
+   1013,
+   982,
+   950,
+   919,
+   886,
+   855,
+   823,
+   792,
+   760,
+   728,
+   697
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Slayer",
+  "upgrade": [
+   [
+    {
+     "itemName": "Derelict Ashe",
+     "quantity": 80,
+     "tag": "DERELICT_ASHE"
+    },
+    {
+     "itemName": "Blaze Rod",
+     "quantity": 80,
+     "tag": "BLAZE_ROD"
+    }
+   ],
+   [
+    {
+     "itemName": "Derelict Ashe",
+     "quantity": 320,
+     "tag": "DERELICT_ASHE"
+    }
+   ],
+   [
+    {
+     "itemName": "Molten Powder",
+     "quantity": 8,
+     "tag": "MOLTEN_POWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Molten Powder",
+     "quantity": 16,
+     "tag": "MOLTEN_POWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Molten Powder",
+     "quantity": 32,
+     "tag": "MOLTEN_POWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Molten Powder",
+     "quantity": 64,
+     "tag": "MOLTEN_POWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Molten Powder",
+     "quantity": 128,
+     "tag": "MOLTEN_POWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Molten Powder",
+     "quantity": 256,
+     "tag": "MOLTEN_POWDER"
+    }
+   ],
+   [
+    {
+     "itemName": "Molten Powder",
+     "quantity": 256,
+     "tag": "MOLTEN_POWDER"
+    },
+    {
+     "itemName": "Inferno Vertex",
+     "quantity": 16,
+     "tag": "INFERNO_VERTEX"
+    }
+   ],
+   [
+    {
+     "itemName": "Molten Powder",
+     "quantity": 256,
+     "tag": "MOLTEN_POWDER"
+    },
+    {
+     "itemName": "Inferno Vertex",
+     "quantity": 48,
+     "tag": "INFERNO_VERTEX"
+    }
+   ],
+   [
+    {
+     "itemName": "Molten Powder",
+     "quantity": 256,
+     "tag": "MOLTEN_POWDER"
+    },
+    {
+     "itemName": "Inferno Vertex",
+     "quantity": 48,
+     "tag": "INFERNO_VERTEX"
+    },
+    {
+     "itemName": "Inferno Apex",
+     "quantity": 1,
+     "tag": "INFERNO_APEX"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Capsaicin Eyedrops",
+    "perTime": 0.007353,
+    "npcPrice": 0,
+    "exp": null,
+    "expType": null,
+    "tag": "CAPSAICIN_EYEDROPS"
+   },
+   {
+    "itemName": "Chili Pepper",
+    "perTime": 0.007353,
+    "npcPrice": 0,
+    "exp": null,
+    "expType": null,
+    "tag": "CHILI_PEPPER"
+   },
+   {
+    "itemName": "Inferno Vertex",
+    "perTime": 0.0001681,
+    "npcPrice": 0,
+    "exp": null,
+    "expType": null,
+    "tag": "INFERNO_VERTEX"
+   },
+   {
+    "itemName": "Inferno Apex",
+    "perTime": 7.639e-07,
+    "npcPrice": 0,
+    "exp": null,
+    "expType": null,
+    "tag": "INFERNO_APEX"
+   },
+   {
+    "itemName": "Reaper Pepper",
+    "perTime": 2.183e-06,
+    "npcPrice": 0,
+    "exp": null,
+    "expType": null,
+    "tag": "REAPER_PEPPER"
+   },
+   {
+    "itemName": "Gabagool The Fish",
+    "perTime": 2.546e-07,
+    "npcPrice": 0,
+    "exp": null,
+    "expType": null,
+    "tag": "GABAGOOL_THE_FISH"
+   }
+  ]
+ },
+ {
+  "name": "Vampire Minion",
+  "tierDelay": [
+   190,
+   190,
+   175,
+   175,
+   160,
+   160,
+   140,
+   140,
+   117,
+   117,
+   95
+  ],
+  "storage": [
+   64,
+   192,
+   192,
+   384,
+   384,
+   576,
+   576,
+   768,
+   768,
+   960,
+   960
+  ],
+  "type": "Slayer",
+  "upgrade": [
+   [
+    {
+     "itemName": "Bat Person Helmet",
+     "quantity": 1,
+     "tag": "BAT_PERSON_HELMET"
+    },
+    {
+     "itemName": "Hemovibe",
+     "quantity": 80,
+     "tag": "HEMOVIBE"
+    }
+   ],
+   [
+    {
+     "itemName": "Hemovibe",
+     "quantity": 160,
+     "tag": "HEMOVIBE"
+    }
+   ],
+   [
+    {
+     "itemName": "Hemovibe",
+     "quantity": 320,
+     "tag": "HEMOVIBE"
+    }
+   ],
+   [
+    {
+     "itemName": "Hemovibe",
+     "quantity": 512,
+     "tag": "HEMOVIBE"
+    }
+   ],
+   [
+    {
+     "itemName": "Hemoglass",
+     "quantity": 8,
+     "tag": "HEMOGLASS"
+    }
+   ],
+   [
+    {
+     "itemName": "Hemoglass",
+     "quantity": 16,
+     "tag": "HEMOGLASS"
+    }
+   ],
+   [
+    {
+     "itemName": "Hemoglass",
+     "quantity": 32,
+     "tag": "HEMOGLASS"
+    }
+   ],
+   [
+    {
+     "itemName": "Hemoglass",
+     "quantity": 64,
+     "tag": "HEMOGLASS"
+    }
+   ],
+   [
+    {
+     "itemName": "Hemoglass",
+     "quantity": 128,
+     "tag": "HEMOGLASS"
+    }
+   ],
+   [
+    {
+     "itemName": "Hemoglass",
+     "quantity": 256,
+     "tag": "HEMOGLASS"
+    }
+   ],
+   [
+    {
+     "itemName": "Hemoglass",
+     "quantity": 512,
+     "tag": "HEMOGLASS"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Hemovibe",
+    "perTime": 1,
+    "npcPrice": 100,
+    "exp": 5,
+    "expType": "Combat",
+    "tag": "HEMOVIBE"
+   }
+  ]
+ },
+ {
+  "name": "Sunflower Minion",
+  "tierDelay": [
+   24,
+   23,
+   22,
+   21,
+   20,
+   19,
+   18,
+   17,
+   16,
+   15,
+   14
+  ],
+  "storage": [
+   128,
+   192,
+   320,
+   384,
+   448,
+   512,
+   576,
+   704,
+   768,
+   896,
+   960
+  ],
+  "type": "Farming",
+  "upgrade": [
+   [
+    {
+     "itemName": "Wooden Hoe",
+     "quantity": 1,
+     "tag": "WOOD_HOE"
+    },
+    {
+     "itemName": "Sunflower",
+     "quantity": 128,
+     "tag": "DOUBLE_PLANT"
+    }
+   ],
+   [
+    {
+     "itemName": "Sunflower",
+     "quantity": 256,
+     "tag": "DOUBLE_PLANT"
+    }
+   ],
+   [
+    {
+     "itemName": "Sunflower",
+     "quantity": 512,
+     "tag": "DOUBLE_PLANT"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sunflower",
+     "quantity": 8,
+     "tag": "ENCHANTED_SUNFLOWER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sunflower",
+     "quantity": 24,
+     "tag": "ENCHANTED_SUNFLOWER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sunflower",
+     "quantity": 64,
+     "tag": "ENCHANTED_SUNFLOWER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sunflower",
+     "quantity": 128,
+     "tag": "ENCHANTED_SUNFLOWER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sunflower",
+     "quantity": 256,
+     "tag": "ENCHANTED_SUNFLOWER"
+    }
+   ],
+   [
+    {
+     "itemName": "Enchanted Sunflower",
+     "quantity": 512,
+     "tag": "ENCHANTED_SUNFLOWER"
+    }
+   ],
+   [
+    {
+     "itemName": "Compacted Sunflower",
+     "quantity": 8,
+     "tag": "COMPACTED_SUNFLOWER"
+    }
+   ],
+   [
+    {
+     "itemName": "Compacted Sunflower",
+     "quantity": 16,
+     "tag": "COMPACTED_SUNFLOWER"
+    }
+   ]
+  ],
+  "products": [
+   {
+    "itemName": "Sunflower",
+    "perTime": 3,
+    "npcPrice": 4,
+    "exp": null,
+    "expType": null,
+    "tag": "DOUBLE_PLANT"
+   }
+  ]
+ }
+]

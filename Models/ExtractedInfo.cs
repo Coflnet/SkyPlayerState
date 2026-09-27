@@ -125,6 +125,30 @@ public class ExtractedInfo
     /// </summary>
     [Key(29)]
     public DateTime CurrentLocationSeenAt { get; set; }
+    /// <summary>
+    /// The Catacombs floor zone string (e.g. "The Catacombs (F7)") the player was last confirmed in,
+    /// or null when they have not been in a dungeon floor recently. Set from every scoreboard tick
+    /// while <see cref="CurrentLocation"/> is a Catacombs floor zone (Entrance excluded - it has no
+    /// reward chests), and overridden from a Croesus reward-chest GUI title (which names the floor
+    /// being claimed and can be for an older run) - see
+    /// <see cref="Tasks.DungeonRewardAttribution"/>/<see cref="Services.CollectionListener"/>. Used
+    /// to attribute a "Dungeon Hub" reward-claim period back to the run's own floor.
+    /// </summary>
+    [Key(30)]
+    public string? LastDungeonFloor { get; set; }
+    /// <summary>
+    /// When <see cref="LastDungeonFloor"/> was last set - see <see cref="Tasks.DungeonRewardAttribution.ResolveLocation"/>,
+    /// which only attributes a Dungeon Hub claim period to the floor within a short window of this.
+    /// </summary>
+    [Key(31)]
+    public DateTime LastDungeonFloorAt { get; set; }
+    /// <summary>
+    /// A dungeon reward chest GUI with a non-zero coin cost seen but not yet confirmed as bought (the
+    /// click itself is invisible - only a purse drop on a later update confirms it) - see
+    /// <see cref="Services.DungeonRewardListener"/>.
+    /// </summary>
+    [Key(32)]
+    public PendingDungeonChestCharge? PendingDungeonChestCharge { get; set; }
     [MessagePackObject]
     public class PetState
     {
@@ -232,7 +256,32 @@ public class ExtractedInfo
         CurrentIslandAt = extractedInfo.CurrentIslandAt;
         CurrentLocationSince = extractedInfo.CurrentLocationSince;
         CurrentLocationSeenAt = extractedInfo.CurrentLocationSeenAt;
+        LastDungeonFloor = extractedInfo.LastDungeonFloor;
+        LastDungeonFloorAt = extractedInfo.LastDungeonFloorAt;
+        PendingDungeonChestCharge = extractedInfo.PendingDungeonChestCharge == null ? null : new PendingDungeonChestCharge
+        {
+            ChestType = extractedInfo.PendingDungeonChestCharge.ChestType,
+            CostCoins = extractedInfo.PendingDungeonChestCharge.CostCoins,
+            PurseAtOpen = extractedInfo.PendingDungeonChestCharge.PurseAtOpen,
+            SeenAt = extractedInfo.PendingDungeonChestCharge.SeenAt,
+            Floor = extractedInfo.PendingDungeonChestCharge.Floor
+        };
     }
+}
+
+/// <summary>
+/// A dungeon reward chest GUI with a non-zero coin cost, seen but not yet confirmed bought - see
+/// <see cref="Services.DungeonRewardListener"/>.
+/// </summary>
+[MessagePackObject]
+public class PendingDungeonChestCharge
+{
+    [Key(0)] public string? ChestType { get; set; }
+    [Key(1)] public long CostCoins { get; set; }
+    [Key(2)] public long PurseAtOpen { get; set; }
+    [Key(3)] public DateTime SeenAt { get; set; }
+    /// <summary>The floor (e.g. "F7") the chest belongs to, for the charge log line.</summary>
+    [Key(4)] public string? Floor { get; set; }
 }
 
 /// <summary>

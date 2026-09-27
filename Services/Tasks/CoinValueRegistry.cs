@@ -54,6 +54,12 @@ public class CoinValueRegistry
     /// </summary>
     public double Value(string tag, Dictionary<string, double> marketPrices)
     {
+        // Pseudo tags (PseudoItems) are accounting signal, not real resources - route them here
+        // first so an EVIDENCE tag (bazaar/auction purchase) never counts as unpriced (it has a
+        // defined value of 0, it is simply not a resource being sold) and a COST tag gets its
+        // defined value of 1/unit instead of falling through to the real price lookup below.
+        if (PseudoItems.TryGetCoinValue(tag, out var pseudoValue))
+            return pseudoValue;
         var overrides = cachedOverrides;
         if (overrides != null && overrides.TryGetValue(tag, out var overrideValue))
             return overrideValue;
@@ -93,6 +99,9 @@ public class CoinValueRegistry
             refreshLock.Release();
         }
     }
+
+    /// <summary>Test-only accessor for the unpriced-resource counter's current value for a tag.</summary>
+    internal static double UnpricedCounterValueForTest(string tag) => UnpricedCounter.WithLabels(tag).Value;
 
     public async Task SetOverride(string tag, double coinsPerUnit, string note = null)
     {

@@ -66,7 +66,9 @@ public class TaskEstimator
         var playerStats = playerStatsTask.Result;
 
         var results = new List<TaskEstimate>();
-        foreach (var task in registry.MethodTasks)
+        // hidden accounting tasks (see MethodTask.Hidden) still classify/fold normally but must
+        // never surface as a stat-aware estimate for a player to pick.
+        foreach (var task in registry.PublicMethodTasks)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try

@@ -128,7 +128,11 @@ public class TaskClassifier
             // minimum signal: a detection item hit, or enough generic activity for location-only tasks
             if (!itemMatched && totalItems < 5)
                 continue;
-            var matchedValue = matched?.Sum(m => (prices?.GetValueOrDefault(m) ?? 0) * itemsCollected[m]) ?? 0;
+            // Math.Abs: a COST pseudo tag (e.g. DUNGEON_CHEST_COST) stores a NEGATIVE count, but a
+            // negative matchedValue would only ever lose tie-breaks it should win - the coin
+            // magnitude spent/earned is what matters as evidence weight, not its sign. See
+            // PseudoItems.ClassifierWeight for the pseudo-tag weighing itself (1 coin/unit).
+            var matchedValue = matched?.Sum(m => Math.Abs(itemsCollected[m]) * PseudoItems.ClassifierWeight(m, prices)) ?? 0;
             candidates.Add((sig, itemMatched, matchedValue));
         }
         if (candidates.Count == 0)
