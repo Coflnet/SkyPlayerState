@@ -7,6 +7,13 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 /// Used by TaskClassifier to attribute periods to tasks without re-deriving each task's own
 /// matching rules.
 /// </summary>
+/// <param name="MinLocationOnlyItems">
+/// Minimum total item count a location-only match (no DetectionItems hit) needs for this task's
+/// signature to be considered - see MethodTask.MinLocationOnlyItems/TaskClassifier.Classify. Default
+/// 5 matches the classifier's original hardcoded minimum; tasks whose zone is an instance that can
+/// only mean one activity (a specific Catacombs floor, a specific Kuudra tier, a hidden accounting
+/// zone) lower it to 1 since the zone itself is already unambiguous evidence.
+/// </param>
 public record DetectionSignature(
     string MethodName,
     HashSet<string> Locations,
@@ -15,7 +22,8 @@ public record DetectionSignature(
     bool ExcludeShardItems,
     int Priority,
     string Category,
-    string DerivedFrom = null);
+    string DerivedFrom = null,
+    int MinLocationOnlyItems = 5);
 
 /// <summary>
 /// One stat signal affecting a task's rates.

@@ -8,6 +8,12 @@ public abstract class BaseDungeonTask : MethodTask
 {
     protected override string Category => "Dungeon";
     protected override string ActionUnit => "runs";
+    // A Catacombs floor zone ("The Catacombs (F6)", "(M7)", ...) is a dedicated dungeon instance -
+    // it can only ever mean that one floor, so a handful of reward-chest items (SUPERBOOM_TNT,
+    // ENCHANTED_BONE, ...) is already unambiguous evidence, unlike a shared open-world zone where 5
+    // generic items are needed to rule out incidental activity. See TaskPlausibility/TaskClassifier
+    // regression for "The Catacombs (F6)" with only 2 items still classifying to F6.
+    protected override int MinLocationOnlyItems => 1;
     protected override List<DropEffect> Effects =>
     [
         new() { Name = "Dungeon Class Level", Description = "Higher class level increases damage and survivability", EstimatedMultiplier = 1.2 },

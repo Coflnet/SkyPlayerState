@@ -74,7 +74,9 @@ public static class DungeonRewardChestParser
         [("F3+", "Obsidian Chest")] = 1_000_000,
     };
 
-    private static string Strip(string value) =>
+    // internal (not private) so DungeonRewardListener's discovery logging below can reuse the same
+    // formatting-code stripping instead of duplicating the regex.
+    internal static string Strip(string value) =>
         string.IsNullOrEmpty(value) ? string.Empty : FormatCodeRegex.Replace(value, string.Empty);
 
     /// <summary>
@@ -181,6 +183,19 @@ public static class DungeonRewardChestParser
 public class DungeonRewardListener : UpdateListener
 {
     private static readonly TimeSpan PendingExpiry = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan DiscoveryLogThrottle = TimeSpan.FromMinutes(10);
+    private const string KuudraPaidChest = "Paid Chest";
+    private const string KuudraFreeChest = "Free Chest";
+    private const int DiscoveryLogMaxItems = 12;
+
+    /// <summary>
+    /// Throttle state for <see cref="LogDungeonAreaContainerDiscovery"/> - at most one log line per
+    /// distinct container title per player per <see cref="DiscoveryLogThrottle"/>. Deliberately kept
+    /// in memory only (not on <see cref="Models.ExtractedInfo"/>/persisted state): it exists purely
+    /// to bound log volume, resetting it on a pod restart is an acceptable tradeoff for never having
+    /// to touch the persisted schema for it.
+    /// </summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<(string PlayerId, string Title), DateTime> discoveryLogThrottle = new();
 
     public override Task Process(UpdateArgs args)
     {
@@ -193,16 +208,31 @@ public class DungeonRewardListener : UpdateListener
 
     private void HandleInventory(UpdateArgs args)
     {
+        LogDungeonAreaContainerDiscovery(args);
+
         var info = args.currentState.ExtractedInfo;
         if (!DungeonRewardChestParser.TryParse(args.msg.Chest, info.LastDungeonFloor, out var chest))
             return;
+
+        if (!chest.IsDungeonChest)
+        {
+            // Kuudra chests ("Paid Chest"/"Free Chest") reuse the same "Open Reward Chest"
+            // button/format as real dungeon reward chests but are an entirely different reward
+            // system - in a 6h production sample ALL 894 "Dungeon reward chest ... seen" log lines
+            // were actually Kuudra chests, 92 of them mislabelled with a stale Catacombs floor from
+            // ExtractedInfo.LastDungeonFloor because the player had been in a dungeon earlier. Never
+            // log them as a dungeon chest and never attribute a floor to them; Debug only.
+            Logger.LogDebug("Kuudra reward chest {chest} seen for {playerId}, contents {contents}",
+                chest.ChestType, args.msg.PlayerId, string.Join(", ", chest.Contents));
+            return;
+        }
 
         Logger.LogInformation(
             "Dungeon reward chest {chest} seen for {playerId} floor {floor} cost {cost} contents {contents}",
             chest.ChestType, args.msg.PlayerId, info.LastDungeonFloor, chest.CostCoins, string.Join(", ", chest.Contents));
 
-        if (!chest.IsDungeonChest || chest.CostCoins <= 0)
-            return; // Kuudra chests (and free dungeon chests) are never charged
+        if (chest.CostCoins <= 0)
+            return; // free dungeon chests (e.g. Wood Chest) are never charged
 
         var now = DateTime.UtcNow;
         if (info.PendingDungeonChestCharge != null)
@@ -220,6 +250,60 @@ public class DungeonRewardListener : UpdateListener
             SeenAt = now,
             Floor = Tasks.DungeonRewardAttribution.FloorOf(info.LastDungeonFloor) ?? info.LastDungeonFloor
         };
+    }
+
+    /// <summary>
+    /// Discovery log for verifying the REAL dungeon reward chest GUI format from production logs:
+    /// not a single real dungeon chest (Wood/Gold/Diamond/Emerald/Obsidian/Bedrock Chest) was seen in
+    /// a 6h production sample despite 501 dungeon reward claims being attributed in the same window,
+    /// so <see cref="DungeonRewardChestParser"/>'s assumed format (title ending " Chest", an "Open
+    /// Reward Chest" button) is unverified and likely wrong. Logs every container title the player
+    /// opens while on a Catacombs floor or at the Dungeon Hub, other than a storage container or a
+    /// Kuudra chest, at Information so the next log analysis can find the real one - throttled to at
+    /// most once per distinct title per player per <see cref="DiscoveryLogThrottle"/>.
+    /// </summary>
+    private void LogDungeonAreaContainerDiscovery(UpdateArgs args)
+    {
+        var chest = args.msg.Chest;
+        var title = chest?.Name;
+        if (string.IsNullOrEmpty(title) || chest.Items == null)
+            return;
+        if (title == KuudraPaidChest || title == KuudraFreeChest)
+            return; // Kuudra, not a dungeon chest - excluded, see HandleInventory
+        if (!StorageListener.IsNotStorage(chest))
+            return; // the player's own storage, not a dungeon reward/menu container
+
+        var location = args.currentState.ExtractedInfo.CurrentLocation;
+        if (!Tasks.DungeonRewardAttribution.IsFloorZone(location) && Tasks.SkyblockZones.Canonical(location) != "Dungeon Hub")
+            return;
+
+        var playerId = args.msg.PlayerId ?? args.currentState.PlayerId;
+        var throttleKey = (playerId, title);
+        var now = DateTime.UtcNow;
+        if (discoveryLogThrottle.TryGetValue(throttleKey, out var last) && now - last < DiscoveryLogThrottle)
+            return;
+        discoveryLogThrottle[throttleKey] = now;
+
+        var itemDescriptions = new List<string>();
+        foreach (var item in chest.Items)
+        {
+            if (itemDescriptions.Count >= DiscoveryLogMaxItems)
+                break;
+            var name = DungeonRewardChestParser.Strip(item?.ItemName ?? string.Empty);
+            if (string.IsNullOrWhiteSpace(name))
+                continue;
+            if (name.Contains("Reward", StringComparison.Ordinal) || name.Contains("Open", StringComparison.Ordinal))
+            {
+                var lore = DungeonRewardChestParser.Strip(item.Description ?? string.Empty).Replace("\n", " | ");
+                itemDescriptions.Add(string.IsNullOrEmpty(lore) ? name : $"{name} [{lore}]");
+            }
+            else
+            {
+                itemDescriptions.Add(name);
+            }
+        }
+        Logger.LogInformation("Dungeon area container {title} for {playerId} at {location}: {items}",
+            title, playerId, location, string.Join(", ", itemDescriptions));
     }
 
     private void HandleScoreboard(UpdateArgs args)

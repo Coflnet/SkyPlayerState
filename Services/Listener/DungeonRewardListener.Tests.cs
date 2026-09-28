@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using AwesomeAssertions;
 using Coflnet.Sky.PlayerState.Models;
 using Coflnet.Sky.PlayerState.Tasks;
 using Coflnet.Sky.PlayerState.Tests;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 
 namespace Coflnet.Sky.PlayerState.Services;
@@ -241,5 +243,142 @@ public class DungeonRewardListenerTests
 
         state.ItemsCollectedRecently.Should().NotContainKey(PseudoItems.DUNGEON_CHEST_COST);
         state.ExtractedInfo.PendingDungeonChestCharge.Should().BeNull("an expired pending charge is dropped, not charged");
+    }
+
+    /// <summary>Captures every log call so tests can assert on level/message without a mocking library.</summary>
+    private sealed class CapturingLogger : ILogger
+    {
+        public List<(LogLevel Level, string Message)> Entries { get; } = new();
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NoopScope.Instance;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+            => Entries.Add((logLevel, formatter(state, exception)));
+
+        private sealed class NoopScope : IDisposable
+        {
+            public static readonly NoopScope Instance = new();
+            public void Dispose() { }
+        }
+    }
+
+    [Test]
+    public async Task KuudraChestIsNeverTreatedAsADungeonChestEvenWithAStaleFloor()
+    {
+        // Production: 92/894 Kuudra "Dungeon reward chest ... seen" lines were mislabelled with a
+        // stale Catacombs floor because the player had been in a dungeon earlier - Kuudra chests must
+        // never be charged and must never carry a floor.
+        var state = new StateObject();
+        state.ExtractedInfo.Purse = 10_000_000;
+        state.ExtractedInfo.LastDungeonFloor = "The Catacombs (F3)";
+        var logger = new CapturingLogger();
+        var listener = new DungeonRewardListener();
+        listener.SetLogger(logger);
+
+        var args = InventoryUpdate(state, "Paid Chest", "0 Coins");
+        await listener.Process(args);
+
+        state.ExtractedInfo.PendingDungeonChestCharge.Should().BeNull("Kuudra chests are never charged/pending, regardless of LastDungeonFloor");
+        logger.Entries.Should().NotContain(e => e.Level == LogLevel.Information && e.Message.Contains("Dungeon reward chest"),
+            "Kuudra chests must not be logged as a dungeon reward chest at Information");
+        var debugEntry = logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Debug && e.Message.Contains("Kuudra")).Which;
+        debugEntry.Message.Should().NotContain("F3", "a Kuudra chest must never carry a (possibly stale) dungeon floor");
+    }
+
+    private static MockedUpdateArgs ContainerUpdate(StateObject state, string title, List<Item> items, string playerId = "p1") =>
+        new()
+        {
+            currentState = state,
+            msg = new UpdateMessage
+            {
+                Kind = UpdateMessage.UpdateKind.INVENTORY,
+                PlayerId = playerId,
+                Chest = new ChestView { Name = title, Items = items }
+            }
+        };
+
+    [Test]
+    public async Task DiscoveryLogFiresForAnUnrecognisedContainerOnADungeonFloor()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.CurrentLocation = "The Catacombs (F7)";
+        var logger = new CapturingLogger();
+        var listener = new DungeonRewardListener();
+        listener.SetLogger(logger);
+
+        await listener.Process(ContainerUpdate(state, "Mystery Menu", new List<Item> { new() { ItemName = "§bSome Item" } }));
+
+        logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Information
+            && e.Message.Contains("Dungeon area container") && e.Message.Contains("Mystery Menu") && e.Message.Contains("Some Item"));
+    }
+
+    [Test]
+    public async Task DiscoveryLogIncludesFullLoreForRewardOrOpenNamedItems()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.CurrentLocation = "Dungeon Hub";
+        var logger = new CapturingLogger();
+        var listener = new DungeonRewardListener();
+        listener.SetLogger(logger);
+
+        await listener.Process(ContainerUpdate(state, "Mystery Menu", new List<Item> {
+            new() { ItemName = "§aOpen Reward Chest", Description = "§7Line one\n§7Line two" }
+        }));
+
+        logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Information
+            && e.Message.Contains("Open Reward Chest") && e.Message.Contains("Line one | Line two"));
+    }
+
+    [TestCase("Ender Chest")]
+    [TestCase("Backpack (Slot 1)")]
+    public async Task DiscoveryLogSkipsStorageContainers(string title)
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.CurrentLocation = "The Catacombs (F7)";
+        var logger = new CapturingLogger();
+        var listener = new DungeonRewardListener();
+        listener.SetLogger(logger);
+
+        await listener.Process(ContainerUpdate(state, title, new List<Item> { new() { ItemName = "§bSome Item" } }));
+
+        logger.Entries.Should().NotContain(e => e.Message.Contains("Dungeon area container"));
+    }
+
+    [Test]
+    public async Task DiscoveryLogDoesNotFireOutsideDungeonFloorsOrHub()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.CurrentLocation = "Hub";
+        var logger = new CapturingLogger();
+        var listener = new DungeonRewardListener();
+        listener.SetLogger(logger);
+
+        await listener.Process(ContainerUpdate(state, "Mystery Menu", new List<Item> { new() { ItemName = "§bSome Item" } }));
+
+        logger.Entries.Should().NotContain(e => e.Message.Contains("Dungeon area container"));
+    }
+
+    [Test]
+    public async Task DiscoveryLogThrottlesRepeatsOfTheSameTitleForTheSamePlayer()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.CurrentLocation = "The Catacombs (F7)";
+        var logger = new CapturingLogger();
+        var listener = new DungeonRewardListener();
+        listener.SetLogger(logger);
+        var items = new List<Item> { new() { ItemName = "§bSome Item" } };
+
+        await listener.Process(ContainerUpdate(state, "Mystery Menu", items));
+        await listener.Process(ContainerUpdate(state, "Mystery Menu", items));
+
+        logger.Entries.Count(e => e.Message.Contains("Dungeon area container")).Should().Be(1,
+            "a second view of the same title for the same player within the throttle window must not log again");
+
+        // A different title is a different throttle key - must still log.
+        await listener.Process(ContainerUpdate(state, "Another Menu", items));
+        logger.Entries.Count(e => e.Message.Contains("Dungeon area container")).Should().Be(2);
+
+        // A different player is also a different throttle key - must still log.
+        await listener.Process(ContainerUpdate(state, "Mystery Menu", items, playerId: "p2"));
+        logger.Entries.Count(e => e.Message.Contains("Dungeon area container")).Should().Be(3);
     }
 }

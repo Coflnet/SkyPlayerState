@@ -52,7 +52,8 @@ public class TaskClassifier
     /// <summary>
     /// Classify a collection window.
     /// Returns null when the signal is too weak (less than 3 minutes, or a
-    /// location-only match with fewer than 5 items collected).
+    /// location-only match with fewer items collected than that task's own
+    /// <see cref="DetectionSignature.MinLocationOnlyItems"/>, 5 by default).
     /// </summary>
     /// <param name="location">the area name the items were collected in</param>
     /// <param name="itemsCollected">tag to count of items collected in the window</param>
@@ -125,8 +126,11 @@ public class TaskClassifier
             if (sig.ExcludeShardItems && hasShard)
                 continue;
             var itemMatched = matched != null;
-            // minimum signal: a detection item hit, or enough generic activity for location-only tasks
-            if (!itemMatched && totalItems < 5)
+            // minimum signal: a detection item hit, or enough generic activity for location-only tasks -
+            // the threshold is per-signature (see DetectionSignature.MinLocationOnlyItems) so a task
+            // whose zone is an unambiguous dedicated instance (a Catacombs floor, a Kuudra tier, a
+            // hidden accounting zone) can lower it below the default 5.
+            if (!itemMatched && totalItems < sig.MinLocationOnlyItems)
                 continue;
             // Math.Abs: a COST pseudo tag (e.g. DUNGEON_CHEST_COST) stores a NEGATIVE count, but a
             // negative matchedValue would only ever lose tie-breaks it should win - the coin

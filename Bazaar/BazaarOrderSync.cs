@@ -88,6 +88,17 @@ public class BazaarOrderSync(HttpClient client)
     {
         if (string.IsNullOrWhiteSpace(order.ItemTag))
             order.ItemTag = await BazaarOrderListener.GetTagForName(args, order.ItemName);
+        if (string.IsNullOrWhiteSpace(order.ItemTag))
+        {
+            // Root cause of a dominant production error: GetTagForName used to throw here for
+            // unresolvable item names (e.g. "Turbo-Cane I") - called from this UNCAUGHT path, that
+            // aborted the whole state update. Skip the order-book sync instead; the claim's own
+            // coin/item transactions (recorded by the caller before this) are unaffected.
+            args.GetService<ILogger<BazaarOrderSync>>().LogInformation(
+                "Skipping Bazaar order sync for {UserId}: could not resolve item tag for {ItemName}",
+                args.msg.UserId, order.ItemName);
+            return;
+        }
         var update = ToOrder(args, order);
         await Retry(async () => {
             using var response = await client.PostAsJsonAsync("OrderBook", update);
@@ -98,17 +109,25 @@ public class BazaarOrderSync(HttpClient client)
 
     public virtual async Task Observe(UpdateArgs args)
     {
+        var logger = args.GetService<ILogger<BazaarOrderSync>>();
         // Chat-created orders may not have received an item tag from a menu yet.
         var offers = args.currentState.BazaarOffers.Where(o => o != null).ToList();
         foreach (var offer in offers.Where(o => string.IsNullOrWhiteSpace(o.ItemTag)))
             offer.ItemTag = await BazaarOrderListener.GetTagForName(args, offer.ItemName);
+        // An item name the search still can't resolve (see GetTagForName) must never be posted with
+        // a blank item id - drop it from this sync rather than sending a garbage order book entry.
+        var unresolved = offers.Where(o => string.IsNullOrWhiteSpace(o.ItemTag)).ToList();
+        if (unresolved.Count > 0)
+            logger.LogInformation(
+                "Skipping {count} Bazaar offer(s) with unresolved item tags from personal sync for {UserId}: {items}",
+                unresolved.Count, args.msg.UserId, string.Join(", ", unresolved.Select(o => o.ItemName)));
+        var resolvedOffers = unresolved.Count == 0 ? offers : offers.Except(unresolved).ToList();
         // Capture the observation once so a retry cannot change its identity or timestamp.
-        var orders = offers.Select(o => ToOrder(args, o)).ToList();
+        var orders = resolvedOffers.Select(o => ToOrder(args, o)).ToList();
         var observation = new {
             args.msg.UserId, PlayerName = args.currentState.McInfo.Name,
             Timestamp = args.msg.ReceivedAt, Orders = orders
         };
-        var logger = args.GetService<ILogger<BazaarOrderSync>>();
         logger.LogDebug("Synchronizing personal Bazaar view for {UserId}/{PlayerName}: {OrderCount} orders at {ObservedAt:o}",
             args.msg.UserId, observation.PlayerName, orders.Count, observation.Timestamp);
         await Retry(async () => {

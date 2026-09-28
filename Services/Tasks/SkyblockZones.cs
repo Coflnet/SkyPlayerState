@@ -66,6 +66,9 @@ public static class SkyblockZones
     // already stripped above by the time this runs) that must not fracture the zone into one bucket
     // per count.
     private static readonly Regex GardenPestCountRegex = new(@"^The Garden( x\d+)?$", RegexOptions.Compiled);
+    // Every player's own museum shows as "<name>'s Museum" on the scoreboard (production examples:
+    // "LXMini's Museum", "FarmCactus's Museum") - all of them collapse to the single "Museum" Hub zone.
+    private static readonly Regex MuseumRegex = new(@"^.+'s Museum$", RegexOptions.Compiled);
 
     /// <summary>
     /// Normalizes a raw scoreboard/tab zone string to the form the rest of this class (and every
@@ -91,6 +94,8 @@ public static class SkyblockZones
             return "The Garden";
         if (cleaned.StartsWith("Plot - ", StringComparison.Ordinal))
             return "Plot";
+        if (MuseumRegex.IsMatch(cleaned))
+            return "Museum";
         return cleaned;
     }
 

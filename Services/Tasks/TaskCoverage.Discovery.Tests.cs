@@ -30,7 +30,10 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 /// Models.ExtractedInfo.LastDungeonFloor/LastDungeonFloorAt in production - see
 /// <see cref="DungeonRewardAttribution.ResolveLocation"/>. Both the raw and resolved location are
 /// written to coverage.json (<c>location</c>/<c>resolvedLocation</c>) so the remainder analysis can
-/// tell how much of the "Dungeon Hub" bucket was really reward claims.
+/// tell how much of the "Dungeon Hub" bucket was really reward claims. Also writes summary.json - a
+/// pre-aggregated overview (period/profit totals by public/hidden/unclassified class, plus the top 25
+/// unclassified zones and top 25 tasks by positive profit) so a first read of the run doesn't require
+/// re-deriving those numbers from coverage.json by hand.
 /// </summary>
 [Explicit]
 public class TaskCoverageDiscoveryTests
@@ -54,6 +57,9 @@ public class TaskCoverageDiscoveryTests
         var lineRe = new Regex(@"^Profit summary for (\S+) at (.*?): (-?\d+) coins from (.*)$");
         var itemRe = new Regex(@"(-?\d+)x ([^,]+)");
         var output = new List<object>();
+        // Parallel typed accumulator (same rows as `output` above) - summary.json is derived from
+        // this instead of re-parsing coverage.json back out of its serialized anonymous-object form.
+        var rows = new List<(string ResolvedLocation, long Profit, string Task, bool Hidden)>();
         // Per-player "last confirmed Catacombs floor" tracking, mirroring
         // Models.ExtractedInfo.LastDungeonFloor/LastDungeonFloorAt - see the class doc comment.
         var lastFloorByPlayer = new Dictionary<string, (string Zone, DateTime At)>();
@@ -80,6 +86,7 @@ public class TaskCoverageDiscoveryTests
             // HiddenTasks.cs) from genuinely unclassified/real-task revenue in the remainder analysis.
             var hidden = c?.TaskName != null
                 && (registry.GetByName(c.TaskName) as MethodTask)?.IsHidden == true;
+            var profit = long.Parse(m.Groups[3].Value);
             output.Add(new
             {
                 ts = e["timestamp"],
@@ -87,14 +94,80 @@ public class TaskCoverageDiscoveryTests
                 location = loc,
                 resolvedLocation,
                 island = SkyblockZones.IslandOf(resolvedLocation),
-                profit = long.Parse(m.Groups[3].Value),
+                profit,
                 items,
                 task = c?.TaskName,
                 itemMatched = c?.ItemMatched,
                 hidden
             });
+            rows.Add((resolvedLocation, profit, c?.TaskName, hidden));
         }
         File.WriteAllText(outputPath, JsonSerializer.Serialize(output));
+        // every registered detection signature, so the remainder analysis can tell "no task exists
+        // for this zone/item" apart from "a task exists but its Locations/DetectionItems miss it"
+        File.WriteAllText(Path.Combine(Path.GetDirectoryName(outputPath), "signatures.json"),
+            JsonSerializer.Serialize(registry.MethodTasks.Select(t =>
+            {
+                var sig = t.GetDetectionSignature();
+                return new
+                {
+                    task = sig.MethodName,
+                    hidden = t.IsHidden,
+                    locations = sig.Locations,
+                    detectionItems = sig.DetectionItems,
+                    sig.RequireShardItems,
+                    sig.ExcludeShardItems,
+                    sig.Priority,
+                    sig.Category
+                };
+            })));
+
+        // ── summary.json: pre-aggregated overview so a first read doesn't require re-deriving
+        // totals from coverage.json by hand. "Class" is public (a real, user-facing task) / hidden
+        // (MethodTask.Hidden accounting bucket - HiddenTasks.cs) / unclassified (no task matched).
+        // "Positive profit" only sums periods with profit > 0 - a period can have negative profit
+        // (e.g. a pure purchase), which would otherwise distort the class totals/shares.
+        string ClassOf((string ResolvedLocation, long Profit, string Task, bool Hidden) r) =>
+            r.Task == null ? "unclassified" : r.Hidden ? "hidden" : "public";
+
+        var byClass = rows.GroupBy(ClassOf).ToDictionary(g => g.Key, g => g.ToList());
+        var totalPositiveProfit = rows.Where(r => r.Profit > 0).Sum(r => r.Profit);
+        var classSummaries = new[] { "public", "hidden", "unclassified" }.Select(cls =>
+        {
+            var classRows = byClass.GetValueOrDefault(cls, []);
+            var positiveProfit = classRows.Where(r => r.Profit > 0).Sum(r => r.Profit);
+            return new
+            {
+                @class = cls,
+                periodCount = classRows.Count,
+                positiveProfit,
+                sharePercent = totalPositiveProfit > 0 ? Math.Round(positiveProfit * 100.0 / totalPositiveProfit, 2) : 0
+            };
+        }).ToList();
+
+        var topUnclassifiedZones = byClass.GetValueOrDefault("unclassified", [])
+            .GroupBy(r => r.ResolvedLocation)
+            .Select(g => new { zone = g.Key, positiveProfit = g.Where(r => r.Profit > 0).Sum(r => r.Profit), periodCount = g.Count() })
+            .OrderByDescending(z => z.positiveProfit)
+            .Take(25)
+            .ToList();
+
+        var topTasks = rows.Where(r => r.Task != null)
+            .GroupBy(r => r.Task)
+            .Select(g => new { task = g.Key, positiveProfit = g.Where(r => r.Profit > 0).Sum(r => r.Profit), periodCount = g.Count() })
+            .OrderByDescending(t => t.positiveProfit)
+            .Take(25)
+            .ToList();
+
+        var summary = new
+        {
+            totalPeriods = rows.Count,
+            totalPositiveProfit,
+            byClass = classSummaries,
+            topUnclassifiedZones,
+            topTasks
+        };
+        File.WriteAllText(Path.Combine(Path.GetDirectoryName(outputPath), "summary.json"), JsonSerializer.Serialize(summary));
     }
 
     /// <summary>

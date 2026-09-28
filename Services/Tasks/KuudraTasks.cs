@@ -7,6 +7,10 @@ public abstract class BaseKuudraTask : MethodTask
     protected override string Category => "Kuudra";
     protected override string ActionUnit => "runs";
     protected override string WarpCommand => "/warp kuudra";
+    // A Kuudra tier zone ("Kuudra's Hollow (T1)".."(T5)") is a dedicated instance - it can only ever
+    // mean that one tier, so a couple of essence/attribute shard items is already unambiguous
+    // evidence, unlike a shared open-world zone. See DungeonTasks.BaseDungeonTask for the same idea.
+    protected override int MinLocationOnlyItems => 1;
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "TERROR_CHESTPLATE", Reason = "Kuudra armor set" },
         new() { ItemTag = "HYPERION", Reason = "Weapon" }

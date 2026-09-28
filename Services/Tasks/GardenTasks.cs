@@ -3,20 +3,39 @@ using System.Linq;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
 
+/// <summary>
+/// Real Garden pest drop tags, shared by <see cref="PestTask"/> and <see cref="PestHuntingTask"/>
+/// (HuntingTasks.cs). Replaces the old fabricated PEST_KILL/PESTERMINATOR "detection tags", which
+/// never occur in production - see the 2026-09 production log finding. The 13 tags are Pest Vinyls
+/// (a rare cosmetic drop, one per pest species); the rest are rarer pest-specific items. Every pest
+/// kill also gives the plot's crop as an enchanted item, but that is shared with plain crop farming
+/// (BaseGardenCropTask) and is not distinguishing evidence for "this was a pest kill" by itself, so
+/// it is deliberately not part of this set - crop farming tasks winning by item value on a mixed
+/// window is expected (see the class-level comment on BaseGardenCropTask).
+/// </summary>
+internal static class PestEvidence
+{
+    public static readonly HashSet<string> Items =
+    [
+        "VINYL_BEETLE", "VINYL_BUZZIN_BEATS", "VINYL_CICADA_SYMPHONY", "VINYL_CRICKET_CHOIR", "VINYL_DYNAMITES",
+        "VINYL_EARTHWORM_ENSEMBLE", "VINYL_FIREFLY", "VINYL_IMAGINE_DRAGONFLIES", "VINYL_PRAY_FOR_ME",
+        "VINYL_PRETTY_FLY", "VINYL_RODENT_REVOLUTION", "VINYL_SLOW_AND_GROOVY", "VINYL_WINGS_OF_HARMONY",
+        "LOCUST_LARVA", "BEADY_EYES", "CLIPPED_WINGS", "WRIGGLING_LARVA", "MANTID_CLAW", "CHIRPING_STEREO", "ATMOSPHERIC_FILTER"
+    ];
+}
+
 public class PestTask : MethodTask
 {
     protected override string MethodName => "Pest";
-    protected override HashSet<string> Locations => ["The Garden", "Plot 1", "Plot 2", "Plot 3", "Plot 4", "Plot 5", "Plot 6", "Plot 7", "Plot 8", "Plot 9", "Plot 10", "Plot 11", "Plot 12"];
-    protected override HashSet<string> DetectionItems => ["PEST_KILL", "PESTERMINATOR"];
+    // Island key - real Garden zones are "The Garden" (with a per-visit pest count suffix) and
+    // free-text "Plot - <player's name>" strings, both collapsed by SkyblockZones.Canonical - same
+    // fix as BaseGardenCropTask below.
+    protected override HashSet<string> Locations => ["Garden"];
+    // Island keys are never zones themselves (see SkyblockZones.cs) - name a real zone so Where/
+    // Island/WikiUrl/Warp still resolve (same fix as BaseGardenCropTask below).
+    protected override string Where => "The Garden";
+    protected override HashSet<string> DetectionItems => PestEvidence.Items;
     protected override bool ExcludeShardItems => true;
-    // Killing/vacuuming Garden pests yields the plot's crop as enchanted drops (not a single "ENCHANTED_CROP").
-    protected override List<MethodDrop> FormulaDrops =>
-    [
-        new("ENCHANTED_MELON", 20), new("ENCHANTED_CARROT", 20),
-        new("ENCHANTED_POTATO", 15), new("ENCHANTED_WHEAT", 15),
-        new("ENCHANTED_PUMPKIN", 10), new("ENCHANTED_CACTUS", 10),
-        new("ENCHANTED_SUGAR_CANE", 10)
-    ];
     protected override string Category => "Garden";
     protected override string HowTo => "Go to The Garden and kill pests that spawn on your plots. Use the Pesterminator vacuum or manual pest killing. Higher Farming Fortune increases crop drops.";
     protected override List<RequiredItem> RequiredItems => [

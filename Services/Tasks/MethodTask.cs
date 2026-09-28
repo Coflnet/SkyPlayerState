@@ -265,6 +265,17 @@ public abstract class MethodTask : ProfitTask
     protected virtual int Priority => 0;
 
     /// <summary>
+    /// Minimum total item count a location-only match (no DetectionItems hit, or this task has no
+    /// DetectionItems at all) needs before the classifier considers this task's signature - see
+    /// TaskClassifier.Classify/DetectionSignature.MinLocationOnlyItems. Default 5. Override to 1 for
+    /// a zone that is a dedicated instance which can only mean this one activity (a specific
+    /// Catacombs floor, a specific Kuudra tier, a hidden accounting zone) - the zone itself is
+    /// already unambiguous evidence there, so requiring 5 generic items would drop real short
+    /// sessions for no reason.
+    /// </summary>
+    protected virtual int MinLocationOnlyItems => 5;
+
+    /// <summary>
     /// Which player stats affect the rates of this task. Used to group data from
     /// players with similar stats. Empty means rates are not stat conditioned and
     /// all data lands in the unknown bucket.
@@ -276,7 +287,7 @@ public abstract class MethodTask : ProfitTask
     /// Exposes the same rules <see cref="FindMatchingPeriods"/> applies.
     /// </summary>
     public DetectionSignature GetDetectionSignature() => new(
-        MethodName, Locations, DetectionItems, RequireShardItems, ExcludeShardItems, Priority, Category, DerivedFrom);
+        MethodName, Locations, DetectionItems, RequireShardItems, ExcludeShardItems, Priority, Category, DerivedFrom, MinLocationOnlyItems);
 
     /// <summary>
     /// Estimated multipliers from the declared effects, used to seed the

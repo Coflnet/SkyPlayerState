@@ -142,9 +142,88 @@ public class BazaarOrderTests
     [TestCase("[Bazaar] Buy Order Setup! 1x Experience IV for 353k coins.")]
     [TestCase("[Bazaar] Cancelled! Refunded 3,554,406 coins from cancelling Buy Order!")]
     [TestCase("[Bazaar] Claimed 187x Melon worth 112.2 coins bought for 0.6 each!")]
+    // Verbatim production lines that dominated "failed update state on CHAT" errors - GetTagForName's
+    // .First() over an empty item-search result threw InvalidOperationException for these (item
+    // search doesn't know "Turbo-Cane I"/"Prismarine Crystals"/"Gabagool Distillate" etc). None of
+    // these must throw any more - see GetTagForNameReturnsNullInsteadOfThrowing* below for the root
+    // cause and ClaimWithUnresolvableItemNameDoesNotThrowAndPreservesEarlierListenerEvidence for the
+    // specific uncaught BazaarOrderSync.Claim/ApplyClaim path this came from.
+    [TestCase("[Bazaar] Claimed 16x Turbo-Cane I worth 95,747 coins bought for 5,984.2 each!")]
+    [TestCase("[Bazaar] Claimed 1,921x Prismarine Crystals worth 1,772,122 coins bought for 922.5 each!")]
+    [TestCase("[Bazaar] Claimed 24x Gabagool Distillate worth 507,874 coins bought for 21,161 each!")]
+    [TestCase("[Bazaar] Sold 1x Bank I for 1,000 coins!")]
+    [TestCase("[Bazaar] Sold 1x Rejuvenate I for 11,006 coins!")]
     public async Task RunParse(string line)
     {
         await listener.Process(CreateArgs(line));
+    }
+
+    [Test]
+    public async Task GetTagForNameReturnsNullInsteadOfThrowingWhenSearchReturnsNoResults()
+    {
+        var args = CreateArgs();
+        itemsApi.Setup(i => i.ItemsSearchTermGetAsync(It.IsAny<string>(), null, 0, default))
+            .ReturnsAsync(new List<Items.Client.Model.SearchResult>());
+
+        string tag = null;
+        Assert.DoesNotThrowAsync(async () => tag = await BazaarOrderListener.GetTagForName(args, "Turbo-Cane I"));
+        Assert.That(tag, Is.Null);
+    }
+
+    [Test]
+    public async Task GetTagForNameReturnsNullInsteadOfThrowingWhenSearchApiReturnsNull()
+    {
+        var args = CreateArgs();
+        // Default Moq behaviour for an unconfigured Task<List<T>>-returning member - mirrors the
+        // item search simply not knowing a name, same as an empty list.
+        string tag = null;
+        Assert.DoesNotThrowAsync(async () => tag = await BazaarOrderListener.GetTagForName(args, "Gabagool Distillate"));
+        Assert.That(tag, Is.Null);
+    }
+
+    [Test]
+    public async Task ClaimWithUnresolvableItemNameDoesNotThrowAndPreservesEarlierListenerEvidence()
+    {
+        // Root cause (production): a partial Bazaar buy-order claim for an item name the search API
+        // doesn't resolve reaches BazaarOrderSync.Claim -> GetTagForName from an UNCAUGHT path
+        // (ApplyClaim has no try/catch around the Claim() call). GetTagForName used to throw
+        // InvalidOperationException there, which aborted the WHOLE state update in
+        // PlayerStateBackgroundService.Update - so a PurchaseListener result recorded earlier in the
+        // SAME update (already applied to args.currentState by then) was lost too, even though
+        // nothing was wrong with it. This line is both: a Bazaar claim for an unresolvable name AND
+        // (per PurchaseParser.BazaarBuyRegex) a purchase PurchaseListener records BAZAAR_PURCHASE
+        // evidence for - exactly the real production shape.
+        var order = new Offer
+        {
+            ItemName = "Turbo-Cane I", Amount = 32, PricePerUnit = 5984.2, IsSell = false,
+            Created = DateTime.UtcNow.AddMinutes(-1)
+        };
+        currentState.BazaarOffers.Add(order);
+        var args = CreateArgs("[Bazaar] Claimed 16x Turbo-Cane I worth 95,747 coins bought for 5,984.2 each!");
+        // Real (unmocked) BazaarOrderSync so this actually exercises GetTagForName via Claim, not a
+        // no-op mock - itemsApi.ItemsSearchTermGetAsync stays unconfigured (unresolvable name).
+        args.AddService(new BazaarOrderSync(new System.Net.Http.HttpClient()));
+
+        // PurchaseListener runs BEFORE BazaarOrderListener in the real pipeline (see
+        // PlayerStateBackgroundService's handler registration order) - simulate that ordering.
+        await new PurchaseListener().Process(args);
+        Assert.That(currentState.ItemsCollectedRecently.GetValueOrDefault(Tasks.PseudoItems.BAZAAR_PURCHASE), Is.EqualTo(95747),
+            "sanity check: this line is recognised as a purchase before BazaarOrderListener even runs");
+
+        Assert.DoesNotThrowAsync(async () => await listener.Process(args));
+
+        Assert.That(currentState.ItemsCollectedRecently.GetValueOrDefault(Tasks.PseudoItems.BAZAAR_PURCHASE), Is.EqualTo(95747),
+            "PurchaseListener's evidence from earlier in the same update must survive the bazaar tag-resolution failure");
+        Assert.That(order.ClaimedAmount, Is.EqualTo(16), "the claim's own bookkeeping still applies even though the order book sync was skipped");
+    }
+
+    [Test]
+    public void ListenerIsOptionalSoAFailureHereCannotAbortTheWholeStateUpdate()
+    {
+        // Defense in depth (isolation, matching the existing "optional listener" convention - see
+        // RecipeUpdate/PlayerStateBackgroundService.Update): even if some future bug throws here
+        // anyway, the state update must still be saved with whatever earlier listeners produced.
+        Assert.That(new BazaarOrderListener().Optional, Is.True);
     }
 
     [Test]
@@ -666,6 +745,7 @@ public class BazaarOrderTests
         args.AddService<ITransactionService>(transactionService.Object);
         args.AddService(orderBookApi.Object);
         args.AddService<ILogger<BazaarOrderListener>>(NullLogger<BazaarOrderListener>.Instance);
+        args.AddService<ILogger<BazaarOrderSync>>(NullLogger<BazaarOrderSync>.Instance);
         args.AddService(scheduleApi.Object);
 
         return args;

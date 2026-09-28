@@ -57,7 +57,7 @@ public class CollectionListener : UpdateListener
             for (var i = 0; i < chatBatch.Count; i++)
             {
                 var uploadedLine = chatBatch[i];
-                if (TryParseShardGain(uploadedLine, out var shardTag, out var shardCount))
+                if (TryParseShardGain(uploadedLine, out var shardTag, out var shardCount, Logger))
                     TrackItem(args, shardTag, shardCount);
                 if (TryParseNpcShardTrade(history.Concat(chatBatch.Take(i)), uploadedLine,
                     out shardTag, out var paymentTag))
@@ -136,14 +136,28 @@ public class CollectionListener : UpdateListener
         return Regex.Replace(value, "§.", string.Empty);
     }
 
-    internal static bool TryParseShardGain(string uploadedLine, out string tag, out int count)
+    /// <summary>
+    /// A derived (unmapped - not found in <see cref="Constants.ShardNames"/>) fallback tag is only
+    /// trustworthy when the raw shard name is actually just a mob name. Production zone "Critter
+    /// Safari" showed lines like "You caught a Bluebird and gained 2x Bluebird Shards!" - the count
+    /// written as "2x" (digits-then-x) rather than "x2" fell through the primary "gained" regex
+    /// (which only recognized "x2"), so the fallback "caught/received" regex's lazy match swallowed
+    /// the rest of the sentence up to the real "Shards!", producing a shard name of "Bluebird and
+    /// gained 2x Bluebird" and a bogus tag "SHARD_BLUEBIRD_AND_GAINED_2X_BLUEBIRD". The digits-then-x
+    /// order is now parsed directly (see below), but this guard stays as defense in depth against
+    /// any other sentence fragment leaking into an unmapped shard name in the future.
+    /// </summary>
+    private static readonly Regex SuspiciousShardNameFragment = new(@"\band\b|\d+x\b|\bx\d+\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    internal static bool TryParseShardGain(string uploadedLine, out string tag, out int count, ILogger logger = null)
     {
-        // New captures say "caught ... and gained a ... Shard"; older catches and loot share
-        // say "You caught/received a ... Shard" directly.
+        // New captures say "caught ... and gained a/x2/2x ... Shard"; older catches and loot share
+        // say "You caught/received a ... Shard" directly. Hypixel writes the gained count both as
+        // "x2" (seen originally) and "2x" (seen in Critter Safari catch lines) - accept both orders.
         var line = StripFormatting(uploadedLine);
-        var match = Regex.Match(line, @"\bgained (a|an|x[\d,]+) (.+?) Shards?!", RegexOptions.IgnoreCase);
+        var match = Regex.Match(line, @"\bgained (a|an|x[\d,]+|[\d,]+x) (.+?) Shards?!", RegexOptions.IgnoreCase);
         if (!match.Success)
-            match = Regex.Match(line, @"\bYou (?:caught|received) (a|an|x[\d,]+) (.+?) Shards?(?:!| for\b)",
+            match = Regex.Match(line, @"\bYou (?:caught|received) (a|an|x[\d,]+|[\d,]+x) (.+?) Shards?(?:!| for\b)",
                 RegexOptions.IgnoreCase);
         if (!match.Success)
         {
@@ -152,12 +166,30 @@ public class CollectionListener : UpdateListener
             return false;
         }
         var shardName = match.Groups[2].Value.Trim();
-        var amount = match.Groups[1].Value;
-        count = amount.StartsWith("x", StringComparison.OrdinalIgnoreCase)
-            ? int.Parse(amount[1..].Replace(",", ""))
-            : 1;
+        count = ParseShardAmount(match.Groups[1].Value);
         tag = GetShardTag(shardName);
+        if (!Constants.ShardNames.ContainsKey(shardName) && SuspiciousShardNameFragment.IsMatch(shardName))
+        {
+            // The derived tag carries sentence-fragment leftovers (an "and"/leftover count token) -
+            // almost certainly a regex matching too much of the surrounding sentence. Reject rather
+            // than store a garbage per-mob tag; log so it stays discoverable which line caused it.
+            logger?.LogInformation(
+                "Rejecting suspicious derived shard tag {tag} for unmapped name {shardName} from line: {line}",
+                tag, shardName, uploadedLine);
+            tag = string.Empty;
+            count = 0;
+            return false;
+        }
         return true;
+    }
+
+    private static int ParseShardAmount(string amount)
+    {
+        if (amount.StartsWith("x", StringComparison.OrdinalIgnoreCase))
+            return int.Parse(amount[1..].Replace(",", ""));
+        if (amount.EndsWith("x", StringComparison.OrdinalIgnoreCase))
+            return int.Parse(amount[..^1].Replace(",", ""));
+        return 1;
     }
 
     internal static bool TryParseNpcShardTrade(IEnumerable<string> previousLines, string uploadedLine,
@@ -310,20 +342,31 @@ public class CollectionListener : UpdateListener
         }
     }
 
+    /// <summary>
+    /// Cap for <see cref="Models.StateObject.KnownItemUuids"/> - see <see cref="RegisterKnownItemUuids"/>.
+    /// </summary>
+    private const int MaxKnownItemUuids = 1024;
+
     static void HandleInventory(UpdateArgs args)
     {
         var previousInventory = args.currentState.RecentViews.Reverse().Skip(1).FirstOrDefault();
         if (previousInventory == null)
+        {
+            RegisterKnownItemUuids(args.currentState, args.msg.Chest);
             return;
-        Dictionary<string, int?> mapOfItems = GetLookupItemCount(previousInventory);
+        }
+        Dictionary<string, List<Models.Item>> mapOfItems = GetLookupItemsByTag(previousInventory);
         try
         {
             if (previousInventory.Name != null && (!StorageListener.IsNotStorage(previousInventory)
                 || IsBazaarOrderCreate(previousInventory) || IsBazaarWindow(previousInventory)
                 || previousInventory.Name == "Create BIN Auction"))
             {
-                // if the previous inventory is a storage, we don't want to track items collected
+                // if the previous inventory is a storage, we don't want to track items collected -
+                // but the known-uuid set must still learn this view's items regardless (see
+                // RegisterKnownItemUuids's docs), so register before returning.
                 args.GetService<ILogger<CollectionListener>>().LogDebug("Skipping item collection tracking for storage chest {chestName} for player {playerId}", previousInventory.Name, args.currentState.PlayerId);
+                RegisterKnownItemUuids(args.currentState, args.msg.Chest);
                 return;
             }
         }
@@ -331,32 +374,115 @@ public class CollectionListener : UpdateListener
         {
             args.GetService<ILogger<CollectionListener>>().LogError(e, "Failed to handle inventory for player {PlayerId} {previousInventory}", args.currentState.PlayerId, JsonConvert.SerializeObject(previousInventory));
         }
-        var currentInventory = GetLookupItemCount(args.msg.Chest);
-        foreach (var item in currentInventory)
+        var currentInventory = GetLookupItemsByTag(args.msg.Chest);
+        // Snapshot of uuids already known BEFORE this view's own items are registered below - a diff
+        // must be judged against what was known before this view arrived, never against itself (see
+        // RegisterKnownItemUuids, called last in this method).
+        var known = args.currentState.KnownItemUuids;
+        var knownUuids = known is { Count: > 0 } ? new HashSet<long>(known) : null;
+        foreach (var (tag, currentItems) in currentInventory)
         {
-            if (item.Value == null)
-                continue;
-            if (mapOfItems.TryGetValue(item.Key, out var previousCount))
+            if (!mapOfItems.TryGetValue(tag, out var previousItems))
+                continue; // unchanged rule: a tag must be present in both views
+            if (currentItems.Any(i => TryGetItemUuidHash(i, out _)) || previousItems.Any(i => TryGetItemUuidHash(i, out _)))
             {
-                if (previousCount == null)
-                    continue;
-                var diff = item.Value - previousCount;
-                if (diff != 0)
+                // Non-stackable item (carries a uuid): dedupe by uuid instead of raw count. A
+                // positive change only counts uuids genuinely never seen before - neither in the
+                // previous view nor in the known set - so re-equipping/moving gear the player
+                // already had (its count merely flipping between e.g. 1 and 2) is never counted as
+                // "collected". A uuid item leaving produces no negative entry (moving to storage or
+                // selling it is not a consumed resource) - handled implicitly, since only currentItems
+                // ever contribute below.
+                var previousUuids = previousItems
+                    .Select(i => TryGetItemUuidHash(i, out var hash) ? (long?)hash : null)
+                    .Where(hash => hash.HasValue).Select(hash => hash!.Value).ToHashSet();
+                var newCount = 0;
+                foreach (var item in currentItems)
                 {
-                    args.currentState.ItemsCollectedRecently[item.Key] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(item.Key, 0) + (int)diff;
+                    if (!TryGetItemUuidHash(item, out var hash))
+                        continue;
+                    if (previousUuids.Contains(hash) || (knownUuids != null && knownUuids.Contains(hash)))
+                        continue;
+                    newCount++;
                 }
+                if (newCount != 0)
+                    args.currentState.ItemsCollectedRecently[tag] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(tag, 0) + newCount;
+                continue;
             }
+            var previousCount = previousItems.Sum(i => i.Count ?? 0);
+            var currentCount = currentItems.Sum(i => i.Count ?? 0);
+            var diff = currentCount - previousCount;
+            if (diff != 0)
+                args.currentState.ItemsCollectedRecently[tag] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(tag, 0) + diff;
         }
-        static Dictionary<string, int?> GetLookupItemCount(Models.ChestView? previousInventory)
+        RegisterKnownItemUuids(args.currentState, args.msg.Chest);
+
+        static Dictionary<string, List<Models.Item>> GetLookupItemsByTag(Models.ChestView? previousInventory)
         {
             // skip more than the 4 lines above and maybe 1 offhand slot
             var accessibleInventory = previousInventory.Items.Skip(previousInventory.Items.Count - 36 / 9 * 9).Take(36).ToList();
-            var mapOfItems = accessibleInventory
+            return accessibleInventory
                 .Where(i => i.Tag != null && i.ItemName != null)
                 .GroupBy(i => i.Tag)
-                .ToDictionary(g => g.Key, g => g.Sum(i => i.Count));
-            return mapOfItems;
+                .ToDictionary(g => g.Key, g => g.ToList());
         }
+    }
+
+    /// <summary>
+    /// Adds every item's uuid (if any - see <see cref="TryGetItemUuidHash"/>) from a just-seen
+    /// inventory/container view into the player's bounded <see cref="Models.StateObject.KnownItemUuids"/>,
+    /// oldest-first eviction once <see cref="MaxKnownItemUuids"/> is exceeded. Called for every view
+    /// the service sees - the player's own inventory (see <see cref="HandleInventory"/>, on every
+    /// exit path, not just the counting one) AND storage containers (see
+    /// <see cref="StorageListener.Process"/>) - so gear the player already owns is never later
+    /// miscounted as "new" collected revenue just because one particular pairing skipped the count
+    /// diff (storage chests, Bazaar menus, ...).
+    /// </summary>
+    internal static void RegisterKnownItemUuids(Models.StateObject state, Models.ChestView? view)
+    {
+        var items = view?.Items;
+        if (items == null || state == null)
+            return;
+        var known = state.KnownItemUuids ??= new Queue<long>();
+        HashSet<long> seen = null;
+        foreach (var item in items)
+        {
+            if (!TryGetItemUuidHash(item, out var hash))
+                continue;
+            seen ??= new HashSet<long>(known);
+            if (!seen.Add(hash))
+                continue; // already known, or already added earlier from this same view
+            known.Enqueue(hash);
+            if (known.Count > MaxKnownItemUuids)
+                known.Dequeue();
+        }
+    }
+
+    /// <summary>
+    /// Non-stackable SkyBlock items carry a unique id in <c>ExtraAttributes["uuid"]</c>; stackable
+    /// resources never do. Returns a stable 64-bit hash of it (FNV-1a - deterministic across
+    /// processes/restarts/pods, unlike <see cref="string.GetHashCode()"/>, which is randomized per
+    /// process and would make the persisted known set meaningless) so <see cref="Models.StateObject.KnownItemUuids"/>
+    /// can store it compactly instead of the full uuid string.
+    /// </summary>
+    internal static bool TryGetItemUuidHash(Models.Item item, out long hash)
+    {
+        hash = 0;
+        if (item?.ExtraAttributes == null || !item.ExtraAttributes.TryGetValue("uuid", out var raw))
+            return false;
+        var uuid = raw?.ToString();
+        if (string.IsNullOrEmpty(uuid))
+            return false;
+        const ulong offsetBasis = 14695981039346656037UL;
+        const ulong prime = 1099511628211UL;
+        var fnv = offsetBasis;
+        foreach (var b in System.Text.Encoding.UTF8.GetBytes(uuid))
+        {
+            fnv ^= b;
+            fnv *= prime;
+        }
+        hash = unchecked((long)fnv);
+        return true;
     }
 
     private static bool IsBazaarWindow(Models.ChestView previousInventory)
@@ -527,6 +653,10 @@ public class CollectionListener : UpdateListener
         var floor = TryParseCroesusFloor(args.msg.Chest?.Name);
         if (floor == null)
             return;
+        // Production has no evidence this ever fires - Information (not Debug) so the next log
+        // analysis can confirm whether Croesus floor menus are actually being recognised at all.
+        args.GetService<ILogger<CollectionListener>>().LogInformation(
+            "Croesus menu {title} for {playerId} resolved to {floor}", args.msg.Chest?.Name, args.currentState.PlayerId, floor);
         args.currentState.ExtractedInfo.LastDungeonFloor = floor;
         args.currentState.ExtractedInfo.LastDungeonFloorAt = DateTime.UtcNow;
     }

@@ -252,7 +252,12 @@ public class TaskClassifierTests
             currentIsland: "Crystal Hollows", currentIslandAt: staleCurrentIslandAt,
             currentLocationSince: currentLocationSince, currentLocationSeenAt: currentLocationSeenAt);
 
-        result.Should().BeNull("a stale tab-reported island must not be used to match an ambiguous zone");
+        // "Your Island" now always falls back to the hidden "Private Island Activity" catch-all
+        // (HiddenTasks.cs, section D) when nothing item-matches - if the stale tab reading had
+        // wrongly been used, PET_SCATHA would have item-matched Scatha Mining instead.
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Private Island Activity",
+            "a stale tab-reported island must not be used to match an ambiguous zone");
     }
 
     [Test]
@@ -271,7 +276,11 @@ public class TaskClassifierTests
             currentIsland: "Crystal Hollows", currentIslandAt: tabForNewIslandAt,
             currentLocationSince: currentLocationSince, currentLocationSeenAt: currentLocationSeenAt);
 
-        result.Should().BeNull("a tab reading that arrived after the old zone's last confirmation belongs to the new zone, not this fragment");
+        // See StaleCurrentIsland_AmbiguousZone_DoesNotMatch - "Your Island" now falls back to the
+        // hidden "Private Island Activity" catch-all instead of null.
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Private Island Activity",
+            "a tab reading that arrived after the old zone's last confirmation belongs to the new zone, not this fragment");
     }
 
     [Test]
@@ -308,7 +317,13 @@ public class TaskClassifierTests
             currentIsland: "Crystal Hollows", currentIslandAt: freshCurrentIslandAt,
             currentLocationSince: currentLocationSince, currentLocationSeenAt: currentLocationSeenAt);
 
-        result.Should().BeNull("Village already resolves to Hub via the static map, so Crystal Hollows tasks must not match it");
+        // "Village" is now a literal zone the hidden "Hub Trading" catch-all matches directly
+        // (HiddenTasks.cs, section D) - what this regression actually pins is that the fresh
+        // currentIsland fallback is never consulted for it, so PET_SCATHA never item-matches
+        // Scatha Mining (which would only happen if Village had wrongly resolved to Crystal Hollows).
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Hub Trading",
+            "Village already resolves to Hub via the static map, so Crystal Hollows tasks must not match it");
     }
 
     // ── Same fixtures phrased against "Dragon's Lair" (Crystal Hollows AND Galatea - the exact
@@ -601,9 +616,11 @@ public class TaskClassifierTests
     }
 
     [Test]
-    public void GardenWithPestKill_StillClassifiesToPest()
+    public void GardenWithPestVinyl_StillClassifiesToPest()
     {
-        var items = new Dictionary<string, int> { { "PEST_KILL", 30 } };
+        // PEST_KILL/PESTERMINATOR were fabricated tags that never occur in production - PestTask now
+        // detects on real pest drops (Pest Vinyls + rarer pest items, see PestEvidence in GardenTasks.cs).
+        var items = new Dictionary<string, int> { { "VINYL_SLOW_AND_GROOVY", 1 }, { "LOCUST_LARVA", 2 } };
         var result = Classifier.Classify("The Garden", items, 10);
         result.Should().NotBeNull();
         result!.TaskName.Should().Be("Pest", "PestTask's own detection items must still win over the per-crop farming tasks");
@@ -698,11 +715,15 @@ public class TaskClassifierTests
     }
 
     [Test]
-    public void YourIsland_WithNonMinionItem_DoesNotClassify()
+    public void YourIsland_WithNonMinionItem_ClassifiesToPrivateIslandActivity()
     {
+        // MinionCollectionTask always needs its own DetectionItems (never matches HYPERION), so a
+        // non-minion item on the private island now falls back to the hidden "Private Island
+        // Activity" catch-all (HiddenTasks.cs, section D) instead of going unclassified.
         var items = new Dictionary<string, int> { { "HYPERION", 1 } };
-        Classifier.Classify("Your Island", items, 10).Should().BeNull(
-            "no minion product and too few items for a location-only fallback (MinionCollectionTask always needs its own DetectionItems)");
+        var result = Classifier.Classify("Your Island", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Private Island Activity");
     }
 
     [Test]
@@ -732,5 +753,298 @@ public class TaskClassifierTests
         var result = Classifier.Classify("Village", items, 10);
         result.Should().NotBeNull();
         result!.TaskName.Should().Be("Auction Purchases");
+    }
+
+    // ── section B: DetectionSignature.MinLocationOnlyItems (2026-09-28 production log analysis) ──
+
+    [Test]
+    public void CatacombsF6Zone_WithOnlyTwoRewardChestItems_StillClassifiesToF6()
+    {
+        // A Catacombs floor zone is a dedicated instance that can only mean that one floor - unlike
+        // a shared open-world zone, 2 items is already unambiguous evidence (BaseDungeonTask sets
+        // MinLocationOnlyItems = 1).
+        var items = new Dictionary<string, int> { { "SUPERBOOM_TNT", 2 } };
+        var result = Classifier.Classify("The Catacombs (F6)", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("F6");
+    }
+
+    [Test]
+    public void SharedOpenWorldLocationOnlyTask_StillNeedsDefaultFiveItems()
+    {
+        // Contrast with CatacombsF6Zone_WithOnlyTwoRewardChestItems_StillClassifiesToF6 above -
+        // BayouFishingTask keeps the default MinLocationOnlyItems (5).
+        var items = new Dictionary<string, int> { { "COCONUT", 3 } };
+        Classifier.Classify("Backwater Bayou", items, 10).Should().BeNull();
+    }
+
+    // ── section C: new/corrected tasks (2026-09-28 production log analysis) ──
+
+    [Test]
+    public void CryptsWithRevenantFlesh_ClassifiesToRevenantSlayer()
+    {
+        var items = new Dictionary<string, int> { { "ROTTEN_FLESH", 43 }, { "REVENANT_FLESH", 126 }, { "GOLD_INGOT", 89 } };
+        var result = Classifier.Classify("Crypts", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Revenant Slayer",
+            "GoldenGhoulTask also matches via GOLD_INGOT, but Revenant Slayer's higher Priority breaks the tie");
+    }
+
+    [Test]
+    public void SoulCaveWithWolfToothAndHamsterWheel_ClassifiesToSvenSlayer()
+    {
+        var items = new Dictionary<string, int> { { "WOLF_TOOTH", 257 }, { "BONE", 36 }, { "HAMSTER_WHEEL", 12 }, { "LOG", 11 } };
+        var result = Classifier.Classify("Soul Cave", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Sven Slayer");
+    }
+
+    [Test]
+    public void BurningDesertWithTarantulaWeb_ClassifiesToTarantulaSlayerCrimsonIsle()
+    {
+        var items = new Dictionary<string, int> { { "STRING", 18 }, { "TARANTULA_WEB", 71 }, { "BURNING_EYE", 4 }, { "TOXIC_ARROW_POISON", 64 } };
+        var result = Classifier.Classify("Burning Desert", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Tarantula Slayer (Crimson Isle)");
+    }
+
+    [Test]
+    public void CourtyardWithGlowstoneDust_ClassifiesToMageOutlaw()
+    {
+        var items = new Dictionary<string, int> { { "GLOWSTONE_DUST", 30 }, { "ENCHANTED_GLOWSTONE_DUST", 1 }, { "SPELL_POWDER", 1 } };
+        var result = Classifier.Classify("Courtyard", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Mage Outlaw");
+    }
+
+    [Test]
+    public void TorrhusCanyonWithHoneycomb_ClassifiesToHoneycombGathering()
+    {
+        var items = new Dictionary<string, int> { { "HONEYCOMB", 81 }, { "ENCHANTED_HONEYCOMB", 3 }, { "SHARD_HONEYBUZZ", 2 } };
+        var result = Classifier.Classify("Torrhus Canyon", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Honeycomb Gathering");
+    }
+
+    [Test]
+    public void TorrhusHeightsWithTikiShards_ClassifiesToTikiHunting()
+    {
+        var items = new Dictionary<string, int> { { "SHARD_SHRIEKY_TIKI", 3 }, { "SHARD_SNEAKY_TIKI", 3 }, { "SHARD_CHEEKY_TIKI", 3 } };
+        var result = Classifier.Classify("Torrhus Heights", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Tiki (Hunting)");
+    }
+
+    [Test]
+    public void WestReachesWithMudwormShard_ClassifiesToMudwormHunting()
+    {
+        var items = new Dictionary<string, int> { { "SHARD_MUDWORM", 3 } };
+        var result = Classifier.Classify("West Reaches", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Mudworm (Hunting)");
+    }
+
+    [Test]
+    public void NorthReachesWithBirriesShardAndLushlilac_ClassifiesToBirriesHunting()
+    {
+        var items = new Dictionary<string, int> { { "SHARD_BIRRIES", 3 }, { "LUSHLILAC", 12 } };
+        var result = Classifier.Classify("North Reaches", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Birries (Hunting)");
+    }
+
+    [Test]
+    public void MurkwaterLochWithVinesapAndDeepRoot_ClassifiesToMangroveForaging()
+    {
+        var items = new Dictionary<string, int> { { "VINESAP", 6 }, { "DEEP_ROOT", 1 } };
+        var result = Classifier.Classify("Murkwater Loch", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Mangrove Foraging");
+    }
+
+    [Test]
+    public void UpperMinesWithTreasureHoarderShard_ClassifiesToTreasureHoarderHunting()
+    {
+        var items = new Dictionary<string, int> { { "SHARD_TREASURE_HOARDER", 4 }, { "STARFALL", 2 } };
+        var result = Classifier.Classify("Upper Mines", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Treasure Hoarder (Hunting)");
+    }
+
+    [Test]
+    public void GoblinBurrowsWithGoblinEgg_ClassifiesToGoblinFarming()
+    {
+        var items = new Dictionary<string, int> { { "GOBLIN_EGG", 3 }, { "GOBLIN_LEGGINGS", 1 } };
+        var result = Classifier.Classify("Goblin Burrows", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Goblin Farming");
+    }
+
+    [Test]
+    public void GreatIceWallWithGlaciteWalkerShard_ClassifiesToGlaciteWalkerHunting()
+    {
+        var items = new Dictionary<string, int> { { "SHARD_GLACITE_WALKER", 26 } };
+        var result = Classifier.Classify("Great Ice Wall", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Glacite Walker (Hunting)");
+    }
+
+    [Test]
+    public void DwarvenBaseCampWithTungsten_ClassifiesToTungstenMining()
+    {
+        var items = new Dictionary<string, int> { { "TUNGSTEN", 443 }, { "ENCHANTED_TUNGSTEN", 3 } };
+        var result = Classifier.Classify("Dwarven Base Camp", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Tungsten Mining");
+    }
+
+    [Test]
+    public void MinesOfDivanWithChestLoot_ClassifiesToCrystalHollowsPowderMining()
+    {
+        var items = new Dictionary<string, int> { { "HARD_STONE", 263 }, { "ENCHANTED_HARD_STONE", 5 }, { "TREASURITE", 2 }, { "PICKONIMBUS", 1 } };
+        var result = Classifier.Classify("Mines of Divan", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Crystal Hollows Powder Mining");
+    }
+
+    [Test]
+    public void MithrilDepositsWithChestLoot_ClassifiesToMithrilDepositsPowderMining()
+    {
+        var items = new Dictionary<string, int> { { "HARD_STONE", 200 }, { "WISHING_COMPASS", 3 } };
+        var result = Classifier.Classify("Mithril Deposits", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Mithril Deposits Powder Mining",
+            "the zone-specific task has higher Priority than the island-wide Crystal Hollows Powder Mining fallback");
+    }
+
+    [Test]
+    public void MithrilDepositsGemstonesDominate_StillClassifiesToJadeMining_WithPrices()
+    {
+        var items = new Dictionary<string, int> { { "ROUGH_JADE_GEM", 900 }, { "FLAWED_JADE_GEM", 40 }, { "HARD_STONE", 100 } };
+        var prices = new Dictionary<string, double> { { "ROUGH_JADE_GEM", 50 }, { "FLAWED_JADE_GEM", 400 }, { "HARD_STONE", 5 } };
+        var result = Classifier.Classify("Mithril Deposits", items, 10, prices: prices);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Jade Mining", "900*50 + 40*400 = 61,000 matched value beats 100*5 = 500 for the powder mining task");
+    }
+
+    /// <summary>
+    /// Documents current behavior only (not a guaranteed design invariant): without prices every
+    /// matched candidate's matchedValue is 0 (PseudoItems.ClassifierWeight falls back to 0 with no
+    /// price dict), so the tie-break falls through Priority (both default 0, equal) to alphabetical
+    /// MethodName order - "Jade Mining" sorts before "Mithril Deposits Powder Mining" and happens to
+    /// still win, but that is a naming coincidence, not something callers should rely on.
+    /// </summary>
+    [Test]
+    public void MithrilDepositsGemstonesDominate_WithoutPrices_StillPicksJadeMiningAlphabetically()
+    {
+        var items = new Dictionary<string, int> { { "ROUGH_JADE_GEM", 900 }, { "FLAWED_JADE_GEM", 40 }, { "HARD_STONE", 100 } };
+        var result = Classifier.Classify("Mithril Deposits", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Jade Mining");
+    }
+
+    [Test]
+    public void TheGardenWithPestVinyl_ClassifiesToPest()
+    {
+        var items = new Dictionary<string, int> { { "VINYL_SLOW_AND_GROOVY", 1 }, { "LOCUST_LARVA", 2 } };
+        var result = Classifier.Classify("The Garden", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Pest");
+    }
+
+    [Test]
+    public void ObsidianSanctuaryWithMinerZombieShard_ClassifiesToMinerZombieHunting()
+    {
+        var items = new Dictionary<string, int> { { "SHARD_MINER_ZOMBIE", 81 }, { "ROTTEN_FLESH", 34 } };
+        var result = Classifier.Classify("Obsidian Sanctuary", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Miner Zombie (Hunting)");
+    }
+
+    [Test]
+    public void ObsidianSanctuaryWithObsidianAndNoShard_StillClassifiesToObsidianMining()
+    {
+        // Miner Zombie (Hunting) must only win when its own shard is present, not steal every
+        // Obsidian Sanctuary period from Obsidian Mining.
+        var items = new Dictionary<string, int> { { "OBSIDIAN", 120 }, { "ENCHANTED_OBSIDIAN", 3 } };
+        var result = Classifier.Classify("Obsidian Sanctuary", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Obsidian Mining");
+    }
+
+    [Test]
+    public void CritterSafariWithShard_ClassifiesToCritterSafari()
+    {
+        var items = new Dictionary<string, int> { { "SHARD_FOXTROT", 3 } };
+        var result = Classifier.Classify("Critter Safari", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Critter Safari");
+    }
+
+    // ── section D: hidden accounting tasks for zones with no money making method (HiddenTasks.cs) ──
+
+    [Test]
+    public void VillageWithRawFish_PublicFishingTask_StillWinsOverHubTrading()
+    {
+        var items = new Dictionary<string, int> { { "RAW_FISH", 40 }, { "CLAY_BALL", 9 } };
+        var result = Classifier.Classify("Village", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Water Fishing");
+    }
+
+    [Test]
+    public void VillageWithUnrelatedItem_ClassifiesToHubTrading()
+    {
+        var items = new Dictionary<string, int> { { "GREEN_CANDY", 3 } };
+        var result = Classifier.Classify("Village", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Hub Trading");
+    }
+
+    [Test]
+    public void YourIslandWithNonMinionShard_ClassifiesToPrivateIslandActivity()
+    {
+        var items = new Dictionary<string, int> { { "SHARD_COCOALEECH", 256 } };
+        var result = Classifier.Classify("Your Island", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Private Island Activity");
+    }
+
+    [Test]
+    public void TheForgeWithSkeletonKey_ClassifiesToForgeClaims()
+    {
+        var items = new Dictionary<string, int> { { "SKELETON_KEY", 6 } };
+        var result = Classifier.Classify("The Forge", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Forge Claims");
+    }
+
+    [Test]
+    public void YourIslandWithMinionProduct_StillClassifiesToMinionCollection()
+    {
+        var items = new Dictionary<string, int> { { "CRUDE_GABAGOOL", 628 } };
+        var result = Classifier.Classify("Your Island", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Minion Collection");
+    }
+
+    [Test]
+    public void CommunityCenterAndWizardTower_LiteralMatch_ClassifyToHubTrading()
+    {
+        // "Community Center"/"Wizard Tower" stay in SkyblockZones.AmbiguousZones (shared with other
+        // islands - see SkyblockZonesTests.AmbiguousZone_WithFormatCodeNoise_StillResolvesNull), but
+        // Matches() checks a task's Locations against the exact zone string first, so the literal
+        // entries on HubTradingTask still match directly (same trick as MinionCollectionTask/"Your Island").
+        Classifier.Classify("Community Center", new() { { "GREEN_CANDY", 2 } }, 10)?.TaskName.Should().Be("Hub Trading");
+        Classifier.Classify("Wizard Tower", new() { { "GREEN_CANDY", 2 } }, 10)?.TaskName.Should().Be("Hub Trading");
+    }
+
+    [Test]
+    public void PlayerMuseumZone_CanonicalizesAndClassifiesToHubTrading()
+    {
+        var items = new Dictionary<string, int> { { "GREEN_CANDY", 2 } };
+        var result = Classifier.Classify("LXMini's Museum", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Hub Trading");
     }
 }

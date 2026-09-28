@@ -77,6 +77,22 @@ public class StateObject
     /// </summary>
     [Key(13)]
     public HashSet<Achievement> UnlockedAchievements = new();
+    /// <summary>
+    /// Bounded, oldest-first set of 64-bit hashes of item uuids (<see cref="Item.ExtraAttributes"/>
+    /// <c>["uuid"]</c>) this player has been seen to own, across the player's own inventory AND
+    /// storage containers (Ender Chest, backpacks - see <see cref="Services.StorageListener"/>).
+    /// Lets <see cref="Services.CollectionListener.HandleInventory"/> tell a genuinely new unique
+    /// item (crafted/bought/dropped) apart from gear the player already had that merely flipped its
+    /// stack count (equipping a second copy, entering a dungeon, ...) - see the class docs there for
+    /// why that was the largest source of false "collected" revenue in production. Capped at 1024
+    /// entries (oldest evicted first) so this can never grow unbounded. Older serialized states
+    /// predating this field deserialize it as an empty (not null) queue via this field initializer -
+    /// verified in PersistenceServiceTests - but code adding to it still defensively lazy-inits with
+    /// <c>??=</c> (see <see cref="Services.CollectionListener.RegisterKnownItemUuids"/>) rather than
+    /// relying on that.
+    /// </summary>
+    [Key(16)]
+    public Queue<long> KnownItemUuids = new();
     // [IgnoreMember] only excludes these from MessagePack (cassandra/redis). The api also serializes
     // StateObject with System.Text.Json (IncludeFields = true), which chokes on the SemaphoreSlim's
     // native handle ("IntPtr ... not supported"), so GetFullState needs [JsonIgnore] too.
@@ -124,6 +140,8 @@ public class StateObject
             ItemsCollectedRecently = new Dictionary<string, int>(other.ItemsCollectedRecently);
         if (other.UnlockedAchievements != null)
             UnlockedAchievements = new HashSet<Achievement>(other.UnlockedAchievements);
+        if (other.KnownItemUuids != null)
+            KnownItemUuids = new Queue<long>(other.KnownItemUuids);
         BazaarUpdatedAt = other.BazaarUpdatedAt;
         BazaarObservedAt = other.BazaarObservedAt;
         Settings = other.Settings;

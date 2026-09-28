@@ -16,6 +16,11 @@ public class StorageListener : UpdateListener
             return;
         }
         var chestView = args.msg.Chest;
+        // Every storage container view the service sees contributes its items' uuids to the
+        // player's known-item set (see CollectionListener.RegisterKnownItemUuids/HandleInventory's
+        // uuid dedup), regardless of whether this turns out to be a storage chest below - so it
+        // never depends on the early-return just below or on collection tracking being skipped.
+        CollectionListener.RegisterKnownItemUuids(args.currentState, chestView);
         if (chestView.Name == null || IsNotStorage(chestView))
         {
             return; // Only process Ender Chest or Storage chests

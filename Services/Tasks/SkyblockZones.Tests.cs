@@ -324,6 +324,17 @@ public class SkyblockZonesTests
         SkyblockZones.IslandOf("Community Center").Should().BeNull();
     }
 
+    // ── Player museums: "<name>'s Museum" (production examples: "LXMini's Museum",
+    // "FarmCactus's Museum") all canonicalize to the single "Museum" Hub zone. ──
+
+    [TestCase("LXMini's Museum")]
+    [TestCase("FarmCactus's Museum")]
+    public void PlayerMuseum_CanonicalizesToMuseum(string zone)
+    {
+        SkyblockZones.Canonical(zone).Should().Be("Museum");
+        SkyblockZones.IslandOf(zone).Should().Be("Hub");
+    }
+
     [Test]
     public void Matches_YourIsland_LiteralMatch_DespiteBeingAnAmbiguousZone()
     {

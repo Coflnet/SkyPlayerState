@@ -77,3 +77,78 @@ public class MinionCollectionTask : MethodTask
         "Hidden accounting task: absorbs private-island minion collection so it is not counted as "
         + "unclassified revenue. Never shown to players.";
 }
+
+// ── Hidden accounting tasks for zones where no money making method exists (2026-09) ──
+// Location-only, MinLocationOnlyItems 1 (their zone alone is enough signal - these exist purely to
+// stop noise inflating the unclassified bucket, not to require a minimum activity level) and a
+// Priority well below every public task, so any real, item-matched task at the same zone always
+// wins - see TaskClassifier.Classify's itemMatched-first tie-break, which already guarantees this
+// regardless of Priority for a task with its own DetectionItems (e.g. MinionCollectionTask/crop
+// farming tasks); the low Priority only matters for the rare case of two location-only candidates.
+
+/// <summary>
+/// Everything that appears on the private island that is not a minion product is a transfer (chests,
+/// Bazaar via cookie, crafting inputs/outputs, ...), not profit. MinionCollectionTask (item matched)
+/// still wins wherever its own detection items occur.
+/// </summary>
+public class PrivateIslandActivityTask : MethodTask
+{
+    protected override bool Hidden => true;
+    protected override string MethodName => "Private Island Activity";
+    protected override string Category => "Passive";
+    protected override HashSet<string> Locations => ["Your Island"];
+    protected override int MinLocationOnlyItems => 1;
+    protected override int Priority => -100;
+    protected override TaskType TaskType => TaskType.Passive;
+    public override string Description =>
+        "Hidden accounting task: absorbs private-island activity that is not minion collection (chests, "
+        + "Bazaar via cookie, crafting) so it is not counted as unclassified revenue. Never shown to players.";
+}
+
+/// <summary>
+/// Forge outputs (Skeleton Key, Refined Mithril, Perfect Plate, Drill Engine, ...) are crafted from
+/// purchased inputs - their value is not profit, it is a transformation of coins already spent.
+/// </summary>
+public class ForgeClaimsTask : MethodTask
+{
+    protected override bool Hidden => true;
+    protected override string MethodName => "Forge Claims";
+    protected override string Category => "Passive";
+    protected override HashSet<string> Locations => ["The Forge", "Forge Basin"];
+    protected override int MinLocationOnlyItems => 1;
+    protected override int Priority => -100;
+    protected override TaskType TaskType => TaskType.Passive;
+    public override string Description =>
+        "Hidden accounting task: absorbs Forge claims (crafted from purchased inputs) so their output "
+        + "value is not counted as unclassified revenue. Never shown to players.";
+}
+
+/// <summary>
+/// Hub (and Crimson Isle equivalent) trading spots: Auction House, Bazaar, Bank, and player-facing
+/// shop NPCs. "Community Center"/"Wizard Tower" are matched as literal zone strings, the same trick
+/// MinionCollectionTask uses for "Your Island" - they are deliberately left in
+/// SkyblockZones.AmbiguousZones (shared with other islands, pinned by
+/// SkyblockZonesTests.AmbiguousZone_WithFormatCodeNoise_StillResolvesNull) rather than added to the
+/// Hub's zone map, since that would misattribute the same zone names on other islands too; Matches()
+/// checks a task's Locations against the exact zone string before ever consulting the island map, so
+/// the literal match still works. "Museum" additionally canonicalizes every player's own museum zone
+/// (e.g. "LXMini's Museum") via SkyblockZones.Canonical.
+/// </summary>
+public class HubTradingTask : MethodTask
+{
+    protected override bool Hidden => true;
+    protected override string MethodName => "Hub Trading";
+    protected override string Category => "Trading";
+    protected override HashSet<string> Locations =>
+    [
+        "Auction House", "Bazaar Alley", "Bank", "Community Center", "Builder's House", "Village",
+        "Pet Care", "Blacksmith", "Fashion Shop", "Thaumaturgist", "Taylor's Shop", "Shen's Auction",
+        "Wizard Tower", "Museum"
+    ];
+    protected override int MinLocationOnlyItems => 1;
+    protected override int Priority => -100;
+    protected override TaskType TaskType => TaskType.Passive;
+    public override string Description =>
+        "Hidden accounting task: absorbs Hub/Crimson Isle trading-spot activity (Auction House, Bazaar, "
+        + "Bank, shop NPCs, museum donations) so it is not counted as unclassified revenue. Never shown to players.";
+}

@@ -56,7 +56,8 @@ public class FigForagingTask : BaseForagingTask
     // Where below names the actual spot to stand in.
     protected override HashSet<string> Locations => ["Moonglade"];
     protected override string Where => "Moonglade Marsh";
-    protected override HashSet<string> DetectionItems => ["FIG_LOG", "ENCHANTED_FIG_LOG"];
+    // TENDER_WOOD: Fig Tree Gifts (a chance bonus drop from felling Fig trees).
+    protected override HashSet<string> DetectionItems => ["FIG_LOG", "ENCHANTED_FIG_LOG", "TENDER_WOOD"];
     protected override List<MethodDrop> FormulaDrops =>
     [
         new("FIG_LOG", 20000), new("ENCHANTED_FIG_LOG", 150), new("MANGROVE_LOG", 500), new("TENDER_WOOD", 200)
@@ -85,7 +86,8 @@ public class MangroveForagingTask : BaseForagingTask
     // Where below names the actual spot to stand in.
     protected override HashSet<string> Locations => ["Moonglade"];
     protected override string Where => "Murkwater Loch";
-    protected override HashSet<string> DetectionItems => ["MANGROVE_LOG", "ENCHANTED_MANGROVE_LOG"];
+    // VINESAP/DEEP_ROOT: Mangrove Tree Gifts (a chance bonus drop from felling Mangrove trees).
+    protected override HashSet<string> DetectionItems => ["MANGROVE_LOG", "ENCHANTED_MANGROVE_LOG", "VINESAP", "DEEP_ROOT"];
     protected override List<MethodDrop> FormulaDrops =>
     [
         new("MANGROVE_LOG", 3000), new("ENCHANTED_MANGROVE_LOG", 20), new("VINESAP", 40)
@@ -106,4 +108,23 @@ public class MangroveForagingTask : BaseForagingTask
         new() { Number = 6, Text = "Sell your Mangrove Logs on the Bazaar." },
         new() { Number = 7, Text = "Check /cofl task again to see your real coins/hour." },
     ];
+}
+
+/// <summary>
+/// Honeycomb is collected from Honeyhives scattered across Torrhus Canyon (Galatea) - the island
+/// requires Foraging 12 and Heart of the Forest tier 4, same as Helix Foraging.
+/// </summary>
+public class HoneycombGatheringTask : BaseForagingTask
+{
+    protected override string MethodName => "Honeycomb Gathering";
+    // Island key (Torrhus zones are Torrhus Canyon, Torrhus Heights, Miria's Hut, ... - see SkyblockZones).
+    protected override HashSet<string> Locations => ["Torrhus"];
+    protected override string Where => "Torrhus Canyon";
+    protected override HashSet<string> DetectionItems => ["HONEYCOMB", "ENCHANTED_HONEYCOMB"];
+    // Production medians (2026-09) per 10-min period * 6: HONEYCOMB 81, ENCHANTED_HONEYCOMB 3.
+    protected override List<MethodDrop> FormulaDrops => [new("HONEYCOMB", 486), new("ENCHANTED_HONEYCOMB", 18)];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Torrhus_Canyon";
+    protected override string HowTo =>
+        "Warp to Torrhus (needs Foraging XII and Heart of the Forest tier 4), then collect Honeycomb "
+        + "from Honeyhives scattered around Torrhus Canyon.";
 }

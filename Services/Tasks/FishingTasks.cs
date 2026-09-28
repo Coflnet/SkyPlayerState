@@ -1,6 +1,50 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
+
+/// <summary>
+/// Real fishing evidence tags, split by water body - see the 2026-09 production log finding that
+/// location-only fishing tasks (no DetectionItems) act as catch-alls for whole islands: "Water
+/// Fishing" absorbed Hub Auction House/Bazaar Alley purchases, zombie slayer at Crypts/Graveyard and
+/// farming at Farm; "Water Worm Fishing" absorbed Crystal Hollows hard-stone/powder mining; "Spooky
+/// Fishing" absorbed wolf slayer at Soul Cave; "Crimson Fishing" absorbed spider/mage-outlaw/magma-cube
+/// drops; "Oasis Fishing" absorbed rabbit/sheep drops. Every fishing task that isn't tied to its own
+/// dedicated sea creature (Lotus Atoll, Magma Core, Flaming Worm, ...) now requires one of these tags
+/// instead of matching on location + a generic 5-item floor.
+/// </summary>
+internal static class FishingEvidence
+{
+    /// <summary>Overworld/freshwater fishing drops - used by every non-lava, non-Bayou/Squid/Galatea/Lotus fishing task.</summary>
+    public static readonly HashSet<string> Water =
+    [
+        "RAW_FISH", "RAW_FISH:1", "RAW_FISH:2", "RAW_FISH:3",
+        "ENCHANTED_RAW_FISH", "ENCHANTED_RAW_SALMON", "ENCHANTED_CLOWNFISH", "ENCHANTED_PUFFERFISH",
+        "PRISMARINE_SHARD", "PRISMARINE_CRYSTALS", "ENCHANTED_PRISMARINE_SHARD", "ENCHANTED_PRISMARINE_CRYSTALS",
+        "SPONGE", "CLAY_BALL", "ENCHANTED_CLAY_BALL",
+        "WATER_LILY", "ENCHANTED_WATER_LILY",
+        "INK_SACK", "ENCHANTED_INK_SACK"
+    ];
+
+    /// <summary>Trophy Fish species (verified production tags) - crossed with <see cref="Tiers"/> below to build the 72 <c>SPECIES_TIER</c> tags in <see cref="Lava"/>.</summary>
+    private static readonly string[] TrophyFishSpecies =
+    [
+        "BLOBFISH", "FLYFISH", "GOLDEN_FISH", "GUSHER", "KARATE_FISH", "LAVA_HORSE", "MANA_RAY", "MOLDFIN",
+        "OBFUSCATED_FISH_1", "OBFUSCATED_FISH_2", "OBFUSCATED_FISH_3", "SKELETON_FISH", "SLUGFISH", "SOUL_FISH",
+        "STEAMING_HOT_FLOUNDER", "SULPHUR_SKITTER", "VANILLE", "VOLCANIC_STONEFISH"
+    ];
+    private static readonly string[] Tiers = ["BRONZE", "SILVER", "GOLD", "DIAMOND"];
+
+    private static readonly string[] LavaBaseDrops =
+    [
+        "MAGMA_FISH", "MAGMA_FISH_SILVER", "MAGMA_FISH_GOLD", "MAGMA_FISH_DIAMOND",
+        "LUMP_OF_MAGMA", "MOOGMA_PELT", "CUP_OF_BLOOD", "PYROCLASTIC_SCALE", "FLAMING_HEART", "HORN_OF_TAURUS"
+    ];
+
+    /// <summary>Crimson Isle lava fishing drops - Magma Fish variants, Lava sea creature drops, and every Trophy Fish tier tag.</summary>
+    public static readonly HashSet<string> Lava = new(
+        LavaBaseDrops.Concat(TrophyFishSpecies.SelectMany(species => Tiers.Select(tier => $"{species}_{tier}"))));
+}
 
 // ── Base for all fishing tasks with shared metadata ──
 public abstract class BaseFishingTask : MethodTask
@@ -27,6 +71,7 @@ public class PiscaryFishingTask : BaseFishingTask
 {
     protected override string MethodName => "Piscary Fishing";
     protected override HashSet<string> Locations => ["Piscary"];
+    protected override HashSet<string> DetectionItems => FishingEvidence.Water;
     protected override bool ExcludeShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 250), new("ENCHANTED_RAW_FISH", 25)];
     protected override double ActionsPerHour => 275;
@@ -52,23 +97,36 @@ public class SpookyFishingTask : BaseFishingTask
 {
     protected override string MethodName => "Spooky Fishing";
     protected override HashSet<string> Locations => ["Spooky Festival", "The Park"];
+    protected override HashSet<string> DetectionItems => FishingEvidence.Water;
     protected override bool ExcludeShardItems => true;
+    // "The Park" is shared with Water Fishing, and the classifier has no way to know whether the
+    // Spooky Festival is even active - lower priority so plain Water Fishing wins ties there
+    // (both require the same Water evidence, so this only matters when the two are exactly tied).
+    protected override int Priority => -1;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 200), new("PUMPKIN", 50)];
 }
 public class WinterFishingTask : BaseFishingTask
 {
     protected override string MethodName => "Winter Fishing";
     protected override HashSet<string> Locations => ["Jerry's Workshop", "Jerry Pond", "Hot Springs"];
+    protected override HashSet<string> DetectionItems => FishingEvidence.Water;
     protected override bool ExcludeShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 220), new("ICE", 100)];
 }
 public class WaterWormFishingTask : BaseFishingTask
 {
     protected override string MethodName => "Water Worm Fishing";
-    // Water Worm only spawns in the Goblin Holdout (Crystal Hollows); drops gems + membrane, not raw fish.
-    protected override HashSet<string> Locations => ["Crystal Hollows", "Goblin Holdout"];
+    // Water Worm only spawns in the pond at the Goblin Holdout (Crystal Hollows) - not island-wide,
+    // and not any other Crystal Hollows sub-zone (2026-09 production log finding: the old island-wide
+    // "Crystal Hollows" Location swallowed 143 hard-stone/powder mining periods).
+    protected override HashSet<string> Locations => ["Goblin Holdout"];
     protected override string Where => "Goblin Holdout";
+    protected override HashSet<string> DetectionItems => new(FishingEvidence.Water) { "WORM_MEMBRANE" };
     protected override bool ExcludeShardItems => true;
+    // Amber/Jade/Thyst Mining and Goblin Holdout Powder Mining also list "Goblin Holdout" - without
+    // priced tie-breaking WORM_MEMBRANE is the more specific evidence for this exact activity (gems
+    // are an incidental byproduct of the sea creature fight, not the defining drop).
+    protected override int Priority => 1;
     protected override List<MethodDrop> FormulaDrops => [new("ROUGH_AMBER_GEM", 60), new("WORM_MEMBRANE", 9)];
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Water_Worm";
     protected override List<TaskStep> Steps =>
@@ -86,6 +144,7 @@ public class QuarryFishingTask : BaseFishingTask
 {
     protected override string MethodName => "Quarry Fishing";
     protected override HashSet<string> Locations => ["The Quarry", "Quarry"];
+    protected override HashSet<string> DetectionItems => FishingEvidence.Water;
     protected override bool ExcludeShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 200)];
 }
@@ -98,6 +157,9 @@ public class CrimsonFishingTask : BaseFishingTask
     // scoreboard reports just "Crimson Isle" at spawn/other sub-zones, so it's included too.
     protected override HashSet<string> Locations =>
         ["Blazing Volcano", "Burning Desert", "Mystic Marsh", "Magma Chamber", "Stronghold", "Crimson Fields", "Dragontail", "Crimson Isle"];
+    // Lava fishing evidence (2026-09 finding: 810 periods matched here, 445 of them with no fish at
+    // all - spiders, Mage Outlaw, magma cubes from unrelated Crimson Isle activity).
+    protected override HashSet<string> DetectionItems => FishingEvidence.Lava;
     protected override bool ExcludeShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("MAGMA_FISH", 150)];
 }
@@ -115,6 +177,7 @@ public class FestivalFishingTask : BaseFishingTask
 {
     protected override string MethodName => "Festival Fishing";
     protected override HashSet<string> Locations => ["Festival Plaza", "Jerry's Workshop"];
+    protected override HashSet<string> DetectionItems => FishingEvidence.Water;
     protected override bool ExcludeShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 200)];
 }
@@ -151,6 +214,7 @@ public class OasisFishingTask : BaseFishingTask
 {
     protected override string MethodName => "Oasis Fishing";
     protected override HashSet<string> Locations => ["Oasis", "Mushroom Desert"];
+    protected override HashSet<string> DetectionItems => FishingEvidence.Water;
     protected override bool ExcludeShardItems => true;
     // Oasis Sheep sea creature drops mutton; raw fish is negligible here.
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_MUTTON", 30), new("ENCHANTED_COOKED_MUTTON", 0.2)];
@@ -170,6 +234,10 @@ public class WaterFishingTask : BaseFishingTask
 {
     protected override string MethodName => "Water Fishing";
     protected override HashSet<string> Locations => ["Hub", "Village", "Forest", "Birch Park", "The Park"];
+    // Water evidence (2026-09 finding: 288 periods matched here, only ~10 with any fish - it was
+    // swallowing Hub Auction House/Bazaar Alley purchases, zombie slayer at Crypts/Graveyard, and
+    // farming at Farm).
+    protected override HashSet<string> DetectionItems => FishingEvidence.Water;
     protected override bool ExcludeShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 200)];
 }
@@ -205,6 +273,7 @@ public class PiscaryFishingHuntingTask : BaseFishingTask
 {
     protected override string MethodName => "Piscary Fishing (Hunting)";
     protected override HashSet<string> Locations => ["Piscary"];
+    protected override HashSet<string> DetectionItems => FishingEvidence.Water;
     protected override bool RequireShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 250), new("ENCHANTED_RAW_FISH", 25)];
 }
@@ -227,22 +296,31 @@ public class SpookyFishingHuntingTask : BaseFishingTask
 {
     protected override string MethodName => "Spooky Fishing (Hunting)";
     protected override HashSet<string> Locations => ["Spooky Festival", "The Park"];
+    protected override HashSet<string> DetectionItems => FishingEvidence.Water;
     protected override bool RequireShardItems => true;
+    // See SpookyFishingTask - lower priority than the Water Fishing tasks so plain water fishing
+    // wins ties on the shared "The Park" location.
+    protected override int Priority => -1;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 200), new("PUMPKIN", 50)];
 }
 public class WinterFishingHuntingTask : BaseFishingTask
 {
     protected override string MethodName => "Winter Fishing (Hunting)";
     protected override HashSet<string> Locations => ["Jerry's Workshop", "Jerry Pond", "Hot Springs"];
+    protected override HashSet<string> DetectionItems => FishingEvidence.Water;
     protected override bool RequireShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 220), new("ICE", 100)];
 }
 public class WaterWormFishingHuntingTask : BaseFishingTask
 {
     protected override string MethodName => "Water Worm Fishing (Hunting)";
-    protected override HashSet<string> Locations => ["Crystal Hollows", "Goblin Holdout"];
+    // See WaterWormFishingTask - Water Worm only spawns in the pond at the Goblin Holdout.
+    protected override HashSet<string> Locations => ["Goblin Holdout"];
     protected override string Where => "Goblin Holdout";
+    protected override HashSet<string> DetectionItems => new(FishingEvidence.Water) { "WORM_MEMBRANE" };
     protected override bool RequireShardItems => true;
+    // See WaterWormFishingTask's comment.
+    protected override int Priority => 1;
     protected override List<MethodDrop> FormulaDrops => [new("WORM_MEMBRANE", 50)];
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Water_Worm";
     protected override List<TaskStep> Steps =>
@@ -260,13 +338,17 @@ public class QuarryFishingHuntingTask : BaseFishingTask
 {
     protected override string MethodName => "Quarry Fishing (Hunting)";
     protected override HashSet<string> Locations => ["The Quarry", "Quarry"];
+    protected override HashSet<string> DetectionItems => FishingEvidence.Water;
     protected override bool RequireShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 200)];
 }
 public class CrimsonFishingHuntingTask : BaseFishingTask
 {
     protected override string MethodName => "Crimson Fishing (Hunting)";
-    protected override HashSet<string> Locations => ["Blazing Volcano", "Burning Desert", "Mystic Marsh", "Magma Chamber"];
+    // Same Locations as CrimsonFishingTask - see its own comment for the data-derived zones.
+    protected override HashSet<string> Locations =>
+        ["Blazing Volcano", "Burning Desert", "Mystic Marsh", "Magma Chamber", "Stronghold", "Crimson Fields", "Dragontail", "Crimson Isle"];
+    protected override HashSet<string> DetectionItems => FishingEvidence.Lava;
     protected override bool RequireShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("MAGMA_FISH", 150)];
 }
@@ -274,6 +356,7 @@ public class FestivalFishingHuntingTask : BaseFishingTask
 {
     protected override string MethodName => "Festival Fishing (Hunting)";
     protected override HashSet<string> Locations => ["Festival Plaza", "Jerry's Workshop"];
+    protected override HashSet<string> DetectionItems => FishingEvidence.Water;
     protected override bool RequireShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 200)];
 }
@@ -295,6 +378,7 @@ public class OasisFishingHuntingTask : BaseFishingTask
 {
     protected override string MethodName => "Oasis Fishing (Hunting)";
     protected override HashSet<string> Locations => ["Oasis", "Mushroom Desert"];
+    protected override HashSet<string> DetectionItems => FishingEvidence.Water;
     protected override bool RequireShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 200)];
 }
@@ -302,6 +386,8 @@ public class WaterFishingHuntingTask : BaseFishingTask
 {
     protected override string MethodName => "Water Fishing (Hunting)";
     protected override HashSet<string> Locations => ["Hub", "Village", "Forest", "Birch Park", "The Park"];
+    // Water evidence (2026-09 finding: this task absorbed Bazaar Alley shard purchases).
+    protected override HashSet<string> DetectionItems => FishingEvidence.Water;
     protected override bool RequireShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 200)];
 }

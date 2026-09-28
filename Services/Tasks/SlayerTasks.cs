@@ -212,6 +212,90 @@ public class T4VoidgloomsTask : MethodTask
         new() { Name = "Ender Slayer", Description = "Increased damage against Endermen", EstimatedMultiplier = 1.3 }
     ];
 }
+// ── New slayer tasks (2026-09 production log analysis) - these use MethodTask (not
+// IndividualSlayerTask) since they need DetectionItems for TaskClassifier, same as T4Voidglooms* above. ──
+
+/// <summary>
+/// Revenant Horror, the Zombie Slayer boss - started at Maddox, spawned by killing Crypt Ghouls
+/// [Lv30] and Golden Ghouls [Lv60] in the Hub Crypts below the Graveyard. Tier gates by Combat
+/// level. Revenant Flesh is the guaranteed drop.
+/// </summary>
+public class RevenantSlayerTask : MethodTask
+{
+    protected override string MethodName => "Revenant Slayer";
+    protected override HashSet<string> Locations => ["Crypts", "Graveyard"];
+    protected override HashSet<string> DetectionItems =>
+        ["REVENANT_FLESH", "FOUL_FLESH", "REVENANT_VISCERA", "REVENANT_CATALYST", "UNDEAD_CATALYST", "ROTTEN_FLESH"];
+    // Production medians (2026-09) per 10-min period * 6: REVENANT_FLESH 126, ROTTEN_FLESH 43.
+    protected override List<MethodDrop> FormulaDrops => [new("REVENANT_FLESH", 756), new("ROTTEN_FLESH", 258)];
+    protected override string Category => "Slayer";
+    // Golden Ghoul (a mob you kill along the way, sharing this zone) also drops Gold Ingots and
+    // would otherwise tie on matched item count with no priced tie-break in tests - Revenant Flesh
+    // is the actual slayer quest reward and should win.
+    protected override int Priority => 1;
+    protected override string HowTo =>
+        "Buy a Maddox Batphone, start a Zombie Slayer quest, then kill Crypt Ghouls and Golden Ghouls "
+        + "in the Hub Crypts (below the Graveyard) until the Revenant Horror boss spawns. Kill it for "
+        + "guaranteed Revenant Flesh.";
+    // no RequiredItems: no specific weapon is verified for this slayer, a generic one would mislead
+    protected override List<DropEffect> Effects => [
+        new() { Name = "Magic Find", Description = "Increases rare drop chance from slayer bosses", EstimatedMultiplier = 1.2 },
+        new() { Name = "Combat Level", Description = "Higher combat level unlocks higher slayer tiers", EstimatedMultiplier = 1.1 }
+    ];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Revenant_Horror";
+}
+
+/// <summary>
+/// Sven Packmaster, the Wolf Slayer boss - farmed in the Howling Cave complex in The Park (behind
+/// the Dark Thicket). Wolf Tooth is the guaranteed drop. The boss is immune to ability and ranged
+/// damage (melee only) and deals true damage.
+/// </summary>
+public class SvenSlayerTask : MethodTask
+{
+    protected override string MethodName => "Sven Slayer";
+    protected override HashSet<string> Locations => ["Howling Cave", "Soul Cave", "Spirit Cave"];
+    protected override HashSet<string> DetectionItems => ["WOLF_TOOTH", "HAMSTER_WHEEL", "RED_CLAW_EGG", "FURBALL"];
+    // Production medians (2026-09) per 10-min period * 6: WOLF_TOOTH 257, HAMSTER_WHEEL 12.
+    protected override List<MethodDrop> FormulaDrops => [new("WOLF_TOOTH", 1542), new("HAMSTER_WHEEL", 72)];
+    protected override string Category => "Slayer";
+    protected override string HowTo =>
+        "Buy a Maddox Batphone, start a Wolf Slayer quest, then kill wolves in the Howling Cave complex "
+        + "(behind the Dark Thicket in The Park) until Sven Packmaster spawns. He is immune to ability "
+        + "and ranged damage (melee only) and deals true damage - bring high health/defense gear.";
+    // no RequiredItems: no specific weapon is verified for this slayer, a generic one would mislead
+    protected override List<DropEffect> Effects => [
+        new() { Name = "Magic Find", Description = "Increases rare drop chance from slayer bosses", EstimatedMultiplier = 1.2 },
+        new() { Name = "Combat Level", Description = "Higher combat level unlocks higher slayer tiers", EstimatedMultiplier = 1.1 }
+    ];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Sven_Packmaster";
+}
+
+/// <summary>
+/// Tarantula Broodfather (Spider Slayer boss), farmed on the Crimson Isle: Flaming Spiders [Lv80]
+/// in the Burning Desert are killed to spawn the boss quickly (they also drop Burning Eye, 20%
+/// chance); the boss itself drops Tarantula Web. Distinct from the Spider's Den variant
+/// (T4/T5TarantulaTask above), which is fought in the original Spider's Den location instead.
+/// </summary>
+public class TarantulaSlayerCrimsonIsleTask : MethodTask
+{
+    protected override string MethodName => "Tarantula Slayer (Crimson Isle)";
+    protected override HashSet<string> Locations => ["Burning Desert", "Dragontail", "Crimson Isle"];
+    protected override HashSet<string> DetectionItems => ["TARANTULA_WEB", "TARANTULA_SILK", "TOXIC_ARROW_POISON", "BURNING_EYE"];
+    // Production medians (2026-09) per 10-min period * 6: TARANTULA_WEB 71, BURNING_EYE 4.
+    protected override List<MethodDrop> FormulaDrops => [new("TARANTULA_WEB", 426), new("BURNING_EYE", 24)];
+    protected override string Category => "Slayer";
+    protected override string HowTo =>
+        "Buy a Maddox Batphone, start a Spider Slayer quest, then kill Flaming Spiders [Lv80] in the "
+        + "Burning Desert on the Crimson Isle to spawn Tarantula Broodfather quickly (they also drop "
+        + "Burning Eye, 20% chance). Kill the boss for Tarantula Web.";
+    // no RequiredItems: no specific weapon is verified for this slayer, a generic one would mislead
+    protected override List<DropEffect> Effects => [
+        new() { Name = "Magic Find", Description = "Increases rare drop chance from slayer bosses", EstimatedMultiplier = 1.2 },
+        new() { Name = "Combat Level", Description = "Higher combat level unlocks higher slayer tiers", EstimatedMultiplier = 1.1 }
+    ];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Tarantula_Broodfather";
+}
+
 public class T4VoidgloomsFdTask : MethodTask
 {
     protected override string MethodName => "T4 Voidglooms (FD)";

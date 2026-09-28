@@ -70,7 +70,7 @@ public class XyzHuntingTask : BaseHuntingTask
     protected override HashSet<string> Locations => ["Crimson Isle", "Mystic Marsh"];
     protected override HashSet<string> DetectionItems => ["SHARD_XYZ"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_XYZ", 250)];
-    protected override string HowTo => "Go to the Crystal Hollows (Precursor Remnants area) and hunt Xyz mobs. Use a strong weapon as they have high HP.";
+    protected override string HowTo => "Go to Mystic Marsh on the Crimson Isle and hunt the Exe mob for Xyz shards. Use a strong weapon as they have high HP.";
 }
 public class KadaKnightHuntingTask : BaseHuntingTask
 {
@@ -79,13 +79,18 @@ public class KadaKnightHuntingTask : BaseHuntingTask
     protected override HashSet<string> Locations => ["Crimson Isle", "Magma Chamber"];
     protected override HashSet<string> DetectionItems => ["SHARD_KADA_KNIGHT"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_KADA_KNIGHT", 230)];
-    protected override string HowTo => "Go to the underwater areas on Galatea and hunt Kada Knights. They spawn in the Drowned Reliquary and Kelpwoven Tunnels.";
+    protected override string HowTo => "Go to the Crimson Isle and hunt Kada Knights in the caves leading to the Magma Chamber.";
 }
 public class InvisibugHuntingTask : BaseHuntingTask
 {
     protected override string MethodName => "Invisibug (Hunting)";
-    // "Tangleburg" added 2026-09-27: production showed 1,025 SHARD_INVISIBUG there in 4.5h.
-    protected override HashSet<string> Locations => ["Moonglade Marsh", "North Wetlands", "South Wetlands", "Evergreen Plateau", "Tangleburg"];
+    // Island key (2026-09-27 production log finding: SHARD_INVISIBUG shows up all over Moonglade,
+    // not just the wetlands/Tangleburg zones this used to list) - the shard tag is the specific
+    // evidence, so this is safe against false positives from unrelated Moonglade activity.
+    protected override HashSet<string> Locations => ["Moonglade"];
+    // Island keys are never zones themselves (see SkyblockZones.cs) - name a real zone so Where/
+    // Island/WikiUrl/Warp still resolve (same fix as HelixForagingTask/FigForagingTask).
+    protected override string Where => "Moonglade Marsh";
     protected override HashSet<string> DetectionItems => ["SHARD_INVISIBUG"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_INVISIBUG", 220)];
     protected override string HowTo => "Go to the marsh/wetland areas on Galatea and hunt Invisibugs. They are invisible until attacked, use AoE weapons.";
@@ -112,7 +117,7 @@ public class BezalHuntingTask : BaseHuntingTask
     protected override HashSet<string> Locations => ["Crimson Isle", "Stronghold"];
     protected override HashSet<string> DetectionItems => ["SHARD_BEZAL"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_BEZAL", 220)];
-    protected override string HowTo => "Go to the Crystal Hollows and hunt Bezals in the Precursor Remnants or Goblin Holdout areas.";
+    protected override string HowTo => "Go to the Stronghold on the Crimson Isle and hunt Bezals there.";
 }
 public class GhostHuntingTask : BaseHuntingTask
 {
@@ -138,7 +143,7 @@ public class ObsidianDefenderHuntingTask : BaseHuntingTask
     protected override HashSet<string> Locations => ["Dragon's Nest", "The End"];
     protected override HashSet<string> DetectionItems => ["SHARD_OBSIDIAN_DEFENDER"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_OBSIDIAN_DEFENDER", 180)];
-    protected override string HowTo => "Go to Magma Fields or Crystal Hollows and hunt Obsidian Defenders. They are tanky mobs that drop valuable shards.";
+    protected override string HowTo => "Go to Dragon's Nest in The End and hunt Obsidian Defenders. They are tanky mobs that drop valuable shards.";
 }
 public class WitherSpecterHuntingTask : BaseHuntingTask
 {
@@ -147,7 +152,7 @@ public class WitherSpecterHuntingTask : BaseHuntingTask
     protected override HashSet<string> Locations => ["Crimson Isle", "Stronghold"];
     protected override HashSet<string> DetectionItems => ["SHARD_WITHER_SPECTER"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_WITHER_SPECTER", 200)];
-    protected override string HowTo => "Go to The End and hunt Wither Specters. They spawn in the Dragon's Nest and Void Sepulture areas.";
+    protected override string HowTo => "Go to the Stronghold on the Crimson Isle and hunt Wither Spectres (and Wither Skeletons) there.";
 }
 public class ZealotHuntingTask : BaseHuntingTask
 {
@@ -168,16 +173,147 @@ public class BruiserHuntingTask : BaseHuntingTask
 public class PestHuntingTask : BaseHuntingTask
 {
     protected override string MethodName => "Pest (Hunting)";
-    protected override HashSet<string> Locations => ["The Garden", "Plot 1", "Plot 2", "Plot 3", "Plot 4", "Plot 5", "Plot 6", "Plot 7", "Plot 8", "Plot 9", "Plot 10", "Plot 11", "Plot 12"];
-    protected override HashSet<string> DetectionItems => ["PEST_KILL", "PESTERMINATOR"];
-    // Pest kills drop the plot's crop as enchanted items, not a single "ENCHANTED_CROP".
-    protected override List<MethodDrop> FormulaDrops =>
-    [
-        new("ENCHANTED_MELON", 20), new("ENCHANTED_CARROT", 15),
-        new("ENCHANTED_POTATO", 15), new("ENCHANTED_WHEAT", 15),
-        new("ENCHANTED_PUMPKIN", 10), new("ENCHANTED_CACTUS", 10),
-        new("ENCHANTED_SUGAR_CANE", 10)
-    ];
+    // Island key - real Garden zones are "The Garden" (with a per-visit pest count suffix) and
+    // free-text "Plot - <player's name>" strings, both collapsed by SkyblockZones.Canonical (same
+    // fix as PestTask/BaseGardenCropTask - see GardenTasks.cs).
+    protected override HashSet<string> Locations => ["Garden"];
+    // Island keys are never zones themselves (see SkyblockZones.cs) - name a real zone so Where/
+    // Island/WikiUrl/Warp still resolve (same fix as PestTask/BaseGardenCropTask).
+    protected override string Where => "The Garden";
+    // PEST_KILL/PESTERMINATOR never occur in production (fabricated) - see PestEvidence for the
+    // real pest-drop tags (vinyls + rare pest items), shared with PestTask.
+    protected override HashSet<string> DetectionItems => PestEvidence.Items;
     protected override string HowTo => "Go to The Garden and hunt Pests that spawn on your plots. Use the Pesterminator vacuum or manual combat.";
     protected override string Category => "Garden";
+}
+
+// ── New/corrected hunting tasks (2026-09 production log analysis) ──
+
+public class TikiHuntingTask : BaseHuntingTask
+{
+    protected override string MethodName => "Tiki (Hunting)";
+    // not a weapon hunt: the base's weapon ladder, Looting and Combat level do not apply
+    public override List<StatFactor> StatFactors => [new("skill:Hunting", 1, 50)];
+    protected override List<RequiredItem> RequiredItems => [];
+    protected override List<DropEffect> Effects =>
+    [
+        new() { Name = "Hunting Fortune", Description = "Increases the amount of shards per capture", EstimatedMultiplier = 1.2 }
+    ];
+    // Island key - Tiki mobs are reported around Torrhus Heights specifically, but the shard tags
+    // are the real evidence so the island key is safe against false positives elsewhere on Torrhus.
+    protected override HashSet<string> Locations => ["Torrhus"];
+    protected override string Where => "Torrhus Heights";
+    protected override HashSet<string> DetectionItems => ["SHARD_SHRIEKY_TIKI", "SHARD_SNEAKY_TIKI", "SHARD_CHEEKY_TIKI"];
+    protected override List<MethodDrop> FormulaDrops => [new("SHARD_SHRIEKY_TIKI", 18), new("SHARD_SNEAKY_TIKI", 18), new("SHARD_CHEEKY_TIKI", 18)];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Torrhus_Canyon";
+    protected override string HowTo =>
+        "Go to Torrhus Heights on Torrhus and find the Tiki mobs. Each one requires solving a puzzle "
+        + "before it can be captured with a Pocket Black Hole.";
+}
+
+public class TreasureHoarderHuntingTask : BaseHuntingTask
+{
+    protected override string MethodName => "Treasure Hoarder (Hunting)";
+    protected override HashSet<string> Locations => ["Upper Mines", "Rampart's Quarry", "Dwarven Mines"];
+    protected override HashSet<string> DetectionItems => ["SHARD_TREASURE_HOARDER", "STARFALL"];
+    protected override List<MethodDrop> FormulaDrops => [new("SHARD_TREASURE_HOARDER", 24), new("STARFALL", 18)];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Treasure_Hoarder";
+    protected override string HowTo =>
+        "Go to the Upper Mines in the Dwarven Mines and hunt Treasure Hoarders - hostile mobs that "
+        + "drop 1-2 Starfall each; capture one with a Pocket Black Hole for the shard.";
+}
+
+public class GlaciteWalkerHuntingTask : BaseHuntingTask
+{
+    protected override string MethodName => "Glacite Walker (Hunting)";
+    protected override HashSet<string> Locations => ["Great Ice Wall", "Divan's Gateway"];
+    protected override HashSet<string> DetectionItems => ["SHARD_GLACITE_WALKER", "GLACITE_JEWEL"];
+    protected override List<MethodDrop> FormulaDrops => [new("SHARD_GLACITE_WALKER", 156)];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Great_Ice_Wall";
+    protected override string HowTo =>
+        "Go to the Great Ice Wall in the Dwarven Mines and hunt Glacite Walkers - they spawn throughout "
+        + "the area, drop Glacite armor and Glacite Jewels, and give their shard when captured.";
+}
+
+public class MinerZombieHuntingTask : BaseHuntingTask
+{
+    protected override string MethodName => "Miner Zombie (Hunting)";
+    // Miner Zombie [Lv20] is in the Obsidian Sanctuary, the last floor of the Deep Caverns - not to
+    // be confused with ObsidianMiningTask, which shares this zone but keys off OBSIDIAN drops.
+    protected override HashSet<string> Locations => ["Obsidian Sanctuary"];
+    protected override HashSet<string> DetectionItems =>
+        ["SHARD_MINER_ZOMBIE", "TANK_MINER_HELMET", "TANK_MINER_CHESTPLATE", "TANK_MINER_LEGGINGS", "TANK_MINER_BOOTS"];
+    protected override List<MethodDrop> FormulaDrops => [new("SHARD_MINER_ZOMBIE", 486)];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Miner_Zombie";
+    protected override string HowTo => "Go to the Obsidian Sanctuary (last floor of the Deep Caverns) and hunt Miner Zombies for their shard and Tank Miner armor.";
+}
+
+public class MudwormHuntingTask : BaseHuntingTask
+{
+    protected override string MethodName => "Mudworm (Hunting)";
+    // not a weapon hunt: the base's weapon ladder, Looting and Combat level do not apply
+    public override List<StatFactor> StatFactors => [new("skill:Hunting", 1, 50)];
+    protected override List<RequiredItem> RequiredItems => [];
+    protected override List<DropEffect> Effects =>
+    [
+        new() { Name = "Hunting Fortune", Description = "Increases the amount of shards per capture", EstimatedMultiplier = 1.2 }
+    ];
+    // Island key - shard tag is the specific evidence, see the Galatea Moonglade shard task comment above HideonleafTask.
+    protected override HashSet<string> Locations => ["Moonglade"];
+    protected override string Where => "West Reaches";
+    protected override HashSet<string> DetectionItems => ["SHARD_MUDWORM"];
+    protected override List<MethodDrop> FormulaDrops => [new("SHARD_MUDWORM", 18)];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Moonglade_Marsh";
+    protected override string HowTo => "Go to Moonglade and catch Mudworms with a Huntrap.";
+}
+
+public class BirriesHuntingTask : BaseHuntingTask
+{
+    protected override string MethodName => "Birries (Hunting)";
+    // not a weapon hunt: the base's weapon ladder, Looting and Combat level do not apply
+    public override List<StatFactor> StatFactors => [new("skill:Hunting", 1, 50)];
+    protected override List<RequiredItem> RequiredItems => [];
+    protected override List<DropEffect> Effects =>
+    [
+        new() { Name = "Hunting Fortune", Description = "Increases the amount of shards per capture", EstimatedMultiplier = 1.2 }
+    ];
+    // Island key, same as MudwormHuntingTask.
+    protected override HashSet<string> Locations => ["Moonglade"];
+    protected override string Where => "North Reaches";
+    // Birries spawn with a 10% chance when harvesting Lushlilac berry bushes, so Lushlilac itself is
+    // also evidence of this activity, not just its own shard.
+    protected override HashSet<string> DetectionItems => ["SHARD_BIRRIES", "LUSHLILAC"];
+    protected override List<MethodDrop> FormulaDrops => [new("LUSHLILAC", 120), new("SHARD_BIRRIES", 18)];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Moonglade_Marsh";
+    protected override string HowTo => "Go to Moonglade and harvest Lushlilac berry bushes - Birries spawn with a 10% chance per harvest, catch them with a Huntrap.";
+}
+
+/// <summary>
+/// Torrhus Canyon minigame started at the Safari Manager - distinct from every other hunting task
+/// here: critters are caught with Critter Capsules, not fought/captured with a weapon or trap, so
+/// this does not extend <see cref="BaseHuntingTask"/> (its RequiredItems/StatFactors describe a
+/// weapon ladder that has nothing to do with this). No verified runs/hour rate exists, so
+/// FormulaDrops uses the raw production medians per run as-is rather than inventing an hourly rate.
+/// </summary>
+public class CritterSafariTask : MethodTask
+{
+    protected override string MethodName => "Critter Safari";
+    protected override string Category => "Hunting";
+    protected override string ActionUnit => "runs";
+    protected override HashSet<string> Locations => ["Critter Safari"];
+    protected override bool RequireShardItems => true;
+    // Location-only (RequireShardItems is the real evidence) - the zone is a dedicated minigame
+    // instance, so even a single shard is unambiguous.
+    protected override int MinLocationOnlyItems => 1;
+    protected override List<MethodDrop> FormulaDrops =>
+    [
+        new("SHARD_FOXTROT", 3), new("SHARD_BLUEBIRD", 3), new("SHARD_WOODCHUCKER", 2),
+        new("SHARD_PARAKEET", 2), new("SHARD_TREEFROG", 2)
+    ];
+    // No RequiredItems: the Safari Ticket/Critter Capsule item tag ids are not verified anywhere in
+    // this codebase, so they are named in the HowTo text below instead of guessed here.
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Critter_Safari";
+    protected override string HowTo =>
+        "Go to the Safari Manager in Torrhus Canyon (needs Hunting 15 and a Safari Ticket from Miria's "
+        + "Contests) and catch critters with Critter Capsules during a run.";
 }

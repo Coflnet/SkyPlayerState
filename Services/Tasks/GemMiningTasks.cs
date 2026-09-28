@@ -50,6 +50,20 @@ public abstract class BaseMiningTask : MethodTask
         "Type /warp mines to get close, then go down into the Glacite Tunnels in the Dwarven Mines.";
 }
 
+/// <summary>
+/// Hard Stone/treasure chest evidence shared by every powder mining task (2026-09 production log
+/// finding: mining hard stone has about a 0.2% chance per block to uncover a treasure chest, which
+/// gives powder plus loot like Treasurite/Wishing Compass/Pickonimbus - none of that was previously
+/// part of any powder mining task's DetectionItems, so 17k+ periods of it went unclassified). Shared
+/// by the four zone-specific powder mining tasks below AND the new island-wide
+/// <see cref="CrystalHollowsPowderMiningTask"/> fallback.
+/// </summary>
+internal static class PowderMiningEvidence
+{
+    public static readonly HashSet<string> ChestLoot =
+        ["HARD_STONE", "ENCHANTED_HARD_STONE", "TREASURITE", "WISHING_COMPASS", "PICKONIMBUS"];
+}
+
 // ── Gemstone Mining ──
 public class ThystMiningTask : BaseMiningTask
 {
@@ -167,7 +181,9 @@ public class ObsidianMiningTask : BaseMiningTask
 public class TungstenMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Tungsten Mining";
-    protected override HashSet<string> Locations => ["Glacite Tunnels", "Glacite Mineshafts"];
+    // "Dwarven Base Camp" added: it's the entry hub of the Glacite Tunnels and the scoreboard still
+    // shows it while players mine at the tunnel entrance.
+    protected override HashSet<string> Locations => ["Glacite Tunnels", "Glacite Mineshafts", "Dwarven Base Camp"];
     protected override HashSet<string> DetectionItems => ["TUNGSTEN", "ENCHANTED_TUNGSTEN"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_TUNGSTEN", 200)];
     protected override string HowTo => "Mine tungsten ore in the Glacite Tunnels or Glacite Mountains with a pickaxe.";
@@ -176,7 +192,8 @@ public class TungstenMiningTask : BaseMiningTask
 public class UmberMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Umber Mining";
-    protected override HashSet<string> Locations => ["Glacite Tunnels", "Glacite Mineshafts"];
+    // "Dwarven Base Camp" added - see TungstenMiningTask's comment.
+    protected override HashSet<string> Locations => ["Glacite Tunnels", "Glacite Mineshafts", "Dwarven Base Camp"];
     protected override HashSet<string> DetectionItems => ["UMBER", "ENCHANTED_UMBER"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_UMBER", 200)];
     protected override string HowTo => "Mine umber ore in the Glacite Tunnels or Glacite Mountains with a pickaxe.";
@@ -330,7 +347,8 @@ public class PrecursorCityPowderMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Precursor City Powder Mining";
     protected override HashSet<string> Locations => ["Precursor Remnants", "Lost Precursor City"];
-    protected override HashSet<string> DetectionItems => ["MITHRIL_ORE", "ENCHANTED_MITHRIL", "ROUGH_SAPPHIRE_GEM"];
+    protected override HashSet<string> DetectionItems =>
+        new(PowderMiningEvidence.ChestLoot) { "MITHRIL_ORE", "ENCHANTED_MITHRIL", "ROUGH_SAPPHIRE_GEM" };
     // The profit driver here is Sapphire gemstones + Automaton robot parts, not just mithril.
     protected override List<MethodDrop> FormulaDrops =>
     [
@@ -345,7 +363,7 @@ public class JunglePowderMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Jungle Powder Mining";
     protected override HashSet<string> Locations => ["Jungle", "Jungle Temple"];
-    protected override HashSet<string> DetectionItems => ["MITHRIL_ORE", "ENCHANTED_MITHRIL", "HARD_STONE"];
+    protected override HashSet<string> DetectionItems => new(PowderMiningEvidence.ChestLoot) { "MITHRIL_ORE", "ENCHANTED_MITHRIL" };
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_MITHRIL", 180), new("HARD_STONE", 500)];
     protected override string HowTo => "Mine mithril and hardstone in the Jungle area for powder and mithril drops.";
     protected override double ActionsPerHour => 3200;
@@ -353,9 +371,11 @@ public class JunglePowderMiningTask : BaseMiningTask
 public class MithrilDepositsPowderMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Mithril Deposits Powder Mining";
-    // Mithril Deposits is a Crystal Hollows sub-zone, not part of the Dwarven Mines.
-    protected override HashSet<string> Locations => ["Crystal Hollows", "Mithril Deposits"];
-    protected override HashSet<string> DetectionItems => ["MITHRIL_ORE", "ENCHANTED_MITHRIL"];
+    // Restricted to its own zone (was island-wide "Crystal Hollows" before) - the new
+    // CrystalHollowsPowderMiningTask below is the island-wide fallback for hard-stone/chest loot
+    // found outside this specific zone.
+    protected override HashSet<string> Locations => ["Mithril Deposits"];
+    protected override HashSet<string> DetectionItems => new(PowderMiningEvidence.ChestLoot) { "MITHRIL_ORE", "ENCHANTED_MITHRIL" };
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_MITHRIL", 200)];
     protected override string HowTo => "Mine mithril ore in the Mithril Deposits (Crystal Hollows) for powder and mithril drops.";
     protected override double ActionsPerHour => 3500;
@@ -364,11 +384,35 @@ public class GoblinHoldoutPowderMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Goblin Holdout Powder Mining";
     protected override HashSet<string> Locations => ["Goblin Holdout", "Goblin Queen's Den"];
-    protected override HashSet<string> DetectionItems => ["MITHRIL_ORE", "ENCHANTED_MITHRIL"];
+    protected override HashSet<string> DetectionItems => new(PowderMiningEvidence.ChestLoot) { "MITHRIL_ORE", "ENCHANTED_MITHRIL" };
     // Treasure chests spawned while mining hardstone here drop Goblin Eggs (the real profit driver).
     protected override List<MethodDrop> FormulaDrops => [new("GOBLIN_EGG", 200), new("ENCHANTED_MITHRIL", 180)];
     protected override string HowTo => "Mine mithril ore in the Goblin Holdout for powder and mithril drops.";
     protected override double ActionsPerHour => 3200;
+}
+
+/// <summary>
+/// Island-wide fallback for Crystal Hollows hard-stone/treasure-chest mining that doesn't happen to
+/// be in one of the four zone-specific powder mining tasks' own zones (2026-09 production log
+/// finding: e.g. Mines of Divan, Khazad-dûm, Magma Fields, Crystal Nucleus all showed the same
+/// HARD_STONE/chest-loot pattern). Lower <see cref="Priority"/> than the zone-specific tasks so they
+/// win in their own zones; this only wins where none of them apply.
+/// </summary>
+public class CrystalHollowsPowderMiningTask : BaseMiningTask
+{
+    protected override string MethodName => "Crystal Hollows Powder Mining";
+    protected override HashSet<string> Locations => ["Crystal Hollows"];
+    protected override HashSet<string> DetectionItems => PowderMiningEvidence.ChestLoot;
+    protected override int Priority => -1;
+    // Same HARD_STONE/h as the other powder mining tasks (JunglePowderMiningTask/SludgeMiningTask) -
+    // no separate seed given for this island-wide fallback specifically.
+    protected override List<MethodDrop> FormulaDrops => [new("HARD_STONE", 500)];
+    protected override string HowTo =>
+        "Mine Hard Stone anywhere in the Crystal Hollows (needs Mining 12 and a Crystal Hollows Pass "
+        + "from Heart of the Mountain tier 4) - about 1 in 500 blocks uncovers a treasure chest with "
+        + "powder and loot (Treasurite, Wishing Compass, Pickonimbus, ...). Mining Speed determines the "
+        + "rate; Pristine does not help here.";
+    protected override double ActionsPerHour => 3000;
 }
 
 // ── Ore mining - discovered from unclassified production revenue 2026-09-27 ──
@@ -377,8 +421,12 @@ public class MithrilMiningTask : BaseMiningTask
     protected override string MethodName => "Mithril Mining";
     protected override HashSet<string> Locations =>
         ["Rampart's Quarry", "Royal Mines", "Cliffside Veins", "Lava Springs", "Upper Mines", "Divan's Gateway", "Dwarven Mines"];
-    protected override HashSet<string> DetectionItems => ["MITHRIL_ORE", "ENCHANTED_MITHRIL"];
-    protected override List<MethodDrop> FormulaDrops => [new("MITHRIL_ORE", 3000), new("TITANIUM_ORE", 300)];
+    // TITANIUM_ORE/ENCHANTED_TITANIUM: Titanium is a chance replacement of Mithril blocks (needs
+    // Breaking Power 5), boosted by the Titanium Insanium perk - not a separate mining method.
+    protected override HashSet<string> DetectionItems => ["MITHRIL_ORE", "ENCHANTED_MITHRIL", "TITANIUM_ORE", "ENCHANTED_TITANIUM"];
+    // 300/h assumed the Titanium Insanium perk (production median 95/period); 200/h is the
+    // conservative seed for players without it.
+    protected override List<MethodDrop> FormulaDrops => [new("MITHRIL_ORE", 3000), new("TITANIUM_ORE", 200)];
     // Titanium Drill DR-X555 has Breaking Power 9, which mines both Mithril and Titanium fast.
     protected override List<RequiredItem> RequiredItems =>
         [new() { ItemTag = "TITANIUM_DRILL_1", Name = "Titanium Drill DR-X555", Reason = "Breaking Power 9 drill - mines Mithril and Titanium fast" }];
@@ -403,7 +451,8 @@ public class MithrilMiningTask : BaseMiningTask
 public class GlaciteMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Glacite Mining";
-    protected override HashSet<string> Locations => ["Glacite Tunnels", "Glacite Mineshafts"];
+    // "Dwarven Base Camp" added - see TungstenMiningTask's comment.
+    protected override HashSet<string> Locations => ["Glacite Tunnels", "Glacite Mineshafts", "Dwarven Base Camp"];
     protected override HashSet<string> DetectionItems => ["GLACITE", "ENCHANTED_GLACITE"];
     protected override List<MethodDrop> FormulaDrops => [new("GLACITE", 4000), new("GOLD_INGOT", 800)];
     // Glacite needs Breaking Power 9 (block strength 6000) - same drill as Mithril Mining works.

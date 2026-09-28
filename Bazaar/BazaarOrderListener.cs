@@ -17,6 +17,20 @@ namespace Coflnet.Sky.PlayerState.Bazaar;
 public class BazaarOrderListener : UpdateListener
 {
     /// <summary>
+    /// Order tracking only enriches the Bazaar order book/profit history - nothing else in the
+    /// player's own state depends on it (unlike, say, the coin/item transactions this listener also
+    /// records, which run before any of the order-book logic below runs into trouble). A production
+    /// incident showed <see cref="GetTagForName"/> throwing (now fixed - see its docs) for
+    /// unresolvable item names, called from the UNCAUGHT <see cref="Bazaar.BazaarOrderSync.Claim"/>
+    /// path; because this listener was not optional, that aborted the WHOLE state update, so a
+    /// <see cref="PurchaseListener"/> result recorded earlier in the same update was lost too even
+    /// though it had already been applied to <c>args.currentState</c>. Marking this optional (the
+    /// same isolation <see cref="RecipeUpdate"/> uses) is defense in depth: any future bug here logs
+    /// and is skipped instead of taking the rest of the update down with it.
+    /// </summary>
+    public override bool Optional => true;
+
+    /// <summary>
     /// In-memory cache to bridge the race condition gap between chest GUI updates and chat messages.
     /// Tracks recently flipped orders (item + amount + buy price) for 60 seconds.
     /// When a flip message arrives but the buy order is already removed from state,
@@ -549,6 +563,13 @@ public class BazaarOrderListener : UpdateListener
 
             var orderBookApi = args.GetService<IOrderBookApi>();
             string tag = await GetTagForName(args, itemName);
+            if (string.IsNullOrWhiteSpace(tag))
+            {
+                args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
+                    "Skipping order book registration for {user}: could not resolve item tag for {item}",
+                    args.currentState.McInfo.Name, itemName);
+                return;
+            }
             await BazaarOrderSync.Retry(() => orderBookApi.AddOrderAsync(new()
             {
                 Amount = amount,
@@ -657,6 +678,13 @@ public class BazaarOrderListener : UpdateListener
         try
         {
             var tag = order.ItemTag ?? await GetTagForName(args, order.ItemName);
+            if (string.IsNullOrWhiteSpace(tag))
+            {
+                args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
+                    "Skipping order book removal for {user}: could not resolve item tag for {item}",
+                    args.currentState.McInfo.Name, order.ItemName);
+                return;
+            }
             await BazaarOrderSync.Retry(() => args.GetService<IOrderBookApi>().RemoveOrderAsync(tag, args.msg.UserId, order.Created),
                 args.GetService<ILogger<BazaarOrderListener>>(), operation: "remove", userId: args.msg.UserId, itemTag: tag, created: order.Created);
         }
@@ -676,6 +704,12 @@ public class BazaarOrderListener : UpdateListener
         catch (Exception e)
         {
             args.GetService<ILogger<BazaarOrderListener>>().LogError(e, "Error resolving item tag for filled bazaar order {item}", itemName);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(tag))
+        {
+            args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
+                "Skipping order book update for filled bazaar order: could not resolve item tag for {item}", itemName);
             return;
         }
 
@@ -720,6 +754,17 @@ public class BazaarOrderListener : UpdateListener
         }
     }
 
+    /// <summary>
+    /// Resolves a chat/menu item display name to its item tag, or null when the item search knows
+    /// no match for it (an enchanted book at a level/variant the search hasn't indexed, a cosmetic
+    /// or otherwise unlisted item name, etc - real production examples: "Turbo-Cane I", "Prismarine
+    /// Crystals", "Gabagool Distillate"). Used to throw <see cref="InvalidOperationException"/> here
+    /// (<c>.First()</c> over an empty search result) which, called from the UNCAUGHT
+    /// <see cref="Bazaar.BazaarOrderSync.Claim"/>/<c>ApplyClaim</c> path, aborted the entire state
+    /// update - "failed update state on CHAT" was the dominant production error. Every caller must
+    /// treat a null return as "skip this claim/registration", not assume a tag - see the call sites
+    /// in this file and in <see cref="Bazaar.BazaarOrderSync"/>.
+    /// </summary>
     internal static async Task<string> GetTagForName(UpdateArgs args, string itemName)
     {
         // Use the shared special shard mapping before search, matching SkyApi descriptions.
@@ -743,6 +788,14 @@ public class BazaarOrderListener : UpdateListener
 
         var itemApi = args.GetService<IItemsApi>();
         var searchResult = await itemApi.ItemsSearchTermGetAsync(itemName);
+        if (searchResult == null || searchResult.Count == 0)
+        {
+            // Nothing to resolve to - do not cache a miss (the item catalog can gain the name later)
+            // and let the caller decide how to skip gracefully.
+            args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
+                "Could not resolve item tag for bazaar item name {itemName}: item search returned no results", itemName);
+            return null;
+        }
         // Enchanted book display names use roman numerals (e.g. "Karma I") while the search
         // results are named/ranked by tier with the highest level first (e.g. ENCHANTMENT_KARMA_4
         // before _1), so the generic scoring below would always pick the max tier. If a
@@ -802,6 +855,13 @@ public class BazaarOrderListener : UpdateListener
         {
             var profitTracker = args.GetService<IBazaarProfitTracker>();
             string tag = await GetTagForName(args, itemName);
+            if (string.IsNullOrWhiteSpace(tag))
+            {
+                args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
+                    "Skipping buy order profit tracking for {player}: could not resolve item tag for {item}",
+                    args.currentState.McInfo.Name, itemName);
+                return;
+            }
             var playerUuid = args.currentState.McInfo.Uuid;
             await profitTracker.RecordBuyOrder(playerUuid, tag, amount, price, args.msg.ReceivedAt);
             args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
@@ -820,6 +880,13 @@ public class BazaarOrderListener : UpdateListener
         {
             var profitTracker = args.GetService<IBazaarProfitTracker>();
             string tag = await GetTagForName(args, itemName);
+            if (string.IsNullOrWhiteSpace(tag))
+            {
+                args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
+                    "Skipping sell order profit tracking for {player}: could not resolve item tag for {item}",
+                    args.currentState.McInfo.Name, itemName);
+                return;
+            }
             var playerUuid = args.currentState.McInfo.Uuid;
             var flip = await profitTracker.RecordSellOrder(playerUuid, tag, itemName, amount, price, args.msg.ReceivedAt);
             if (flip != null)
@@ -882,6 +949,13 @@ public class BazaarOrderListener : UpdateListener
         {
             var profitTracker = args.GetService<IBazaarProfitTracker>();
             string tag = await GetTagForName(args, itemName);
+            if (string.IsNullOrWhiteSpace(tag))
+            {
+                args.GetService<ILogger<BazaarOrderListener>>().LogInformation(
+                    "Skipping order flip profit tracking for {player}: could not resolve item tag for {item}",
+                    args.currentState.McInfo.Name, itemName);
+                return;
+            }
             var playerUuid = args.currentState.McInfo.Uuid;
             await profitTracker.RecordOrderFlip(playerUuid, tag, amount, buyPrice, expectedProfit, args.msg.ReceivedAt);
             args.GetService<ILogger<BazaarOrderListener>>().LogInformation(

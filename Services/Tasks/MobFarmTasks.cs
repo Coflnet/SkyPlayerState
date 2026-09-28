@@ -144,7 +144,12 @@ public class DrownedTask : BaseGalateaMobTask
 public class CoralotTask : BaseGalateaMobTask
 {
     protected override string MethodName => "Coralot";
-    protected override HashSet<string> Locations => ["Murkwater Loch", "Moonglade's Edge", "Westbound Wetlands", "North Wetlands", "South Wetlands"];
+    // Island key (2026-09-27 production log finding: the shard shows up all over Moonglade, not
+    // just the zones this used to list) - the shard tag is the specific evidence.
+    protected override HashSet<string> Locations => ["Moonglade"];
+    // Island keys are never zones themselves (see SkyblockZones.cs) - name a real zone so Where/
+    // Island/WikiUrl/Warp still resolve (same fix as HelixForagingTask/FigForagingTask).
+    protected override string Where => "Murkwater Loch";
     protected override HashSet<string> DetectionItems => ["SHARD_CORALOT"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_CORALOT", 260)];
     protected override string HowTo => "Go to the reef areas on Galatea and kill Coralot mobs.";
@@ -152,7 +157,9 @@ public class CoralotTask : BaseGalateaMobTask
 public class BambuleafTask : BaseGalateaMobTask
 {
     protected override string MethodName => "Bambuleaf";
-    protected override HashSet<string> Locations => ["North Wetlands", "South Wetlands", "Moonglade Marsh"];
+    // Island key - see CoralotTask's comment.
+    protected override HashSet<string> Locations => ["Moonglade"];
+    protected override string Where => "North Wetlands";
     protected override HashSet<string> DetectionItems => ["SHARD_BAMBULEAF"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_BAMBULEAF", 260)];
     protected override string HowTo => "Go to the Wetlands on Galatea and kill Bambuleaf mobs in the marshy areas.";
@@ -160,7 +167,9 @@ public class BambuleafTask : BaseGalateaMobTask
 public class HideonleafTask : BaseGalateaMobTask
 {
     protected override string MethodName => "Hideonleaf";
-    protected override HashSet<string> Locations => ["North Wetlands", "South Wetlands", "Evergreen Plateau"];
+    // Island key - see CoralotTask's comment.
+    protected override HashSet<string> Locations => ["Moonglade"];
+    protected override string Where => "North Wetlands";
     protected override HashSet<string> DetectionItems => ["SHARD_HIDEONLEAF"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_HIDEONLEAF", 250)];
     protected override string HowTo => "Go to the Wetlands or Evergreen Plateau on Galatea and kill Hideonleaf mobs.";
@@ -179,8 +188,10 @@ public class HideonleafTask : BaseGalateaMobTask
 public class DreadwingTask : BaseGalateaMobTask
 {
     protected override string MethodName => "Dreadwing";
-    // Dreadwing spawns from breaking trees in Moonglade Marsh (Galatea).
-    protected override HashSet<string> Locations => ["Moonglade Marsh"];
+    // Island key - see CoralotTask's comment (Dreadwing spawns from breaking trees, reported all
+    // over Moonglade, not just Moonglade Marsh).
+    protected override HashSet<string> Locations => ["Moonglade"];
+    protected override string Where => "Moonglade Marsh";
     protected override HashSet<string> DetectionItems => ["SHARD_DREADWING"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_DREADWING", 240)];
     protected override string HowTo => "Go to Wyrmgrove Tomb or Ancient Ruins on Galatea and kill Dreadwing mobs.";
@@ -205,7 +216,9 @@ public class SeerTask : BaseGalateaMobTask
 public class MochibearkTask : BaseGalateaMobTask
 {
     protected override string MethodName => "Mochibear";
-    protected override HashSet<string> Locations => ["North Wetlands", "South Wetlands", "Moonglade Marsh", "Evergreen Plateau"];
+    // Island key - see CoralotTask's comment.
+    protected override HashSet<string> Locations => ["Moonglade"];
+    protected override string Where => "North Wetlands";
     protected override HashSet<string> DetectionItems => ["SHARD_MOCHIBEAR"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_MOCHIBEAR", 250)];
     protected override string HowTo => "Go to the Wetlands or Evergreen Plateau on Galatea and kill Mochibear mobs.";
@@ -213,7 +226,9 @@ public class MochibearkTask : BaseGalateaMobTask
 public class MossybitTask : BaseGalateaMobTask
 {
     protected override string MethodName => "Mossybit";
-    protected override HashSet<string> Locations => ["North Wetlands", "South Wetlands", "Evergreen Plateau"];
+    // Island key - see CoralotTask's comment.
+    protected override HashSet<string> Locations => ["Moonglade"];
+    protected override string Where => "North Wetlands";
     protected override HashSet<string> DetectionItems => ["SHARD_MOSSYBIT"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_MOSSYBIT", 250)];
     protected override string HowTo => "Go to the Wetlands or Evergreen Plateau on Galatea and kill Mossybit mobs.";
@@ -242,8 +257,11 @@ public class GoldenGhoulTask : MethodTask
     protected override string Category => "Mob Farming";
     protected override string ActionUnit => "kills";
     // Golden Ghouls spawn in the Hub Crypts (via Graveyard/Coal Mine); Golden Powder is a rare 0.05% drop.
+    // GOLD_INGOT: Golden Ghouls also drop 1-10 Gold Ingots per kill - see RevenantSlayerTask
+    // (SlayerTasks.cs), which shares this zone (Revenant Horror is also farmed in the Hub Crypts)
+    // and takes priority whenever its own Revenant Flesh is present.
     protected override HashSet<string> Locations => ["Crypts", "Graveyard", "Coal Mine"];
-    protected override HashSet<string> DetectionItems => ["SHARD_GOLDEN_GHOUL", "GOLDEN_POWDER"];
+    protected override HashSet<string> DetectionItems => ["SHARD_GOLDEN_GHOUL", "GOLDEN_POWDER", "GOLD_INGOT"];
     protected override List<MethodDrop> FormulaDrops => [new("GOLDEN_POWDER", 0.5)];
     protected override string HowTo => "Go to the Ruins or Graveyard and kill Golden Ghouls for Golden Powder.";
     protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "Weapon" }];
@@ -312,6 +330,22 @@ public class GhostMobTask : MethodTask
         new() { Name = "Magic Find", Description = "Increases rare drop chance", EstimatedMultiplier = 1.2 },
         new() { Name = "Kill speed", Description = "Faster killing means more coins per hour", EstimatedMultiplier = 1.3 }
     ];
+}
+
+/// <summary>Goblins in the Goblin Burrows (Dwarven Mines) - drop colored Goblin Eggs and Goblin armor pieces.</summary>
+public class GoblinFarmingTask : MethodTask
+{
+    protected override string MethodName => "Goblin Farming";
+    protected override string Category => "Mob Farming";
+    protected override string ActionUnit => "kills";
+    protected override HashSet<string> Locations => ["Goblin Burrows"];
+    protected override HashSet<string> DetectionItems =>
+        ["GOBLIN_EGG", "GOBLIN_EGG_RED", "GOBLIN_EGG_YELLOW", "GOBLIN_EGG_GREEN", "GOBLIN_HELMET", "GOBLIN_CHESTPLATE", "GOBLIN_LEGGINGS", "GOBLIN_BOOTS"];
+    // Production median (2026-09) per 10-min period * 6: GOBLIN_EGG 3.
+    protected override List<MethodDrop> FormulaDrops => [new("GOBLIN_EGG", 18)];
+    protected override string HowTo => "Go to the Goblin Burrows in the Dwarven Mines and kill Goblins for their eggs and armor pieces.";
+    // no RequiredItems/Effects: Goblins are low level mobs, no specific gear or stat is verified to matter
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Goblin_Burrows";
 }
 
 // ── Combat farm tasks (discovered from unclassified production revenue 2026-09) ──

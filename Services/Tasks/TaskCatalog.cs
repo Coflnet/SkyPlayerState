@@ -136,6 +136,10 @@ internal static class TaskCatalog
         tasks.Add<BarbarianDukeXTask>();
         tasks.Add<T4VoidgloomsTask>();
         tasks.Add<T4VoidgloomsFdTask>();
+        // discovered from unclassified production revenue 2026-09-28
+        tasks.Add<RevenantSlayerTask>();
+        tasks.Add<SvenSlayerTask>();
+        tasks.Add<TarantulaSlayerCrimsonIsleTask>();
         // Renamed from BlazeFarmingTask 2026-09 (was "Mob farm tasks"): Derelict Ashe only drops
         // from the Inferno Demonlord boss, so this is a Blaze Slayer session, not mob farming.
         tasks.Add<BlazeSlayerTask>();
@@ -171,6 +175,9 @@ internal static class TaskCatalog
         // Mob farm tasks - discovered from unclassified production revenue 2026-09
         tasks.Add<GhostMistTask>();
         // BlazeFarmingTask renamed to BlazeSlayerTask and moved to the Slayer tasks section above.
+        // discovered from unclassified production revenue 2026-09-28
+        tasks.Add<GoblinFarmingTask>();
+        tasks.Add<MageOutlawTask>();
 
         // Hunting tasks
         tasks.Add<RainSlimeHuntingTask>();
@@ -188,6 +195,14 @@ internal static class TaskCatalog
         tasks.Add<ZealotHuntingTask>();
         tasks.Add<BruiserHuntingTask>();
         tasks.Add<PestHuntingTask>();
+        // discovered from unclassified production revenue 2026-09-28
+        tasks.Add<TikiHuntingTask>();
+        tasks.Add<TreasureHoarderHuntingTask>();
+        tasks.Add<GlaciteWalkerHuntingTask>();
+        tasks.Add<MinerZombieHuntingTask>();
+        tasks.Add<MudwormHuntingTask>();
+        tasks.Add<BirriesHuntingTask>();
+        tasks.Add<CritterSafariTask>();
 
         // Diana / Mythological event tasks
         tasks.Add<DianaTask>();
@@ -224,12 +239,16 @@ internal static class TaskCatalog
         tasks.Add<JunglePowderMiningTask>();
         tasks.Add<MithrilDepositsPowderMiningTask>();
         tasks.Add<GoblinHoldoutPowderMiningTask>();
+        // island-wide fallback, lower Priority - discovered from unclassified production revenue 2026-09-28
+        tasks.Add<CrystalHollowsPowderMiningTask>();
 
         // Foraging tasks - discovered from unclassified production revenue 2026-09
         tasks.Add<HelixForagingTask>();
         tasks.Add<FigForagingTask>();
         // discovered from unclassified production revenue 2026-09-27
         tasks.Add<MangroveForagingTask>();
+        // discovered from unclassified production revenue 2026-09-28
+        tasks.Add<HoneycombGatheringTask>();
 
         // Crafting tasks
         tasks.Add<ReaperScytheTask>();
@@ -309,6 +328,10 @@ internal static class TaskCatalog
         tasks.Add<BazaarPurchaseTask>();
         tasks.Add<AuctionPurchaseTask>();
         tasks.Add<MinionCollectionTask>();
+        // hidden zone tasks for zones where no money making method exists - discovered 2026-09-28
+        tasks.Add<PrivateIslandActivityTask>();
+        tasks.Add<ForgeClaimsTask>();
+        tasks.Add<HubTradingTask>();
 
         return tasks;
     }

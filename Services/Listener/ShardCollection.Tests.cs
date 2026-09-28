@@ -20,6 +20,53 @@ public class ShardCollectionTests
         Assert.That(count, Is.EqualTo(expectedCount));
     }
 
+    // Regression for production zone "Critter Safari": Hypixel writes the gained count as "2x"
+    // (digits-then-x) here, not "x2" - the old regex only recognized "x2" and the amount group fell
+    // through to the "caught/received" fallback regex, whose lazy match then swallowed the rest of
+    // the sentence up to "Shards!", producing bogus tags like "SHARD_BLUEBIRD_AND_GAINED_2X_BLUEBIRD"
+    // and "SHARD_FOXTROT_AND_GAINED_2X_FOXTROT" (verbatim from production) instead of the real
+    // "SHARD_BLUEBIRD"/"SHARD_FOXTROT".
+    [TestCase("You caught a Bluebird and gained 2x Bluebird Shards!", "SHARD_BLUEBIRD", 2)]
+    [TestCase("You caught a Foxtrot and gained 2x Foxtrot Shards!", "SHARD_FOXTROT", 2)]
+    public void ParsesDigitsBeforeXGainedCountIntoTheRealShardTag(string message, string expectedTag, int expectedCount)
+    {
+        var parsed = CollectionListener.TryParseShardGain(message, out var tag, out var count);
+
+        Assert.That(parsed, Is.True);
+        Assert.That(tag, Is.EqualTo(expectedTag));
+        Assert.That(count, Is.EqualTo(expectedCount));
+        Assert.That(tag, Does.Not.Contain("AND_GAINED"));
+    }
+
+    [Test]
+    public async Task SafariCatchLinesForTheSameMobAccumulateUnderOneRealShardTag()
+    {
+        // One catch reported with the "a" count format, one with the "2x" format - both must land
+        // on the single real SHARD_BLUEBIRD tag, not be split across a real and a bogus fallback tag.
+        var args = ChatArgs(
+            "You caught a Bluebird and gained a Bluebird Shard!",
+            "You caught a Bluebird and gained 2x Bluebird Shards!");
+
+        await new CollectionListener().Process(args);
+
+        Assert.That(args.currentState.ItemsCollectedRecently.GetValueOrDefault("SHARD_BLUEBIRD"), Is.EqualTo(3));
+        Assert.That(args.currentState.ItemsCollectedRecently, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public void SuspiciousDerivedShardNameIsRejectedNotStored()
+    {
+        // General guard (independent of the specific "2x" fix above): an unmapped shard name whose
+        // text still contains sentence-fragment leftovers (" and ", a leftover "5x"/"x5" count token)
+        // must never be stored as a per-mob tag.
+        var parsed = CollectionListener.TryParseShardGain(
+            "You received a Widget and 5x Sprocket Shard!", out var tag, out var count);
+
+        Assert.That(parsed, Is.False);
+        Assert.That(tag, Is.Empty);
+        Assert.That(count, Is.Zero);
+    }
+
     [Test]
     public async Task CompletedNpcTradeTracksReceivedShardAndPayment()
     {
