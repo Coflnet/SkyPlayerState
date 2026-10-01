@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 namespace Coflnet.Sky.PlayerState.Services;
 
 /// <summary>
-/// A Catacombs reward chest ("Wood Chest".."Bedrock Chest") or a Kuudra "Paid Chest"/"Free Chest",
+/// A Catacombs reward chest (titled "Wood".."Bedrock", older/in-dungeon ones "Wood Chest"..) or a Kuudra "Paid Chest"/"Free Chest",
 /// parsed from its "Open Reward Chest" button - see <see cref="DungeonRewardChestParser"/>.
 /// </summary>
 public class RewardChest
@@ -21,6 +21,9 @@ public class RewardChest
     /// else that also carries an "Open Reward Chest" button (currently only Kuudra's "Paid
     /// Chest"/"Free Chest") - those must never be charged, see <see cref="DungeonRewardListener"/>.</summary>
     public bool IsDungeonChest { get; set; }
+    /// <summary>True when the chest lore says "Can't open another chest!" - the player already opened
+    /// one this run and has no key, so nothing can be charged for this view.</summary>
+    public bool CannotOpen { get; set; }
 }
 
 /// <summary>
@@ -37,15 +40,22 @@ public class RewardChest
 ///
 /// Click to open!
 /// </code>
-/// The dungeon title/cost wording itself ("Wood Chest".."Bedrock Chest", "2,000,000 Coins"/"FREE")
-/// is NOT yet confirmed against production (no sample in the logs at the time this was written) -
-/// see <see cref="DungeonRewardListener"/>'s "Dungeon reward chest ... seen" log line, which exists
-/// specifically to confirm it from Loki after rollout.
+/// The dungeon format is verified from production: the view title is the bare tier ("Wood", "Gold",
+/// "Diamond", "Emerald", "Obsidian", "Bedrock"; "&lt;Tier&gt; Chest" is also accepted), the cost line is
+/// "FREE" or e.g. "6,000,000 Coins", and a chest the player cannot open ends with
+/// "Can't open another chest!" instead of "Click to open!". The chat lines handled by
+/// <see cref="DungeonRewardListener"/> ("The Catacombs - Floor VII", "Team Score: 305 (S+)",
+/// "OBSIDIAN CHEST REWARDS") are verified from the SkyHanni, Odin and Skyblocker sources.
 /// </summary>
 public static class DungeonRewardChestParser
 {
     private static readonly Regex FormatCodeRegex = new("§.", RegexOptions.Compiled);
     private static readonly Regex CoinsRegex = new(@"^([\d,]+) Coins$", RegexOptions.Compiled);
+
+    private static readonly HashSet<string> BareDungeonTiers = new(StringComparer.Ordinal)
+    {
+        "Wood", "Gold", "Diamond", "Emerald", "Obsidian", "Bedrock"
+    };
 
     private static readonly HashSet<string> DungeonChestTiers = new(StringComparer.Ordinal)
     {
@@ -93,14 +103,20 @@ public static class DungeonRewardChestParser
     {
         info = null;
         var name = chest?.Name;
-        if (string.IsNullOrEmpty(name) || !name.EndsWith(" Chest", StringComparison.Ordinal))
+        if (string.IsNullOrEmpty(name))
+            return false;
+        var strippedName = Strip(name);
+        var isBareTier = BareDungeonTiers.Contains(strippedName);
+        if (!isBareTier && !name.EndsWith(" Chest", StringComparison.Ordinal))
             return false;
         var openChestItem = chest.Items?.FirstOrDefault(i => Strip(i.ItemName) == "Open Reward Chest");
         if (openChestItem == null)
             return false;
 
-        var chestType = Strip(name);
-        var lines = Strip(openChestItem.Description ?? string.Empty).Split('\n');
+        // normalize bare tier titles to the "<Tier> Chest" key used by the cost table
+        var chestType = isBareTier ? strippedName + " Chest" : strippedName;
+        var stripped = Strip(openChestItem.Description ?? string.Empty);
+        var lines = stripped.Split('\n');
         var contents = ExtractSection(lines, "Contents");
         var costLines = ExtractSection(lines, "Cost");
 
@@ -132,7 +148,8 @@ public static class DungeonRewardChestParser
             ChestType = chestType,
             CostCoins = coins.Value,
             Contents = contents,
-            IsDungeonChest = isDungeonChest
+            IsDungeonChest = isDungeonChest,
+            CannotOpen = stripped.Contains("Can't open another chest", StringComparison.OrdinalIgnoreCase)
         };
         return true;
     }
@@ -189,6 +206,12 @@ public class DungeonRewardListener : UpdateListener
     private const int DiscoveryLogMaxItems = 12;
 
     /// <summary>
+    /// Reward/cost bookkeeping only - it also runs on CHAT now, so a bug here must never abort the
+    /// whole update (and with it the purchase/bazaar evidence other listeners recorded in it).
+    /// </summary>
+    public override bool Optional => true;
+
+    /// <summary>
     /// Throttle state for <see cref="LogDungeonAreaContainerDiscovery"/> - at most one log line per
     /// distinct container title per player per <see cref="DiscoveryLogThrottle"/>. Deliberately kept
     /// in memory only (not on <see cref="Models.ExtractedInfo"/>/persisted state): it exists purely
@@ -197,13 +220,106 @@ public class DungeonRewardListener : UpdateListener
     /// </summary>
     private readonly System.Collections.Concurrent.ConcurrentDictionary<(string PlayerId, string Title), DateTime> discoveryLogThrottle = new();
 
+    private static readonly TimeSpan DuplicateHeaderWindow = TimeSpan.FromSeconds(60);
+    private static readonly Regex FloorHeaderRegex = new(@"^(Master Mode )?The Catacombs - (?:Floor ([IVX]+)|(Entrance))$", RegexOptions.Compiled);
+    private static readonly Regex TeamScoreRegex = new(@"^Team Score: (\d+) \(([A-Z+]+)\)(?: \(NEW RECORD!\))?$", RegexOptions.Compiled);
+    private static readonly Regex ChestRewardsRegex = new(@"^(WOOD|GOLD|DIAMOND|EMERALD|OBSIDIAN|BEDROCK) CHEST REWARDS$", RegexOptions.Compiled);
+
+    /// <summary>In-memory only (like <see cref="discoveryLogThrottle"/>): last counted run header per player, for the 60s duplicate window.</summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> lastRunHeader = new();
+
     public override Task Process(UpdateArgs args)
     {
+        if (args.msg.Kind == Models.UpdateMessage.UpdateKind.CHAT)
+            HandleChat(args);
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.INVENTORY)
             HandleInventory(args);
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.Scoreboard)
             HandleScoreboard(args);
         return Task.CompletedTask;
+    }
+
+    private void HandleChat(UpdateArgs args)
+    {
+        foreach (var raw in args.msg.ChatBatch ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                continue;
+            var line = DungeonRewardChestParser.Strip(raw).Trim();
+            var header = FloorHeaderRegex.Match(line);
+            if (header.Success)
+            {
+                HandleFloorHeader(args, header);
+                continue;
+            }
+            var score = TeamScoreRegex.Match(line);
+            if (score.Success)
+            {
+                Logger.LogDebug("Dungeon team score {score} ({rank}) for {playerId} on {floor}",
+                    score.Groups[1].Value, score.Groups[2].Value, args.msg.PlayerId, args.currentState.ExtractedInfo.LastDungeonFloor);
+                continue;
+            }
+            var chestLine = ChestRewardsRegex.Match(line);
+            if (chestLine.Success)
+                HandleChestRewardsLine(args, chestLine.Groups[1].Value);
+        }
+    }
+
+    private void HandleFloorHeader(UpdateArgs args, Match header)
+    {
+        string zone;
+        if (header.Groups[3].Success)
+            zone = "The Catacombs (E)";
+        else
+        {
+            int number;
+            try { number = Coflnet.Sky.Core.Roman.From(header.Groups[2].Value); }
+            catch (Exception) { return; }
+            if (number < 1 || number > 7)
+                return;
+            zone = $"The Catacombs ({(header.Groups[1].Success ? "M" : "F")}{number})";
+        }
+        var info = args.currentState.ExtractedInfo;
+        var now = DateTime.UtcNow;
+        var key = args.msg.PlayerId ?? args.currentState.PlayerId ?? string.Empty;
+        if (lastRunHeader.TryGetValue(key, out var last) && now - last < DuplicateHeaderWindow)
+        {
+            Logger.LogDebug("Ignoring duplicate dungeon run header for {playerId}", key);
+            return;
+        }
+        lastRunHeader[key] = now;
+        info.LastDungeonFloor = zone;
+        info.LastDungeonFloorAt = now;
+        Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, Tasks.PseudoItems.DUNGEON_RUN, 1);
+        Logger.LogDebug("Dungeon run completed for {playerId} on {floor}", key, zone);
+    }
+
+    private void HandleChestRewardsLine(UpdateArgs args, string tier)
+    {
+        var info = args.currentState.ExtractedInfo;
+        var pending = info.PendingDungeonChestCharge;
+        var chestType = char.ToUpperInvariant(tier[0]) + tier[1..].ToLowerInvariant() + " Chest";
+        if (pending == null || pending.ChestType != chestType)
+        {
+            Logger.LogDebug("{tier} chest opened for {playerId} but no matching pending charge", tier, args.msg.PlayerId);
+            return;
+        }
+        if (DateTime.UtcNow - pending.SeenAt > PendingExpiry)
+        {
+            info.PendingDungeonChestCharge = null;
+            return;
+        }
+        Charge(args, pending);
+    }
+
+    private void Charge(UpdateArgs args, PendingDungeonChestCharge pending)
+    {
+        var collected = args.currentState.ItemsCollectedRecently;
+        var cost = (int)Math.Min(pending.CostCoins, int.MaxValue);
+        Tasks.ItemCountMath.Add(collected, Tasks.PseudoItems.DUNGEON_CHEST_COST, -(long)cost);
+        Logger.LogInformation("Dungeon chest cost {cost} charged to {playerId} for {chest} (floor {floor})",
+            pending.CostCoins, args.currentState.PlayerId, pending.ChestType, pending.Floor);
+        args.currentState.ExtractedInfo.PendingDungeonChestCharge = null;
     }
 
     private void HandleInventory(UpdateArgs args)
@@ -231,6 +347,11 @@ public class DungeonRewardListener : UpdateListener
             "Dungeon reward chest {chest} seen for {playerId} floor {floor} cost {cost} contents {contents}",
             chest.ChestType, args.msg.PlayerId, info.LastDungeonFloor, chest.CostCoins, string.Join(", ", chest.Contents));
 
+        if (chest.CannotOpen)
+        {
+            Logger.LogDebug("Dungeon reward chest {chest} for {playerId} cannot be opened, not charging", chest.ChestType, args.msg.PlayerId);
+            return;
+        }
         if (chest.CostCoins <= 0)
             return; // free dungeon chests (e.g. Wood Chest) are never charged
 
@@ -253,13 +374,10 @@ public class DungeonRewardListener : UpdateListener
     }
 
     /// <summary>
-    /// Discovery log for verifying the REAL dungeon reward chest GUI format from production logs:
-    /// not a single real dungeon chest (Wood/Gold/Diamond/Emerald/Obsidian/Bedrock Chest) was seen in
-    /// a 6h production sample despite 501 dungeon reward claims being attributed in the same window,
-    /// so <see cref="DungeonRewardChestParser"/>'s assumed format (title ending " Chest", an "Open
-    /// Reward Chest" button) is unverified and likely wrong. Logs every container title the player
-    /// opens while on a Catacombs floor or at the Dungeon Hub, other than a storage container or a
-    /// Kuudra chest, at Information so the next log analysis can find the real one - throttled to at
+    /// Debug discovery log of every container title the player opens while on a Catacombs floor or at
+    /// the Dungeon Hub (other than storage or Kuudra chests). The real format is now verified
+    /// (reward chests are titled "Wood".."Bedrock" with an "Open Reward Chest" button, see
+    /// <see cref="DungeonRewardChestParser"/>), so this only remains as a Debug aid - throttled to at
     /// most once per distinct title per player per <see cref="DiscoveryLogThrottle"/>.
     /// </summary>
     private void LogDungeonAreaContainerDiscovery(UpdateArgs args)
@@ -302,7 +420,7 @@ public class DungeonRewardListener : UpdateListener
                 itemDescriptions.Add(name);
             }
         }
-        Logger.LogInformation("Dungeon area container {title} for {playerId} at {location}: {items}",
+        Logger.LogDebug("Dungeon area container {title} for {playerId} at {location}: {items}",
             title, playerId, location, string.Join(", ", itemDescriptions));
     }
 
@@ -338,11 +456,6 @@ public class DungeonRewardListener : UpdateListener
         if (pending.PurseAtOpen - currentPurse.Value < pending.CostCoins)
             return; // purse has not dropped enough (yet) to confirm the purchase
 
-        var collected = args.currentState.ItemsCollectedRecently;
-        var cost = (int)Math.Min(pending.CostCoins, int.MaxValue);
-        collected[Tasks.PseudoItems.DUNGEON_CHEST_COST] = collected.GetValueOrDefault(Tasks.PseudoItems.DUNGEON_CHEST_COST, 0) - cost;
-        Logger.LogInformation("Dungeon chest cost {cost} charged to {playerId} for {chest} (floor {floor})",
-            pending.CostCoins, args.currentState.PlayerId, pending.ChestType, pending.Floor);
-        info.PendingDungeonChestCharge = null;
+        Charge(args, pending);
     }
 }

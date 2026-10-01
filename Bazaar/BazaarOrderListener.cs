@@ -786,6 +786,15 @@ public class BazaarOrderListener : UpdateListener
             }
         }
 
+        // Hyphenated enchanted books ("Turbo-Wheat I", "Counter-Strike V") are not found by the item
+        // search at all, so resolve the verified bazaar IDs deterministically instead.
+        if (plainName.Contains('-') && GetEnchantTagCandidate(plainName) is { } hyphenCandidate
+            && VerifiedHyphenatedEnchantTags.Contains(hyphenCandidate))
+        {
+            _itemTagCache[itemName] = (hyphenCandidate, DateTime.UtcNow);
+            return hyphenCandidate;
+        }
+
         var itemApi = args.GetService<IItemsApi>();
         var searchResult = await itemApi.ItemsSearchTermGetAsync(itemName);
         if (searchResult == null || searchResult.Count == 0)
@@ -813,6 +822,29 @@ public class BazaarOrderListener : UpdateListener
         return tag;
     }
 
+    /// <summary>Display-name words whose product id differs from the plain uppercased name.</summary>
+    private static readonly Dictionary<string, string> EnchantNameOverrides = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Turbo-Cacti"] = "TURBO_CACTUS",
+        ["Turbo-Cocoa"] = "TURBO_COCO",
+    };
+
+    /// <summary>Bazaar product ids of hyphenated enchanted books, verified against api.hypixel.net/v2/skyblock/bazaar.</summary>
+    internal static readonly HashSet<string> VerifiedHyphenatedEnchantTags = BuildVerifiedHyphenatedEnchantTags();
+
+    private static HashSet<string> BuildVerifiedHyphenatedEnchantTags()
+    {
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var crop in new[] { "CACTUS", "CANE", "CARROT", "COCO", "MELON", "MOONFLOWER", "MUSHROOMS", "POTATO", "PUMPKIN", "ROSE", "SUNFLOWER", "WARTS", "WHEAT" })
+            for (var level = 1; level <= 5; level++)
+                set.Add($"ENCHANTMENT_TURBO_{crop}_{level}");
+        for (var level = 3; level <= 5; level++)
+            set.Add($"ENCHANTMENT_COUNTER_STRIKE_{level}");
+        for (var level = 1; level <= 5; level++)
+            set.Add($"ENCHANTMENT_TRIPLE_STRIKE_{level}");
+        return set;
+    }
+
     private static readonly Regex _trailingRomanNumeral = new(@"^(.+?)\s+([IVXLC]+)$", RegexOptions.Compiled);
 
     /// <summary>
@@ -825,7 +857,7 @@ public class BazaarOrderListener : UpdateListener
     /// The caller only uses the candidate when it actually matches a search result, so an
     /// unexpected candidate here is harmless.
     /// </summary>
-    private static string GetEnchantTagCandidate(string plainName)
+    internal static string GetEnchantTagCandidate(string plainName)
     {
         var match = _trailingRomanNumeral.Match(plainName);
         if (!match.Success)
@@ -842,8 +874,10 @@ public class BazaarOrderListener : UpdateListener
         }
         if (level <= 0 || Coflnet.Sky.Core.Roman.To(level) != romanPart)
             return null;
-        var namePart = string.Join("_", match.Groups[1].Value.Split(new[] { ' ', '-' }, StringSplitOptions.RemoveEmptyEntries))
-            .ToUpperInvariant();
+        var namePart = EnchantNameOverrides.TryGetValue(match.Groups[1].Value, out var overridden)
+            ? overridden
+            : string.Join("_", match.Groups[1].Value.Split(new[] { ' ', '-' }, StringSplitOptions.RemoveEmptyEntries))
+                .ToUpperInvariant();
         if (namePart.Length == 0)
             return null;
         return $"ENCHANTMENT_{namePart}_{level}";

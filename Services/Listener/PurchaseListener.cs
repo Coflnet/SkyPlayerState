@@ -35,7 +35,7 @@ public class PurchaseListener : UpdateListener
 
             var amount = (int)Math.Min(coins, int.MaxValue);
             var collected = args.currentState.ItemsCollectedRecently;
-            collected[tag] = collected.GetValueOrDefault(tag, 0) + amount;
+            Tasks.ItemCountMath.Add(collected, tag, amount);
             Logger.LogDebug("[Purchase] {playerId}: {tag} +{amount} coins spent", args.msg.PlayerId, tag, amount);
         }
         return Task.CompletedTask;

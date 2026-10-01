@@ -17,6 +17,9 @@ public class TradeInfoListener : UpdateListener
         this.logger = logger;
     }
 
+    /// <summary>Informational chat message only - a pricing failure must never drop the inventory update.</summary>
+    public override bool Optional => true;
+
     public override async Task Process(UpdateArgs args)
     {
         if (args.msg.ReceivedAt < DateTime.UtcNow.AddSeconds(-30))

@@ -1047,4 +1047,39 @@ public class TaskClassifierTests
         result.Should().NotBeNull();
         result!.TaskName.Should().Be("Hub Trading");
     }
+
+    [Test]
+    public void Classify_TwoPseudoTagsNearIntMax_DoesNotOverflow()
+    {
+        var items = new Dictionary<string, int>
+        {
+            { PseudoItems.BAZAAR_PURCHASE, int.MaxValue - 1 },
+            { PseudoItems.AUCTION_PURCHASE, int.MaxValue - 1 },
+            { PseudoItems.DUNGEON_CHEST_COST, int.MinValue },
+        };
+        Assert.DoesNotThrow(() => Classifier.Classify("Catacombs", items, 30));
+    }
+
+    [Test]
+    public void Diana_UnincorporatedWithAncientClaw_IsDianaHunting()
+        => Classifier.Classify("Unincorporated", new() { { "ANCIENT_CLAW", 500 } }, 10).Should().NotBeNull().And.Subject.As<Classification>().TaskName.Should().Be("Diana (Hunting)");
+
+    [Test]
+    public void Diana_ForestEnchantedGoldOnly_IsDiana()
+        => Classifier.Classify("Forest", new() { { "ENCHANTED_GOLD", 8 } }, 10).Should().NotBeNull().And.Subject.As<Classification>().TaskName.Should().Be("Diana");
+
+    [Test]
+    public void Diana_TradeCenterGriffinFeather_IsADianaTask()
+    {
+        var result = Classifier.Classify("Trade Center", new() { { "GRIFFIN_FEATHER", 5 } }, 10);
+        result.Should().NotBeNull();
+        result.TaskName.Should().StartWith("Diana");
+    }
+
+    [Test]
+    public void GoldMineEnchantedGold_IsNotDiana()
+    {
+        var result = Classifier.Classify("Gold Mine", new() { { "ENCHANTED_GOLD", 8 } }, 10);
+        (result?.TaskName ?? "").Should().NotStartWith("Diana");
+    }
 }

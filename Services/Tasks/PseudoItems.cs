@@ -39,12 +39,15 @@ public static class PseudoItems
 {
     public const string BAZAAR_PURCHASE = "BAZAAR_PURCHASE";
     public const string AUCTION_PURCHASE = "AUCTION_PURCHASE";
+    /// <summary>EVIDENCE tag, +1 per completed dungeon run (from the "The Catacombs - Floor X" chat header). Worth 0 coins.</summary>
+    public const string DUNGEON_RUN = "DUNGEON_RUN";
     public const string DUNGEON_CHEST_COST = "DUNGEON_CHEST_COST";
 
     private static readonly HashSet<string> EvidenceTags = new(StringComparer.OrdinalIgnoreCase)
     {
         BAZAAR_PURCHASE,
-        AUCTION_PURCHASE
+        AUCTION_PURCHASE,
+        DUNGEON_RUN
     };
 
     private static readonly HashSet<string> CostTags = new(StringComparer.OrdinalIgnoreCase)

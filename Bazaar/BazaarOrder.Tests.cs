@@ -166,8 +166,36 @@ public class BazaarOrderTests
             .ReturnsAsync(new List<Items.Client.Model.SearchResult>());
 
         string tag = null;
-        Assert.DoesNotThrowAsync(async () => tag = await BazaarOrderListener.GetTagForName(args, "Turbo-Cane I"));
+        Assert.DoesNotThrowAsync(async () => tag = await BazaarOrderListener.GetTagForName(args, "Prismarine Crystals"));
         Assert.That(tag, Is.Null);
+    }
+
+    [TestCase("Turbo-Cacti I", "ENCHANTMENT_TURBO_CACTUS_1")]
+    [TestCase("Turbo-Cocoa I", "ENCHANTMENT_TURBO_COCO_1")]
+    [TestCase("Turbo-Mushrooms V", "ENCHANTMENT_TURBO_MUSHROOMS_5")]
+    [TestCase("Turbo-Moonflower I", "ENCHANTMENT_TURBO_MOONFLOWER_1")]
+    [TestCase("Turbo-Warts II", "ENCHANTMENT_TURBO_WARTS_2")]
+    [TestCase("Counter-Strike V", "ENCHANTMENT_COUNTER_STRIKE_5")]
+    [TestCase("Triple-Strike V", "ENCHANTMENT_TRIPLE_STRIKE_5")]
+    public async Task HyphenatedEnchantBooksResolveWithoutSearch(string name, string expected)
+    {
+        var args = CreateArgs();
+        var tag = await BazaarOrderListener.GetTagForName(args, name);
+        Assert.That(tag, Is.EqualTo(expected));
+        itemsApi.Verify(i => i.ItemsSearchTermGetAsync(It.IsAny<string>(), null, 0, default), Times.Never);
+    }
+
+    [Test]
+    public async Task NonHyphenatedEnchantStillUsesSearch()
+    {
+        var args = CreateArgs();
+        itemsApi.Setup(i => i.ItemsSearchTermGetAsync("Karma Test I", null, 0, default))
+            .ReturnsAsync(new List<Items.Client.Model.SearchResult> {
+                new() { Tag = "ENCHANTMENT_KARMA_TEST_4", Text = "Karma Test IV" },
+                new() { Tag = "ENCHANTMENT_KARMA_TEST_1", Text = "Karma Test I" } });
+        var tag = await BazaarOrderListener.GetTagForName(args, "Karma Test I");
+        Assert.That(tag, Is.EqualTo("ENCHANTMENT_KARMA_TEST_1"));
+        itemsApi.Verify(i => i.ItemsSearchTermGetAsync("Karma Test I", null, 0, default), Times.Once);
     }
 
     [Test]
@@ -195,11 +223,11 @@ public class BazaarOrderTests
         // evidence for - exactly the real production shape.
         var order = new Offer
         {
-            ItemName = "Turbo-Cane I", Amount = 32, PricePerUnit = 5984.2, IsSell = false,
+            ItemName = "Prismarine Crystals", Amount = 32, PricePerUnit = 5984.2, IsSell = false,
             Created = DateTime.UtcNow.AddMinutes(-1)
         };
         currentState.BazaarOffers.Add(order);
-        var args = CreateArgs("[Bazaar] Claimed 16x Turbo-Cane I worth 95,747 coins bought for 5,984.2 each!");
+        var args = CreateArgs("[Bazaar] Claimed 16x Prismarine Crystals worth 95,747 coins bought for 5,984.2 each!");
         // Real (unmocked) BazaarOrderSync so this actually exercises GetTagForName via Claim, not a
         // no-op mock - itemsApi.ItemsSearchTermGetAsync stays unconfigured (unresolvable name).
         args.AddService(new BazaarOrderSync(new System.Net.Http.HttpClient()));

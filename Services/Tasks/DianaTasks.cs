@@ -20,8 +20,12 @@ public class DianaTask : BaseDianaTask
 {
     protected override string MethodName => "Diana";
     protected override HashSet<string> Locations => ["Hub", "Wilderness", "Forest", "Mountain", "Ruins", "Graveyard", "Farm", "Village"];
-    protected override HashSet<string> DetectionItems => ["GRIFFIN_FEATHER", "MINOS_RELIC", "DAEDALUS_STICK"];
-    protected override List<MethodDrop> FormulaDrops => [new("GRIFFIN_FEATHER", 30), new("DAEDALUS_STICK", 2)];
+    protected override HashSet<string> DetectionItems => [
+        "GRIFFIN_FEATHER", "MINOS_RELIC", "DAEDALUS_STICK",
+        // treasure-burrow loot (ENCHANTED_GOLD alone makes up most dug-burrow periods)
+        "ENCHANTED_GOLD", "MYTHOS_FRAGMENT", "CROCHET_TIGER_PLUSHIE", "WASHED_UP_SOUVENIR", "CRETAN_URN",
+        "ANTIQUE_REMEDIES", "DWARF_TURTLE_SHELMET"];
+    protected override List<MethodDrop> FormulaDrops => [new("GRIFFIN_FEATHER", 30), new("DAEDALUS_STICK", 2), new("ENCHANTED_GOLD", 40)];
     protected override string HowTo => "During the Mythological Ritual mayor event, use an Ancestral Spade on Diana burrows in the Hub. Follow particle trails to dig burrows.";
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "ANCESTRAL_SPADE", Reason = "Required to dig Diana burrows" },
@@ -37,7 +41,7 @@ public class DianaHuntingTask : BaseDianaTask
     protected override string MethodName => "Diana (Hunting)";
     protected override HashSet<string> Locations => ["Hub", "Wilderness", "Forest", "Mountain", "Ruins", "Graveyard", "Farm", "Village"];
     // Ancient Claw is the bulk drop from every burrow mob and the main coin source; MINOS_CHAMPION/INQUISITOR are mob names, not items.
-    protected override HashSet<string> DetectionItems => ["ANCIENT_CLAW", "SHARD_KING_MINOS", "GRIFFIN_FEATHER"];
+    protected override HashSet<string> DetectionItems => ["ANCIENT_CLAW", "SHARD_KING_MINOS", "GRIFFIN_FEATHER", "ENCHANTED_ANCIENT_CLAW", "HILT_OF_REVELATIONS", "SHARD_MINOS_HUNTER", "SHARD_MINOTAUR", "SHARD_CRETAN_BULL"];
     protected override List<MethodDrop> FormulaDrops => [new("ANCIENT_CLAW", 3000), new("GRIFFIN_FEATHER", 40), new("DAEDALUS_STICK", 3), new("MINOS_RELIC", 0.02), new("SHARD_KING_MINOS", 1)];
     protected override string HowTo => "During Mythological Ritual, focus on killing Mythological mobs (Minotaurs, Gaia, Champions, Inquisitors). Inquisitors drop the most money.";
     protected override List<RequiredItem> RequiredItems => [

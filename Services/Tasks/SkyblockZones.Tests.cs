@@ -12,6 +12,8 @@ public class SkyblockZonesTests
     [TestCase("Combat Settlement")]
     [TestCase("Communal Stew")]
     [TestCase("Fishing Outpost")]
+    [TestCase("Unincorporated")]
+    [TestCase("Trade Center")]
     [TestCase("Foraging Camp")]
     public void HubSubZones_ResolveToHub(string zone)
     {

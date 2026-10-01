@@ -68,7 +68,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         // rather than relying on CollectionListener.HandleScoreboard's ExtractedInfo.Purse, and reads
         // ExtractedInfo.LastDungeonFloor which is only ever set by earlier ticks, never this one) -
         // registered early so its ordering relative to CollectionListener never matters either way.
-        AddHandler<DungeonRewardListener>(UpdateMessage.UpdateKind.INVENTORY | UpdateMessage.UpdateKind.Scoreboard);
+        AddHandler<DungeonRewardListener>(UpdateMessage.UpdateKind.INVENTORY | UpdateMessage.UpdateKind.Scoreboard | UpdateMessage.UpdateKind.CHAT);
         AddHandler<ProfileAndNameUpdate>(UpdateMessage.UpdateKind.CHAT | UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<BazaarOrderListener>(UpdateMessage.UpdateKind.CHAT);
         AddHandler<TradeLimitsUpdate>(UpdateMessage.UpdateKind.CHAT);

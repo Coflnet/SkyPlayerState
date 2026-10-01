@@ -139,7 +139,7 @@ public class TaskSessionService
         {
             if (count <= 0)
                 continue;
-            result[tag] = result.GetValueOrDefault(tag) + count;
+            ItemCountMath.Add(result, tag, count);
         }
         return result;
     }

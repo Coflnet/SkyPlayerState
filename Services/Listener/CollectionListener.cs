@@ -72,7 +72,7 @@ public class CollectionListener : UpdateListener
                 if (uploadedLine.StartsWith("Removed items:"))
                     await HandleSackNotification(args, uploadedLine);
                 if (uploadedLine.Contains("Chameleon (0."))
-                    args.currentState.ItemsCollectedRecently["SHARD_CHAMELEON"] = args.currentState.ItemsCollectedRecently.GetValueOrDefault("SHARD_CHAMELEON", 0) + 1;
+                    Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, "SHARD_CHAMELEON", 1);
             }
         }
     }
@@ -118,7 +118,7 @@ public class CollectionListener : UpdateListener
         if (previousMithrilPowder > 0 && currentMithrilPowder > previousMithrilPowder)
         {
             var diff = currentMithrilPowder - previousMithrilPowder;
-            args.currentState.ItemsCollectedRecently[MithrilPowderTag] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(MithrilPowderTag, 0) + diff;
+            Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, MithrilPowderTag, diff);
         }
 
         args.currentState.ExtractedInfo.MithrilPowder = currentMithrilPowder;
@@ -259,20 +259,20 @@ public class CollectionListener : UpdateListener
             var tag = GetShardTag(reward.Groups[1].Value.Trim());
             rewards[tag] = rewards.GetValueOrDefault(tag) + count;
         }
-        return rewards.Count > 0 && rewards.Values.Sum() == expectedTotal;
+        return rewards.Count > 0 && rewards.Values.Sum(v => (long)v) == expectedTotal;
     }
 
     private void ReconcileSafariShards(UpdateArgs args, Dictionary<string, int> rewards)
     {
         var collected = args.currentState.ItemsCollectedRecently;
         var previousTotal = collected.Where(item => item.Key.StartsWith("SHARD_", StringComparison.Ordinal))
-            .Sum(item => item.Value);
+            .Sum(item => (long)item.Value);
         foreach (var tag in collected.Keys.Where(tag => tag.StartsWith("SHARD_", StringComparison.Ordinal)).ToList())
             collected.Remove(tag);
         foreach (var reward in rewards)
             collected[reward.Key] = reward.Value;
         Logger.LogInformation("Reconciled Safari shards for {player}: {previous} tracked, {summary} in reward summary",
-            args.currentState.PlayerId, previousTotal, rewards.Values.Sum());
+            args.currentState.PlayerId, previousTotal, rewards.Values.Sum(v => (long)v));
     }
 
     private static string GetItemTag(string itemName) =>
@@ -280,7 +280,7 @@ public class CollectionListener : UpdateListener
 
     private static void TrackItem(UpdateArgs args, string tag, int count)
     {
-        args.currentState.ItemsCollectedRecently[tag] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(tag, 0) + count;
+        Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, tag, count);
     }
 
     /// <summary>
@@ -327,7 +327,7 @@ public class CollectionListener : UpdateListener
                         Logger.LogDebug("Item not found in lookup: {itemName}", itemName);
                         continue;
                     }
-                    args.currentState.ItemsCollectedRecently[tag] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(tag, 0) + count;
+                    Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, tag, count);
                     Logger.LogDebug("Item collected from stash: {itemName} x{count} for player {playerId}", itemName, count, args.currentState.PlayerId);
                 }
                 else
@@ -380,10 +380,33 @@ public class CollectionListener : UpdateListener
         // RegisterKnownItemUuids, called last in this method).
         var known = args.currentState.KnownItemUuids;
         var knownUuids = known is { Count: > 0 } ? new HashSet<long>(known) : null;
+        // First-time-drop guards (see the loop): never when the previous/current view is a trade
+        // window, NPC shop or sack (items there are swapped, not dropped).
+        var allowFirstTimeCounting = !IsSwapView(previousInventory) && !IsSwapView(args.msg.Chest);
+        // (a) every tag anywhere in the previous view, including its container part
+        var previousTags = previousInventory.Items?.Where(i => i.Tag != null).Select(i => i.Tag).ToHashSet() ?? new HashSet<string>();
+        // (b) every tag in any other recent view (the current view is the last entry)
+        var olderViewTags = new HashSet<string>();
+        foreach (var view in args.currentState.RecentViews.Take(Math.Max(0, args.currentState.RecentViews.Count - 1)))
+        {
+            if (view?.Items == null)
+                continue;
+            foreach (var item in view.Items)
+                if (item.Tag != null)
+                    olderViewTags.Add(item.Tag);
+        }
         foreach (var (tag, currentItems) in currentInventory)
         {
             if (!mapOfItems.TryGetValue(tag, out var previousItems))
-                continue; // unchanged rule: a tag must be present in both views
+            {
+                // A tag new to the accessible inventory is a first-time drop (its full count, or only
+                // never-seen uuids via the uuid branch below) - but only when it cannot be a mere swap
+                // from somewhere else, see the guards below. Tags present in both views keep the
+                // plain diff logic.
+                if (!allowFirstTimeCounting || previousTags.Contains(tag) || olderViewTags.Contains(tag))
+                    continue;
+                previousItems = new List<Models.Item>();
+            }
             if (currentItems.Any(i => TryGetItemUuidHash(i, out _)) || previousItems.Any(i => TryGetItemUuidHash(i, out _)))
             {
                 // Non-stackable item (carries a uuid): dedupe by uuid instead of raw count. A
@@ -406,14 +429,14 @@ public class CollectionListener : UpdateListener
                     newCount++;
                 }
                 if (newCount != 0)
-                    args.currentState.ItemsCollectedRecently[tag] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(tag, 0) + newCount;
+                    Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, tag, newCount);
                 continue;
             }
-            var previousCount = previousItems.Sum(i => i.Count ?? 0);
-            var currentCount = currentItems.Sum(i => i.Count ?? 0);
+            var previousCount = previousItems.Sum(i => (long)(i.Count ?? 0));
+            var currentCount = currentItems.Sum(i => (long)(i.Count ?? 0));
             var diff = currentCount - previousCount;
             if (diff != 0)
-                args.currentState.ItemsCollectedRecently[tag] = args.currentState.ItemsCollectedRecently.GetValueOrDefault(tag, 0) + diff;
+                Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, tag, diff);
         }
         RegisterKnownItemUuids(args.currentState, args.msg.Chest);
 
@@ -483,6 +506,18 @@ public class CollectionListener : UpdateListener
         }
         hash = unchecked((long)fnv);
         return true;
+    }
+
+    /// <summary>
+    /// Views whose items are swapped with the inventory rather than dropped into it: trade windows
+    /// (name starts with "You    "), sacks and NPC shops. First-time counting is skipped around them.
+    /// </summary>
+    private static bool IsSwapView(Models.ChestView view)
+    {
+        var name = view?.Name;
+        if (name == null)
+            return false;
+        return name.StartsWith("You    ") || name.Contains("Sack") || name.Contains("Shop") || name.Contains("Trades");
     }
 
     private static bool IsBazaarWindow(Models.ChestView previousInventory)
@@ -614,13 +649,13 @@ public class CollectionListener : UpdateListener
 
     /// <summary>
     /// A chest view whose title names a Catacombs floor (Croesus' reward-claim menu, e.g. "Catacombs
-    /// - Floor VII"/"Master Mode Catacombs - Floor III", possibly truncated by the 32 char inventory
+    /// - Floor VII"/"Master Catacombs - Floor V", possibly truncated by the 32 char inventory
     /// title limit) names the floor whose chests are being claimed. This OVERRIDES the zone-sequence
     /// tracking in <see cref="HandleScoreboard"/> - a Croesus claim can be for an older run than the
     /// player's last actual floor visit - so it always wins regardless of what
     /// <see cref="Models.ExtractedInfo.LastDungeonFloor"/> currently holds.
     /// </summary>
-    private static readonly Regex CroesusFloorTitleRegex = new(@"^(Master Mode )?(The )?Catacombs - Floor ([IVX]+)", RegexOptions.Compiled);
+    private static readonly Regex CroesusFloorTitleRegex = new(@"^(Master Mode |Master )?(The )?Catacombs - Floor ([IVX]+)", RegexOptions.Compiled);
     private static readonly Dictionary<string, int> RomanFloorNumerals = new(StringComparer.Ordinal)
     {
         ["I"] = 1, ["II"] = 2, ["III"] = 3, ["IV"] = 4, ["V"] = 5, ["VI"] = 6, ["VII"] = 7
@@ -636,6 +671,24 @@ public class CollectionListener : UpdateListener
     /// ambiguity in the source data (M1/M2 fit within 32 chars and are unaffected), not something
     /// this parser can resolve; it is accepted as a known limitation rather than guessed around.
     /// </summary>
+    private static readonly HashSet<string> CroesusMenuMarkers = new(StringComparer.Ordinal)
+    {
+        "Chest Modifiers", "Wood", "Gold", "Diamond", "Emerald", "Obsidian", "Bedrock"
+    };
+
+    /// <summary>
+    /// Like <see cref="TryParseCroesusFloor(string)"/> but also requires the view to look like the
+    /// Croesus floor menu (an item named "Chest Modifiers" or a bare chest tier). Guards against
+    /// "The Catacombs - Floor I" style best-scores lists that share the title pattern.
+    /// </summary>
+    internal static string TryParseCroesusFloor(Models.ChestView chest)
+    {
+        if (chest?.Items == null
+            || !chest.Items.Any(i => CroesusMenuMarkers.Contains(DungeonRewardChestParser.Strip(i?.ItemName))))
+            return null;
+        return TryParseCroesusFloor(chest.Name);
+    }
+
     internal static string TryParseCroesusFloor(string chestName)
     {
         if (string.IsNullOrEmpty(chestName))
@@ -650,7 +703,7 @@ public class CollectionListener : UpdateListener
 
     private static void HandleCroesusChest(UpdateArgs args)
     {
-        var floor = TryParseCroesusFloor(args.msg.Chest?.Name);
+        var floor = TryParseCroesusFloor(args.msg.Chest);
         if (floor == null)
             return;
         // Production has no evidence this ever fires - Information (not Debug) so the next log

@@ -187,16 +187,134 @@ public class CollectionListenerInventoryTests
             msg = new UpdateMessage
             {
                 Kind = UpdateMessage.UpdateKind.INVENTORY, PlayerId = "p1",
-                Chest = new ChestView { Name = "Master Mode Catacombs - Floor III", Items = new() }
+                Chest = new ChestView { Name = "Master Catacombs - Floor V", Items = new() { new Item { ItemName = "Chest Modifiers" } } }
             }
         };
         args.AddService<ILogger<CollectionListener>>(logger);
 
         await new CollectionListener().Process(args);
 
-        state.ExtractedInfo.LastDungeonFloor.Should().Be("The Catacombs (M3)");
+        state.ExtractedInfo.LastDungeonFloor.Should().Be("The Catacombs (M5)");
         logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Information
-            && e.Message.Contains("Croesus menu") && e.Message.Contains("Master Mode Catacombs - Floor III")
-            && e.Message.Contains("The Catacombs (M3)"));
+            && e.Message.Contains("Croesus menu") && e.Message.Contains("Master Catacombs - Floor V")
+            && e.Message.Contains("The Catacombs (M5)"));
+    }
+
+    private static ChestView CroesusMenu(string title) => new()
+    {
+        Name = title,
+        Items = new() { new Item { ItemName = "Wood" }, new Item { ItemName = "Gold" }, new Item { ItemName = "Go Back" }, new Item { ItemName = "Close" }, new Item { ItemName = "Chest Modifiers" } }
+    };
+
+    [Test]
+    public void MasterCatacombsFloorV_MapsToM5()
+        => CollectionListener.TryParseCroesusFloor(CroesusMenu("Master Catacombs - Floor V")).Should().Be("The Catacombs (M5)");
+
+    [Test]
+    public void CatacombsFloorVII_WithMenuItems_MapsToF7()
+        => CollectionListener.TryParseCroesusFloor(CroesusMenu("Catacombs - Floor VII")).Should().Be("The Catacombs (F7)");
+
+    [Test]
+    public void BestScoresView_IsNotACroesusMenu()
+    {
+        var view = new ChestView
+        {
+            Name = "The Catacombs - Floor I",
+            Items = new() { new Item { ItemName = "256 (A)" }, new Item { ItemName = "269 (A)" }, new Item { ItemName = "Go Back" }, new Item { ItemName = "Close" } }
+        };
+        CollectionListener.TryParseCroesusFloor(view).Should().BeNull();
+    }
+
+    // ---- first-time drops (tag absent from the previous accessible inventory) ----
+
+    /// <summary>Container part followed by the 36 accessible slots (padded with empty slots).</summary>
+    private static ChestView View(string name, List<Item> container, params Item[] inventory)
+    {
+        var items = new List<Item>(container);
+        items.AddRange(inventory);
+        while (items.Count < container.Count + 36)
+            items.Add(new Item());
+        return new ChestView { Name = name, Items = items };
+    }
+
+    [Test]
+    public async Task NewStackableTagAfterNormalViewIsCounted()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64)));
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64), StackableItem("NECRON_HANDLE", 1)));
+
+        state.ItemsCollectedRecently.GetValueOrDefault("NECRON_HANDLE").Should().Be(1, "first-time drop");
+    }
+
+    [Test]
+    public async Task NewUuidItemNeverSeenIsCountedOnce()
+    {
+        var state = new StateObject();
+        var uuid = Guid.NewGuid().ToString();
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64)));
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64), GearItem("HYPERION", uuid)));
+        state.ItemsCollectedRecently.GetValueOrDefault("HYPERION").Should().Be(1);
+
+        // moving within the inventory afterwards does not count it again
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64), GearItem("HYPERION", uuid)));
+        state.ItemsCollectedRecently.GetValueOrDefault("HYPERION").Should().Be(1);
+    }
+
+    [Test]
+    public async Task NewTagFromPreviousContainerPartIsNotCounted()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64)));
+        // previous view is a chest showing the item in its container part only
+        await ProcessView(state, View("Craft Item", new() { StackableItem("NECRON_HANDLE", 1) }, StackableItem("ENCHANTED_COBBLESTONE", 64)));
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64), StackableItem("NECRON_HANDLE", 1)));
+
+        state.ItemsCollectedRecently.GetValueOrDefault("NECRON_HANDLE").Should().Be(0, "taken out of a chest");
+    }
+
+    [Test]
+    public async Task NewTagSeenInOlderRecentViewIsNotCounted()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("NECRON_HANDLE", 1)));
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64))); // dropped
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64), StackableItem("NECRON_HANDLE", 1))); // re-picked
+
+        state.ItemsCollectedRecently.GetValueOrDefault("NECRON_HANDLE").Should().Be(0);
+    }
+
+    [Test]
+    public async Task NewUuidItemInKnownUuidsIsNotCounted()
+    {
+        var state = new StateObject();
+        var uuid = Guid.NewGuid().ToString();
+        CollectionListener.RegisterKnownItemUuids(state, new ChestView { Items = new() { GearItem("HYPERION", uuid) } });
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64)));
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64), GearItem("HYPERION", uuid)));
+
+        state.ItemsCollectedRecently.GetValueOrDefault("HYPERION").Should().Be(0);
+    }
+
+    [Test]
+    public async Task NewTagAfterTradeWindowIsNotCounted()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("You                  Someone", new(), StackableItem("ENCHANTED_COBBLESTONE", 64)));
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64), StackableItem("NECRON_HANDLE", 1)));
+
+        state.ItemsCollectedRecently.GetValueOrDefault("NECRON_HANDLE").Should().Be(0);
+    }
+
+    [Test]
+    public void SaturatingAccumulationClampsInsteadOfWrapping()
+    {
+        var counts = new Dictionary<string, int> { { "BAZAAR_PURCHASE", int.MaxValue - 5 }, { "DUNGEON_CHEST_COST", int.MinValue + 5 } };
+        Tasks.ItemCountMath.Add(counts, "BAZAAR_PURCHASE", 100);
+        Tasks.ItemCountMath.Add(counts, "DUNGEON_CHEST_COST", -100);
+        Tasks.ItemCountMath.Add(counts, "NEW", int.MaxValue);
+        counts["BAZAAR_PURCHASE"].Should().Be(int.MaxValue);
+        counts["DUNGEON_CHEST_COST"].Should().Be(int.MinValue);
+        counts["NEW"].Should().Be(int.MaxValue);
     }
 }

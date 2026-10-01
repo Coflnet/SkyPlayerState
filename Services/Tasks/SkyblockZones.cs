@@ -260,7 +260,9 @@ public static class SkyblockZones
             "Builder's House", "Combat Settlement", "Communal Stew", "Fishing Outpost", "Foraging Camp",
             // Verified hypixelskyblock.minecraft.wiki/w/Hub (2026-09).
             "Mining District", "Archery Range", "Election Room", "Sewer", "Catacombs Entrance",
-            "Artist's Abode", "Shen's Auction", "Taylor's Shop");
+            "Artist's Abode", "Shen's Auction", "Taylor's Shop",
+            // Real scoreboard zones seen with Diana loot in production (2026-09-30).
+            "Unincorporated", "Trade Center");
 
         Add("The Park",
             "The Park", "Birch Park", "Dark Thicket", "Howling Cave", "Jungle Island", "Melody's Plateau",

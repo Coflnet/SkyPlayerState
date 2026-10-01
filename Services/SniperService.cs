@@ -24,7 +24,8 @@ public class SniperService
 
     public async Task<List<Sniper.Client.Model.PriceEstimate>> GetPrices(IEnumerable<Models.Item> items)
     {
-        return await GetPrices(items.Select(ToAuctionRepresent));
+        // materialize: a lazy Select would surface conversion exceptions inside MessagePack serialization
+        return await GetPrices(items.Select(ToAuctionRepresent).ToList());
     }
 
     public async Task<List<Sniper.Client.Model.PriceEstimate>> GetPrices(IEnumerable<SaveAuction> auctionRepresent)
@@ -55,7 +56,7 @@ public class SniperService
         return items.Select(ToAuctionRepresent);
     }
 
-    private static SaveAuction ToAuctionRepresent(Models.Item i)
+    internal static SaveAuction ToAuctionRepresent(Models.Item i)
     {
         var auction = new SaveAuction()
         {
@@ -73,7 +74,18 @@ public class SniperService
         {
             auction.Tier = Enum.TryParse<Tier>(i.ExtraAttributes.FirstOrDefault(a => a.Key == "tier").Value?.ToString() ?? "", out var tier) ? tier : Tier.UNKNOWN;
             auction.Reforge = Enum.TryParse<ItemReferences.Reforge>(i.ExtraAttributes.FirstOrDefault(a => a.Key == "modifier").Value?.ToString() ?? "", out var reforge) ? reforge : ItemReferences.Reforge.Unknown;
-            auction.SetFlattenedNbt(NBT.FlattenNbtData(i.ExtraAttributes));
+            // FlattenNbtData mutates its input and throws on null-valued entries - work on a shallow
+            // copy without nulls so live player state is untouched and pricing by tag still works.
+            try
+            {
+                var copy = i.ExtraAttributes.Where(kv => kv.Value != null)
+                    .ToDictionary(kv => kv.Key, kv => kv.Value);
+                auction.SetFlattenedNbt(NBT.FlattenNbtData(copy));
+            }
+            catch (System.Exception)
+            {
+                auction.FlatenedNBT = new();
+            }
         }
         else
         {

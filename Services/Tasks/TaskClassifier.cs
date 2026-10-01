@@ -90,7 +90,7 @@ public class TaskClassifier
     {
         if (minutes < 3 || itemsCollected == null || itemsCollected.Count == 0)
             return null;
-        var totalItems = itemsCollected.Values.Where(v => v > 0).Sum();
+        var totalItems = itemsCollected.Values.Where(v => v > 0).Sum(v => (long)v);
         var hasShard = itemsCollected.Keys.Any(k => k.StartsWith("SHARD_"));
         // Only a currentIsland that is both needed (the static map has no answer for this exact
         // zone - never overrides a zone the map DOES resolve, even to a non-matching island) and
@@ -136,7 +136,7 @@ public class TaskClassifier
             // negative matchedValue would only ever lose tie-breaks it should win - the coin
             // magnitude spent/earned is what matters as evidence weight, not its sign. See
             // PseudoItems.ClassifierWeight for the pseudo-tag weighing itself (1 coin/unit).
-            var matchedValue = matched?.Sum(m => Math.Abs(itemsCollected[m]) * PseudoItems.ClassifierWeight(m, prices)) ?? 0;
+            var matchedValue = matched?.Sum(m => Math.Abs((long)itemsCollected[m]) * PseudoItems.ClassifierWeight(m, prices)) ?? 0;
             candidates.Add((sig, itemMatched, matchedValue));
         }
         if (candidates.Count == 0)

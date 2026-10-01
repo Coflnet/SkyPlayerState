@@ -307,7 +307,7 @@ public class DungeonRewardListenerTests
 
         await listener.Process(ContainerUpdate(state, "Mystery Menu", new List<Item> { new() { ItemName = "§bSome Item" } }));
 
-        logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Information
+        logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Debug
             && e.Message.Contains("Dungeon area container") && e.Message.Contains("Mystery Menu") && e.Message.Contains("Some Item"));
     }
 
@@ -324,7 +324,7 @@ public class DungeonRewardListenerTests
             new() { ItemName = "§aOpen Reward Chest", Description = "§7Line one\n§7Line two" }
         }));
 
-        logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Information
+        logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Debug
             && e.Message.Contains("Open Reward Chest") && e.Message.Contains("Line one | Line two"));
     }
 
@@ -380,5 +380,218 @@ public class DungeonRewardListenerTests
         // A different player is also a different throttle key - must still log.
         await listener.Process(ContainerUpdate(state, "Mystery Menu", items, playerId: "p2"));
         logger.Entries.Count(e => e.Message.Contains("Dungeon area container")).Should().Be(3);
+    }
+}
+
+/// <summary>Regression tests using the real production GUI format (bare tier titles, real lore).</summary>
+public class DungeonRewardRealFormatTests
+{
+    private static ChestView RealChest(string title, string costLines, string ending = "Click to open!")
+    {
+        var lore = "Contents\nEnchanted Book (Infinite Quiver VI)\nWither Essence x21\n\nCost\n" + costLines + "\n\n" + ending;
+        return new ChestView
+        {
+            Name = title,
+            Items = new List<Item>
+            {
+                new() { ItemName = "Enchanted Book" },
+                new() { ItemName = "Open Reward Chest", Description = lore },
+                new() { ItemName = "Go Back" },
+                new() { ItemName = "Reroll Chest" },
+            }
+        };
+    }
+
+    private static MockedUpdateArgs Update(StateObject state, ChestView chest) => new()
+    {
+        currentState = state,
+        msg = new UpdateMessage { Kind = UpdateMessage.UpdateKind.INVENTORY, PlayerId = "p1", Chest = chest }
+    };
+
+    [Test]
+    public void BareObsidianTitle_WithCoins_ParsesAsDungeonChestWithCost()
+    {
+        DungeonRewardChestParser.TryParse(RealChest("Obsidian", "1,000,000 Coins"), null, out var info).Should().BeTrue();
+        info.IsDungeonChest.Should().BeTrue();
+        info.CostCoins.Should().Be(1_000_000);
+        info.ChestType.Should().Be("Obsidian Chest");
+    }
+
+    [Test]
+    public void BareWoodTitle_Free_CostsZero()
+    {
+        DungeonRewardChestParser.TryParse(RealChest("Wood", "FREE"), null, out var info).Should().BeTrue();
+        info.IsDungeonChest.Should().BeTrue();
+        info.CostCoins.Should().Be(0);
+    }
+
+    [Test]
+    public void BareTitleWithoutOpenRewardChestItem_DoesNotParse()
+    {
+        var chest = new ChestView { Name = "Gold", Items = new() { new() { ItemName = "Go Back" } } };
+        DungeonRewardChestParser.TryParse(chest, null, out _).Should().BeFalse();
+    }
+
+    [Test]
+    public void KuudraPaidChest_StillNotADungeonChest()
+    {
+        DungeonRewardChestParser.TryParse(RealChest("Paid Chest", "Burning Kuudra Key"), null, out var info).Should().BeTrue();
+        info.IsDungeonChest.Should().BeFalse();
+        info.CostCoins.Should().Be(0);
+    }
+
+    [Test]
+    public async Task BedrockThatCannotBeOpened_CreatesNoPendingCharge()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.Purse = 10_000_000;
+        var chest = RealChest("Bedrock", "6,000,000 Coins", "Can't open another chest!");
+        DungeonRewardChestParser.TryParse(chest, null, out var info).Should().BeTrue();
+        info.CannotOpen.Should().BeTrue();
+
+        await new DungeonRewardListener().Process(Update(state, chest));
+
+        state.ExtractedInfo.PendingDungeonChestCharge.Should().BeNull();
+    }
+
+    [Test]
+    public async Task BareObsidianChest_CreatesPendingCharge()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.Purse = 10_000_000;
+        await new DungeonRewardListener().Process(Update(state, RealChest("Obsidian", "1,000,000 Coins")));
+        state.ExtractedInfo.PendingDungeonChestCharge.Should().NotBeNull();
+        state.ExtractedInfo.PendingDungeonChestCharge.CostCoins.Should().Be(1_000_000);
+    }
+}
+
+/// <summary>Chat-line driven dungeon tracking (floor header, team score, "CHEST REWARDS").</summary>
+public class DungeonChatTests
+{
+    [Test]
+    public void ListenerIsOptional()
+    {
+        new DungeonRewardListener().Optional.Should().BeTrue("a dungeon parsing failure must not drop the rest of a CHAT/INVENTORY update");
+    }
+
+    private static MockedUpdateArgs Chat(StateObject state, params string[] lines) => new()
+    {
+        currentState = state,
+        msg = new UpdateMessage { Kind = UpdateMessage.UpdateKind.CHAT, PlayerId = "p1", ChatBatch = lines.ToList() }
+    };
+
+    private static MockedUpdateArgs Scoreboard(StateObject state, long purse) => new()
+    {
+        currentState = state,
+        msg = new UpdateMessage
+        {
+            Kind = UpdateMessage.UpdateKind.Scoreboard, PlayerId = "p1",
+            Scoreboard = [$"Purse: {purse.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)}"]
+        }
+    };
+
+    private static void Pend(StateObject state, string type, long cost, long purse)
+    {
+        state.ExtractedInfo.Purse = purse;
+        state.ExtractedInfo.PendingDungeonChestCharge = new PendingDungeonChestCharge
+        {
+            ChestType = type, CostCoins = cost, PurseAtOpen = purse, SeenAt = DateTime.UtcNow, Floor = "F7"
+        };
+    }
+
+    [Test]
+    public async Task F7Header_SetsFloorAndCountsRun()
+    {
+        var state = new StateObject();
+        await new DungeonRewardListener().Process(Chat(state, "                The Catacombs - Floor VII"));
+        state.ExtractedInfo.LastDungeonFloor.Should().Be("The Catacombs (F7)");
+        state.ExtractedInfo.LastDungeonFloorAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+        state.ItemsCollectedRecently[PseudoItems.DUNGEON_RUN].Should().Be(1);
+    }
+
+    [Test]
+    public async Task MasterModeHeader_GivesM5()
+    {
+        var state = new StateObject();
+        await new DungeonRewardListener().Process(Chat(state, "        Master Mode The Catacombs - Floor V"));
+        state.ExtractedInfo.LastDungeonFloor.Should().Be("The Catacombs (M5)");
+    }
+
+    [Test]
+    public async Task EntranceHeader_GivesE()
+    {
+        var state = new StateObject();
+        await new DungeonRewardListener().Process(Chat(state, "   The Catacombs - Entrance"));
+        state.ExtractedInfo.LastDungeonFloor.Should().Be("The Catacombs (E)");
+    }
+
+    [Test]
+    public async Task DuplicateHeaderWithin60s_CountedOnce()
+    {
+        var state = new StateObject();
+        var listener = new DungeonRewardListener();
+        await listener.Process(Chat(state, "                The Catacombs - Floor VII"));
+        await listener.Process(Chat(state, "                The Catacombs - Floor VII"));
+        state.ItemsCollectedRecently[PseudoItems.DUNGEON_RUN].Should().Be(1);
+    }
+
+    [TestCase("            Team Score: 305 (S+)")]
+    [TestCase("            Team Score: 305 (S+) (NEW RECORD!)")]
+    public async Task TeamScore_DoesNotThrow(string line)
+    {
+        var state = new StateObject();
+        var act = async () => await new DungeonRewardListener().Process(Chat(state, line));
+        await act.Should().NotThrowAsync();
+        state.ItemsCollectedRecently.Should().NotContainKey(PseudoItems.DUNGEON_RUN);
+    }
+
+    [Test]
+    public async Task ObsidianChestRewards_ChargesOnceAndPurseDropDoesNotChargeAgain()
+    {
+        var state = new StateObject();
+        Pend(state, "Obsidian Chest", 1_000_000, 10_000_000);
+        var listener = new DungeonRewardListener();
+
+        await listener.Process(Chat(state, "  OBSIDIAN CHEST REWARDS"));
+        state.ItemsCollectedRecently[PseudoItems.DUNGEON_CHEST_COST].Should().Be(-1_000_000);
+        state.ExtractedInfo.PendingDungeonChestCharge.Should().BeNull();
+
+        await listener.Process(Scoreboard(state, 9_000_000));
+        await listener.Process(Chat(state, "  OBSIDIAN CHEST REWARDS"));
+        state.ItemsCollectedRecently[PseudoItems.DUNGEON_CHEST_COST].Should().Be(-1_000_000);
+    }
+
+    [Test]
+    public async Task ChestRewardsWithoutPendingCharge_DoesNothing()
+    {
+        var state = new StateObject();
+        await new DungeonRewardListener().Process(Chat(state, "  OBSIDIAN CHEST REWARDS"));
+        state.ItemsCollectedRecently.Should().NotContainKey(PseudoItems.DUNGEON_CHEST_COST);
+    }
+
+    [Test]
+    public async Task ChestRewardsForDifferentTier_KeepsPendingCharge()
+    {
+        var state = new StateObject();
+        Pend(state, "Gold Chest", 100_000, 10_000_000);
+        await new DungeonRewardListener().Process(Chat(state, "  OBSIDIAN CHEST REWARDS"));
+        state.ItemsCollectedRecently.Should().NotContainKey(PseudoItems.DUNGEON_CHEST_COST);
+        state.ExtractedInfo.PendingDungeonChestCharge.Should().NotBeNull();
+    }
+
+    [Test]
+    public void F7PeriodWithOnlyDungeonRun_ClassifiesAsF7()
+    {
+        var result = new TaskClassifier(new TaskRegistry()).Classify("The Catacombs (F7)", new Dictionary<string, int> { { PseudoItems.DUNGEON_RUN, 1 } }, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("F7");
+    }
+
+    [Test]
+    public void DungeonRun_IsZeroCoinEvidence()
+    {
+        PseudoItems.IsEvidence(PseudoItems.DUNGEON_RUN).Should().BeTrue();
+        PseudoItems.TryGetCoinValue(PseudoItems.DUNGEON_RUN, out var value).Should().BeTrue();
+        value.Should().Be(0);
     }
 }
