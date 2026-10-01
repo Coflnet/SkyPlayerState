@@ -20,7 +20,14 @@ internal static class PestEvidence
         "VINYL_BEETLE", "VINYL_BUZZIN_BEATS", "VINYL_CICADA_SYMPHONY", "VINYL_CRICKET_CHOIR", "VINYL_DYNAMITES",
         "VINYL_EARTHWORM_ENSEMBLE", "VINYL_FIREFLY", "VINYL_IMAGINE_DRAGONFLIES", "VINYL_PRAY_FOR_ME",
         "VINYL_PRETTY_FLY", "VINYL_RODENT_REVOLUTION", "VINYL_SLOW_AND_GROOVY", "VINYL_WINGS_OF_HARMONY",
-        "LOCUST_LARVA", "BEADY_EYES", "CLIPPED_WINGS", "WRIGGLING_LARVA", "MANTID_CLAW", "CHIRPING_STEREO", "ATMOSPHERIC_FILTER"
+        "LOCUST_LARVA", "BEADY_EYES", "CLIPPED_WINGS", "WRIGGLING_LARVA", "MANTID_CLAW", "CHIRPING_STEREO", "ATMOSPHERIC_FILTER",
+        // common drops (10% each; every pest but Field Mouse drops one of them, Field Mouse all six -
+        // hypixelskyblock.minecraft.wiki/w/Pests) - tags seen at the Garden in production 2026-10-01.
+        // CHEESE_FUEL is Tasty Cheese. Production breaks ties by coin value, so a crop farming period
+        // that killed one pest still stays with the crop task.
+        "COMPOST", "HONEY_JAR", "DUNG", "PLANT_MATTER", "CHEESE_FUEL", "JELLY",
+        // Dragonfly rare drop
+        "VERMIN_VAPORIZER_GARDEN_CHIP"
     ];
 }
 

@@ -306,6 +306,95 @@ public class CollectionListenerInventoryTests
         state.ItemsCollectedRecently.GetValueOrDefault("NECRON_HANDLE").Should().Be(0);
     }
 
+    private static Item OpenRewardChestButton() => new()
+    {
+        ItemName = "Open Reward Chest",
+        Description = "Contents\nNecron's Handle\nWither Essence x54\n\nCost\n100,000,000 Coins\n\nClick to open!"
+    };
+
+    [Test]
+    public async Task RewardChestPreview_DoesNotBlockTheRealUuidDrop()
+    {
+        // production 2026-10-01: three players paid 100M for a Bedrock chest holding Necron's Handle but
+        // it was never counted - the chest GUI's container previews the loot (same tag AND uuid).
+        var state = new StateObject();
+        var uuid = Guid.NewGuid().ToString();
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64)));
+        await ProcessView(state, View("Bedrock", new() { GearItem("NECRON_HANDLE", uuid), OpenRewardChestButton() }, StackableItem("ENCHANTED_COBBLESTONE", 64)));
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64), GearItem("NECRON_HANDLE", uuid)));
+
+        state.ItemsCollectedRecently.GetValueOrDefault("NECRON_HANDLE").Should().Be(1);
+    }
+
+    [Test]
+    public async Task RewardChestPreview_DoesNotBlockTheRealStackableDrop()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64)));
+        await ProcessView(state, View("Bedrock", new() { StackableItem("NECRON_HANDLE", 1), OpenRewardChestButton() }, StackableItem("ENCHANTED_COBBLESTONE", 64)));
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64), StackableItem("NECRON_HANDLE", 1)));
+
+        state.ItemsCollectedRecently.GetValueOrDefault("NECRON_HANDLE").Should().Be(1);
+    }
+
+    [Test]
+    public async Task NonRewardContainerShowingTheTagStillBlocksIt_WithUuid()
+    {
+        var state = new StateObject();
+        var uuid = Guid.NewGuid().ToString();
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64)));
+        await ProcessView(state, View("Craft Item", new() { GearItem("NECRON_HANDLE", uuid) }, StackableItem("ENCHANTED_COBBLESTONE", 64)));
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64), GearItem("NECRON_HANDLE", uuid)));
+
+        state.ItemsCollectedRecently.GetValueOrDefault("NECRON_HANDLE").Should().Be(0);
+    }
+
+    [Test]
+    public async Task CroesusMenuInDungeonHubPeriod_ResolvesPeriodToTheFloor()
+    {
+        // production 2026-10-01: Croesus claim periods stayed "Dungeon Hub" because the reading is
+        // stamped mid-period and ResolveLocation rejects a floor reading after the period start.
+        var state = new StateObject();
+        var periodStart = DateTime.UtcNow.AddMinutes(-3);
+        state.ExtractedInfo.CurrentLocation = "Dungeon Hub";
+        state.ExtractedInfo.LastLocationChange = periodStart;
+        var args = new MockedUpdateArgs
+        {
+            currentState = state,
+            msg = new UpdateMessage
+            {
+                Kind = UpdateMessage.UpdateKind.INVENTORY, PlayerId = "p1",
+                Chest = CroesusMenu("Catacombs - Floor VII")
+            }
+        };
+
+        args.AddService<ILogger<CollectionListener>>(new CapturingLogger());
+
+        await new CollectionListener().Process(args);
+
+        Tasks.DungeonRewardAttribution.ResolveLocation("Dungeon Hub", state.ExtractedInfo.LastDungeonFloor,
+            state.ExtractedInfo.LastDungeonFloorAt, state.ExtractedInfo.LastLocationChange).Should().Be("The Catacombs (F7)");
+    }
+
+    [Test]
+    public async Task CroesusMenuOutsideDungeonHub_KeepsTheNowStamp()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.CurrentLocation = "The Garden";
+        state.ExtractedInfo.LastLocationChange = DateTime.UtcNow.AddMinutes(-3);
+        var args = new MockedUpdateArgs
+        {
+            currentState = state,
+            msg = new UpdateMessage { Kind = UpdateMessage.UpdateKind.INVENTORY, PlayerId = "p1", Chest = CroesusMenu("Catacombs - Floor VII") }
+        };
+
+        args.AddService<ILogger<CollectionListener>>(new CapturingLogger());
+
+        await new CollectionListener().Process(args);
+
+        state.ExtractedInfo.LastDungeonFloorAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+    }
+
     [Test]
     public void SaturatingAccumulationClampsInsteadOfWrapping()
     {

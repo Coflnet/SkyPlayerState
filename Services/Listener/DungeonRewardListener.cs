@@ -223,6 +223,7 @@ public class DungeonRewardListener : UpdateListener
     private static readonly TimeSpan DuplicateHeaderWindow = TimeSpan.FromSeconds(60);
     private static readonly Regex FloorHeaderRegex = new(@"^(Master Mode )?The Catacombs - (?:Floor ([IVX]+)|(Entrance))$", RegexOptions.Compiled);
     private static readonly Regex TeamScoreRegex = new(@"^Team Score: (\d+) \(([A-Z+]+)\)(?: \(NEW RECORD!\))?$", RegexOptions.Compiled);
+    private static readonly Regex EssenceLineRegex = new(@"^(\w+) Essence x(\d+)$", RegexOptions.Compiled);
     private static readonly Regex ChestRewardsRegex = new(@"^(WOOD|GOLD|DIAMOND|EMERALD|OBSIDIAN|BEDROCK) CHEST REWARDS$", RegexOptions.Compiled);
 
     /// <summary>In-memory only (like <see cref="discoveryLogThrottle"/>): last counted run header per player, for the 60s duplicate window.</summary>
@@ -312,13 +313,38 @@ public class DungeonRewardListener : UpdateListener
         Charge(args, pending);
     }
 
+    /// <summary>
+    /// "Wither Essence x54" lines of a chest's Contents as ESSENCE_WITHER=54. Essence goes to the
+    /// essence storage, never the inventory, so inventory diffs never see it (production 2026-10-01:
+    /// a run's steady essence income was never counted).
+    /// </summary>
+    internal static Dictionary<string, int> ParseEssences(IEnumerable<string> contents)
+    {
+        var result = new Dictionary<string, int>();
+        foreach (var line in contents ?? [])
+        {
+            var match = EssenceLineRegex.Match(line.Trim());
+            if (!match.Success || !int.TryParse(match.Groups[2].Value, out var amount))
+                continue;
+            var tag = "ESSENCE_" + match.Groups[1].Value.ToUpperInvariant();
+            result[tag] = result.GetValueOrDefault(tag) + amount;
+        }
+        return result;
+    }
+
     private void Charge(UpdateArgs args, PendingDungeonChestCharge pending)
     {
         var collected = args.currentState.ItemsCollectedRecently;
-        var cost = (int)Math.Min(pending.CostCoins, int.MaxValue);
-        Tasks.ItemCountMath.Add(collected, Tasks.PseudoItems.DUNGEON_CHEST_COST, -(long)cost);
-        Logger.LogInformation("Dungeon chest cost {cost} charged to {playerId} for {chest} (floor {floor})",
-            pending.CostCoins, args.currentState.PlayerId, pending.ChestType, pending.Floor);
+        // a free chest (cost 0) only credits its essences - no cost entry/log line
+        if (pending.CostCoins > 0)
+        {
+            var cost = (int)Math.Min(pending.CostCoins, int.MaxValue);
+            Tasks.ItemCountMath.Add(collected, Tasks.PseudoItems.DUNGEON_CHEST_COST, -(long)cost);
+            Logger.LogInformation("Dungeon chest cost {cost} charged to {playerId} for {chest} (floor {floor})",
+                pending.CostCoins, args.currentState.PlayerId, pending.ChestType, pending.Floor);
+        }
+        foreach (var (tag, amount) in pending.Essences ?? [])
+            Tasks.ItemCountMath.Add(collected, tag, amount);
         args.currentState.ExtractedInfo.PendingDungeonChestCharge = null;
     }
 
@@ -352,9 +378,6 @@ public class DungeonRewardListener : UpdateListener
             Logger.LogDebug("Dungeon reward chest {chest} for {playerId} cannot be opened, not charging", chest.ChestType, args.msg.PlayerId);
             return;
         }
-        if (chest.CostCoins <= 0)
-            return; // free dungeon chests (e.g. Wood Chest) are never charged
-
         var now = DateTime.UtcNow;
         if (info.PendingDungeonChestCharge != null)
             // a new chest arrived while one was still pending - settle the old one against the
@@ -369,6 +392,7 @@ public class DungeonRewardListener : UpdateListener
             // or not a previous one was just settled above
             PurseAtOpen = info.Purse,
             SeenAt = now,
+            Essences = ParseEssences(chest.Contents),
             Floor = Tasks.DungeonRewardAttribution.FloorOf(info.LastDungeonFloor) ?? info.LastDungeonFloor
         };
     }
@@ -451,6 +475,8 @@ public class DungeonRewardListener : UpdateListener
             info.PendingDungeonChestCharge = null;
             return;
         }
+        if (pending.CostCoins <= 0)
+            return; // free chest: only the "<TIER> CHEST REWARDS" chat line confirms it (a purse drop would be meaningless)
         if (currentPurse is null or <= 0)
             return; // purse unknown - wait for a later valid reading, or expiry
         if (pending.PurseAtOpen - currentPurse.Value < pending.CostCoins)

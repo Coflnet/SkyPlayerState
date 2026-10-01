@@ -595,3 +595,131 @@ public class DungeonChatTests
         value.Should().Be(0);
     }
 }
+
+/// <summary>Essence in dungeon reward chests (goes to essence storage, never the inventory) and free-chest handling.</summary>
+public class DungeonChestEssenceTests
+{
+    private static ChestView Chest(string title, string cost, string ending = "Click to open!") => new()
+    {
+        Name = title,
+        Items = new List<Item>
+        {
+            new() { ItemName = "Open Reward Chest", Description =
+                "Contents\nEnchanted Book (Infinite Quiver VI)\nWither Essence x54\nUndead Essence x78\n\nCost\n" + cost + "\n\n" + ending }
+        }
+    };
+
+    private static MockedUpdateArgs Inventory(StateObject state, ChestView chest) => new()
+    {
+        currentState = state,
+        msg = new UpdateMessage { Kind = UpdateMessage.UpdateKind.INVENTORY, PlayerId = "p1", Chest = chest }
+    };
+
+    private static MockedUpdateArgs Chat(StateObject state, string line) => new()
+    {
+        currentState = state,
+        msg = new UpdateMessage { Kind = UpdateMessage.UpdateKind.CHAT, PlayerId = "p1", ChatBatch = [line] }
+    };
+
+    private static MockedUpdateArgs Scoreboard(StateObject state, long purse) => new()
+    {
+        currentState = state,
+        msg = new UpdateMessage
+        {
+            Kind = UpdateMessage.UpdateKind.Scoreboard, PlayerId = "p1",
+            Scoreboard = [$"Purse: {purse.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)}"]
+        }
+    };
+
+    private static void AssertPaid(StateObject state)
+    {
+        state.ItemsCollectedRecently[PseudoItems.DUNGEON_CHEST_COST].Should().Be(-1_000_000);
+        state.ItemsCollectedRecently["ESSENCE_WITHER"].Should().Be(54);
+        state.ItemsCollectedRecently["ESSENCE_UNDEAD"].Should().Be(78);
+        state.ExtractedInfo.PendingDungeonChestCharge.Should().BeNull();
+    }
+
+    [Test]
+    public async Task PaidChest_ConfirmedByPurseDrop_CreditsCostAndEssences()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.Purse = 10_000_000;
+        var listener = new DungeonRewardListener();
+        await listener.Process(Inventory(state, Chest("Obsidian", "1,000,000 Coins")));
+        state.ExtractedInfo.PendingDungeonChestCharge!.Essences.Should().Contain("ESSENCE_WITHER", 54);
+
+        await listener.Process(Scoreboard(state, 9_000_000));
+
+        AssertPaid(state);
+    }
+
+    [Test]
+    public async Task PaidChest_ConfirmedByChat_CreditsCostAndEssences()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.Purse = 10_000_000;
+        var listener = new DungeonRewardListener();
+        await listener.Process(Inventory(state, Chest("Obsidian", "1,000,000 Coins")));
+
+        await listener.Process(Chat(state, "OBSIDIAN CHEST REWARDS"));
+
+        AssertPaid(state);
+    }
+
+    [Test]
+    public async Task FreeWoodChest_ConfirmedByChat_CreditsOnlyEssences()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.Purse = 10_000_000;
+        var listener = new DungeonRewardListener();
+        await listener.Process(Inventory(state, Chest("Wood", "FREE")));
+        state.ExtractedInfo.PendingDungeonChestCharge.Should().NotBeNull();
+
+        await listener.Process(Chat(state, "WOOD CHEST REWARDS"));
+
+        state.ItemsCollectedRecently.Should().NotContainKey(PseudoItems.DUNGEON_CHEST_COST);
+        state.ItemsCollectedRecently["ESSENCE_WITHER"].Should().Be(54);
+        state.ItemsCollectedRecently["ESSENCE_UNDEAD"].Should().Be(78);
+        state.ExtractedInfo.PendingDungeonChestCharge.Should().BeNull();
+    }
+
+    [Test]
+    public async Task FreeWoodChest_PurseDropWithoutChat_CreditsNothing()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.Purse = 10_000_000;
+        var listener = new DungeonRewardListener();
+        await listener.Process(Inventory(state, Chest("Wood", "FREE")));
+
+        await listener.Process(Scoreboard(state, 9_000_000));
+        await listener.Process(Scoreboard(state, 12_000_000));
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task FreeChestPending_DoesNotCreditWhenReplacedByPaidChest_AndPaidChestBecomesPending()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.Purse = 10_000_000;
+        var listener = new DungeonRewardListener();
+        await listener.Process(Inventory(state, Chest("Wood", "FREE")));
+        await listener.Process(Inventory(state, Chest("Obsidian", "1,000,000 Coins")));
+
+        state.ItemsCollectedRecently.Should().BeEmpty("an unconfirmed free chest must not be credited");
+        state.ExtractedInfo.PendingDungeonChestCharge!.ChestType.Should().Be("Obsidian Chest");
+    }
+
+    [Test]
+    public async Task CannotOpenChest_CreditsNothing()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.Purse = 10_000_000;
+        var listener = new DungeonRewardListener();
+        await listener.Process(Inventory(state, Chest("Bedrock", "2,000,000 Coins", "Can't open another chest!")));
+        await listener.Process(Chat(state, "BEDROCK CHEST REWARDS"));
+        await listener.Process(Scoreboard(state, 7_000_000));
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+}

@@ -14,6 +14,10 @@ public abstract class BaseDungeonTask : MethodTask
     // generic items are needed to rule out incidental activity. See TaskPlausibility/TaskClassifier
     // regression for "The Catacombs (F6)" with only 2 items still classifying to F6.
     protected override int MinLocationOnlyItems => 1;
+    // Chest cost / run counter are supporting evidence for the floor (a period holding only
+    // "-6000000x DUNGEON_CHEST_COST" is that floor, and its cost must not lose to e.g. a /bz
+    // purchase bucket) but are not mandatory - see MethodTask.EvidenceItems.
+    protected override HashSet<string> EvidenceItems => [PseudoItems.DUNGEON_CHEST_COST, PseudoItems.DUNGEON_RUN];
     protected override List<DropEffect> Effects =>
     [
         new() { Name = "Dungeon Class Level", Description = "Higher class level increases damage and survivability", EstimatedMultiplier = 1.2 },

@@ -115,6 +115,7 @@ public class TaskCoverageDiscoveryTests
                     hidden = t.IsHidden,
                     locations = sig.Locations,
                     detectionItems = sig.DetectionItems,
+                    evidenceItems = sig.EvidenceItems,
                     sig.RequireShardItems,
                     sig.ExcludeShardItems,
                     sig.Priority,

@@ -43,6 +43,14 @@ public abstract class MethodTask : ProfitTask
     /// </summary>
     protected virtual HashSet<string> DetectionItems => [];
     /// <summary>
+    /// Optional supporting items that strengthen a location match without being required: a period
+    /// holding a non-zero count (positive or negative) of one counts as item-matched for the
+    /// classifier, but their absence never rules this task out (unlike <see cref="DetectionItems"/>,
+    /// which are mandatory - e.g. DUNGEON_RUN in DetectionItems broke every run without one).
+    /// Classification only, <see cref="FindMatchingPeriods"/> does not use it.
+    /// </summary>
+    protected virtual HashSet<string> EvidenceItems => [];
+    /// <summary>
     /// When true, periods with any SHARD_ item are excluded.
     /// Used for non-hunting fishing variants.
     /// </summary>
@@ -287,7 +295,7 @@ public abstract class MethodTask : ProfitTask
     /// Exposes the same rules <see cref="FindMatchingPeriods"/> applies.
     /// </summary>
     public DetectionSignature GetDetectionSignature() => new(
-        MethodName, Locations, DetectionItems, RequireShardItems, ExcludeShardItems, Priority, Category, DerivedFrom, MinLocationOnlyItems);
+        MethodName, Locations, DetectionItems, RequireShardItems, ExcludeShardItems, Priority, Category, DerivedFrom, MinLocationOnlyItems, EvidenceItems);
 
     /// <summary>
     /// Estimated multipliers from the declared effects, used to seed the

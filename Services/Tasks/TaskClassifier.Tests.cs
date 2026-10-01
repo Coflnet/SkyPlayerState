@@ -1082,4 +1082,58 @@ public class TaskClassifierTests
         var result = Classifier.Classify("Gold Mine", new() { { "ENCHANTED_GOLD", 8 } }, 10);
         (result?.TaskName ?? "").Should().NotStartWith("Diana");
     }
+
+    // ── Dungeon/Kuudra periods with only cost/consumables (production 2026-10-01) ──
+
+    [Test]
+    public void FloorPeriodWithOnlyChestCost_ClassifiesToThatFloor()
+    {
+        var result = Classifier.Classify("The Catacombs (F7)", new() { { "DUNGEON_CHEST_COST", -6_000_000 } }, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("F7");
+    }
+
+    [Test]
+    public void KuudraTierPeriodWithOnlyConsumedItems_ClassifiesToKuudraTier()
+    {
+        var result = Classifier.Classify("Kuudra's Hollow (T4)", new() { { "TOXIC_ARROW_POISON", -120 }, { "ENDER_PEARL", -6 } }, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Kuudra T4");
+    }
+
+    [Test]
+    public void NonInstanceZoneWithOnlyNegativeItems_StaysUnclassified()
+    {
+        Classifier.Classify("Gold Mine", new() { { "TOXIC_ARROW_POISON", -120 }, { "ENDER_PEARL", -6 } }, 10).Should().BeNull();
+    }
+
+    [Test]
+    public void ResolvedFloorPeriod_BiggerChestCostThanBazaarPurchase_ClassifiesToFloor()
+    {
+        var items = new Dictionary<string, int> { { "BAZAAR_PURCHASE", 4_134_672 }, { "DUNGEON_CHEST_COST", -7_100_000 } };
+        var result = Classifier.Classify("The Catacombs (F7)", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("F7");
+    }
+
+    [Test]
+    public void ResolvedFloorPeriod_SmallerChestCostThanBazaarPurchase_StaysBazaarPurchases()
+    {
+        var items = new Dictionary<string, int> { { "BAZAAR_PURCHASE", 4_088_598 }, { "DUNGEON_CHEST_COST", -1_000_000 } };
+        var result = Classifier.Classify("The Catacombs (F7)", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Bazaar Purchases");
+    }
+
+    [Test]
+    public void GardenPlotWithOnlyCommonPestDrops_ClassifiesToPest()
+    {
+        var items = new Dictionary<string, int>
+        {
+            { "DUNG", 4 }, { "PLANT_MATTER", 4 }, { "COMPOST", 4 }, { "JELLY", 4 }, { "CHEESE_FUEL", 3 }
+        };
+        var result = Classifier.Classify("Plot - 3", items, 10);
+        result.Should().NotBeNull();
+        result!.TaskName.Should().Be("Pest");
+    }
 }

@@ -91,6 +91,8 @@ public class TaskClassifier
         if (minutes < 3 || itemsCollected == null || itemsCollected.Count == 0)
             return null;
         var totalItems = itemsCollected.Values.Where(v => v > 0).Sum(v => (long)v);
+        // dedicated-instance signatures (MinLocationOnlyItems <= 1) also count consumption/cost - see below
+        var totalActivity = itemsCollected.Values.Where(v => v != 0).Sum(v => Math.Abs((long)v));
         var hasShard = itemsCollected.Keys.Any(k => k.StartsWith("SHARD_"));
         // Only a currentIsland that is both needed (the static map has no answer for this exact
         // zone - never overrides a zone the map DOES resolve, even to a non-matching island) and
@@ -125,18 +127,29 @@ public class TaskClassifier
                 continue;
             if (sig.ExcludeShardItems && hasShard)
                 continue;
-            var itemMatched = matched != null;
+            // evidence items (see DetectionSignature.EvidenceItems): any non-zero count, positive or
+            // negative, strengthens the match but their absence never disqualified it above
+            var evidence = sig.EvidenceItems is { Count: > 0 }
+                ? itemsCollected.Where(kv => kv.Value != 0 && sig.EvidenceItems.Contains(kv.Key)).Select(kv => kv.Key).ToList()
+                : [];
+            var itemMatched = matched != null || evidence.Count > 0;
             // minimum signal: a detection item hit, or enough generic activity for location-only tasks -
             // the threshold is per-signature (see DetectionSignature.MinLocationOnlyItems) so a task
             // whose zone is an unambiguous dedicated instance (a Catacombs floor, a Kuudra tier, a
             // hidden accounting zone) can lower it below the default 5.
-            if (!itemMatched && totalItems < sig.MinLocationOnlyItems)
+            // For a dedicated instance (MinLocationOnlyItems <= 1: floors, Kuudra tiers, hidden zone
+            // buckets) the zone alone is the evidence, so consumption-only periods ("-120x
+            // TOXIC_ARROW_POISON", a lone "-6000000x DUNGEON_CHEST_COST") are activity too; other
+            // signatures keep the positive-only rule.
+            var activity = sig.MinLocationOnlyItems <= 1 ? totalActivity : totalItems;
+            if (!itemMatched && activity < sig.MinLocationOnlyItems)
                 continue;
             // Math.Abs: a COST pseudo tag (e.g. DUNGEON_CHEST_COST) stores a NEGATIVE count, but a
             // negative matchedValue would only ever lose tie-breaks it should win - the coin
             // magnitude spent/earned is what matters as evidence weight, not its sign. See
             // PseudoItems.ClassifierWeight for the pseudo-tag weighing itself (1 coin/unit).
             var matchedValue = matched?.Sum(m => Math.Abs((long)itemsCollected[m]) * PseudoItems.ClassifierWeight(m, prices)) ?? 0;
+            matchedValue += evidence.Sum(m => Math.Abs((long)itemsCollected[m]) * PseudoItems.ClassifierWeight(m, prices));
             candidates.Add((sig, itemMatched, matchedValue));
         }
         if (candidates.Count == 0)

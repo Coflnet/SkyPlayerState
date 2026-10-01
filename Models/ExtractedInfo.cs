@@ -264,7 +264,8 @@ public class ExtractedInfo
             CostCoins = extractedInfo.PendingDungeonChestCharge.CostCoins,
             PurseAtOpen = extractedInfo.PendingDungeonChestCharge.PurseAtOpen,
             SeenAt = extractedInfo.PendingDungeonChestCharge.SeenAt,
-            Floor = extractedInfo.PendingDungeonChestCharge.Floor
+            Floor = extractedInfo.PendingDungeonChestCharge.Floor,
+            Essences = extractedInfo.PendingDungeonChestCharge.Essences == null ? null : new Dictionary<string, int>(extractedInfo.PendingDungeonChestCharge.Essences)
         };
     }
 }
@@ -282,6 +283,11 @@ public class PendingDungeonChestCharge
     [Key(3)] public DateTime SeenAt { get; set; }
     /// <summary>The floor (e.g. "F7") the chest belongs to, for the charge log line.</summary>
     [Key(4)] public string? Floor { get; set; }
+    /// <summary>
+    /// Essence in the chest's Contents (ESSENCE_WITHER=54, ...), credited when the charge is confirmed.
+    /// Nullable/optional so states persisted before this field existed still deserialize.
+    /// </summary>
+    [Key(5)] public Dictionary<string, int>? Essences { get; set; }
 }
 
 /// <summary>

@@ -384,14 +384,13 @@ public class CollectionListener : UpdateListener
         // window, NPC shop or sack (items there are swapped, not dropped).
         var allowFirstTimeCounting = !IsSwapView(previousInventory) && !IsSwapView(args.msg.Chest);
         // (a) every tag anywhere in the previous view, including its container part
-        var previousTags = previousInventory.Items?.Where(i => i.Tag != null).Select(i => i.Tag).ToHashSet() ?? new HashSet<string>();
+        // (a reward chest's container part is ignored, see GetItemsForSwapGuards)
+        var previousTags = GetItemsForSwapGuards(previousInventory).Where(i => i.Tag != null).Select(i => i.Tag).ToHashSet();
         // (b) every tag in any other recent view (the current view is the last entry)
         var olderViewTags = new HashSet<string>();
         foreach (var view in args.currentState.RecentViews.Take(Math.Max(0, args.currentState.RecentViews.Count - 1)))
         {
-            if (view?.Items == null)
-                continue;
-            foreach (var item in view.Items)
+            foreach (var item in GetItemsForSwapGuards(view))
                 if (item.Tag != null)
                     olderViewTags.Add(item.Tag);
         }
@@ -452,6 +451,31 @@ public class CollectionListener : UpdateListener
     }
 
     /// <summary>
+    /// True for a dungeon ("Wood".."Bedrock") or Kuudra ("Paid Chest"/"Free Chest") reward chest view -
+    /// every one has the "Open Reward Chest" button <see cref="DungeonRewardChestParser"/> keys on.
+    /// </summary>
+    internal static bool IsRewardChestView(Models.ChestView? view) =>
+        view != null && DungeonRewardChestParser.TryParse(view, null, out _);
+
+    /// <summary>
+    /// The items of <paramref name="view"/> that count as "already had this" evidence for the
+    /// first-time-drop swap guards and the known-uuid set. A reward chest's container part previews
+    /// the loot it is about to hand out (production 2026-10-01: Necron's Handle, Shadow Fury, ... were
+    /// bought for 100M coins but never counted), so only its last 36 accessible-inventory slots (the
+    /// same slicing as GetLookupItemsByTag in <see cref="HandleInventory"/>) are used there; every
+    /// other view is used whole.
+    /// </summary>
+    private static IEnumerable<Models.Item> GetItemsForSwapGuards(Models.ChestView? view)
+    {
+        var items = view?.Items;
+        if (items == null)
+            return [];
+        if (!IsRewardChestView(view))
+            return items;
+        return items.Skip(Math.Max(0, items.Count - 36));
+    }
+
+    /// <summary>
     /// Adds every item's uuid (if any - see <see cref="TryGetItemUuidHash"/>) from a just-seen
     /// inventory/container view into the player's bounded <see cref="Models.StateObject.KnownItemUuids"/>,
     /// oldest-first eviction once <see cref="MaxKnownItemUuids"/> is exceeded. Called for every view
@@ -463,9 +487,11 @@ public class CollectionListener : UpdateListener
     /// </summary>
     internal static void RegisterKnownItemUuids(Models.StateObject state, Models.ChestView? view)
     {
-        var items = view?.Items;
-        if (items == null || state == null)
+        if (view?.Items == null || state == null)
             return;
+        // a reward chest's container part only previews its loot - registering it would make the real
+        // drop look already known, see GetItemsForSwapGuards
+        var items = GetItemsForSwapGuards(view);
         var known = state.KnownItemUuids ??= new Queue<long>();
         HashSet<long> seen = null;
         foreach (var item in items)
@@ -710,8 +736,19 @@ public class CollectionListener : UpdateListener
         // analysis can confirm whether Croesus floor menus are actually being recognised at all.
         args.GetService<ILogger<CollectionListener>>().LogInformation(
             "Croesus menu {title} for {playerId} resolved to {floor}", args.msg.Chest?.Name, args.currentState.PlayerId, floor);
-        args.currentState.ExtractedInfo.LastDungeonFloor = floor;
-        args.currentState.ExtractedInfo.LastDungeonFloorAt = DateTime.UtcNow;
+        var info = args.currentState.ExtractedInfo;
+        var stamp = DateTime.UtcNow;
+        // DungeonRewardAttribution.ResolveLocation rejects a floor reading stamped after the period
+        // start (right for scoreboard floor readings: a Dungeon Hub period before entering a floor
+        // must not be attributed to it). A Croesus reading however always lands mid-period (enter the
+        // hub, walk to Croesus, open the menu) and describes the claim period the player is in right
+        // now, so stamp it with that period's start instead (production 2026-10-01: 5 Croesus claim
+        // periods stayed "Dungeon Hub").
+        if (Tasks.SkyblockZones.Canonical(info.CurrentLocation) == "Dungeon Hub"
+            && info.LastLocationChange != default && info.LastLocationChange < stamp)
+            stamp = info.LastLocationChange;
+        info.LastDungeonFloor = floor;
+        info.LastDungeonFloorAt = stamp;
     }
 
     /// <summary>

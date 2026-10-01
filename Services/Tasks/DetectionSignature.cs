@@ -14,6 +14,11 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 /// only mean one activity (a specific Catacombs floor, a specific Kuudra tier, a hidden accounting
 /// zone) lower it to 1 since the zone itself is already unambiguous evidence.
 /// </param>
+/// <param name="EvidenceItems">
+/// Optional, NON-mandatory supporting items (see MethodTask.EvidenceItems): a non-zero count of one
+/// (positive or negative) makes a location match item-matched and adds to its matchedValue, but an
+/// absent one never disqualifies the candidate (unlike DetectionItems).
+/// </param>
 public record DetectionSignature(
     string MethodName,
     HashSet<string> Locations,
@@ -23,7 +28,8 @@ public record DetectionSignature(
     int Priority,
     string Category,
     string DerivedFrom = null,
-    int MinLocationOnlyItems = 5);
+    int MinLocationOnlyItems = 5,
+    HashSet<string> EvidenceItems = null);
 
 /// <summary>
 /// One stat signal affecting a task's rates.
