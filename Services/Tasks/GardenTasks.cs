@@ -248,3 +248,28 @@ public class WildRoseFarmingTask : BaseGardenCropTask
     protected override HashSet<string> DetectionItems => ["WILD_ROSE", "ENCHANTED_WILD_ROSE"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_WILD_ROSE", 2300)];
 }
+
+/// <summary>
+/// Garden visitor rewards (Overclocker 3000, tickets, Garden chips, ...) collected on the Garden
+/// island without crops. Low priority so a crop or Pest task with the same matched value wins.
+/// </summary>
+public class GardenVisitorsTask : MethodTask
+{
+    protected override string MethodName => "Garden Visitors";
+    protected override HashSet<string> Locations => ["Garden"];
+    protected override string Where => "The Garden";
+    protected override HashSet<string> DetectionItems =>
+    [
+        "OVERCLOCKER_3000", "SQUEAKY_TOY", "JACOBS_TICKET", "CARNIVAL_TICKET", "FEAST_FLASK", "BOOKWORM_BOOK",
+        "QUICKDRAW_GARDEN_CHIP", "SYNTHESIS_GARDEN_CHIP", "EVERGREEN_GARDEN_CHIP", "FLOWERING_BOUQUET",
+        "OVERGROWN_GRASS", "GREEN_BANDANA", "SPACE_HELMET", "FRUIT_BOWL"
+    ];
+    protected override bool ExcludeShardItems => true;
+    protected override int Priority => -1;
+    protected override string Category => "Garden";
+    protected override string ActionUnit => "visitors";
+    protected override List<MethodDrop> FormulaDrops => [new("JACOBS_TICKET", 5)];
+    protected override string HowTo => "Serve the visitors that arrive at your Garden and accept their rewards.";
+    public override string Description =>
+        "Rewards from serving Garden visitors (Garden chips, tickets, Overclocker 3000, ...).";
+}

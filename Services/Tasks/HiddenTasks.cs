@@ -106,6 +106,42 @@ public class PrivateIslandActivityTask : MethodTask
 }
 
 /// <summary>
+/// Rift items are bound to the Rift dimension (not tradable), so anything collected there is not
+/// coin profit. Item-matched tasks still win wherever their own detection items occur.
+/// </summary>
+public class RiftActivityTask : MethodTask
+{
+    protected override bool Hidden => true;
+    protected override string MethodName => "Rift Activity";
+    protected override string Category => "Passive";
+    protected override HashSet<string> Locations => ["Rift"];
+    protected override int MinLocationOnlyItems => 1;
+    protected override int Priority => -100;
+    protected override TaskType TaskType => TaskType.Passive;
+    public override string Description =>
+        "Hidden accounting task: items collected in the Rift are dimension-bound and not coin profit, so "
+        + "they are not counted as unclassified revenue. Never shown to players.";
+}
+
+/// <summary>
+/// Periods with no scoreboard area read yet (ExtractedInfo.CurrentLocation defaults to "Unknown").
+/// Their large "profit" is whole-inventory/sack baseline catch-up at session start, not earnings.
+/// </summary>
+public class UnknownLocationTask : MethodTask
+{
+    protected override bool Hidden => true;
+    protected override string MethodName => "Unknown Location";
+    protected override string Category => "Passive";
+    protected override HashSet<string> Locations => ["Unknown"];
+    protected override int MinLocationOnlyItems => 1;
+    protected override int Priority => -100;
+    protected override TaskType TaskType => TaskType.Passive;
+    public override string Description =>
+        "Hidden accounting task: periods before any scoreboard area was read. These hold whole-inventory/sack "
+        + "baseline catch-ups at session start (billions of apparent coins), not earnings. Never shown to players.";
+}
+
+/// <summary>
 /// Forge outputs (Skeleton Key, Refined Mithril, Perfect Plate, Drill Engine, ...) are crafted from
 /// purchased inputs - their value is not profit, it is a transformation of coins already spent.
 /// </summary>

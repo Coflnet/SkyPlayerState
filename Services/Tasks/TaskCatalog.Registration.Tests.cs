@@ -23,7 +23,7 @@ public class TaskCatalogRegistrationTests
     [
         "BazaarPurchaseTask", "AuctionPurchaseTask", "MinionCollectionTask",
         // hidden zone tasks for zones where no money making method exists - see HiddenTasks.cs
-        "PrivateIslandActivityTask", "ForgeClaimsTask", "HubTradingTask"
+        "PrivateIslandActivityTask", "ForgeClaimsTask", "HubTradingTask", "RiftActivityTask", "UnknownLocationTask"
     ];
 
     private static readonly string[] ExpectedRegisteredTaskNames =
@@ -46,7 +46,7 @@ public class TaskCatalogRegistrationTests
         "HoneycombGatheringTask", "HubTradingTask", "HuntingTrapTask",
         "InvisibugHuntingTask", "JadeMiningTask", "JasperMiningTask", "JerryTask", "JoydiveTask",
         "JunglePowderMiningTask", "KadaKnightHuntingTask", "KatTask", "KuudraT1Task", "KuudraT2Task",
-        "KuudraT3Task", "KuudraT4Task", "KuudraT5Task", "LotusAtollTask", "LumisquidTask",
+        "KuudraT3Task", "KuudraT4Task", "KuudraT5Task", "KuudraChestClaimsTask", "HeavyPearlsTask", "GardenVisitorsTask", "RiftActivityTask", "UnknownLocationTask", "LotusAtollTask", "LumisquidTask",
         "M1Task", "M2Task", "M3Task", "M4Task", "M5Task",
         "M6Task", "M7KismetTask", "M7Task", "MageOutlawTask", "MagmaCoreFishingTask", "MangroveForagingTask", "MatchoTask", "MelonFarmingTask", "MithrilDepositsPowderMiningTask",
         "MinerZombieHuntingTask", "MinionCollectionTask", "MithrilMiningTask", "MochibearkTask", "MoonflowerFarmingTask", "MossybitTask", "MudwormHuntingTask", "MushroomFarmingTask", "MyceliumTask", "NetherWartFarmingTask", "NucleusMiningTask", "OasisFishingTask",

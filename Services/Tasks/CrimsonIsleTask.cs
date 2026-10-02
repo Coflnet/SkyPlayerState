@@ -76,3 +76,20 @@ public class MageOutlawTask : MethodTask
     // no RequiredItems/Effects: the drops are guaranteed per kill, the rate is set by the 2 minute respawn
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Mage_Outlaw";
 }
+
+/// <summary>
+/// Heavy Pearls are collected from the Matriarch (Crimson Isle) - a limited number can be
+/// obtained per day. Production 2026-10: ~21 players per 10h with {HEAVY_PEARL: 3..12}.
+/// </summary>
+public class HeavyPearlsTask : MethodTask
+{
+    protected override string MethodName => "Heavy Pearls";
+    protected override string Category => "Mob Farming";
+    protected override string ActionUnit => "pearls";
+    protected override HashSet<string> Locations => ["Matriarch's Lair", "Belly of the Beast"];
+    protected override HashSet<string> DetectionItems => ["HEAVY_PEARL"];
+    protected override List<MethodDrop> FormulaDrops => [new("HEAVY_PEARL", 8)];
+    protected override string HowTo => "Visit the Matriarch in the Belly of the Beast on the Crimson Isle and collect Heavy Pearls. Only a limited number can be collected per day.";
+    public override string Description =>
+        "Collecting Heavy Pearls from the Matriarch on the Crimson Isle. The amount you can collect is limited per day.";
+}

@@ -46,6 +46,15 @@ internal static class FishingEvidence
         LavaBaseDrops.Concat(TrophyFishSpecies.SelectMany(species => Tiers.Select(tier => $"{species}_{tier}"))));
 }
 
+internal static class SpookyFishingEvidence
+{
+    /// <summary>Drops only spooky sea creatures give (mandatory for Spooky Fishing).</summary>
+    public static readonly HashSet<string> Exclusive = ["WEREWOLF_SKIN", "SOUL_FRAGMENT", "DEEP_SEA_ORB"];
+    /// <summary>Optional extras that raise the matched value over plain Water Fishing.</summary>
+    public static readonly HashSet<string> Evidence = new(FishingEvidence.Water)
+        { "GREEN_CANDY", "PURPLE_CANDY", "PUMPKIN", "ENCHANTED_PUMPKIN" };
+}
+
 // ── Base for all fishing tasks with shared metadata ──
 public abstract class BaseFishingTask : MethodTask
 {
@@ -96,13 +105,15 @@ public class BayouHotspotFishingTask : BaseFishingTask
 public class SpookyFishingTask : BaseFishingTask
 {
     protected override string MethodName => "Spooky Fishing";
-    protected override HashSet<string> Locations => ["Spooky Festival", "The Park"];
-    protected override HashSet<string> DetectionItems => FishingEvidence.Water;
+    // Spooky sea creatures spawn wherever water fishing works (Spooky Festival is not a zone).
+    // Backwater Bayou is deliberately excluded - Bayou Fishing keeps its periods.
+    protected override HashSet<string> Locations => ["Hub", "Village", "Forest", "Birch Park", "The Park", "Spider's Den", "Crystal Hollows"];
+    // Spooky-sea-creature exclusive drops are mandatory; the normal fish evidence and festival
+    // items only add matched value so a spooky period outranks plain Water Fishing.
+    protected override HashSet<string> DetectionItems => SpookyFishingEvidence.Exclusive;
+    protected override HashSet<string> EvidenceItems => SpookyFishingEvidence.Evidence;
     protected override bool ExcludeShardItems => true;
-    // "The Park" is shared with Water Fishing, and the classifier has no way to know whether the
-    // Spooky Festival is even active - lower priority so plain Water Fishing wins ties there
-    // (both require the same Water evidence, so this only matters when the two are exactly tied).
-    protected override int Priority => -1;
+    // default priority: the mandatory exclusive drops already make this strictly more specific than Water Fishing
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 200), new("PUMPKIN", 50)];
 }
 public class WinterFishingTask : BaseFishingTask
@@ -233,7 +244,7 @@ public class OasisFishingTask : BaseFishingTask
 public class WaterFishingTask : BaseFishingTask
 {
     protected override string MethodName => "Water Fishing";
-    protected override HashSet<string> Locations => ["Hub", "Village", "Forest", "Birch Park", "The Park"];
+    protected override HashSet<string> Locations => ["Hub", "Village", "Forest", "Birch Park", "The Park", "Spider's Den", "Crystal Hollows"];
     // Water evidence (2026-09 finding: 288 periods matched here, only ~10 with any fish - it was
     // swallowing Hub Auction House/Bazaar Alley purchases, zombie slayer at Crypts/Graveyard, and
     // farming at Farm).
@@ -295,12 +306,11 @@ public class BayouHotspotFishingHuntingTask : BaseFishingTask
 public class SpookyFishingHuntingTask : BaseFishingTask
 {
     protected override string MethodName => "Spooky Fishing (Hunting)";
-    protected override HashSet<string> Locations => ["Spooky Festival", "The Park"];
-    protected override HashSet<string> DetectionItems => FishingEvidence.Water;
+    // See SpookyFishingTask.
+    protected override HashSet<string> Locations => ["Hub", "Village", "Forest", "Birch Park", "The Park", "Spider's Den", "Crystal Hollows"];
+    protected override HashSet<string> DetectionItems => SpookyFishingEvidence.Exclusive;
+    protected override HashSet<string> EvidenceItems => SpookyFishingEvidence.Evidence;
     protected override bool RequireShardItems => true;
-    // See SpookyFishingTask - lower priority than the Water Fishing tasks so plain water fishing
-    // wins ties on the shared "The Park" location.
-    protected override int Priority => -1;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 200), new("PUMPKIN", 50)];
 }
 public class WinterFishingHuntingTask : BaseFishingTask
@@ -385,7 +395,7 @@ public class OasisFishingHuntingTask : BaseFishingTask
 public class WaterFishingHuntingTask : BaseFishingTask
 {
     protected override string MethodName => "Water Fishing (Hunting)";
-    protected override HashSet<string> Locations => ["Hub", "Village", "Forest", "Birch Park", "The Park"];
+    protected override HashSet<string> Locations => ["Hub", "Village", "Forest", "Birch Park", "The Park", "Spider's Den", "Crystal Hollows"];
     // Water evidence (2026-09 finding: this task absorbed Bazaar Alley shard purchases).
     protected override HashSet<string> DetectionItems => FishingEvidence.Water;
     protected override bool RequireShardItems => true;

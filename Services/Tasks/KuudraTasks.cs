@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
 
@@ -65,4 +66,26 @@ public class KuudraT5Task : BaseKuudraTask
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 2000), new("ATTRIBUTE_SHARD", 50)];
     protected override double ActionsPerHour => 5;
     protected override string HowTo => "Queue for Kuudra Infernal (T5). Highest tier with best drops. Requires maxed gear, team of 4 experienced players. Best money maker in the game for endgame players.";
+}
+
+/// <summary>
+/// Kuudra loot is claimed outside the instance (Croesus in the Dungeon Hub, Forgotten Skull) so the
+/// chest rewards land in a different zone than the Kuudra tier zones. Periods that were already
+/// resolved to a Catacombs floor by DungeonRewardAttribution are not affected.
+/// </summary>
+public class KuudraChestClaimsTask : BaseKuudraTask
+{
+    protected override string MethodName => "Kuudra Chest Claims";
+    protected override HashSet<string> Locations => ["Dungeon Hub", "Forgotten Skull"];
+    protected override HashSet<string> DetectionItems =>
+    [
+        "KUUDRA_TEETH", "KUUDRA_TENTACLE", "KUUDRA_MANDIBLE",
+        .. new[] { "CRIMSON", "AURORA", "TERROR", "FERVOR", "HOLLOW" }
+            .SelectMany(set => new[] { "HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS" }.Select(piece => $"{set}_{piece}"))
+    ];
+    protected override List<MethodDrop> FormulaDrops => [new("KUUDRA_TEETH", 100)];
+    protected override double ActionsPerHour => 8;
+    protected override string HowTo => "Claim your Kuudra chest rewards after a run. Loot is collected outside the Kuudra instance, so it shows up here rather than at the tier.";
+    public override string Description =>
+        "Claiming Kuudra chest loot (teeth, tentacles, mandibles, Kuudra armor) outside the instance.";
 }

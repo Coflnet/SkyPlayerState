@@ -1136,4 +1136,112 @@ public class TaskClassifierTests
         result.Should().NotBeNull();
         result!.TaskName.Should().Be("Pest");
     }
+
+    private static string? NameAt(string location, Dictionary<string, int> items) => Classifier.Classify(location, items, 10)?.TaskName;
+
+    private static bool IsHidden(string taskName) =>
+        Registry.MethodTasks.First(t => t.GetDetectionSignature().MethodName == taskName).IsHidden;
+
+    // ── 2026-10-01 coverage pass ──
+
+    [Test]
+    public void RuinsWithWolfTooth_ClassifiesToSvenSlayer()
+        => NameAt("Ruins", new() { { "WOLF_TOOTH", 711 }, { "BONE", 221 }, { "FURBALL", 2 } }).Should().Be("Sven Slayer");
+
+    [Test]
+    public void RuinsWithOnlyBone_IsNotSvenSlayer()
+        => NameAt("Ruins", new() { { "BONE", 30 } }).Should().NotBe("Sven Slayer");
+
+    [Test]
+    public void SpidersDenFishing_ClassifiesToWaterFishing()
+        => NameAt("Spider's Den", new() { { "RAW_FISH", 310 }, { "WATER_LILY", 210 }, { "INK_SACK", 89 } }).Should().Be("Water Fishing");
+
+    [Test]
+    public void JungleFishing_ClassifiesToWaterFishing()
+        => NameAt("Jungle", new() { { "RAW_FISH", 310 }, { "WATER_LILY", 210 }, { "INK_SACK", 89 } }).Should().Be("Water Fishing");
+
+    [Test]
+    public void GoblinHoldoutFishWithWormMembrane_StillWaterWormFishing()
+        => NameAt("Goblin Holdout", new() { { "RAW_FISH", 100 }, { "WORM_MEMBRANE", 5 } }).Should().Be("Water Worm Fishing");
+
+    [Test]
+    public void SpidersDenSpiderDropsOnly_IsNotWaterFishing()
+    {
+        var items = new Dictionary<string, int> { { "STRING", 200 }, { "SPIDER_EYE", 150 } };
+        NameAt("Spider's Den", items).Should().NotBe("Water Fishing").And.NotBe("Spooky Fishing");
+    }
+
+    [Test]
+    public void SpidersDenSpookyFishing_ClassifiesToSpookyFishing()
+        => NameAt("Spider's Den", new() { { "PUMPKIN", 410 }, { "GREEN_CANDY", 256 }, { "RAW_FISH", 205 }, { "WATER_LILY", 149 }, { "WEREWOLF_SKIN", 3 } })
+            .Should().Be("Spooky Fishing");
+
+    [Test]
+    public void JungleSpookyFishing_ClassifiesToSpookyFishing()
+        => NameAt("Jungle", new() { { "PUMPKIN", 410 }, { "GREEN_CANDY", 256 }, { "RAW_FISH", 205 }, { "WATER_LILY", 149 }, { "WEREWOLF_SKIN", 3 } })
+            .Should().Be("Spooky Fishing");
+
+    [Test]
+    public void GraveyardMobCandy_IsNotSpookyFishing()
+        => NameAt("Graveyard", new() { { "GREEN_CANDY", 25 }, { "PURPLE_CANDY", 17 } }).Should().NotBe("Spooky Fishing");
+
+    [Test]
+    public void BayouFishWithWerewolfSkin_StaysBayouFishing()
+        => NameAt("Backwater Bayou", new() { { "RAW_FISH", 100 }, { "WEREWOLF_SKIN", 2 } }).Should().Be("Bayou Fishing");
+
+    [Test]
+    public void BellyOfTheBeastHeavyPearls_ClassifiesToHeavyPearls()
+        => NameAt("Belly of the Beast", new() { { "HEAVY_PEARL", 5 } }).Should().Be("Heavy Pearls");
+
+    [Test]
+    public void DungeonHubKuudraLoot_ClassifiesToKuudraChestClaims()
+        => NameAt("Dungeon Hub", new()
+        {
+            { "KUUDRA_TEETH", 124 }, { "ENCHANTED_BOOK", 5 }, { "KISMET_FEATHER", 2 }, { "CRIMSON_BOOTS", 2 },
+            { "AURORA_CHESTPLATE", 2 }, { "WHEEL_OF_FATE", 1 }
+        }).Should().Be("Kuudra Chest Claims");
+
+    [Test]
+    public void DungeonHubDungeonLootOnly_IsNotKuudraChestClaims()
+        => NameAt("Dungeon Hub", new() { { "ENCHANTED_BONE", 7 }, { "HOLY_FRAGMENT", 6 }, { "CONJURING_SWORD", 3 } })
+            .Should().NotBe("Kuudra Chest Claims");
+
+    [Test]
+    public void KuudraT5ZoneWithTeeth_StillKuudraT5()
+        => NameAt("Kuudra's Hollow (T5)", new() { { "KUUDRA_TEETH", 50 }, { "ESSENCE_CRIMSON", 500 } }).Should().Be("Kuudra T5");
+
+    [Test]
+    public void GardenVisitorRewards_ClassifiesToGardenVisitors()
+        => NameAt("The Garden", new() { { "CARNIVAL_TICKET", 15 }, { "FEAST_FLASK", 4 } }).Should().Be("Garden Visitors");
+
+    [Test]
+    public void GardenCarrotsWithJacobsTicket_StaysCarrotFarming()
+    {
+        // null prices, like the other crop tests here
+        NameAt("Plot - 4", new() { { "CARROT_ITEM", 5000 }, { "ENCHANTED_CARROT", 40 }, { "JACOBS_TICKET", 1 } }).Should().Be("Carrot Farming");
+    }
+
+    [Test]
+    public void GardenPestDropsWithSqueakyToy_StaysPest()
+        => NameAt("The Garden", new() { { "DUNG", 4 }, { "PLANT_MATTER", 4 }, { "COMPOST", 4 }, { "JELLY", 4 }, { "SQUEAKY_TOY", 1 } }).Should().Be("Pest");
+
+    [Test]
+    public void WyldWoodsRiftItems_ClassifiesToHiddenRiftActivity()
+    {
+        var name = NameAt("Wyld Woods", new() { { "HEMOVIBE", 64 }, { "VAMPIRIC_MELON", 20 } });
+        name.Should().Be("Rift Activity");
+        IsHidden(name!).Should().BeTrue();
+    }
+
+    [Test]
+    public void RiftBazaarPurchase_ItemMatchedTaskStillWinsOverRiftActivity()
+        => NameAt("Wyld Woods", new() { { "BAZAAR_PURCHASE", 100_000 }, { "HEMOVIBE", 64 } }).Should().Be("Bazaar Purchases");
+
+    [Test]
+    public void UnknownLocation_ClassifiesToHiddenUnknownLocation()
+    {
+        var name = NameAt("Unknown", new() { { "HYPERION", 1 }, { "ENCHANTED_BOOK", 4 } });
+        name.Should().Be("Unknown Location");
+        IsHidden(name!).Should().BeTrue();
+    }
 }

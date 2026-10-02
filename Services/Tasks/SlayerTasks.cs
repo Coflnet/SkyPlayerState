@@ -253,7 +253,7 @@ public class RevenantSlayerTask : MethodTask
 public class SvenSlayerTask : MethodTask
 {
     protected override string MethodName => "Sven Slayer";
-    protected override HashSet<string> Locations => ["Howling Cave", "Soul Cave", "Spirit Cave"];
+    protected override HashSet<string> Locations => ["Howling Cave", "Soul Cave", "Spirit Cave", "Ruins"];
     protected override HashSet<string> DetectionItems => ["WOLF_TOOTH", "HAMSTER_WHEEL", "RED_CLAW_EGG", "FURBALL"];
     // Production medians (2026-09) per 10-min period * 6: WOLF_TOOTH 257, HAMSTER_WHEEL 12.
     protected override List<MethodDrop> FormulaDrops => [new("WOLF_TOOTH", 1542), new("HAMSTER_WHEEL", 72)];

@@ -126,6 +126,8 @@ internal static class TaskCatalog
         tasks.Add<KuudraT3Task>();
         tasks.Add<KuudraT4Task>();
         tasks.Add<KuudraT5Task>();
+        tasks.Add<KuudraChestClaimsTask>();
+        tasks.Add<HeavyPearlsTask>();
 
         // Slayer tasks
         tasks.Add<T3InfernoDemonlordTask>();
@@ -291,6 +293,7 @@ internal static class TaskCatalog
 
         // Garden tasks
         tasks.Add<PestTask>();
+        tasks.Add<GardenVisitorsTask>();
         // GardenFarmingTask (discovered from unclassified production revenue 2026-09) split 2026-09
         // into one task per crop - see GardenTasks.cs/BaseGardenCropTask.
         tasks.Add<WheatFarmingTask>();
@@ -331,6 +334,8 @@ internal static class TaskCatalog
         // hidden zone tasks for zones where no money making method exists - discovered 2026-09-28
         tasks.Add<PrivateIslandActivityTask>();
         tasks.Add<ForgeClaimsTask>();
+        tasks.Add<RiftActivityTask>();
+        tasks.Add<UnknownLocationTask>();
         tasks.Add<HubTradingTask>();
 
         return tasks;
