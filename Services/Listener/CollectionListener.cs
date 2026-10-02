@@ -446,6 +446,7 @@ public class CollectionListener : UpdateListener
         var allowFirstTimeCounting = !IsSwapView(args.msg.Chest) && !IsAuctionView(args.msg.Chest);
         var previousIsRewardChest = IsRewardChestView(previousInventory);
         var movedIntoCurrentContainer = GetCurrentContainerTags(args.msg.Chest);
+        var currentIsTransferView = IsTransferView(args.msg.Chest);
         // (a) every tag anywhere in the previous view, including its container part
         // (a reward chest's container part is ignored, see GetItemsForSwapGuards)
         var previousTags = GetItemsForSwapGuards(previousInventory).Where(i => i.Tag != null).Select(i => i.Tag).ToHashSet();
@@ -505,15 +506,21 @@ public class CollectionListener : UpdateListener
             var currentCount = currentItems.Sum(i => (long)(i.Count ?? 0));
             var diff = currentCount - previousCount;
             // items shift-clicked into a storage/transfer view that is already the current view were
-            // moved, not consumed (production: -64 GRIFFIN_FEATHER after an Ender Chest upload)
-            if (diff < 0 && movedIntoCurrentContainer.Contains(tag))
+            // moved, not consumed (production: -64 GRIFFIN_FEATHER after an Ender Chest upload). In a
+            // transfer view (sack, bazaar, auction, shop, trade, Hunting Box) they do not show up in the
+            // container part, but leaving the inventory there is a deposit or sale all the same
+            // (production: -115 MELON_BLOCK between "Emissary Sisko" and "Sack of Sacks", whose sack
+            // message is ignored as a transfer - booking only the inventory side was a phantom loss).
+            if (diff < 0 && (currentIsTransferView || movedIntoCurrentContainer.Contains(tag)))
                 continue;
             if (diff == 0)
                 continue;
             Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, tag, diff);
-            // TEMPORARY diagnostic: learn which view pairs still produce phantom gains/losses
-            // (e.g. bazaar GUI titles IsBazaarWindow does not know yet)
-            if (Math.Abs(diff) >= BulkChangeLogThreshold)
+            // TEMPORARY diagnostic: learn which view pairs still produce phantom shard gains/losses
+            // (e.g. bazaar GUI titles IsBazaarWindow does not know yet). Shards only: captured shards go
+            // to the Hunting Box and are counted from chat, so a bulk change in the inventory is suspect,
+            // while for every other item it is ordinary play (10k lines/hour when it was not restricted).
+            if (Math.Abs(diff) >= BulkChangeLogThreshold && tag.StartsWith("SHARD_", StringComparison.Ordinal))
                 args.GetService<ILogger<CollectionListener>>().LogInformation(
                     "Bulk inventory change for {playerId}: {count}x {tag} between views {previousView} -> {currentView}",
                     args.currentState.PlayerId, diff, tag, previousInventory.Name ?? "<inventory>", args.msg.Chest.Name ?? "<inventory>");
@@ -747,14 +754,17 @@ public class CollectionListener : UpdateListener
 
     /// <summary>
     /// Views whose items are swapped with the inventory rather than dropped into it: trade windows
-    /// (name starts with "You    "), sacks and NPC shops. First-time counting is skipped around them.
+    /// (name starts with "You    "), sacks, NPC shops and the Hunting Box (production: 64 shards
+    /// withdrawn from it counted as a gain, the bazaar sale afterwards was skipped). First-time
+    /// counting is skipped around them.
     /// </summary>
     private static bool IsSwapView(Models.ChestView view)
     {
         var name = view?.Name;
         if (name == null)
             return false;
-        return name.StartsWith("You    ") || name.Contains("Sack") || name.Contains("Shop") || name.Contains("Trades");
+        return name.StartsWith("You    ") || name.Contains("Sack") || name.Contains("Shop") || name.Contains("Trades")
+            || name.Contains("Hunting Box");
     }
 
     /// <summary>

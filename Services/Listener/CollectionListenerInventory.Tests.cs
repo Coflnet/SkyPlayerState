@@ -859,6 +859,57 @@ public class CollectionListenerInventoryTests
         state.ItemsCollectedRecently.GetValueOrDefault("GRIFFIN_FEATHER").Should().Be(-64);
     }
 
+    [TestCase("Sack of Sacks")]
+    [TestCase("Bazaar ➜ Oddities")]
+    [TestCase("BIN Auction View")]
+    [TestCase("Trades")]
+    [TestCase("(1/2) Hunting Box")]
+    public async Task NegativeDiffWhileCurrentViewIsATransferViewIsNotBooked(string viewName)
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("Emissary Sisko", new(), StackableItem("MELON_BLOCK", 179)), Now);
+
+        // deposited/sold before the transfer view's first upload - the container does not show the item
+        await ProcessView(state, View(viewName, new(), StackableItem("MELON_BLOCK", 64)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task LootGainedBeforeOpeningATransferViewIsStillBooked()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("(1/3) Loadouts", new(), StackableItem("ENCHANTED_POTATO", 10)), Now);
+
+        await ProcessView(state, View("Bazaar ➜ Oddities", new(), StackableItem("ENCHANTED_POTATO", 488)), Now);
+
+        state.ItemsCollectedRecently.GetValueOrDefault("ENCHANTED_POTATO").Should().Be(478);
+    }
+
+    [TestCase("Hunting Box")]
+    [TestCase("(1/2) Hunting Box")]
+    public async Task ShardsWithdrawnFromTheHuntingBoxAreNotCounted(string viewName)
+    {
+        var state = new StateObject();
+        await ProcessView(state, View(viewName, new(), StackableItem("SHARD_HOWLING_SPIRIT", 3)), Now);
+
+        await ProcessView(state, View(viewName, new(), StackableItem("SHARD_HOWLING_SPIRIT", 67)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task BulkChangesOfOtherItemsAreNotLogged()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_POTATO", 1)), Now);
+
+        var logger = await ProcessViewLogged(state, View("", new(), StackableItem("ENCHANTED_POTATO", 400)));
+
+        state.ItemsCollectedRecently.GetValueOrDefault("ENCHANTED_POTATO").Should().Be(399);
+        logger.Entries.Should().NotContain(e => e.Message.StartsWith("Bulk inventory change"));
+    }
+
     [Test]
     public async Task PositiveDiffWithCurrentStorageViewIsStillBooked()
     {
