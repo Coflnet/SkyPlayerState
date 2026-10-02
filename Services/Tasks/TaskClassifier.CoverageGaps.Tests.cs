@@ -22,7 +22,8 @@ public class TaskClassifierCoverageGapsTests
     private static readonly string[] NewTaskNames =
     [
         "Crimson Isle Mobs", "Galatea Contests", "Glacite Walker", "Chill (Hunting)", "Honeybuzz (Hunting)",
-        "Yog and Bal", "Barn Animals", "Farm and Barn Crops", "Dungeon Chest Claims"
+        "Yog and Bal", "Barn Animals", "Farm and Barn Crops", "Dungeon Chest Claims",
+        "Torrhus Springs (Hunting)", "Spirit Cave (Hunting)", "Lapis Zombie (Hunting)"
     ];
 
     // ── the fallback guarantee itself ──
@@ -235,5 +236,81 @@ public class TaskClassifierCoverageGapsTests
         // Kuudra loot claimed here keeps its task, whatever the chest cost weighs
         Classify("Dungeon Hub", new() { { "KUUDRA_TEETH", 3 }, { PseudoItems.DUNGEON_CHEST_COST, -50_000_000 } }).Should().Be("Kuudra Chest Claims");
         Classify("Dungeon Hub", new() { { PseudoItems.BAZAAR_PURCHASE, 5000 }, { PseudoItems.DUNGEON_CHEST_COST, -50_000_000 } }).Should().Be("Bazaar Purchases");
+    }
+
+    // ── Shards without a home (production 2026-10 sample) ──
+
+    [Test]
+    public void BarbarianDukeX_ShardAtTheDukedom_ClassifiesToItsOwnTask()
+    {
+        Classify("The Dukedom", new() { { "SHARD_BARBARIAN_DUKE_X", 4 }, { "LEATHER_CLOTH", 1 } }).Should().Be("Barbarian Duke X");
+        // a lone shard, and with the generic mob drops that used to send it to Crimson Isle Mobs
+        Classify("The Dukedom", new() { { "SHARD_BARBARIAN_DUKE_X", 2 } }).Should().Be("Barbarian Duke X");
+        Classify("The Dukedom", new() { { "SHARD_BARBARIAN_DUKE_X", 4 }, { "PORK", 55 }, { "LEATHER_CLOTH", 2 } }).Should().Be("Barbarian Duke X");
+        // without the shard the hidden fallback still takes the zone
+        Classify("The Dukedom", new() { { "PORK", 55 }, { "LEATHER_CLOTH", 2 } }).Should().Be("Crimson Isle Mobs");
+    }
+
+    [Test]
+    public void BarbarianDukeX_DoesNotTakeAnotherShardTasksPeriod()
+    {
+        Classify("Stronghold", new() { { "SHARD_BEZAL", 6 } }).Should().Be("Bezal (Hunting)");
+    }
+
+    [TestCase("Spring Shallows", "SHARD_SOLAR", 47)]
+    [TestCase("Spring Depths", "SHARD_EMBER", 9)]
+    [TestCase("Torrhus Springs", "SHARD_WATER_SNAKE", 3)]
+    [TestCase("Spring Path", "SHARD_SOLAR", 5)]
+    public void TorrhusSpringShards_ClassifyToTorrhusSpringsHunting(string zone, string shard, int count)
+    {
+        Classify(zone, new() { { shard, count } }).Should().Be("Torrhus Springs (Hunting)");
+    }
+
+    [Test]
+    public void TorrhusSprings_HelixForagingKeepsItsPeriod_EvenWithAShardPriceFarAboveIt()
+    {
+        var items = new Dictionary<string, int> { { "ENCHANTED_HELIX_LOG", 23 }, { "SHARD_EMBER", 2 } };
+        Classify("Torrhus Springs", items, new() { { "ENCHANTED_HELIX_LOG", 3200 }, { "SHARD_EMBER", 5_000_000 } }).Should().Be("Helix Foraging");
+    }
+
+    [TestCase("Murkwater Loch", "SHARD_VERDANT", 4)]
+    [TestCase("Murkwater Shallows", "SHARD_AZURE", 1)]
+    [TestCase("Murkwater Depths", "SHARD_SALMON", 2)]
+    [TestCase("Murkwater Shallows", "SHARD_COD", 1)]
+    [TestCase("Murkwater Loch", "SHARD_AZURE", 2)]
+    public void MurkwaterFishingShards_ClassifyToGalateaFishingHunting_EvenASingleOne(string zone, string shard, int count)
+    {
+        Classify(zone, new() { { shard, count } }).Should().Be("Galatea Fishing (Hunting)");
+    }
+
+    [Test]
+    public void MurkwaterShards_NamedShardTasksAndForagingKeepTheirPeriods()
+    {
+        Classify("Murkwater Shallows", new() { { "SHARD_AZURE", 1 }, { "SHARD_DREADWING", 1 } }).Should().Be("Dreadwing");
+        Classify("Murkwater Loch", new() { { "SHARD_COD", 1 }, { "MANGROVE_LOG", 248 } }).Should().Be("Mangrove Foraging");
+        // no shard, one item: the lowered threshold is only for shard periods
+        Classify("Murkwater Shallows", new() { { "SEA_LUMIES", 1 } }).Should().BeNull();
+    }
+
+    [TestCase("Spirit Cave", "SHARD_SOUL_OF_THE_ALPHA", 106)]
+    [TestCase("Howling Cave", "SHARD_HOWLING_SPIRIT", 16)]
+    public void SpiritCaveShards_ClassifyToSpiritCaveHunting(string zone, string shard, int count)
+    {
+        Classify(zone, new() { { shard, count } }).Should().Be("Spirit Cave (Hunting)");
+    }
+
+    [Test]
+    public void SpiritCave_SvenDropsStillGoToSvenSlayer()
+    {
+        Classify("Spirit Cave", new() { { "WOLF_TOOTH", 20 }, { "SHARD_HOWLING_SPIRIT", 2 } },
+            new() { { "WOLF_TOOTH", 10 }, { "SHARD_HOWLING_SPIRIT", 1_000_000 } }).Should().Be("Sven Slayer");
+    }
+
+    [Test]
+    public void LapisZombieShard_ClassifiesToLapisZombieHunting_ButMiningKeepsItsPeriod()
+    {
+        Classify("Lapis Quarry", new() { { "SHARD_LAPIS_ZOMBIE", 11 }, { "ROTTEN_FLESH", 11 } }).Should().Be("Lapis Zombie (Hunting)");
+        Classify("Lapis Quarry", new() { { "SHARD_LAPIS_ZOMBIE", 4 }, { "COBBLESTONE", 300 } },
+            new() { { "COBBLESTONE", 2 }, { "SHARD_LAPIS_ZOMBIE", 1_000_000 } }).Should().Be("Cobblestone Mining");
     }
 }

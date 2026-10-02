@@ -380,8 +380,12 @@ public class SquidFishingHuntingTask : BaseFishingTask
 public class GalateaFishingHuntingTask : BaseFishingTask
 {
     protected override string MethodName => "Galatea Fishing (Hunting)";
-    protected override HashSet<string> Locations => ["Driptoad Delve", "Murkwater Depths", "Murkwater Shallows", "Squid Cave", "Reefguard Pass"];
+    // Murkwater Loch is where the Murkwater shards (Verdant, Azure, Salmon, Cod) are fished first
+    protected override HashSet<string> Locations => ["Driptoad Delve", "Murkwater Loch", "Murkwater Depths", "Murkwater Shallows", "Squid Cave", "Reefguard Pass"];
     protected override bool RequireShardItems => true;
+    // location-only, but RequireShardItems is the real evidence: a lone fished shard (production: 1-5 Azure/Verdant
+    // per period) is enough, the default 5 left ~30% of the Murkwater shard periods unclassified
+    protected override int MinLocationOnlyItems => 1;
     protected override List<MethodDrop> FormulaDrops => [new("SEA_LUMIES", 150), new("RAW_FISH", 180)];
 }
 public class OasisFishingHuntingTask : BaseFishingTask

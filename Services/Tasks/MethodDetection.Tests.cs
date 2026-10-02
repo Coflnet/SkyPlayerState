@@ -255,8 +255,8 @@ public class MethodDetectionTests
     /// <summary>
     /// Regression for the same bug as above, checked across every registered slayer task at once:
     /// none of IndividualSlayerTask's LocationNames (T3/T4 Inferno Demonlord, T5/T4 Tarantula,
-    /// Ashfang, Barbarian Duke X) or the known slayer-boss-derived MethodTasks (BurningsoulTask,
-    /// T4 Voidglooms(/FD)) may be a bare island or multi-island-group key - SkyblockZones.Matches
+    /// Ashfang) or the known slayer-boss-derived MethodTasks (BurningsoulTask,
+    /// T4 Voidglooms(/FD), Barbarian Duke X) may be a bare island or multi-island-group key - SkyblockZones.Matches
     /// would then let every zone of that island/group count as the slayer.
     /// </summary>
     [Test]
@@ -276,7 +276,7 @@ public class MethodDetectionTests
         foreach (var slayer in registry.Tasks.OfType<IndividualSlayerTask>())
             AssertNoIslandLocations(slayer.GetType().Name, slayer.LocationNamesForTest);
 
-        var slayerDerivedMethodTasks = new[] { "Inferno Demonlord", "T4 Voidglooms", "T4 Voidglooms (FD)" };
+        var slayerDerivedMethodTasks = new[] { "Inferno Demonlord", "T4 Voidglooms", "T4 Voidglooms (FD)", "Barbarian Duke X" };
         foreach (var method in registry.MethodTasks.Where(t => slayerDerivedMethodTasks.Contains(t.GetDetectionSignature().MethodName)))
             AssertNoIslandLocations(method.GetDetectionSignature().MethodName, method.GetDetectionSignature().Locations);
     }

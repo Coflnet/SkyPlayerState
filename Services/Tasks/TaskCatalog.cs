@@ -186,6 +186,9 @@ internal static class TaskCatalog
         tasks.Add<GlaciteWalkerTask>();
         tasks.Add<ChillHuntingTask>();
         tasks.Add<HoneybuzzHuntingTask>();
+        tasks.Add<TorrhusSpringsHuntingTask>();
+        tasks.Add<SpiritCaveHuntingTask>();
+        tasks.Add<LapisZombieHuntingTask>();
         tasks.Add<YogAndBalTask>();
         tasks.Add<BarnAnimalsTask>();
         tasks.Add<FarmAndBarnCropsTask>();

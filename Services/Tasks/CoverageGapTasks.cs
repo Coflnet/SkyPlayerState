@@ -108,6 +108,50 @@ public class HoneybuzzHuntingTask : BaseHuntingTask
 }
 
 /// <summary>
+/// Solar, Ember and Water Snake shards in the Torrhus hot springs. Only the spring zones, not the
+/// whole island. Fallback: the Helix foraging and honeycomb tasks (island level on Torrhus) keep any period
+/// they hold items for.
+/// </summary>
+public class TorrhusSpringsHuntingTask : BaseHuntingTask
+{
+    protected override string MethodName => "Torrhus Springs (Hunting)";
+    protected override HashSet<string> Locations => ["Spring Shallows", "Spring Depths", "Torrhus Springs", "Spring Path"];
+    protected override HashSet<string> DetectionItems => ["SHARD_SOLAR", "SHARD_EMBER", "SHARD_WATER_SNAKE"];
+    protected override bool Fallback => true;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Torrhus_Springs";
+    protected override string HowTo => "Go to the hot springs on Torrhus (Spring Shallows and Spring Depths) and hunt Solars, Embers and Water Snakes for their shards.";
+}
+
+/// <summary>
+/// Howling Spirit and Soul of the Alpha shards in the Spirit Cave / Howling Cave of The Park. The Sven
+/// Slayer task lists these zones but only the wolf drops, so shard-only periods stayed unclassified; a
+/// period holding a Sven drop keeps going to Sven Slayer.
+/// </summary>
+public class SpiritCaveHuntingTask : BaseHuntingTask
+{
+    protected override string MethodName => "Spirit Cave (Hunting)";
+    protected override HashSet<string> Locations => ["Spirit Cave", "Howling Cave"];
+    protected override HashSet<string> DetectionItems => ["SHARD_HOWLING_SPIRIT", "SHARD_SOUL_OF_THE_ALPHA"];
+    protected override bool Fallback => true;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/The_Park";
+    protected override string HowTo => "Go to the Spirit Cave or Howling Cave in The Park and hunt Howling Spirits and Souls of the Alpha for their shards.";
+}
+
+/// <summary>
+/// Lapis Zombie shard in the Lapis Quarry (Deep Caverns). Fallback: Cobblestone/Redstone mining in the same
+/// quarry keeps its periods.
+/// </summary>
+public class LapisZombieHuntingTask : BaseHuntingTask
+{
+    protected override string MethodName => "Lapis Zombie (Hunting)";
+    protected override HashSet<string> Locations => ["Lapis Quarry"];
+    protected override HashSet<string> DetectionItems => ["SHARD_LAPIS_ZOMBIE"];
+    protected override bool Fallback => true;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Lapis_Quarry";
+    protected override string HowTo => "Go to the Lapis Quarry in the Deep Caverns and hunt Lapis Zombies for their shard.";
+}
+
+/// <summary>
 /// Yog (Magma Fields) and Bal (Khazad-dûm) drops in the Crystal Hollows: Yoggie, the Bal shard and the Bal
 /// pet. "Yog (Hunting)" keeps every period that holds a Yog shard.
 /// </summary>

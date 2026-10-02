@@ -185,10 +185,22 @@ public class AshfangTask : IndividualSlayerTask
     protected override HashSet<string> LocationNames => ["Ruins of Ashfang", "Smoldering Tomb", "Blazing Volcano"];
     public override string Description => "Ashfang on Crimson Isle";
 }
-public class BarbarianDukeXTask : IndividualSlayerTask
+/// <summary>
+/// Barbarian Duke X on the Crimson Isle. A MethodTask (not an IndividualSlayerTask, which has no detection
+/// signature and so was never offered to the TaskClassifier): its shard periods at The Dukedom used to land
+/// in the hidden "Crimson Isle Mobs" fallback or stay unclassified.
+/// </summary>
+public class BarbarianDukeXTask : MethodTask
 {
-    protected override string SlayerName => "Barbarian Duke X";
-    protected override HashSet<string> LocationNames => ["The Dukedom", "Stronghold", "Dragontail", "Mage Outpost"];
+    protected override string MethodName => "Barbarian Duke X";
+    protected override HashSet<string> Locations => ["The Dukedom", "Stronghold", "Dragontail", "Mage Outpost"];
+    protected override HashSet<string> DetectionItems => ["SHARD_BARBARIAN_DUKE_X"];
+    protected override List<MethodDrop> FormulaDrops => [new("SHARD_BARBARIAN_DUKE_X", 20)];
+    protected override string Category => "Slayer";
+    protected override string ActionUnit => "kills";
+    protected override string Where => "The Dukedom";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Barbarian_Duke_X";
+    protected override string HowTo => "Go to The Dukedom on the Crimson Isle and kill Barbarian Duke X for its shard.";
     public override string Description => "Barbarian Duke X on Crimson Isle";
 }
 

@@ -68,7 +68,8 @@ public class TaskCatalogRegistrationTests
         "ZealotsFdTask",
         // CoverageGapTasks.cs
         "CrimsonIsleMobsTask", "GalateaContestsTask", "GlaciteWalkerTask", "ChillHuntingTask", "HoneybuzzHuntingTask",
-        "YogAndBalTask", "BarnAnimalsTask", "FarmAndBarnCropsTask", "DungeonChestClaimsTask"
+        "YogAndBalTask", "BarnAnimalsTask", "FarmAndBarnCropsTask", "DungeonChestClaimsTask",
+        "TorrhusSpringsHuntingTask", "SpiritCaveHuntingTask", "LapisZombieHuntingTask"
     ];
 
     [Test]
