@@ -287,6 +287,9 @@ public class ExtractedInfo
             Essences = extractedInfo.PendingDungeonChestCharge.Essences == null ? null : new Dictionary<string, int>(extractedInfo.PendingDungeonChestCharge.Essences)
         };
         LastTransferViewAt = extractedInfo.LastTransferViewAt;
+        LastCraftViewAt = extractedInfo.LastCraftViewAt;
+        LastCraftIngredients = extractedInfo.LastCraftIngredients == null ? new() : new List<string>(extractedInfo.LastCraftIngredients);
+        PeriodSplitPending = extractedInfo.PeriodSplitPending;
     }
 
     /// <summary>
@@ -297,6 +300,23 @@ public class ExtractedInfo
     /// </summary>
     [Key(40)]
     public DateTime LastTransferViewAt { get; set; }
+    /// <summary>
+    /// ReceivedAt of the last inventory update where the current or previous view was a recipe view
+    /// (see <see cref="Services.CollectionListener.TryGetRecipe"/>) - sack chat notifications shortly
+    /// after it that remove one of <see cref="LastCraftIngredients"/> are the craft's input, not a loss.
+    /// </summary>
+    [Key(44)]
+    public DateTime LastCraftViewAt { get; set; }
+    /// <summary>Ingredient tags of the recipe views behind <see cref="LastCraftViewAt"/> (union of current and previous view).</summary>
+    [Key(45)]
+    public List<string> LastCraftIngredients { get; set; } = new();
+    /// <summary>
+    /// An inventory change worth enough to end the period happened while a crafting view was open; the
+    /// period ends with the first view after it instead, so the craft's input and output stay together.
+    /// See <see cref="Services.CollectionListener.StartNewPeriodAfterLargeChange"/>.
+    /// </summary>
+    [Key(46)]
+    public bool PeriodSplitPending { get; set; }
 }
 
 /// <summary>

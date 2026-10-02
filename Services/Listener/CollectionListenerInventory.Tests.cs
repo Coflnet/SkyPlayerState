@@ -289,20 +289,16 @@ public class CollectionListenerInventoryTests
     }
 
     /// <summary>
-    /// Production 2026-10-02 (IamCarry): one -21B period with 213 item types, because periods only ended
-    /// on a scoreboard update. An inventory change worth more than 10M coins now ends the period right
-    /// after it, so it can be checked in a period of its own.
+    /// A player at "Your Island" whose stored periods are captured, with the given clean prices.
     /// </summary>
-    [Test]
-    public async Task InventoryChangeAboveTenMillionCoinsEndsThePeriod()
+    private static (StateObject State, List<TrackedProfitService.Period> Stored, Func<ChestView, Task> Process) PeriodHarness(Dictionary<string, long> prices)
     {
         var stored = new List<TrackedProfitService.Period>();
         var profitService = new Mock<TrackedProfitService>((global::Cassandra.ISession)null);
         profitService.Setup(p => p.AddPeriod(It.IsAny<TrackedProfitService.Period>()))
             .Callback<TrackedProfitService.Period>(stored.Add).Returns(Task.CompletedTask);
         var sniperApi = new Mock<ISniperApi>();
-        sniperApi.Setup(a => a.ApiSniperPricesCleanGetAsync(0, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<string, long> { { "ENCHANTED_DIAMOND_BLOCK", 200_000 }, { "ENCHANTED_COBBLESTONE", 1_000 } });
+        sniperApi.Setup(a => a.ApiSniperPricesCleanGetAsync(0, It.IsAny<CancellationToken>())).ReturnsAsync(prices);
         var bazaarApi = new Mock<IBazaarApi>();
         bazaarApi.Setup(b => b.GetAllPricesAsync(0, It.IsAny<CancellationToken>())).ReturnsAsync(new List<ItemPrice>());
         var listener = new CollectionListener();
@@ -323,6 +319,18 @@ public class CollectionListenerInventoryTests
             await new RecentViewsUpdate().Process(args);
             await listener.Process(args);
         }
+        return (state, stored, Process);
+    }
+
+    /// <summary>
+    /// Production 2026-10-02 (IamCarry): one -21B period with 213 item types, because periods only ended
+    /// on a scoreboard update. An inventory change worth more than 10M coins now ends the period right
+    /// after it, so it can be checked in a period of its own.
+    /// </summary>
+    [Test]
+    public async Task InventoryChangeAboveTenMillionCoinsEndsThePeriod()
+    {
+        var (state, stored, Process) = PeriodHarness(new() { { "ENCHANTED_DIAMOND_BLOCK", 200_000 }, { "ENCHANTED_COBBLESTONE", 1_000 } });
         await Process(View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 10), StackableItem("ENCHANTED_DIAMOND_BLOCK", 1)));
 
         // 10 * 1,000 coins: stays in the running period
@@ -338,6 +346,47 @@ public class CollectionListenerInventoryTests
         stored[0].ItemsCollected.Should().BeEquivalentTo(new Dictionary<string, int> { { "ENCHANTED_COBBLESTONE", 10 }, { "ENCHANTED_DIAMOND_BLOCK", 60 } });
         state.ItemsCollectedRecently.Should().BeEmpty();
         state.ExtractedInfo.LastLocationChange.Should().BeAfter(DateTime.UtcNow.AddMinutes(-1));
+    }
+
+    /// <summary>
+    /// Production 2026-10-02 (Lajzy, "Craft Item -> Craft Item"): the input left the inventory in one
+    /// upload and the output arrived in the next, which the 10M rule stored as a -25M and a +30M period.
+    /// </summary>
+    [TestCase("Craft Item")]
+    [TestCase("Quick Crafting")]
+    public async Task LargeChangeInACraftingViewEndsThePeriodWithTheNextView(string craftingView)
+    {
+        var (state, stored, Process) = PeriodHarness(new() { { "GRIFFIN_FEATHER", 100_000 }, { "BRAIDED_GRIFFIN_FEATHER", 27_000_000 }, { "ENCHANTED_COBBLESTONE", 1_000 } });
+        var table = Enumerable.Range(0, 54).Select(_ => new Item()).ToList();
+        await Process(View(craftingView, table, StackableItem("GRIFFIN_FEATHER", 480), StackableItem("BRAIDED_GRIFFIN_FEATHER", 1)));
+
+        // 320 feathers lie in the crafting grid: -32M, but the output is not out yet
+        await Process(View(craftingView, table, StackableItem("GRIFFIN_FEATHER", 160), StackableItem("BRAIDED_GRIFFIN_FEATHER", 1)));
+        stored.Should().BeEmpty();
+        state.ExtractedInfo.PeriodSplitPending.Should().BeTrue();
+
+        // the first view after the crafting table shows the output: one period with both sides
+        await Process(View("", new(), StackableItem("GRIFFIN_FEATHER", 160), StackableItem("BRAIDED_GRIFFIN_FEATHER", 3)));
+        stored.Should().ContainSingle();
+        stored[0].ItemsCollected.Should().BeEquivalentTo(new Dictionary<string, int> { { "GRIFFIN_FEATHER", -320 }, { "BRAIDED_GRIFFIN_FEATHER", 2 } });
+        state.ExtractedInfo.PeriodSplitPending.Should().BeFalse();
+
+        // nothing is pending any more: a small change afterwards stays in the running period
+        await Process(View("", new(), StackableItem("GRIFFIN_FEATHER", 161), StackableItem("BRAIDED_GRIFFIN_FEATHER", 3)));
+        stored.Should().ContainSingle();
+    }
+
+    [Test]
+    public async Task SmallChangeInACraftingViewDoesNotEndThePeriodAfterIt()
+    {
+        var (state, stored, Process) = PeriodHarness(new() { { "ENCHANTED_COBBLESTONE", 1_000 } });
+        var table = Enumerable.Range(0, 54).Select(_ => new Item()).ToList();
+        await Process(View("Craft Item", table, StackableItem("ENCHANTED_COBBLESTONE", 20)));
+        await Process(View("Craft Item", table, StackableItem("ENCHANTED_COBBLESTONE", 10)));
+        await Process(View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 12)));
+
+        stored.Should().BeEmpty();
+        state.ExtractedInfo.PeriodSplitPending.Should().BeFalse();
     }
 
     [Test]
@@ -742,7 +791,7 @@ public class CollectionListenerInventoryTests
     {
         var itemsApi = new Moq.Mock<Coflnet.Sky.Items.Client.Api.IItemsApi>();
         itemsApi.Setup(i => i.ItemNamesGetAsync(Moq.It.IsAny<int>(), Moq.It.IsAny<System.Threading.CancellationToken>()))
-            .ReturnsAsync(new List<Coflnet.Sky.Items.Client.Model.ItemPreview> { new() { Name = "Enchanted Wheat", Tag = "ENCHANTED_WHEAT" } });
+            .ReturnsAsync(new List<Coflnet.Sky.Items.Client.Model.ItemPreview> { new() { Name = "Enchanted Wheat", Tag = "ENCHANTED_WHEAT" }, new() { Name = "Compost", Tag = "COMPOST" } });
         var args = new MockedUpdateArgs
         {
             currentState = state,
@@ -1063,5 +1112,145 @@ public class CollectionListenerInventoryTests
         await ProcessView(state, View("Ender Chest (2/4)", new() { StackableItem("GRIFFIN_FEATHER", 64) }, StackableItem("GRIFFIN_FEATHER", 20)), Now);
 
         state.ItemsCollectedRecently.GetValueOrDefault("GRIFFIN_FEATHER").Should().Be(10);
+    }
+
+    // ---- recipe (Supercraft) views: crafting converts items the player already had ----
+
+    /// <summary>
+    /// A SkyBlock recipe view: 54 container slots with the "Supercraft" button in slot 32, the ingredients
+    /// from slot 10 (3x3 grid) and the result in slot 25 - the layout <see cref="RecipeUpdate"/> reads.
+    /// </summary>
+    private static ChestView RecipeView(string name, string resultTag, string[] ingredientTags, params Item[] inventory)
+    {
+        var container = Enumerable.Range(0, 54).Select(_ => new Item()).ToList();
+        container[32] = new Item { ItemName = "§aSupercraft", Tag = "SUPERCRAFT" };
+        container[25] = StackableItem(resultTag, 1);
+        var slots = new[] { 10, 11, 12, 19, 20, 21, 28, 29, 30 };
+        for (var i = 0; i < ingredientTags.Length; i++)
+            container[slots[i]] = StackableItem(ingredientTags[i], 1);
+        return View(name, container, inventory);
+    }
+
+    private static ChestView PlainMenu(params Item[] inventory)
+        => View("Some Menu", Enumerable.Range(0, 54).Select(_ => new Item()).ToList(), inventory);
+
+    [Test]
+    public async Task CraftedStackableOutputAfterRecipeViewIsNotAGain()
+    {
+        // production: 30M coins of ENCHANTED_COMPOST booked between "Compost Bundle" and the bazaar
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COMPOST", 6)), Now);
+        await ProcessView(state, RecipeView("Compost Bundle", "ENCHANTED_COMPOST", ["COMPOST"], StackableItem("ENCHANTED_COMPOST", 6)), Now);
+        await ProcessView(state, View("Bazaar ➜ Oddities", new(), StackableItem("ENCHANTED_COMPOST", 21)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task CraftedOutputIsLoggedAsIgnored()
+    {
+        var state = new StateObject();
+        await ProcessView(state, RecipeView("Compost Bundle", "ENCHANTED_COMPOST", ["COMPOST"], StackableItem("ENCHANTED_COMPOST", 6)), Now);
+        var logger = await ProcessViewLogged(state, View("", new(), StackableItem("ENCHANTED_COMPOST", 21)));
+
+        logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Information
+            && e.Message == $"Ignored crafted 15x ENCHANTED_COMPOST for {state.PlayerId} after recipe view Compost Bundle");
+    }
+
+    [Test]
+    public async Task CraftIngredientsLeavingTheInventoryAfterRecipeViewAreNotALoss()
+    {
+        var state = new StateObject();
+        await ProcessView(state, RecipeView("Compost Bundle", "ENCHANTED_COMPOST", ["COMPOST"],
+            StackableItem("COMPOST", 320), StackableItem("ENCHANTED_COMPOST", 1)), Now);
+        await ProcessView(state, View("", new(), StackableItem("COMPOST", 160), StackableItem("ENCHANTED_COMPOST", 2)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task CraftedNonStackableResultAfterRecipeViewIsNotAGain()
+    {
+        var state = new StateObject();
+        var uuidA = Guid.NewGuid().ToString();
+        var uuidB = Guid.NewGuid().ToString();
+        await ProcessView(state, RecipeView("Hyperion", "HYPERION", ["WITHER_BLOOD"], GearItem("HYPERION", uuidA)), Now);
+        // a never seen uuid without creation time counts as a drop in a plain diff
+        await ProcessView(state, View("", new(), GearItem("HYPERION", uuidA), GearItem("HYPERION", uuidB)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task OtherLootInTheSameDiffAsACraftStillCounts()
+    {
+        var state = new StateObject();
+        await ProcessView(state, RecipeView("Compost Bundle", "ENCHANTED_COMPOST", ["COMPOST"],
+            StackableItem("COMPOST", 320), StackableItem("ENCHANTED_COMPOST", 1), StackableItem("WHEAT", 1)), Now);
+        await ProcessView(state, View("", new(), StackableItem("COMPOST", 160), StackableItem("ENCHANTED_COMPOST", 2), StackableItem("WHEAT", 65)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEquivalentTo(new Dictionary<string, int> { ["WHEAT"] = 64 });
+    }
+
+    [Test]
+    public async Task SameGainAfterANonRecipeViewIsStillBooked()
+    {
+        var state = new StateObject();
+        await ProcessView(state, PlainMenu(StackableItem("ENCHANTED_COMPOST", 6)), Now);
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COMPOST", 21)), Now);
+
+        state.ItemsCollectedRecently.GetValueOrDefault("ENCHANTED_COMPOST").Should().Be(15);
+    }
+
+    private const string CraftSackLine = "Removed items:\n -3,360 Compost (Sack)\n +70,000 Enchanted Wheat (Sack)\nfiller\nfiller";
+
+    [Test]
+    public async Task SackIngredientLossWhileRecipeViewIsStillOpenIsNotBooked()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COMPOST", 6)), Now);
+        await ProcessView(state, RecipeView("Compost Bundle", "ENCHANTED_COMPOST", ["COMPOST"], StackableItem("ENCHANTED_COMPOST", 6)), Now);
+
+        var (_, logger) = await SackNotification(state, Now.AddMinutes(2), CraftSackLine);
+
+        state.ItemsCollectedRecently.Should().BeEquivalentTo(new Dictionary<string, int> { ["ENCHANTED_WHEAT"] = 70000 });
+        logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Information
+            && e.Message == $"Ignored sack change after craft for {state.PlayerId}: -3360 Compost");
+    }
+
+    [TestCase(30, false, TestName = "Sack ingredient loss within the window after the view following the recipe view is not booked")]
+    [TestCase(120, true, TestName = "Sack ingredient loss two minutes after the view following the recipe view is booked")]
+    public async Task SackIngredientLossAfterRecipeViewWindow(int seconds, bool booked)
+    {
+        var state = new StateObject();
+        await ProcessView(state, RecipeView("Compost Bundle", "ENCHANTED_COMPOST", ["COMPOST"], StackableItem("ENCHANTED_COMPOST", 6)), Now);
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COMPOST", 6)), Now);
+
+        await SackNotification(state, Now.AddSeconds(seconds), CraftSackLine);
+
+        state.ItemsCollectedRecently.GetValueOrDefault("COMPOST").Should().Be(booked ? -3360 : 0);
+        state.ItemsCollectedRecently.GetValueOrDefault("ENCHANTED_WHEAT").Should().Be(70000);
+    }
+
+    [Test]
+    public void TryGetRecipeReadsResultAndIngredients()
+    {
+        var view = RecipeView("Compost Bundle", "ENCHANTED_COMPOST", ["COMPOST", "WHEAT"]);
+
+        CollectionListener.TryGetRecipe(view, out var result, out var ingredients).Should().BeTrue();
+        result.Should().Be("ENCHANTED_COMPOST");
+        ingredients.Should().BeEquivalentTo(new[] { "COMPOST", "WHEAT" });
+    }
+
+    [Test]
+    public void TryGetRecipeRejectsOtherViews()
+    {
+        CollectionListener.TryGetRecipe(PlainMenu(), out _, out _).Should().BeFalse();
+        CollectionListener.TryGetRecipe(new ChestView { Items = Enumerable.Range(0, 89).Select(_ => new Item()).ToList() }, out _, out _).Should().BeFalse();
+        CollectionListener.TryGetRecipe(new ChestView { Items = null }, out _, out _).Should().BeFalse();
+        CollectionListener.TryGetRecipe(null, out _, out _).Should().BeFalse();
+        var noResult = RecipeView("x", "A", ["B"]);
+        noResult.Items[25] = new Item();
+        CollectionListener.TryGetRecipe(noResult, out _, out _).Should().BeFalse();
     }
 }

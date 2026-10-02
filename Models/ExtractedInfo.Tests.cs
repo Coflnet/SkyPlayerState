@@ -46,4 +46,22 @@ public class ExtractedInfoTests
         copy.KuudraPendingRunSeconds.Should().Be(312.5);
         new ExtractedInfo(info).KuudraPendingRunSeconds.Should().Be(312.5);
     }
+
+    [Test]
+    public void CraftViewSurvivesARoundTripAndCopy()
+    {
+        var seenAt = new DateTime(2026, 10, 2, 10, 0, 0, DateTimeKind.Utc);
+        var info = new ExtractedInfo { LastCraftViewAt = seenAt, LastCraftIngredients = ["COMPOST", "GLOOMGOURD"], PeriodSplitPending = true };
+
+        var copy = MessagePackSerializer.Deserialize<ExtractedInfo>(MessagePackSerializer.Serialize(info));
+
+        copy.LastCraftViewAt.Should().Be(seenAt);
+        copy.LastCraftIngredients.Should().Equal("COMPOST", "GLOOMGOURD");
+        copy.PeriodSplitPending.Should().BeTrue();
+        var constructed = new ExtractedInfo(info);
+        constructed.LastCraftViewAt.Should().Be(seenAt);
+        constructed.LastCraftIngredients.Should().Equal("COMPOST", "GLOOMGOURD");
+        constructed.LastCraftIngredients.Should().NotBeSameAs(info.LastCraftIngredients);
+        constructed.PeriodSplitPending.Should().BeTrue();
+    }
 }

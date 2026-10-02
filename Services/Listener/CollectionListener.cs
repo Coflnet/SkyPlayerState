@@ -342,6 +342,9 @@ public class CollectionListener : UpdateListener
             NametoTagLookup = names.Where(g => g.Name != null).GroupBy(g => g.Name).Select(g => g.First()).ToDictionary(n => n.Name, n => n.Tag);
         }
         var lines = uploadedLine.Split('\n').Skip(1).Reverse().Skip(2).ToList();
+        var craftIngredients = args.currentState.ExtractedInfo.LastCraftIngredients;
+        var recentCraft = craftIngredients is { Count: > 0 } && IsRecentCraft(args);
+        var craftSkipped = new List<(long Count, string Name)>();
         foreach (var item in lines)
         {
             // @" \+([\d,]+) ([^(]+) "
@@ -357,6 +360,12 @@ public class CollectionListener : UpdateListener
                         Logger.LogDebug("Item not found in lookup: {itemName}", itemName);
                         continue;
                     }
+                    // supercrafting takes the ingredients from the sacks: a conversion, not a loss
+                    if (count < 0 && recentCraft && craftIngredients!.Contains(tag))
+                    {
+                        craftSkipped.Add((count, itemName));
+                        continue;
+                    }
                     Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, tag, count);
                     Logger.LogDebug("Item collected from stash: {itemName} x{count} for player {playerId}", itemName, count, args.currentState.PlayerId);
                 }
@@ -370,7 +379,12 @@ public class CollectionListener : UpdateListener
                 Logger.LogDebug("Failed to match item from chat: {item}", item);
             }
         }
+        if (craftSkipped.Sum(c => Math.Abs(c.Count)) >= IgnoredSackLogMinimumCount)
+            Logger.LogInformation("Ignored sack change after craft for {playerId}: {summary}", args.currentState.PlayerId, SummarizeSackChanges(craftSkipped));
     }
+
+    private static string SummarizeSackChanges(List<(long Count, string Name)> changes)
+        => string.Join(", ", changes.Take(5).Select(c => $"{(c.Count >= 0 ? "+" : "")}{c.Count} {c.Name}"));
 
     private void LogIgnoredSackChange(UpdateArgs args, string uploadedLine)
     {
@@ -383,8 +397,7 @@ public class CollectionListener : UpdateListener
         }
         if (changes.Sum(c => Math.Abs(c.Count)) < IgnoredSackLogMinimumCount)
             return;
-        var summary = string.Join(", ", changes.Take(5).Select(c => $"{(c.Count >= 0 ? "+" : "")}{c.Count} {c.Name}"));
-        Logger.LogInformation("Ignored sack change after transfer view for {playerId}: {summary}", args.currentState.PlayerId, summary);
+        Logger.LogInformation("Ignored sack change after transfer view for {playerId}: {summary}", args.currentState.PlayerId, SummarizeSackChanges(changes));
     }
 
     /// <summary>
@@ -421,24 +434,93 @@ public class CollectionListener : UpdateListener
     /// one -21B period with 213 item types for a player who had not sent a scoreboard for a long time).
     /// The flush comes after the change: costs (chest cost, purchase) are booked before the items show
     /// up in the inventory and stay in the same period.
+    /// While a crafting view is open the period does not end: the input leaves the inventory before the
+    /// output arrives, and a view uploaded in between shows only one side (production 2026-10-02: a
+    /// -25M period "-320x GRIFFIN_FEATHER, -512x SOUL_STRING, 1x BRAIDED_GRIFFIN_FEATHER" followed by a
+    /// +30M period "-160x GRIFFIN_FEATHER, 2x BRAIDED_GRIFFIN_FEATHER", both "Craft Item -> Craft Item").
+    /// The period then ends with the first view after the crafting view, which shows what went in and
+    /// what came out.
     /// </summary>
     private async Task StartNewPeriodAfterLargeChange(UpdateArgs args, Dictionary<string, int> collectedBefore)
     {
         var collected = args.currentState.ItemsCollectedRecently;
-        var location = args.currentState.ExtractedInfo.CurrentLocation;
-        // without a scoreboard so far there is no location to store the period under
-        if (location == null || (collected.Count == collectedBefore.Count && !collected.Except(collectedBefore).Any()))
+        var info = args.currentState.ExtractedInfo;
+        var location = info.CurrentLocation;
+        // CurrentLocation defaults to "Unknown" (absorbed by the hidden UnknownLocationTask), so this only guards against an explicit null
+        if (location == null)
             return;
-        var value = InventoryChangeValue(collectedBefore, collected, await GetCleanPrices(args));
-        if (value <= NewPeriodChangeValue)
+        var changed = collected.Count != collectedBefore.Count || collected.Except(collectedBefore).Any();
+        var value = changed ? InventoryChangeValue(collectedBefore, collected, await GetCleanPrices(args)) : 0;
+        var isLarge = value > NewPeriodChangeValue;
+        if (IsCraftingView(args.msg.Chest))
+        {
+            info.PeriodSplitPending |= isLarge;
             return;
-        Logger.LogInformation("Inventory change worth {value} coins for {playerId} between views {previousView} -> {currentView}, starting a new period",
-            value, args.currentState.PlayerId, args.currentState.RecentViews.Reverse().Skip(1).FirstOrDefault()?.Name ?? "<inventory>", args.msg.Chest?.Name ?? "<inventory>");
+        }
+        if (!isLarge && !info.PeriodSplitPending)
+            return;
+        var previousView = args.currentState.RecentViews.Reverse().Skip(1).FirstOrDefault()?.Name ?? "<inventory>";
+        var currentView = args.msg.Chest?.Name ?? "<inventory>";
+        if (isLarge)
+            Logger.LogInformation("Inventory change worth {value} coins for {playerId} between views {previousView} -> {currentView}, starting a new period",
+                value, args.currentState.PlayerId, previousView, currentView);
+        else
+            Logger.LogInformation("Crafting with a large inventory change ended for {playerId} between views {previousView} -> {currentView}, starting a new period",
+                args.currentState.PlayerId, previousView, currentView);
         await StoreLocationProfit(args, location);
+    }
+
+    /// <summary>
+    /// The crafting table ("Craft Item"), its quick crafting list and the recipe views (<see cref="TryGetRecipe"/>):
+    /// views in which items are converted while the view stays open.
+    /// </summary>
+    internal static bool IsCraftingView(Models.ChestView? view)
+    {
+        return view?.Name is "Craft Item" or "Quick Crafting" || TryGetRecipe(view, out _, out _);
+    }
+
+    private static void LogIgnoredCraft(UpdateArgs args, int count, string tag, Models.ChestView recipeView)
+    {
+        args.GetService<ILogger<CollectionListener>>().LogInformation("Ignored crafted {count}x {tag} for {playerId} after recipe view {view}",
+            count, tag, args.currentState.PlayerId, recipeView.Name);
     }
 
     /// <summary>Absolute plain-count diff at which <see cref="HandleInventory"/> logs a "Bulk inventory change".</summary>
     private const int BulkChangeLogThreshold = 64;
+
+    /// <summary>
+    /// Whether <paramref name="view"/> is a SkyBlock recipe view (the GUI with the "Supercraft" button),
+    /// and its result and ingredient tags. Same layout as <see cref="RecipeUpdate"/> (keep in sync):
+    /// at least 90 items, "§aSupercraft" in slot 32, ingredients in slots 10-12, 19-21 and 28-30,
+    /// result in slot 25. A view without a result tag is not a recipe.
+    /// </summary>
+    internal static bool TryGetRecipe(Models.ChestView? view, out string? resultTag, out HashSet<string> ingredientTags)
+    {
+        resultTag = null;
+        ingredientTags = new HashSet<string>();
+        var items = view?.Items;
+        if (items == null || items.Count < 9 * 10 || items[32]?.ItemName != "§aSupercraft")
+            return false;
+        resultTag = items[25]?.Tag;
+        if (resultTag == null)
+            return false;
+        foreach (var slot in new[] { 10, 11, 12, 19, 20, 21, 28, 29, 30 })
+            if (items[slot]?.Tag is string tag)
+                ingredientTags.Add(tag);
+        return true;
+    }
+
+    /// <summary>
+    /// Whether the latest recent view is a recipe view, or a craft was seen within
+    /// <see cref="SackNotificationTransferWindow"/>; then the sack ingredient losses are a craft, not a loss.
+    /// </summary>
+    private static bool IsRecentCraft(UpdateArgs args)
+    {
+        if (TryGetRecipe(args.currentState.RecentViews.LastOrDefault(), out _, out _))
+            return true;
+        var lastCraftViewAt = args.currentState.ExtractedInfo.LastCraftViewAt;
+        return lastCraftViewAt != default && args.msg.ReceivedAt - lastCraftViewAt <= SackNotificationTransferWindow;
+    }
 
     static void HandleInventory(UpdateArgs args)
     {
@@ -446,6 +528,15 @@ public class CollectionListener : UpdateListener
         // before any early return, so every exit path records it
         if (IsTransferView(args.msg.Chest) || IsTransferView(previousInventory))
             args.currentState.ExtractedInfo.LastTransferViewAt = args.msg.ReceivedAt;
+        var currentIsRecipe = TryGetRecipe(args.msg.Chest, out _, out var currentIngredients);
+        var previousIsRecipe = TryGetRecipe(previousInventory, out var craftedTag, out var craftIngredients);
+        if (currentIsRecipe || previousIsRecipe)
+        {
+            // both recipe views alternate in production (Turbo Gourd <-> Enchanted Turbo Gourd) and the sack
+            // message of the first arrives while the second is open, so remember the union
+            args.currentState.ExtractedInfo.LastCraftViewAt = args.msg.ReceivedAt;
+            args.currentState.ExtractedInfo.LastCraftIngredients = currentIngredients.Union(craftIngredients).ToList();
+        }
         if (previousInventory == null)
         {
             RegisterKnownItemUuids(args.currentState, args.msg.Chest);
@@ -545,6 +636,11 @@ public class CollectionListener : UpdateListener
                         continue;
                     newCount++;
                 }
+                if (newCount != 0 && previousIsRecipe && tag == craftedTag)
+                {
+                    LogIgnoredCraft(args, newCount, tag, previousInventory);
+                    continue;
+                }
                 if (newCount != 0)
                     Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, tag, newCount);
                 continue;
@@ -564,6 +660,16 @@ public class CollectionListener : UpdateListener
             // (right click), fused, sold or traded (production: -64 SHARD_APEX_DRAGON between two plain
             // inventory views). Gains stay - Kuudra chest shards arrive in the inventory.
             if (diff < 0 && tag.StartsWith("SHARD_", StringComparison.Ordinal))
+                continue;
+            // crafting through a recipe view converts items the player already had: the output is not
+            // loot and the ingredients are not a loss (production: +15 ENCHANTED_COMPOST booked as 30M
+            // coins after "Compost Bundle"; inputs left as -32x GLOOMGOURD etc in another period)
+            if (previousIsRecipe && diff > 0 && tag == craftedTag)
+            {
+                LogIgnoredCraft(args, (int)diff, tag, previousInventory);
+                continue;
+            }
+            if (previousIsRecipe && diff < 0 && craftIngredients.Contains(tag))
                 continue;
             if (diff == 0)
                 continue;
@@ -1184,6 +1290,7 @@ public class CollectionListener : UpdateListener
         await AccumulateSession(args, resolvedLocation, collected, cleanPrices, now);
         args.currentState.ItemsCollectedRecently.Clear();
         args.currentState.ExtractedInfo.LastLocationChange = now;
+        args.currentState.ExtractedInfo.PeriodSplitPending = false;
     }
 
     /// <summary>
