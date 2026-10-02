@@ -27,9 +27,8 @@ public class RecipeUpdate : UpdateListener
     /// <inheritdoc/>
     public override async Task Process(UpdateArgs args)
     {
-        if (args.msg.Chest?.Items.Count >= 9 * 10 && args.msg.UserId != null
-            && args.msg.Chest?.Items[32].ItemName == "§aSupercraft")
-            await ExtractRecipe(args);
+        if (args.msg.UserId != null && ReadRecipe(args.msg.Chest) is { } recipe)
+            await SaveRecipe(args, recipe);
         if (args.msg.Chest?.Name == "Anvil")
             await CheckAnvilRecipe(args);
         if (args.msg.Chest?.Items.Count < 9 * 10 || args.msg.UserId == null
@@ -173,28 +172,46 @@ public class RecipeUpdate : UpdateListener
     }
 
 
-    private async Task ExtractRecipe(UpdateArgs args)
+    /// <summary>
+    /// The recipe shown in a recipe view (see <see cref="CollectionListener.TryGetRecipe"/> for the
+    /// layout), or null when the view is none or the Supercraft button has no description (some mod
+    /// may block it). Recognising the button only as "§aSupercraft" recorded no recipe from 2026-06-25
+    /// on, when the mod for current Minecraft versions started to upload it as "Supercraft".
+    /// </summary>
+    internal static Recipe? ReadRecipe(Models.ChestView? chest)
     {
-        if (args.msg.Chest?.Items.Count < 9 * 10)
-        {
-            args.GetService<ILogger<RecipeUpdate>>().LogWarning("Recipe chest {ChestName} has less than 90 items, skipping from {player}", args.msg.Chest.Name, args.msg.PlayerId);
-            return;
-        }
-        var ingredients = args.msg.Chest.Items.Skip(10).Take(3).Concat(args.msg.Chest.Items.Skip(19).Take(3)).Concat(args.msg.Chest.Items.Skip(28).Take(3))
-            .Select(i => new KeyValuePair<string?, int>(i?.Tag, i?.Count ?? 0)).ToList();
-        var requirements = args.msg.Chest.Items[32].Description?.Split('\n').Where(l => l.Contains("Requires")).ToList();
+        if (!CollectionListener.TryGetRecipe(chest, out var resultTag, out _))
+            return null;
+        var items = chest!.Items;
+        var requirements = items[32].Description?.Split('\n').Where(l => l.Contains("Requires")).Select(NormalizeRequirement).ToList();
         if (requirements == null)
-            return;// supercraft item not available some mod may block it, ignore this sample
-        Logger.LogInformation("Recipe update {chestName} {ingredients} {requirements}", args.msg.Chest.Name, JsonConvert.SerializeObject(ingredients), JsonConvert.SerializeObject(requirements));
-        var recipe = new Recipe
+            return null;
+        var ingredients = items.Skip(10).Take(3).Concat(items.Skip(19).Take(3)).Concat(items.Skip(28).Take(3))
+            .Select(i => new KeyValuePair<string?, int>(i?.Tag, i?.Count ?? 0)).ToList();
+        return new Recipe
         {
-            Tag = args.msg.Chest.Items[25].Tag,
+            Tag = resultTag,
             Ingredients = ingredients,
             LastUpdated = DateTime.UtcNow,
-            LastUpdatedBy = args.msg.UserId + "-" + args.msg.PlayerId,
             Requirements = requirements,
-            ResultCount = args.msg.Chest.Items[25].Count ?? 1
+            ResultCount = items[25].Count ?? 1
         };
+    }
+
+    /// <summary>
+    /// The mod for current Minecraft versions drops the leading "§7" of a lore line. The requirements
+    /// are part of <see cref="Recipe.ComparisonKey"/>, so without it every recipe with a requirement
+    /// would be stored a second time next to the rows from older mod versions.
+    /// </summary>
+    private static string NormalizeRequirement(string line)
+    {
+        return line.StartsWith("§7") ? line : "§7" + line;
+    }
+
+    private async Task SaveRecipe(UpdateArgs args, Recipe recipe)
+    {
+        recipe.LastUpdatedBy = args.msg.UserId + "-" + args.msg.PlayerId;
+        Logger.LogInformation("Recipe update {chestName} {ingredients} {requirements}", args.msg.Chest.Name, JsonConvert.SerializeObject(recipe.Ingredients), JsonConvert.SerializeObject(recipe.Requirements));
         await args.GetService<RecipeService>().Save(recipe);
     }
 

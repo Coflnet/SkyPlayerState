@@ -490,7 +490,7 @@ public class CollectionListener : UpdateListener
 
     /// <summary>
     /// Whether <paramref name="view"/> is a SkyBlock recipe view (the GUI with the "Supercraft" button),
-    /// and its result and ingredient tags. Same layout as <see cref="RecipeUpdate"/> (keep in sync):
+    /// and its result and ingredient tags. Also what <see cref="RecipeUpdate.ReadRecipe"/> records recipes from:
     /// at least 90 items, "Supercraft" in slot 32, ingredients in slots 10-12, 19-21 and 28-30,
     /// result in slot 25. A view without a result tag is not a recipe. The button name is compared
     /// without color codes: the mod for current Minecraft versions uploads "Supercraft", older ones
