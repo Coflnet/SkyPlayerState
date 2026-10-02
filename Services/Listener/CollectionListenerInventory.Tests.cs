@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using AwesomeAssertions;
 using Coflnet.Sky.PlayerState.Models;
@@ -42,6 +43,8 @@ public class CollectionListenerInventoryTests
             currentState = state,
             msg = new UpdateMessage { Kind = UpdateMessage.UpdateKind.INVENTORY, PlayerId = "p1", Chest = chest }
         };
+        // the swap guard logs through the DI logger, like production
+        args.AddService<ILogger<CollectionListener>>(Microsoft.Extensions.Logging.Abstractions.NullLogger<CollectionListener>.Instance);
         // Matches production handler order (PlayerStateBackgroundService): RecentViewsUpdate pushes
         // the current view before CollectionListener reads "the previous view" from the same queue.
         await new RecentViewsUpdate().Process(args);
@@ -347,6 +350,111 @@ public class CollectionListenerInventoryTests
         await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64), GearItem("NECRON_HANDLE", uuid)));
 
         state.ItemsCollectedRecently.GetValueOrDefault("NECRON_HANDLE").Should().Be(0);
+    }
+
+    // ── Wholesale inventory swap (Rift entry/exit, profile switch) ──
+
+    private static Item[] NormalInventory(string uuidSuffix = "") => new[]
+    {
+        StackableItem("SKYBLOCK_MENU", 1),
+        GearItem("HYPERION", "hyperion-" + uuidSuffix),
+        GearItem("ASPECT_OF_THE_VOID", "aotv-" + uuidSuffix),
+        GearItem("INFERNO_ROD", "rod-" + uuidSuffix),
+        GearItem("FLAMING_CHESTPLATE", "chest-" + uuidSuffix),
+        StackableItem("ENCHANTED_COBBLESTONE", 64),
+        StackableItem("ENCHANTED_DIAMOND", 32),
+        StackableItem("ENCHANTED_COAL", 16),
+        StackableItem("ENCHANTED_IRON", 8),
+        StackableItem("ENCHANTED_GOLD", 4),
+        StackableItem("ENCHANTED_LAPIS", 2),
+    };
+
+    private static Item[] RiftInventory() => new[]
+    {
+        StackableItem("SKYBLOCK_MENU", 1),
+        StackableItem("HEMOVIBE", 64),
+        StackableItem("VAMPIRIC_MELON", 20),
+        StackableItem("BACTE_FRAGMENT", 8),
+        StackableItem("FAKE_SHURIKEN", 256),
+        StackableItem("COVEN_SEAL", 1),
+        StackableItem("TIMITE", 3),
+        StackableItem("WYLD_BOW", 1),
+        StackableItem("RIFT_PRISM", 1),
+    };
+
+    [Test]
+    public async Task RiftEntry_InventoryReplacement_IsNotCountedAsLoot()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), NormalInventory()));
+        await ProcessView(state, View("", new(), RiftInventory()));
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task RiftExit_NormalInventoryWithNeverSeenUuidsReturning_IsNotCountedAsLoot()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), RiftInventory()));
+        await ProcessView(state, View("", new(), NormalInventory()));
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task NormalPickupAmongTenItems_IsStillCounted()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), NormalInventory()));
+        await ProcessView(state, View("", new(), NormalInventory().Append(StackableItem("NECRON_HANDLE", 1)).ToArray()));
+
+        state.ItemsCollectedRecently.Should().BeEquivalentTo(new Dictionary<string, int> { { "NECRON_HANDLE", 1 } });
+    }
+
+    [Test]
+    public async Task StackableCountChangeAmongTenItems_IsStillCounted()
+    {
+        var state = new StateObject();
+        var previous = NormalInventory();
+        var current = NormalInventory();
+        current[5] = StackableItem("ENCHANTED_COBBLESTONE", 69);
+        await ProcessView(state, View("", new(), previous));
+        await ProcessView(state, View("", new(), current));
+
+        state.ItemsCollectedRecently.Should().BeEquivalentTo(new Dictionary<string, int> { { "ENCHANTED_COBBLESTONE", 5 } });
+    }
+
+    [Test]
+    public async Task SmallInventoryFullyReplaced_IsNotASwap_AndKeepsFirstTimeDropBehaviour()
+    {
+        // below 4 distinct items the swap heuristic is off (a nearly empty inventory legitimately
+        // changes completely, e.g. after selling everything and picking something up)
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("A_ITEM", 1), StackableItem("B_ITEM", 1), StackableItem("C_ITEM", 1)));
+        await ProcessView(state, View("", new(), StackableItem("D_ITEM", 5), StackableItem("E_ITEM", 2), StackableItem("F_ITEM", 1)));
+
+        state.ItemsCollectedRecently.Should().BeEquivalentTo(
+            new Dictionary<string, int> { { "D_ITEM", 5 }, { "E_ITEM", 2 }, { "F_ITEM", 1 } });
+    }
+
+    [Test]
+    public void IsWholesaleInventorySwap_ThresholdIsTenPercentOfPrevious()
+    {
+        var previous = Enumerable.Range(0, 10).Select(i => "tag:P" + i).ToHashSet();
+        var other = new[] { "tag:X1", "tag:X2", "tag:X3" };
+
+        var oneKept = previous.Take(1).Concat(other).ToHashSet();
+        CollectionListener.IsWholesaleInventorySwap(previous, oneKept, out var overlap1).Should().BeTrue();
+        overlap1.Should().Be(1);
+
+        var twoKept = previous.Take(2).Concat(other).ToHashSet();
+        CollectionListener.IsWholesaleInventorySwap(previous, twoKept, out var overlap2).Should().BeFalse();
+        overlap2.Should().Be(2);
+
+        CollectionListener.IsWholesaleInventorySwap(previous, new HashSet<string>(), out _).Should().BeFalse("an empty current inventory is not a swap");
+        CollectionListener.IsWholesaleInventorySwap(previous.Take(3).ToHashSet(), other.ToHashSet(), out _).Should().BeFalse("fewer than 4 previous identities");
+        CollectionListener.IsWholesaleInventorySwap(previous.Take(4).ToHashSet(), other.ToHashSet(), out _).Should().BeTrue();
     }
 
     [Test]

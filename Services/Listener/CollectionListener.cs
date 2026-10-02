@@ -375,6 +375,17 @@ public class CollectionListener : UpdateListener
             args.GetService<ILogger<CollectionListener>>().LogError(e, "Failed to handle inventory for player {PlayerId} {previousInventory}", args.currentState.PlayerId, JsonConvert.SerializeObject(previousInventory));
         }
         var currentInventory = GetLookupItemsByTag(args.msg.Chest);
+        var previousIdentities = GetAccessibleIdentities(previousInventory);
+        var currentIdentities = GetAccessibleIdentities(args.msg.Chest);
+        if (IsWholesaleInventorySwap(previousIdentities, currentIdentities, out var keptIdentities))
+        {
+            args.GetService<ILogger<CollectionListener>>().LogInformation(
+                "Inventory swap detected for {playerId} at {location}: {previousCount} -> {currentCount} distinct items, {overlap} kept",
+                args.currentState.PlayerId, args.currentState.ExtractedInfo.CurrentLocation,
+                previousIdentities.Count, currentIdentities.Count, keptIdentities);
+            RegisterKnownItemUuids(args.currentState, args.msg.Chest);
+            return;
+        }
         // Snapshot of uuids already known BEFORE this view's own items are registered below - a diff
         // must be judged against what was known before this view arrived, never against itself (see
         // RegisterKnownItemUuids, called last in this method).
@@ -448,6 +459,38 @@ public class CollectionListener : UpdateListener
                 .GroupBy(i => i.Tag)
                 .ToDictionary(g => g.Key, g => g.ToList());
         }
+    }
+
+    /// <summary>
+    /// Identities of the distinct items in the accessible inventory part (same 36-slot slicing as
+    /// the local GetLookupItemsByTag in <see cref="HandleInventory"/>): the uuid hash for non-stackable
+    /// items, otherwise the tag. SKYBLOCK_MENU (in every inventory) and tagless items are ignored.
+    /// </summary>
+    internal static HashSet<string> GetAccessibleIdentities(Models.ChestView view)
+    {
+        var accessible = view.Items.Skip(view.Items.Count - 36 / 9 * 9).Take(36);
+        var identities = new HashSet<string>();
+        foreach (var item in accessible)
+        {
+            if (item.Tag == null || item.Tag == "SKYBLOCK_MENU")
+                continue;
+            identities.Add(TryGetItemUuidHash(item, out var hash) ? "uuid:" + hash : "tag:" + item.Tag);
+        }
+        return identities;
+    }
+
+    /// <summary>
+    /// True when the player's whole accessible inventory was replaced in one update: at least 4
+    /// distinct items before, at most 10% of them still present, and a non-empty current inventory.
+    /// This happens on Rift entry/exit (the Rift has its own separate inventory that replaces the
+    /// normal one and vice versa) and on a profile switch. In normal play 4+ distinct items never
+    /// all vanish in a single update without a container/trade view, which the earlier guards in
+    /// <see cref="HandleInventory"/> already handle - so such an update is a swap, not loot.
+    /// </summary>
+    internal static bool IsWholesaleInventorySwap(HashSet<string> previous, HashSet<string> current, out int overlap)
+    {
+        overlap = previous.Count(current.Contains);
+        return previous.Count >= 4 && overlap * 10 <= previous.Count && current.Count > 0;
     }
 
     /// <summary>
