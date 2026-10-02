@@ -142,14 +142,13 @@ public class RecipeUpdate : UpdateListener
         Api.Client.Model.Member profile;
         try
         {
-            profile = JsonConvert.DeserializeObject<Api.Client.Model.Member>(museumJson.Content);
+            profile = ReadProfile(museumJson.Content);
         }
         catch (System.Exception ex)
         {
-            // The generated Member model marks some fields (e.g. rift.inventory.wardrobe_equipped_slot)
-            // as required; profiles that never touched that content fail to deserialize. This must not
-            // abort the whole inventory update (which would skip persisting the player's state), so fall
-            // back to the documented default of "true" - it only suppresses uncertain npc price extraction.
+            // This must not abort the whole inventory update (which would skip persisting the player's
+            // state), so fall back to the documented default of "true" - it only suppresses uncertain
+            // npc price extraction.
             args.GetService<ILogger<RecipeUpdate>>()?.LogWarning(ex, "Could not deserialize profile for uuid {Uuid} when checking seal of family, assuming present.", uuid);
             return true;
         }
@@ -169,6 +168,12 @@ public class RecipeUpdate : UpdateListener
         // Safely check nested collections for nulls
         try
         {
+            if (!items.Any(i => i.Value?.Any(it => it != null) ?? false))
+            {
+                // api access to the inventories is disabled, the seal can not be ruled out
+                args.GetService<ILogger<RecipeUpdate>>()?.LogInformation("No items on profile {Uuid} when checking seal of family, assuming present.", uuid);
+                return true;
+            }
             return items.Any(i => (i.Value?.Any(it => it != null && it.Tag == "SEAL_OF_THE_FAMILY") ?? false));
         }
         catch (System.Exception ex)
@@ -178,6 +183,34 @@ public class RecipeUpdate : UpdateListener
         }
     }
 
+
+    /// <summary>
+    /// The generated Member model marks fields as required that most profiles do not have
+    /// (rift.inventory.wardrobe_equipped_slot, currencies.motes_purse, pets_data.autopet.rules_limit,
+    /// ...). Reading it strictly failed for nearly every player, which counted as "has the seal" and
+    /// skipped the npc cost extraction of their shop views. Values the model has the wrong type for
+    /// (pets_data.pets[].extra holds numbers, the model expects an enum) are left out, the seal
+    /// check only needs the inventories.
+    /// </summary>
+    internal static Api.Client.Model.Member? ReadProfile(string json)
+    {
+        return JsonConvert.DeserializeObject<Api.Client.Model.Member>(json, new JsonSerializerSettings
+        {
+            ContractResolver = new OptionalPropertiesResolver(),
+            NullValueHandling = NullValueHandling.Ignore,
+            Error = (_, e) => e.ErrorContext.Handled = true
+        });
+    }
+
+    private class OptionalPropertiesResolver : Newtonsoft.Json.Serialization.DefaultContractResolver
+    {
+        protected override Newtonsoft.Json.Serialization.JsonProperty CreateProperty(System.Reflection.MemberInfo member, MemberSerialization memberSerialization)
+        {
+            var property = base.CreateProperty(member, memberSerialization);
+            property.Required = Required.Default;
+            return property;
+        }
+    }
 
     /// <summary>
     /// The recipe shown in a recipe view (see <see cref="CollectionListener.TryGetRecipe"/> for the

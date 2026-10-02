@@ -151,6 +151,46 @@ public class RecipeUpdateTests
         RecipeUpdate.ReadCosts("COMMON\n\nCost\n11.6 Coins\n\nClick to trade!").Should().BeEmpty();
     }
 
+    /// <summary>
+    /// The fields missing in production profiles on 2026-10-02 ("Required property ... not found" for
+    /// 138 of 139 shop views). The failed read counted as "has the Seal of the Family", so no npc
+    /// cost was extracted for these players.
+    /// </summary>
+    private const string ProfileWithoutRequiredFields = "{\"rift\":{\"inventory\":{}},\"currencies\":{\"essence\":{\"UNDEAD\":{}}},\"pets_data\":{\"autopet\":{},\"pets\":[{}]}}";
+
+    [Test]
+    public void ReadsAProfileWithoutTheFieldsTheGeneratedModelRequires()
+    {
+        FluentActions.Invoking(() => Newtonsoft.Json.JsonConvert.DeserializeObject<Api.Client.Model.Member>(ProfileWithoutRequiredFields))
+            .Should().Throw<Newtonsoft.Json.JsonSerializationException>().WithMessage("Required property*");
+
+        var profile = RecipeUpdate.ReadProfile(ProfileWithoutRequiredFields);
+
+        profile.Should().NotBeNull();
+        profile.Rift.Inventory.Should().NotBeNull();
+        profile.PetsData.Pets.Should().HaveCount(1);
+        // it is sent on to the prices api
+        FluentActions.Invoking(() => Newtonsoft.Json.JsonConvert.SerializeObject(profile)).Should().NotThrow();
+    }
+
+    /// <summary>
+    /// With the required fields optional, 3 of 5 production profiles still failed with "Unexpected
+    /// token Float when parsing enum. Path 'pets_data.pets[53].extra.blaze_kills'": the generated
+    /// model expects an enum where the pet holds a number. The inventories must survive it.
+    /// </summary>
+    [Test]
+    public void ReadsAProfileWithValuesOfAnotherTypeThanTheGeneratedModelExpects()
+    {
+        var json = "{\"pets_data\":{\"pets\":[{\"type\":\"FROST_WISP\",\"exp\":312541.184,\"active\":false,\"tier\":\"RARE\",\"heldItem\":null,\"candyUsed\":0,\"petSoulbound\":false,\"skin\":null,\"extra\":{\"blaze_kills\":147.0}}]},"
+            + "\"inventory\":{\"bag_contents\":{\"talisman_bag\":{\"type\":0,\"data\":\"H4sIAAAAAAAA\"}}}}";
+
+        var profile = RecipeUpdate.ReadProfile(json);
+
+        profile.PetsData.Pets.Should().HaveCount(1);
+        profile.PetsData.Pets[0].Type.Should().Be("FROST_WISP");
+        profile.Inventory.BagContents.TalismanBag.Data.Should().Be("H4sIAAAAAAAA");
+    }
+
     [Test]
     public void LoreWithoutCostHeaderHasNoCost()
     {
