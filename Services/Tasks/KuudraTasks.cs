@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -70,8 +71,10 @@ public class KuudraT5Task : BaseKuudraTask
 
 /// <summary>
 /// Kuudra loot is claimed outside the instance (Croesus in the Dungeon Hub, Forgotten Skull) so the
-/// chest rewards land in a different zone than the Kuudra tier zones. Periods that were already
-/// resolved to a Catacombs floor by DungeonRewardAttribution are not affected.
+/// chest rewards land in a different zone than the Kuudra tier zones. Most claims are re-attributed
+/// to the tier zone they belong to (see KuudraRewardAttribution); this task only receives claims whose
+/// run tier is unknown. Periods that were already resolved to a Catacombs floor by
+/// DungeonRewardAttribution are not affected. A claim takes seconds, so each period counts as one run.
 /// </summary>
 public class KuudraChestClaimsTask : BaseKuudraTask
 {
@@ -85,7 +88,9 @@ public class KuudraChestClaimsTask : BaseKuudraTask
     ];
     protected override List<MethodDrop> FormulaDrops => [new("KUUDRA_TEETH", 100)];
     protected override double ActionsPerHour => 8;
-    protected override string HowTo => "Claim your Kuudra chest rewards after a run. Loot is collected outside the Kuudra instance, so it shows up here rather than at the tier.";
+    // one run per claim: the claim period counts as the time one run takes (7.5 minutes)
+    protected override TimeSpan MinimumPeriodDuration => TimeSpan.FromHours(1 / ActionsPerHour);
+    protected override string HowTo => "Claim your Kuudra chest rewards after a run. Loot whose Kuudra tier is unknown shows up here; claims for a known tier are counted at that tier.";
     public override string Description =>
-        "Claiming Kuudra chest loot (teeth, tentacles, mandibles, Kuudra armor) outside the instance.";
+        "Claiming Kuudra chest loot (teeth, tentacles, mandibles, Kuudra armor) outside the instance when the run's tier is unknown.";
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -268,6 +269,9 @@ public class GardenVisitorsTask : MethodTask
     protected override int Priority => -1;
     protected override string Category => "Garden";
     protected override string ActionUnit => "visitors";
+    // a new visitor arrives roughly every 15 minutes (faster while farming, approximate): a period of
+    // serving visitors stands for at least one spawn interval, not the seconds spent claiming rewards
+    protected override TimeSpan MinimumPeriodDuration => TimeSpan.FromMinutes(15);
     protected override List<MethodDrop> FormulaDrops => [new("JACOBS_TICKET", 5)];
     protected override string HowTo => "Serve the visitors that arrive at your Garden and accept their rewards.";
     public override string Description =>

@@ -294,6 +294,44 @@ public abstract class MethodTask : ProfitTask
     protected virtual bool Fallback => false;
 
     /// <summary>
+    /// Each tracked period of this task stands for at least this much time. For claim-type tasks the
+    /// reward took that long to earn although claiming it only takes seconds, so the raw period
+    /// duration would give an absurd coins/hour. A shorter period counts as this floor, a longer one
+    /// is unchanged; see <see cref="EffectiveDuration(TimeSpan, TimeSpan)"/>. Default zero = no floor.
+    /// </summary>
+    protected virtual TimeSpan MinimumPeriodDuration => TimeSpan.Zero;
+
+    /// <summary>The larger of the real duration and the floor (one place for the arithmetic).</summary>
+    internal static TimeSpan EffectiveDuration(TimeSpan actual, TimeSpan minimum)
+        => actual < minimum ? minimum : actual;
+
+    /// <summary>Duration a period counts for on this task, applying <see cref="MinimumPeriodDuration"/>.</summary>
+    public TimeSpan EffectiveDuration(Period period)
+        => EffectiveDuration(period.EndTime - period.StartTime, MinimumPeriodDuration);
+
+    /// <summary>
+    /// Hours a player's periods count for on this task. The floor stretches a short period backwards
+    /// (the reward accrued before it was claimed) but never across the previous period's end: three
+    /// claims within five minutes stand for one interval plus the time between them, not three
+    /// intervals. A period never counts for less than its real duration.
+    /// </summary>
+    internal static double EffectiveHours(IEnumerable<Period> periods, TimeSpan minimum)
+    {
+        var hours = 0d;
+        DateTime? previousEnd = null;
+        foreach (var period in periods.OrderBy(p => p.EndTime))
+        {
+            var actual = period.EndTime - period.StartTime;
+            var counted = EffectiveDuration(actual, minimum);
+            if (previousEnd.HasValue && period.EndTime - counted < previousEnd.Value)
+                counted = EffectiveDuration(actual, period.EndTime - previousEnd.Value);
+            hours += counted.TotalHours;
+            previousEnd = period.EndTime;
+        }
+        return hours;
+    }
+
+    /// <summary>
     /// Which player stats affect the rates of this task. Used to group data from
     /// players with similar stats. Empty means rates are not stat conditioned and
     /// all data lands in the unknown bucket.
@@ -386,7 +424,7 @@ public abstract class MethodTask : ProfitTask
         {
             var cutoff = now.AddHours(-windowHours);
             var inWindow = allMatched.Where(p => p.EndTime >= cutoff).ToList();
-            var totalHours = inWindow.Sum(p => (p.EndTime - p.StartTime).TotalHours);
+            var totalHours = EffectiveHours(inWindow, MinimumPeriodDuration);
             // Need at least 1 period and 5 minutes of data
             if (inWindow.Count >= 1 && totalHours >= 5.0 / 60)
                 return inWindow;
@@ -431,7 +469,7 @@ public abstract class MethodTask : ProfitTask
     protected Task<TaskResult> ComputeFromPlayerData(TaskParams parameters, List<Period> periods)
     {
         var totalProfit = periods.Sum(p => (double)p.Profit);
-        var totalHours = periods.Sum(p => (p.EndTime - p.StartTime).TotalHours);
+        var totalHours = EffectiveHours(periods, MinimumPeriodDuration);
 
         if (totalHours <= 0)
             return Task.FromResult(new TaskResult

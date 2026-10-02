@@ -63,14 +63,15 @@ public class TaskPeriodFolder
             span?.SetTag("player", period.PlayerUuid);
             if (task == null)
                 return;
-            var minutes = (period.EndTime - period.StartTime).TotalMinutes;
+            var methodTask = registry.GetByName(task) as MethodTask;
+            // one folded session/period = one unit of the task's minimum duration (claim tasks)
+            var minutes = (methodTask?.EffectiveDuration(period) ?? period.EndTime - period.StartTime).TotalMinutes;
             span?.SetTag("minutes", minutes);
             if (minutes < 2)
             {
                 span?.SetTag("dropped", "too_short");
                 return;
             }
-            var methodTask = registry.GetByName(task) as MethodTask;
             var factors = methodTask?.StatFactors ?? [];
 
             await coinValues.EnsureFresh();
