@@ -491,15 +491,17 @@ public class CollectionListener : UpdateListener
     /// <summary>
     /// Whether <paramref name="view"/> is a SkyBlock recipe view (the GUI with the "Supercraft" button),
     /// and its result and ingredient tags. Same layout as <see cref="RecipeUpdate"/> (keep in sync):
-    /// at least 90 items, "§aSupercraft" in slot 32, ingredients in slots 10-12, 19-21 and 28-30,
-    /// result in slot 25. A view without a result tag is not a recipe.
+    /// at least 90 items, "Supercraft" in slot 32, ingredients in slots 10-12, 19-21 and 28-30,
+    /// result in slot 25. A view without a result tag is not a recipe. The button name is compared
+    /// without color codes: the mod for current Minecraft versions uploads "Supercraft", older ones
+    /// "§aSupercraft" (production 2026-10-02: matching only the latter recognised no recipe view).
     /// </summary>
     internal static bool TryGetRecipe(Models.ChestView? view, out string? resultTag, out HashSet<string> ingredientTags)
     {
         resultTag = null;
         ingredientTags = new HashSet<string>();
         var items = view?.Items;
-        if (items == null || items.Count < 9 * 10 || items[32]?.ItemName != "§aSupercraft")
+        if (items == null || items.Count < 9 * 10 || StripFormatting(items[32]?.ItemName) != "Supercraft")
             return false;
         resultTag = items[25]?.Tag;
         if (resultTag == null)

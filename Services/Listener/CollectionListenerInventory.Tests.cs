@@ -1123,7 +1123,8 @@ public class CollectionListenerInventoryTests
     private static ChestView RecipeView(string name, string resultTag, string[] ingredientTags, params Item[] inventory)
     {
         var container = Enumerable.Range(0, 54).Select(_ => new Item()).ToList();
-        container[32] = new Item { ItemName = "§aSupercraft", Tag = "SUPERCRAFT" };
+        // as uploaded in production 2026-10-02: no color code, no tag
+        container[32] = new Item { ItemName = "Supercraft", Count = 1 };
         container[25] = StackableItem(resultTag, 1);
         var slots = new[] { 10, 11, 12, 19, 20, 21, 28, 29, 30 };
         for (var i = 0; i < ingredientTags.Length; i++)
@@ -1240,6 +1241,22 @@ public class CollectionListenerInventoryTests
         CollectionListener.TryGetRecipe(view, out var result, out var ingredients).Should().BeTrue();
         result.Should().Be("ENCHANTED_COMPOST");
         ingredients.Should().BeEquivalentTo(new[] { "COMPOST", "WHEAT" });
+    }
+
+    /// <summary>
+    /// Production 2026-10-02: the mod for current Minecraft versions uploads the button as "Supercraft",
+    /// older ones as "§aSupercraft". Matching only the colored name recognised no recipe view at all.
+    /// </summary>
+    [TestCase("Supercraft")]
+    [TestCase("§aSupercraft")]
+    public void TryGetRecipeAcceptsTheButtonWithAndWithoutColorCode(string buttonName)
+    {
+        var view = RecipeView("Highlite", "HIGHLITE", ["YOUNGITE", "TIMITE", "OBSOLITE"]);
+        view.Items[32].ItemName = buttonName;
+
+        CollectionListener.TryGetRecipe(view, out var result, out var ingredients).Should().BeTrue();
+        result.Should().Be("HIGHLITE");
+        ingredients.Should().BeEquivalentTo(new[] { "YOUNGITE", "TIMITE", "OBSOLITE" });
     }
 
     [Test]
