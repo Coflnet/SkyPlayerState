@@ -534,8 +534,7 @@ public class CollectionListener : UpdateListener
 
         static Dictionary<string, List<Models.Item>> GetLookupItemsByTag(Models.ChestView? previousInventory)
         {
-            // skip more than the 4 lines above and maybe 1 offhand slot
-            var accessibleInventory = previousInventory.Items.Skip(previousInventory.Items.Count - 36 / 9 * 9).Take(36).ToList();
+            var accessibleInventory = previousInventory.Items.Skip(AccessibleInventoryStart(previousInventory.Items)).Take(36).ToList();
             return accessibleInventory
                 .Where(i => i.Tag != null && i.ItemName != null)
                 .GroupBy(i => i.Tag)
@@ -556,10 +555,26 @@ public class CollectionListener : UpdateListener
             return tags;
         if (StorageListener.IsNotStorage(view) && !IsBazaarWindow(view) && !IsAuctionView(view) && !IsSwapView(view))
             return tags;
-        foreach (var item in view.Items.Take(Math.Max(0, view.Items.Count - 36)))
+        foreach (var item in view.Items.Take(AccessibleInventoryStart(view.Items)))
             if (item.Tag != null)
                 tags.Add(item.Tag);
         return tags;
+    }
+
+    /// <summary>Slots of a bare inventory upload from Minecraft 1.21: 5 crafting, 4 armor, 36 inventory, 1 offhand.</summary>
+    private const int BareInventoryWithOffhandSlots = 46;
+
+    /// <summary>
+    /// Index of the first of the 36 accessible inventory slots in a view's items. They are the last 36
+    /// slots of every chest view and of the 1.8 bare inventory, but the 1.21 bare inventory ("Crafting")
+    /// has the offhand slot after them. Taking the last 36 there dropped the top left inventory slot,
+    /// so a stack in it vanished in every bare inventory view and came back as a gain in the next chest
+    /// view (production 2026-10-02: 12x "+64 SHARD_FLAMING_SPIDER" between "Crafting" and the bazaar).
+    /// </summary>
+    internal static int AccessibleInventoryStart(IReadOnlyCollection<Models.Item> items)
+    {
+        var trailing = items.Count == BareInventoryWithOffhandSlots ? 1 : 0;
+        return Math.Max(0, items.Count - 36 - trailing);
     }
 
     /// <summary>
@@ -569,7 +584,7 @@ public class CollectionListener : UpdateListener
     /// </summary>
     internal static HashSet<string> GetAccessibleIdentities(Models.ChestView view)
     {
-        var accessible = view.Items.Skip(view.Items.Count - 36 / 9 * 9).Take(36);
+        var accessible = view.Items.Skip(AccessibleInventoryStart(view.Items)).Take(36);
         var identities = new HashSet<string>();
         foreach (var item in accessible)
         {

@@ -241,6 +241,60 @@ public class CollectionListenerInventoryTests
         return new ChestView { Name = name, Items = items };
     }
 
+    /// <summary>
+    /// A bare inventory upload from Minecraft 1.21: 5 crafting and 4 armor slots, the 36 inventory
+    /// slots (<paramref name="inventory"/> fills them from the top left), then the offhand slot.
+    /// </summary>
+    private static ChestView BareInventory(params Item[] inventory)
+    {
+        var items = Enumerable.Range(0, 9).Select(_ => new Item()).ToList();
+        items.AddRange(inventory);
+        while (items.Count < 46)
+            items.Add(new Item());
+        return new ChestView { Name = "Crafting", Items = items };
+    }
+
+    /// <summary>
+    /// Production 2026-10-02 (Zecs1): 12x "+64 SHARD_FLAMING_SPIDER" between "Crafting" and a bazaar or
+    /// chest view. The last 36 slots of the 46 slot bare inventory start one slot late, so the stack in
+    /// the top left inventory slot was missing there and came back as a gain in the next chest view.
+    /// </summary>
+    [Test]
+    public async Task StackInTheTopLeftSlotIsNotAGainAfterTheBareInventory()
+    {
+        var state = new StateObject();
+        var bazaar = Enumerable.Range(0, 36).Select(_ => new Item()).ToList();
+        await ProcessView(state, View("", new(), StackableItem("SHARD_FLAMING_SPIDER", 64), StackableItem("SHARD_FLAMING_SPIDER", 64)), Now);
+
+        await ProcessView(state, BareInventory(StackableItem("SHARD_FLAMING_SPIDER", 64), StackableItem("SHARD_FLAMING_SPIDER", 64)), Now);
+        await ProcessView(state, View("Bazaar ➜ Oddities", bazaar, StackableItem("SHARD_FLAMING_SPIDER", 64), StackableItem("SHARD_FLAMING_SPIDER", 64)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task StackInTheTopLeftSlotIsNotALossInTheBareInventory()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("SkyBlock Menu", Enumerable.Range(0, 54).Select(_ => new Item()).ToList(),
+            StackableItem("ENCHANTED_COBBLESTONE", 64), StackableItem("ENCHANTED_COBBLESTONE", 64)), Now);
+
+        await ProcessView(state, BareInventory(StackableItem("ENCHANTED_COBBLESTONE", 64), StackableItem("ENCHANTED_COBBLESTONE", 64)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [TestCase(46, 9, TestName = "1.21 bare inventory: offhand slot after the inventory")]
+    [TestCase(45, 9, TestName = "1.8 bare inventory or one row chest")]
+    [TestCase(90, 54, TestName = "Large chest")]
+    [TestCase(2, 0, TestName = "Fewer than 36 slots")]
+    public void AccessibleInventoryStartsAfterTheContainerPart(int slots, int expectedStart)
+    {
+        var items = Enumerable.Range(0, slots).Select(_ => new Item()).ToList();
+
+        CollectionListener.AccessibleInventoryStart(items).Should().Be(expectedStart);
+    }
+
     [Test]
     public async Task NewStackableTagAfterNormalViewIsCounted()
     {
