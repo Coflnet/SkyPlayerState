@@ -129,6 +129,7 @@ public class ShardCollectionTests
             Strongarm x2
             Tepid x1
             """);
+        args.currentState.ExtractedInfo.CurrentLocation = "Critter Safari";
         args.currentState.ItemsCollectedRecently = new()
         {
             ["SHARD_MANTIS_SHRIMP"] = 4,
@@ -144,6 +145,21 @@ public class ShardCollectionTests
         Assert.That(args.currentState.ItemsCollectedRecently["SHARD_TEPID"], Is.EqualTo(1));
         Assert.That(args.currentState.ItemsCollectedRecently, Does.Not.ContainKey("SHARD_WRONG"));
         Assert.That(args.currentState.ItemsCollectedRecently["SAFARI_ESSENCE"], Is.EqualTo(225));
+    }
+
+    [TestCase("Bazaar Alley")]
+    [TestCase("The Forge")]
+    [TestCase(null)]
+    public async Task SafariRewardSummaryAfterLeavingTheSafariIsNotReconciled(string location)
+    {
+        var args = ChatArgs("SAFARI_SHARD_REWARDS 3\nTreefrog x3");
+        args.currentState.ExtractedInfo.CurrentLocation = location;
+        args.currentState.ItemsCollectedRecently = new() { ["ENCHANTED_COAL"] = 5 };
+
+        await new CollectionListener().Process(args);
+
+        Assert.That(args.currentState.ItemsCollectedRecently, Does.Not.ContainKey("SHARD_TREEFROG"));
+        Assert.That(args.currentState.ItemsCollectedRecently["ENCHANTED_COAL"], Is.EqualTo(5));
     }
 
     [Test]

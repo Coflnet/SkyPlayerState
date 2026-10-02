@@ -264,6 +264,17 @@ public class CollectionListener : UpdateListener
 
     private void ReconcileSafariShards(UpdateArgs args, Dictionary<string, int> rewards)
     {
+        // The summary can arrive after the player left: the Safari period was then already flushed with
+        // the individually tracked catches, and reconciling now would book the whole reward a second
+        // time at the next location (production: Safari shard sets at "Bazaar Alley"/"The Forge").
+        // CurrentLocation is the last scoreboard zone, i.e. where the pending items were collected.
+        var location = args.currentState.ExtractedInfo.CurrentLocation;
+        if (Tasks.SkyblockZones.Canonical(location)?.StartsWith("Critter Safari", StringComparison.Ordinal) != true)
+        {
+            Logger.LogInformation("Safari reward summary for {player} arrived after leaving the Safari (now at {location}), not reconciling",
+                args.currentState.PlayerId, location);
+            return;
+        }
         var collected = args.currentState.ItemsCollectedRecently;
         var previousTotal = collected.Where(item => item.Key.StartsWith("SHARD_", StringComparison.Ordinal))
             .Sum(item => (long)item.Value);
