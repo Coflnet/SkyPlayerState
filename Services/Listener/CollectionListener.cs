@@ -42,8 +42,10 @@ public class CollectionListener : UpdateListener
         }
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.INVENTORY)
         {
+            var collectedBefore = new Dictionary<string, int>(args.currentState.ItemsCollectedRecently);
             HandleInventory(args);
             HandleCroesusChest(args);
+            await StartNewPeriodAfterLargeChange(args, collectedBefore);
         }
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.Tab)
         {
@@ -389,6 +391,51 @@ public class CollectionListener : UpdateListener
     /// Cap for <see cref="Models.StateObject.KnownItemUuids"/> - see <see cref="RegisterKnownItemUuids"/>.
     /// </summary>
     private const int MaxKnownItemUuids = 1024;
+
+    /// <summary>Coin value of a single inventory change above which the period ends right after it.</summary>
+    private const long NewPeriodChangeValue = 10_000_000;
+
+    /// <summary>
+    /// Coin value moved by one inventory update: every tag's count change times its price, as absolute
+    /// values so a gain and a loss in the same update do not cancel out. Priced like
+    /// <see cref="ComputeProfit"/>.
+    /// </summary>
+    internal static long InventoryChangeValue(Dictionary<string, int> before, Dictionary<string, int> after, Dictionary<string, double> cleanPrices)
+    {
+        var value = 0d;
+        foreach (var tag in before.Keys.Union(after.Keys))
+        {
+            var change = (long)after.GetValueOrDefault(tag) - before.GetValueOrDefault(tag);
+            if (change == 0)
+                continue;
+            var price = Tasks.PseudoItems.TryGetCoinValue(tag, out var pseudoValue) ? pseudoValue : cleanPrices.GetValueOrDefault(tag);
+            value += Math.Abs(change * price);
+        }
+        return (long)value;
+    }
+
+    /// <summary>
+    /// Ends the current period right after an inventory update that moved more than
+    /// <see cref="NewPeriodChangeValue"/> coins, so the change can be checked in a period of its own
+    /// instead of in whatever else piles up until the next scoreboard flush (production 2026-10-02:
+    /// one -21B period with 213 item types for a player who had not sent a scoreboard for a long time).
+    /// The flush comes after the change: costs (chest cost, purchase) are booked before the items show
+    /// up in the inventory and stay in the same period.
+    /// </summary>
+    private async Task StartNewPeriodAfterLargeChange(UpdateArgs args, Dictionary<string, int> collectedBefore)
+    {
+        var collected = args.currentState.ItemsCollectedRecently;
+        var location = args.currentState.ExtractedInfo.CurrentLocation;
+        // without a scoreboard so far there is no location to store the period under
+        if (location == null || (collected.Count == collectedBefore.Count && !collected.Except(collectedBefore).Any()))
+            return;
+        var value = InventoryChangeValue(collectedBefore, collected, await GetCleanPrices(args));
+        if (value <= NewPeriodChangeValue)
+            return;
+        Logger.LogInformation("Inventory change worth {value} coins for {playerId} between views {previousView} -> {currentView}, starting a new period",
+            value, args.currentState.PlayerId, args.currentState.RecentViews.Reverse().Skip(1).FirstOrDefault()?.Name ?? "<inventory>", args.msg.Chest?.Name ?? "<inventory>");
+        await StoreLocationProfit(args, location);
+    }
 
     /// <summary>Absolute plain-count diff at which <see cref="HandleInventory"/> logs a "Bulk inventory change".</summary>
     private const int BulkChangeLogThreshold = 64;

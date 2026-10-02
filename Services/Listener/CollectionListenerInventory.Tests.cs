@@ -1,10 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using AwesomeAssertions;
+using Coflnet.Sky.Bazaar.Client.Api;
+using Coflnet.Sky.Bazaar.Client.Model;
 using Coflnet.Sky.PlayerState.Models;
 using Coflnet.Sky.PlayerState.Tests;
+using Coflnet.Sky.Sniper.Client.Api;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
@@ -282,6 +286,68 @@ public class CollectionListenerInventoryTests
         await ProcessView(state, BareInventory(StackableItem("ENCHANTED_COBBLESTONE", 64), StackableItem("ENCHANTED_COBBLESTONE", 64)), Now);
 
         state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Production 2026-10-02 (IamCarry): one -21B period with 213 item types, because periods only ended
+    /// on a scoreboard update. An inventory change worth more than 10M coins now ends the period right
+    /// after it, so it can be checked in a period of its own.
+    /// </summary>
+    [Test]
+    public async Task InventoryChangeAboveTenMillionCoinsEndsThePeriod()
+    {
+        var stored = new List<TrackedProfitService.Period>();
+        var profitService = new Mock<TrackedProfitService>((global::Cassandra.ISession)null);
+        profitService.Setup(p => p.AddPeriod(It.IsAny<TrackedProfitService.Period>()))
+            .Callback<TrackedProfitService.Period>(stored.Add).Returns(Task.CompletedTask);
+        var sniperApi = new Mock<ISniperApi>();
+        sniperApi.Setup(a => a.ApiSniperPricesCleanGetAsync(0, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<string, long> { { "ENCHANTED_DIAMOND_BLOCK", 200_000 }, { "ENCHANTED_COBBLESTONE", 1_000 } });
+        var bazaarApi = new Mock<IBazaarApi>();
+        bazaarApi.Setup(b => b.GetAllPricesAsync(0, It.IsAny<CancellationToken>())).ReturnsAsync(new List<ItemPrice>());
+        var listener = new CollectionListener();
+        var state = new StateObject();
+        state.ExtractedInfo.CurrentLocation = "Your Island";
+        state.ExtractedInfo.LastLocationChange = DateTime.UtcNow.AddMinutes(-2);
+        async Task Process(ChestView chest)
+        {
+            var args = new MockedUpdateArgs
+            {
+                currentState = state,
+                msg = new UpdateMessage { Kind = UpdateMessage.UpdateKind.INVENTORY, PlayerId = "p1", Chest = chest, ReceivedAt = DateTime.UtcNow }
+            };
+            args.AddService<ILogger<CollectionListener>>(Microsoft.Extensions.Logging.Abstractions.NullLogger<CollectionListener>.Instance);
+            args.AddService(profitService.Object);
+            args.AddService(sniperApi.Object);
+            args.AddService(bazaarApi.Object);
+            await new RecentViewsUpdate().Process(args);
+            await listener.Process(args);
+        }
+        await Process(View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 10), StackableItem("ENCHANTED_DIAMOND_BLOCK", 1)));
+
+        // 10 * 1,000 coins: stays in the running period
+        await Process(View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 20), StackableItem("ENCHANTED_DIAMOND_BLOCK", 1)));
+        stored.Should().BeEmpty();
+        state.ItemsCollectedRecently.GetValueOrDefault("ENCHANTED_COBBLESTONE").Should().Be(10);
+
+        // 60 * 200,000 coins = 12M: the period ends with this change
+        await Process(View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 20), StackableItem("ENCHANTED_DIAMOND_BLOCK", 61)));
+
+        stored.Should().ContainSingle();
+        stored[0].Location.Should().Be("Your Island");
+        stored[0].ItemsCollected.Should().BeEquivalentTo(new Dictionary<string, int> { { "ENCHANTED_COBBLESTONE", 10 }, { "ENCHANTED_DIAMOND_BLOCK", 60 } });
+        state.ItemsCollectedRecently.Should().BeEmpty();
+        state.ExtractedInfo.LastLocationChange.Should().BeAfter(DateTime.UtcNow.AddMinutes(-1));
+    }
+
+    [Test]
+    public void InventoryChangeValueDoesNotLetAGainAndALossCancelOut()
+    {
+        var before = new Dictionary<string, int> { { "HYPERION", 1 }, { "ENCHANTED_COBBLESTONE", 5 } };
+        var after = new Dictionary<string, int> { { "TERMINATOR", 1 }, { "ENCHANTED_COBBLESTONE", 5 } };
+        var prices = new Dictionary<string, double> { { "HYPERION", 900_000_000 }, { "TERMINATOR", 700_000_000 }, { "ENCHANTED_COBBLESTONE", 1_000 } };
+
+        CollectionListener.InventoryChangeValue(before, after, prices).Should().Be(1_600_000_000);
     }
 
     [TestCase(46, 9, TestName = "1.21 bare inventory: offhand slot after the inventory")]

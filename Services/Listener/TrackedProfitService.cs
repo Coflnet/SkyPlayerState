@@ -72,7 +72,8 @@ public class TrackedProfitService
         }
     }
 
-    public async Task AddPeriod(Period period)
+    // virtual: lets CollectionListenerInventory.Tests.cs capture the stored periods (Moq needs an override point)
+    public virtual async Task AddPeriod(Period period)
     {
         if (locationPeriods == null || historyPeriods == null)
             await Setup();
