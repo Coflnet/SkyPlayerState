@@ -51,45 +51,7 @@ public class RecipeUpdate : UpdateListener
             if (description == null || !description.Contains("Cost"))
                 continue;
 
-            var costs = new Dictionary<string, int>();
-            var costSection = Regex.Split(description, @"\n").SkipWhile(l => !l.Contains("§7Cost")).Skip(1);
-            foreach (var line in costSection)
-            {
-                // Stop if we reach Stock or an empty line
-                if (string.IsNullOrWhiteSpace(line) || line.Contains("Stock"))
-                    break;
-
-                // Match lines like "§625 Coins" or "§6Enchanted Diamond x16" or "§aRusty Coin §8x32" or "§aRusty Coin" or "§61,000,000 Coins"
-                var match = Regex.Match(line, @"§.(?:(?<amount>[\d,]+)\s+)?(?<name>.*?)(?:\s+(?:§.x|x)(?<amount2>[\d,]+))?$");
-                if (match.Success)
-                {
-                    var name = match.Groups["name"].Value.Trim();
-                    if (name.Contains('.'))
-                        continue; // npc purchase has no partial coins
-                    // remove color codes from the name
-                    name = Regex.Replace(name, @"§.", "");
-                    var amountStr = match.Groups["amount"].Success ? match.Groups["amount"].Value : match.Groups["amount2"].Value;
-
-                    // Remove thousand separators before parsing
-                    amountStr = amountStr.Replace(",", "");
-
-                    if (int.TryParse(amountStr, out var amount))
-                    {
-                        costs[name] = amount;
-                    }
-                    else
-                    {
-                        // No amount found, default to 1
-                        costs[name] = 1;
-                    }
-                }
-            }
-            // Match lines like "§68 Coins\n\n§7Stock\n§6640 §7remaining\n\n§eClick to trade!"
-            var stockMatch = Regex.Match(description, @"§6(?<stock>\d+)\s§7remaining");
-            int stockCount = 0;
-            if (stockMatch.Success)
-                int.TryParse(stockMatch.Groups["stock"].Value, out stockCount);
-
+            var costs = ReadCosts(description);
             if (costs.Count > 0)
             {
                 var npcCost = new NpcCost
@@ -98,7 +60,7 @@ public class RecipeUpdate : UpdateListener
                     NpcName = args.msg.Chest.Name,
                     Costs = costs,
                     Description = item.Description,
-                    Stock = stockCount,
+                    Stock = ReadStock(description),
                     ResultCount = item.Count ?? 1,
                     LastUpdatedBy = args.msg.UserId + "-" + args.msg.PlayerId
                 };
@@ -109,6 +71,51 @@ public class RecipeUpdate : UpdateListener
             else
                 args.GetService<ILogger<RecipeUpdate>>().LogWarning("No costs found for item {ItemTag} in chest {ChestName} for player {PlayerId}", item.Tag, args.msg.Chest.Name, args.msg.PlayerId);
         }
+    }
+
+    /// <summary>
+    /// The costs of a shop item by display name, from the lines after "Cost" up to the next empty
+    /// line. The mod for current Minecraft versions drops the color code of a line with a single
+    /// style ("Cost", "30 Coins", "Oak Log") and keeps the codes of the others ("§fDirt §8x4"), so
+    /// the lines are read without color codes. Looking for "§7Cost" found no cost from 2026-06-25 on.
+    /// </summary>
+    internal static Dictionary<string, int> ReadCosts(string description)
+    {
+        var costs = new Dictionary<string, int>();
+        // the header is a line of its own, ability lore has lines like "Mana Cost: 50"
+        var costSection = description.Split('\n').Select(StripFormatting).SkipWhile(l => l != "Cost").Skip(1);
+        foreach (var line in costSection)
+        {
+            // Stop if we reach Stock or an empty line
+            if (string.IsNullOrWhiteSpace(line) || line.Contains("Stock"))
+                break;
+
+            // Match lines like "25 Coins" or "Enchanted Diamond x16" or "Rusty Coin" or "1,000,000 Coins"
+            var match = Regex.Match(line, @"^(?:(?<amount>[\d,]+)\s+)?(?<name>.+?)(?:\s+x(?<amount2>[\d,]+))?$");
+            if (!match.Success)
+                continue;
+            var name = match.Groups["name"].Value.Trim();
+            if (name.Contains('.'))
+                continue; // npc purchase has no partial coins
+            var amountStr = match.Groups["amount"].Success ? match.Groups["amount"].Value : match.Groups["amount2"].Value;
+            // No amount found, default to 1
+            costs[name] = int.TryParse(amountStr.Replace(",", ""), out var amount) ? amount : 1;
+        }
+        return costs;
+    }
+
+    /// <summary>
+    /// The remaining stock from lines like "Stock\n640 remaining", 0 when the item has none.
+    /// </summary>
+    internal static int ReadStock(string description)
+    {
+        var stockMatch = Regex.Match(StripFormatting(description), @"^(?<stock>[\d,]+) remaining$", RegexOptions.Multiline);
+        return stockMatch.Success && int.TryParse(stockMatch.Groups["stock"].Value.Replace(",", ""), out var stock) ? stock : 0;
+    }
+
+    private static string StripFormatting(string value)
+    {
+        return Regex.Replace(value, "§.", string.Empty).Trim();
     }
 
     private async Task CheckAnvilRecipe(UpdateArgs args)
