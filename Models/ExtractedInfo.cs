@@ -267,7 +267,17 @@ public class ExtractedInfo
             Floor = extractedInfo.PendingDungeonChestCharge.Floor,
             Essences = extractedInfo.PendingDungeonChestCharge.Essences == null ? null : new Dictionary<string, int>(extractedInfo.PendingDungeonChestCharge.Essences)
         };
+        LastTransferViewAt = extractedInfo.LastTransferViewAt;
     }
+
+    /// <summary>
+    /// ReceivedAt of the last inventory update where the current or previous view was a transfer view
+    /// (trade, sack, NPC shop, bazaar) - sack chat notifications shortly after it report a transfer or
+    /// sale, not loot. See <see cref="Services.CollectionListener.IsTransferView"/>. Key 40 leaves
+    /// room for other properties added after <see cref="PendingDungeonChestCharge"/>.
+    /// </summary>
+    [Key(40)]
+    public DateTime LastTransferViewAt { get; set; }
 }
 
 /// <summary>

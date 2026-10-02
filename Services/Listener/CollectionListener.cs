@@ -303,8 +303,25 @@ public class CollectionListener : UpdateListener
         }).Sum();
     }
 
+    /// <summary>
+    /// Window after the last transfer view (see <see cref="IsTransferView"/>) in which "[Sacks]" chat
+    /// deltas are treated as a transfer or sale/purchase instead of loot. Hypixel batches the sack
+    /// messages for up to 30 seconds, so the message can arrive that long after the view closed.
+    /// </summary>
+    internal static readonly TimeSpan SackNotificationTransferWindow = TimeSpan.FromSeconds(35);
+
+    /// <summary>Only ignored sack notifications moving at least this many items in total are logged.</summary>
+    private const long IgnoredSackLogMinimumCount = 1000;
+
     private async Task HandleSackNotification(UpdateArgs args, string uploadedLine)
     {
+        var lastTransferViewAt = args.currentState.ExtractedInfo.LastTransferViewAt;
+        // default(DateTime) means no transfer view was ever seen - never "recent"
+        if (lastTransferViewAt != default && args.msg.ReceivedAt - lastTransferViewAt <= SackNotificationTransferWindow)
+        {
+            LogIgnoredSackChange(args, uploadedLine);
+            return;
+        }
         if (NametoTagLookup == null)
         {
             var itemApi = args.GetService<Items.Client.Api.IItemsApi>();
@@ -342,6 +359,21 @@ public class CollectionListener : UpdateListener
         }
     }
 
+    private void LogIgnoredSackChange(UpdateArgs args, string uploadedLine)
+    {
+        var changes = new List<(long Count, string Name)>();
+        foreach (var item in uploadedLine.Split('\n').Skip(1).Reverse().Skip(2))
+        {
+            var match = Regex.Match(item, @" ([+-]?[\d,]+) ([^(]+) ");
+            if (match.Success && long.TryParse(match.Groups[1].Value.Replace(",", ""), out var count))
+                changes.Add((count, match.Groups[2].Value.Trim()));
+        }
+        if (changes.Sum(c => Math.Abs(c.Count)) < IgnoredSackLogMinimumCount)
+            return;
+        var summary = string.Join(", ", changes.Take(5).Select(c => $"{(c.Count >= 0 ? "+" : "")}{c.Count} {c.Name}"));
+        Logger.LogInformation("Ignored sack change after transfer view for {playerId}: {summary}", args.currentState.PlayerId, summary);
+    }
+
     /// <summary>
     /// Cap for <see cref="Models.StateObject.KnownItemUuids"/> - see <see cref="RegisterKnownItemUuids"/>.
     /// </summary>
@@ -350,6 +382,9 @@ public class CollectionListener : UpdateListener
     static void HandleInventory(UpdateArgs args)
     {
         var previousInventory = args.currentState.RecentViews.Reverse().Skip(1).FirstOrDefault();
+        // before any early return, so every exit path records it
+        if (IsTransferView(args.msg.Chest) || IsTransferView(previousInventory))
+            args.currentState.ExtractedInfo.LastTransferViewAt = args.msg.ReceivedAt;
         if (previousInventory == null)
         {
             RegisterKnownItemUuids(args.currentState, args.msg.Chest);
@@ -360,9 +395,10 @@ public class CollectionListener : UpdateListener
         {
             if (previousInventory.Name != null && (!StorageListener.IsNotStorage(previousInventory)
                 || IsBazaarOrderCreate(previousInventory) || IsBazaarWindow(previousInventory)
-                || previousInventory.Name == "Create BIN Auction"))
+                || previousInventory.Name == "Create BIN Auction" || IsSwapView(previousInventory)))
             {
-                // if the previous inventory is a storage, we don't want to track items collected -
+                // if the previous inventory is a storage, bazaar or swap view (trade, sack, NPC shop:
+                // items move between it and the inventory, no loot), we don't want to track items collected -
                 // but the known-uuid set must still learn this view's items regardless (see
                 // RegisterKnownItemUuids's docs), so register before returning.
                 args.GetService<ILogger<CollectionListener>>().LogDebug("Skipping item collection tracking for storage chest {chestName} for player {playerId}", previousInventory.Name, args.currentState.PlayerId);
@@ -391,9 +427,11 @@ public class CollectionListener : UpdateListener
         // RegisterKnownItemUuids, called last in this method).
         var known = args.currentState.KnownItemUuids;
         var knownUuids = known is { Count: > 0 } ? new HashSet<long>(known) : null;
-        // First-time-drop guards (see the loop): never when the previous/current view is a trade
-        // window, NPC shop or sack (items there are swapped, not dropped).
-        var allowFirstTimeCounting = !IsSwapView(previousInventory) && !IsSwapView(args.msg.Chest);
+        // First-time-drop guards (see the loop): never when the current view is a trade window, NPC
+        // shop or sack (items there are swapped, not dropped). A swap view as previous view already
+        // returned above.
+        var allowFirstTimeCounting = !IsSwapView(args.msg.Chest);
+        var previousIsRewardChest = IsRewardChestView(previousInventory);
         // (a) every tag anywhere in the previous view, including its container part
         // (a reward chest's container part is ignored, see GetItemsForSwapGuards)
         var previousTags = GetItemsForSwapGuards(previousInventory).Where(i => i.Tag != null).Select(i => i.Tag).ToHashSet();
@@ -435,6 +473,13 @@ public class CollectionListener : UpdateListener
                     if (!TryGetItemUuidHash(item, out var hash))
                         continue;
                     if (previousUuids.Contains(hash) || (knownUuids != null && knownUuids.Contains(hash)))
+                        continue;
+                    // a real drop is created when it drops - gear that is much older was only moved
+                    // here (auction house, trade, wardrobe, owned before we first saw the player).
+                    // Reward chest loot is exempt: a Croesus chest may be claimed long after the run
+                    // and it is unverified whether its items are created at claim or at run time.
+                    if (!previousIsRewardChest && TryGetItemCreationTime(item, out var createdUtc)
+                        && args.msg.ReceivedAt - createdUtc > MaxDropItemAge)
                         continue;
                     newCount++;
                 }
@@ -575,6 +620,85 @@ public class CollectionListener : UpdateListener
         }
         hash = unchecked((long)fnv);
         return true;
+    }
+
+    /// <summary>
+    /// Items whose creation timestamp is older than this relative to the inventory update are the
+    /// player's pre-existing gear, not a drop (reward chest items are created when the chest is opened,
+    /// crafted/forged items when claimed).
+    /// </summary>
+    internal static readonly TimeSpan MaxDropItemAge = TimeSpan.FromHours(1);
+
+    private const string LegacyItemTimestampFormat = "M/d/yy h:mm tt";
+
+    /// <summary>
+    /// Reads the creation time from <c>ExtraAttributes["timestamp"]</c>: unix milliseconds (values
+    /// below 100000000000 are treated as unix seconds) as a number or numeric string, or the legacy
+    /// Hypixel string format <c>M/d/yy h:mm tt</c>. The raw value may be any deserializer output
+    /// (long, double, string, JValue, JsonElement). Returns false when missing or unparseable.
+    /// </summary>
+    internal static bool TryGetItemCreationTime(Models.Item item, out DateTime createdUtc)
+    {
+        createdUtc = default;
+        if (item?.ExtraAttributes == null || !item.ExtraAttributes.TryGetValue("timestamp", out var raw) || raw == null)
+            return false;
+        if (raw is Newtonsoft.Json.Linq.JValue jValue)
+            raw = jValue.Value;
+        if (raw is System.Text.Json.JsonElement element)
+        {
+            raw = element.ValueKind switch
+            {
+                System.Text.Json.JsonValueKind.Number => element.GetDouble(),
+                System.Text.Json.JsonValueKind.String => element.GetString(),
+                _ => null
+            };
+        }
+        double number;
+        switch (raw)
+        {
+            case null:
+                return false;
+            case string text:
+                text = text.Trim();
+                if (!double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out number))
+                {
+                    if (!DateTime.TryParseExact(text, LegacyItemTimestampFormat, System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal, out createdUtc))
+                        return false;
+                    return true;
+                }
+                break;
+            case IConvertible convertible when raw is not bool and not char and not DateTime:
+                try { number = convertible.ToDouble(System.Globalization.CultureInfo.InvariantCulture); }
+                catch (Exception) { return false; }
+                break;
+            default:
+                return false;
+        }
+        if (double.IsNaN(number) || double.IsInfinity(number) || number <= 0)
+            return false;
+        try
+        {
+            var millis = number < 100000000000d ? number * 1000 : number;
+            createdUtc = DateTimeOffset.FromUnixTimeMilliseconds((long)millis).UtcDateTime;
+            return true;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Views where items move between inventory, sacks, bazaar and NPCs instead of being looted:
+    /// <see cref="IsSwapView"/> (trade, sack, shop) and bazaar windows. Sack chat deltas right after
+    /// one are transfers/sales - see <see cref="HandleSackNotification"/>.
+    /// </summary>
+    internal static bool IsTransferView(Models.ChestView? view)
+    {
+        if (view?.Name == null)
+            return false;
+        return IsSwapView(view) || IsBazaarWindow(view) || IsBazaarOrderCreate(view);
     }
 
     /// <summary>
