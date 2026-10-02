@@ -1064,6 +1064,15 @@ public class TaskClassifierTests
     public void Diana_UnincorporatedWithAncientClaw_IsDianaHunting()
         => Classifier.Classify("Unincorporated", new() { { "ANCIENT_CLAW", 500 } }, 10).Should().NotBeNull().And.Subject.As<Classification>().TaskName.Should().Be("Diana (Hunting)");
 
+    [TestCase("MANTI_CORE")]
+    [TestCase("FATEFUL_STINGER")]
+    [TestCase("BRAIN_FOOD")]
+    [TestCase("SHIMMERING_WOOL")]
+    [TestCase("BRAIDED_GRIFFIN_FEATHER")]
+    [TestCase("CROWN_OF_GREED")]
+    public void Diana_RuinsSingleRareDrop_IsDiana(string tag)
+        => Classifier.Classify("Ruins", new() { { tag, 1 } }, 10).Should().NotBeNull().And.Subject.As<Classification>().TaskName.Should().Be("Diana");
+
     [Test]
     public void Diana_ForestEnchantedGoldOnly_IsDiana()
         => Classifier.Classify("Forest", new() { { "ENCHANTED_GOLD", 8 } }, 10).Should().NotBeNull().And.Subject.As<Classification>().TaskName.Should().Be("Diana");

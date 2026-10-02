@@ -24,7 +24,9 @@ public class DianaTask : BaseDianaTask
         "GRIFFIN_FEATHER", "MINOS_RELIC", "DAEDALUS_STICK",
         // treasure-burrow loot (ENCHANTED_GOLD alone makes up most dug-burrow periods)
         "ENCHANTED_GOLD", "MYTHOS_FRAGMENT", "CROCHET_TIGER_PLUSHIE", "WASHED_UP_SOUVENIR", "CRETAN_URN",
-        "ANTIQUE_REMEDIES", "DWARF_TURTLE_SHELMET"];
+        "ANTIQUE_REMEDIES", "DWARF_TURTLE_SHELMET",
+        // rare drops that showed up alone in otherwise unclassified Hub periods (production 2026-10-01)
+        "BRAIDED_GRIFFIN_FEATHER", "SHIMMERING_WOOL", "MANTI_CORE", "FATEFUL_STINGER", "BRAIN_FOOD", "CROWN_OF_GREED"];
     protected override List<MethodDrop> FormulaDrops => [new("GRIFFIN_FEATHER", 30), new("DAEDALUS_STICK", 2), new("ENCHANTED_GOLD", 40)];
     protected override string HowTo => "During the Mythological Ritual mayor event, use an Ancestral Spade on Diana burrows in the Hub. Follow particle trails to dig burrows.";
     protected override List<RequiredItem> RequiredItems => [
