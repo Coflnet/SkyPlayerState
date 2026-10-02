@@ -29,7 +29,7 @@ public partial class ShensListener : UpdateListener
                 var match = ShenBidLine().Match(line);
                 if (!match.Success)
                     return null;
-                return new { key = match.Groups[1].Value, value = long.Parse(match.Groups[2].Value.Replace(",", "")) };
+                return new { key = match.Groups[1].Value, value = ParseBid(match.Groups[2].Value) };
             }).Where(x => x?.key != null).ToDictionary(u => u!.key, u => u?.value);
             return (tag, JsonConvert.SerializeObject(answer));
         }).ToList();
@@ -44,6 +44,19 @@ public partial class ShensListener : UpdateListener
         await args.GetService<IShenStorage>().Store(shenHistory);
     }
 
+
+    /// <summary>
+    /// Shen's shows bids beyond the 64 bit range (production 2026-10-01:
+    /// "9,223,372,036,854,776,000 Coins", long.MaxValue rounded up for display). Those are clamped
+    /// to <see cref="long.MaxValue"/> instead of throwing, which dropped the whole inventory update.
+    /// </summary>
+    internal static long ParseBid(string value)
+    {
+        var digits = value.Replace(",", "");
+        if (long.TryParse(digits, out var parsed))
+            return parsed;
+        return System.Numerics.BigInteger.TryParse(digits, out var big) && big > long.MaxValue ? long.MaxValue : 0;
+    }
 
     private static int CurrentMinecraftYear(DateTime time)
     {
