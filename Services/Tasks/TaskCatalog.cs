@@ -218,7 +218,6 @@ internal static class TaskCatalog
 
         // Diana / Mythological event tasks
         tasks.Add<DianaTask>();
-        tasks.Add<DianaHuntingTask>();
 
         // Mining tasks (gemstone)
         tasks.Add<ThystMiningTask>();

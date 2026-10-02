@@ -16,6 +16,12 @@ public abstract class BaseDianaTask : MethodTask
     }
 }
 
+/// <summary>
+/// The Mythological Ritual: dig burrow chains with the spade. 75% of burrows spawn a Mythological Creature
+/// (Ancient Claws, shards, Daedalus Sticks), 25% give treasure (Griffin Feathers, coins) - one activity, so
+/// one task (it used to be split into "Diana" and "Diana (Hunting)" depending on whether claws or gold
+/// were worth more in the period).
+/// </summary>
 public class DianaTask : BaseDianaTask
 {
     protected override string MethodName => "Diana";
@@ -26,33 +32,26 @@ public class DianaTask : BaseDianaTask
         "ENCHANTED_GOLD", "MYTHOS_FRAGMENT", "CROCHET_TIGER_PLUSHIE", "WASHED_UP_SOUVENIR", "CRETAN_URN",
         "ANTIQUE_REMEDIES", "DWARF_TURTLE_SHELMET",
         // rare drops that showed up alone in otherwise unclassified Hub periods (production 2026-10-01)
-        "BRAIDED_GRIFFIN_FEATHER", "SHIMMERING_WOOL", "MANTI_CORE", "FATEFUL_STINGER", "BRAIN_FOOD", "CROWN_OF_GREED"];
-    protected override List<MethodDrop> FormulaDrops => [new("GRIFFIN_FEATHER", 30), new("DAEDALUS_STICK", 2), new("ENCHANTED_GOLD", 40)];
-    protected override string HowTo => "During the Mythological Ritual mayor event, use an Ancestral Spade on Diana burrows in the Hub. Follow particle trails to dig burrows.";
+        "BRAIDED_GRIFFIN_FEATHER", "SHIMMERING_WOOL", "MANTI_CORE", "FATEFUL_STINGER", "BRAIN_FOOD", "CROWN_OF_GREED",
+        // Ancient Claw is the bulk drop from every burrow mob and the main coin source; MINOS_CHAMPION/INQUISITOR are mob names, not items.
+        "ANCIENT_CLAW", "ENCHANTED_ANCIENT_CLAW", "HILT_OF_REVELATIONS",
+        // burrow mob shards (Harpy/Sphinx: 31% of the Harpy periods at Ruins/Graveyard/Mountain were unclassified)
+        "SHARD_MINOS_HUNTER", "SHARD_CRETAN_BULL", "SHARD_HARPY", "SHARD_MINOTAUR", "SHARD_SPHINX", "SHARD_KING_MINOS"];
+    protected override List<MethodDrop> FormulaDrops => [
+        new("ANCIENT_CLAW", 3000), new("GRIFFIN_FEATHER", 40), new("ENCHANTED_GOLD", 40), new("DAEDALUS_STICK", 3),
+        new("MINOS_RELIC", 0.02), new("SHARD_KING_MINOS", 1)];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Mythological_Ritual";
+    protected override string HowTo =>
+        "During the Mythological Ritual mayor event, use the spade to locate a burrow in the Hub, dig it and follow the chain "
+        + "(Ancestral Spade 4 burrows per chain, Archaic 6, Deific 8). Most burrows spawn a Mythological Creature to kill "
+        + "(Ancient Claws, shards, Daedalus Stick, Chimera), the rest give treasure (Griffin Feathers, coins).";
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "ANCESTRAL_SPADE", Reason = "Required to dig Diana burrows" },
+        new() { ItemTag = "ANCESTRAL_SPADE", Reason = "Required to dig Diana burrows (the Archaic and Deific Spade make longer chains)" },
         new() { ItemTag = "PET_GRIFFIN", Reason = "Griffin pet reveals burrow locations via particles" }
     ];
     protected override List<DropEffect> Effects => [
         new() { Name = "Griffin Pet Rarity", Description = "Higher rarity Griffin reveals burrows further away", EstimatedMultiplier = 1.3 },
-        new() { Name = "Magic Find", Description = "Increases chance of Chimera book and Daedalus Stick", EstimatedMultiplier = 1.25 }
-    ];
-}
-public class DianaHuntingTask : BaseDianaTask
-{
-    protected override string MethodName => "Diana (Hunting)";
-    protected override HashSet<string> Locations => ["Hub", "Wilderness", "Forest", "Mountain", "Ruins", "Graveyard", "Farm", "Village"];
-    // Ancient Claw is the bulk drop from every burrow mob and the main coin source; MINOS_CHAMPION/INQUISITOR are mob names, not items.
-    protected override HashSet<string> DetectionItems => ["ANCIENT_CLAW", "SHARD_KING_MINOS", "GRIFFIN_FEATHER", "ENCHANTED_ANCIENT_CLAW", "HILT_OF_REVELATIONS", "SHARD_MINOS_HUNTER", "SHARD_MINOTAUR", "SHARD_CRETAN_BULL"];
-    protected override List<MethodDrop> FormulaDrops => [new("ANCIENT_CLAW", 3000), new("GRIFFIN_FEATHER", 40), new("DAEDALUS_STICK", 3), new("MINOS_RELIC", 0.02), new("SHARD_KING_MINOS", 1)];
-    protected override string HowTo => "During Mythological Ritual, focus on killing Mythological mobs (Minotaurs, Gaia, Champions, Inquisitors). Inquisitors drop the most money.";
-    protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "ANCESTRAL_SPADE", Reason = "Required to dig Diana burrows" },
-        new() { ItemTag = "PET_GRIFFIN", Reason = "Griffin pet reveals burrow locations" }
-    ];
-    protected override List<DropEffect> Effects => [
-        new() { Name = "Griffin Pet Rarity", Description = "Higher rarity Griffin reveals burrows further", EstimatedMultiplier = 1.3 },
-        new() { Name = "Magic Find", Description = "Increases rare mob spawn and drop chance", EstimatedMultiplier = 1.3 },
+        new() { Name = "Magic Find", Description = "Increases rare mob spawn and drop chance, and the chance of Chimera book and Daedalus Stick", EstimatedMultiplier = 1.3 },
         new() { Name = "Ferocity", Description = "More hits per attack for faster kills", EstimatedMultiplier = 1.15 }
     ];
 }

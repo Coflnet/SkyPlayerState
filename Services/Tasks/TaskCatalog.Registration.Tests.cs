@@ -37,7 +37,7 @@ public class TaskCatalogRegistrationTests
         "CocoaBeansFarmingTask", "ComposterTask", "CoralotTask",
         "CrimsonFishingHuntingTask", "CrimsonFishingTask", "CrimsonHotspotFishingTask", "CrimsonIsleTask",
         "CritterSafariTask", "CrystalHollowsPowderMiningTask",
-        "DailyCrimsonQuestsTask", "DeepCavernsTask", "DiamondMiningTask", "DianaHuntingTask", "DianaTask",
+        "DailyCrimsonQuestsTask", "DeepCavernsTask", "DiamondMiningTask", "DianaTask",
         "DreadwingTask", "DrownedTask", "DwarvenMinesMiningTask", "ExperimentationTableTask",
         "F1Task", "F2Task", "F3Task", "F4Task", "F5Task", "F6Task", "F7Task",
         "FigForagingTask", "FlamingSpiderHuntingTask", "FlamingWormFishingTask", "FlareHuntingTask", "FlintMiningTask", "ForgeClaimsTask", "ForgeTask",

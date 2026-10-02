@@ -404,7 +404,7 @@ public class MethodDetectionTests
     }
 
     [Test]
-    public async Task DianaHunting_DetectedByKingMinos()
+    public async Task Diana_DetectedByKingMinos()
     {
         var period = MakePeriod("Wilderness", 5_000_000, new()
         {
@@ -412,10 +412,10 @@ public class MethodDetectionTests
             { "GRIFFIN_FEATHER", 20 },
             { "DAEDALUS_STICK", 1 }
         });
-        var task = new DianaHuntingTask();
+        var task = new DianaTask();
         var result = await task.Execute(MakeParams(period));
         result.ProfitPerHour.Should().BeGreaterThan(0);
-        result.Name.Should().Be("Diana (Hunting)");
+        result.Name.Should().Be("Diana");
     }
 
     [Test]

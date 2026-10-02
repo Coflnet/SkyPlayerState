@@ -1061,8 +1061,29 @@ public class TaskClassifierTests
     }
 
     [Test]
-    public void Diana_UnincorporatedWithAncientClaw_IsDianaHunting()
-        => Classifier.Classify("Unincorporated", new() { { "ANCIENT_CLAW", 500 } }, 10).Should().NotBeNull().And.Subject.As<Classification>().TaskName.Should().Be("Diana (Hunting)");
+    public void Diana_UnincorporatedWithAncientClaw_IsDiana()
+        => Classifier.Classify("Unincorporated", new() { { "ANCIENT_CLAW", 500 } }, 10).Should().NotBeNull().And.Subject.As<Classification>().TaskName.Should().Be("Diana");
+
+    [Test]
+    public void Diana_BurrowChainPeriods_AllClassifyToTheSingleDianaTask()
+    {
+        // claws only, treasure only (gold + feathers) and a lone Harpy shard are the same activity
+        Classifier.Classify("Hub", new() { { "ANCIENT_CLAW", 300 } }, 10)?.TaskName.Should().Be("Diana");
+        Classifier.Classify("Hub", new() { { "ENCHANTED_GOLD", 12 }, { "GRIFFIN_FEATHER", 6 } }, 10)?.TaskName.Should().Be("Diana");
+        Classifier.Classify("Ruins", new() { { "SHARD_HARPY", 3 } }, 10)?.TaskName.Should().Be("Diana");
+        Classifier.Classify("Graveyard", new() { { "SHARD_SPHINX", 2 } }, 10)?.TaskName.Should().Be("Diana");
+        // mixed period, claws far more valuable than gold: still the one task
+        Classifier.Classify("Hub", new() { { "ANCIENT_CLAW", 300 }, { "ENCHANTED_GOLD", 4 } }, 10,
+            prices: new() { { "ANCIENT_CLAW", 5000 }, { "ENCHANTED_GOLD", 100 } })?.TaskName.Should().Be("Diana");
+    }
+
+    [Test]
+    public void Diana_HuntingVariantIsGone()
+    {
+        var registry = new TaskRegistry();
+        registry.GetByName("Diana (Hunting)").Should().BeNull();
+        registry.MethodTasks.Count(t => t.GetDetectionSignature().MethodName.StartsWith("Diana")).Should().Be(1);
+    }
 
     [TestCase("MANTI_CORE")]
     [TestCase("FATEFUL_STINGER")]
