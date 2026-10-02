@@ -24,14 +24,18 @@ public class MethodAggregateService
         this.session = session;
     }
 
+    /// <summary>
+    /// The driver writes only keys with an explicit order into CLUSTERING ORDER BY and Cassandra rejects
+    /// a clause that skips a leading key ("Missing CLUSTERING ORDER for column itemtag"), so every key names its order.
+    /// </summary>
+    internal static Map<LocationItemAggregate> Mapping => new Map<LocationItemAggregate>()
+        .PartitionKey(a => a.Location)
+        .ClusteringKey(a => a.ItemTag, SortOrder.Ascending)
+        .ClusteringKey(a => a.DayBucket, SortOrder.Descending);
+
     private async Task Setup()
     {
-        var mapping = new MappingConfiguration()
-            .Define(new Map<LocationItemAggregate>()
-                .PartitionKey(a => a.Location)
-                .ClusteringKey(a => a.ItemTag)
-                .ClusteringKey(a => a.DayBucket, SortOrder.Descending)
-            );
+        var mapping = new MappingConfiguration().Define(Mapping);
         aggregateTable = new Table<LocationItemAggregate>(session, mapping, TABLE_NAME);
         await aggregateTable.CreateIfNotExistsAsync();
     }
