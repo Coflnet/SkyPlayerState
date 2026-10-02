@@ -899,6 +899,30 @@ public class CollectionListenerInventoryTests
     }
 
     [Test]
+    public async Task ShardsLeavingThePlainInventoryAreNotBookedAsALoss()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("SHARD_APEX_DRAGON", 70), StackableItem("ENDER_PEARL", 16)), Now);
+
+        // 64 shards right-clicked into the Hunting Box, 4 pearls thrown
+        await ProcessView(state, View("Crafting", new(), StackableItem("SHARD_APEX_DRAGON", 6), StackableItem("ENDER_PEARL", 12)), Now);
+
+        state.ItemsCollectedRecently.Should().NotContainKey("SHARD_APEX_DRAGON");
+        state.ItemsCollectedRecently.GetValueOrDefault("ENDER_PEARL").Should().Be(-4);
+    }
+
+    [Test]
+    public async Task ShardsDepositedIntoTheFusionBoxAreNotBooked()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("Fusion Box", new(), StackableItem("SHARD_FLARE", 10)), Now);
+
+        await ProcessView(state, View("Fusion Box", new(), StackableItem("SHARD_FLARE", 240)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [Test]
     public async Task BulkChangesOfOtherItemsAreNotLogged()
     {
         var state = new StateObject();

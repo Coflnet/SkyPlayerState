@@ -513,6 +513,11 @@ public class CollectionListener : UpdateListener
             // message is ignored as a transfer - booking only the inventory side was a phantom loss).
             if (diff < 0 && (currentIsTransferView || movedIntoCurrentContainer.Contains(tag)))
                 continue;
+            // a shard is never consumed from the inventory: it leaves by being added to the Hunting Box
+            // (right click), fused, sold or traded (production: -64 SHARD_APEX_DRAGON between two plain
+            // inventory views). Gains stay - Kuudra chest shards arrive in the inventory.
+            if (diff < 0 && tag.StartsWith("SHARD_", StringComparison.Ordinal))
+                continue;
             if (diff == 0)
                 continue;
             Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, tag, diff);
@@ -754,9 +759,9 @@ public class CollectionListener : UpdateListener
 
     /// <summary>
     /// Views whose items are swapped with the inventory rather than dropped into it: trade windows
-    /// (name starts with "You    "), sacks, NPC shops and the Hunting Box (production: 64 shards
-    /// withdrawn from it counted as a gain, the bazaar sale afterwards was skipped). First-time
-    /// counting is skipped around them.
+    /// (name starts with "You    "), sacks, NPC shops, the Hunting Box (production: 64 shards
+    /// withdrawn from it counted as a gain, the bazaar sale afterwards was skipped) and the Fusion
+    /// Box. First-time counting is skipped around them.
     /// </summary>
     private static bool IsSwapView(Models.ChestView view)
     {
@@ -764,7 +769,7 @@ public class CollectionListener : UpdateListener
         if (name == null)
             return false;
         return name.StartsWith("You    ") || name.Contains("Sack") || name.Contains("Shop") || name.Contains("Trades")
-            || name.Contains("Hunting Box");
+            || name.Contains("Hunting Box") || name.Contains("Fusion Box");
     }
 
     /// <summary>
