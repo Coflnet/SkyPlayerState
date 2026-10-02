@@ -18,6 +18,7 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 ///    {"timestamp","line"} objects.
 /// 2. Save that array to a file and run: TASK_COVERAGE_INPUT=/path/to/file.json dotnet test
 ///    --filter FullyQualifiedName~TaskCoverageDiscoveryTests
+///    (optionally also TASK_COVERAGE_PRICES=/path/to/prices.json, a {"TAG": price} object passed to the classifier)
 /// 3. Aggregate the resulting coverage.json (written next to the input file) by location/items to
 ///    find revenue TaskClassifier still leaves unclassified.
 /// Caveats: a Bazaar purchase shows up as a "collected" item in these logs too (an impossibly high
@@ -51,6 +52,13 @@ public class TaskCoverageDiscoveryTests
         var dir = Path.GetDirectoryName(Path.GetFullPath(input));
         var outputPath = Path.Combine(string.IsNullOrEmpty(dir) ? "." : dir, "coverage.json");
 
+        // optional: real clean prices like production's ClassifyPeriod passes (without them every matched
+        // value is 0 and ties fall to Priority/name)
+        Dictionary<string, double> prices = null;
+        var pricesPath = Environment.GetEnvironmentVariable("TASK_COVERAGE_PRICES");
+        if (!string.IsNullOrEmpty(pricesPath))
+            prices = JsonSerializer.Deserialize<Dictionary<string, double>>(File.ReadAllText(pricesPath));
+
         var entries = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(File.ReadAllText(input));
         var registry = new TaskRegistry();
         var classifier = new TaskClassifier(registry);
@@ -81,7 +89,7 @@ public class TaskCoverageDiscoveryTests
             if (DungeonRewardAttribution.IsFloorZone(loc))
                 lastFloorByPlayer[player] = (loc, ts);
 
-            var c = classifier.Classify(resolvedLocation, items, 10);
+            var c = classifier.Classify(resolvedLocation, items, 10, prices: prices);
             // separates hidden absorption (bazaar/auction purchases, minion collection - see
             // HiddenTasks.cs) from genuinely unclassified/real-task revenue in the remainder analysis.
             var hidden = c?.TaskName != null
