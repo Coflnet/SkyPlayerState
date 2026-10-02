@@ -390,6 +390,9 @@ public class CollectionListener : UpdateListener
     /// </summary>
     private const int MaxKnownItemUuids = 1024;
 
+    /// <summary>Absolute plain-count diff at which <see cref="HandleInventory"/> logs a "Bulk inventory change".</summary>
+    private const int BulkChangeLogThreshold = 64;
+
     static void HandleInventory(UpdateArgs args)
     {
         var previousInventory = args.currentState.RecentViews.Reverse().Skip(1).FirstOrDefault();
@@ -405,10 +408,9 @@ public class CollectionListener : UpdateListener
         try
         {
             if (previousInventory.Name != null && (!StorageListener.IsNotStorage(previousInventory)
-                || IsBazaarOrderCreate(previousInventory) || IsBazaarWindow(previousInventory)
-                || previousInventory.Name == "Create BIN Auction" || IsSwapView(previousInventory)))
+                || IsBazaarWindow(previousInventory) || IsAuctionView(previousInventory) || IsSwapView(previousInventory)))
             {
-                // if the previous inventory is a storage, bazaar or swap view (trade, sack, NPC shop:
+                // if the previous inventory is a storage, bazaar, auction or swap view (trade, sack, NPC shop:
                 // items move between it and the inventory, no loot), we don't want to track items collected -
                 // but the known-uuid set must still learn this view's items regardless (see
                 // RegisterKnownItemUuids's docs), so register before returning.
@@ -439,10 +441,11 @@ public class CollectionListener : UpdateListener
         var known = args.currentState.KnownItemUuids;
         var knownUuids = known is { Count: > 0 } ? new HashSet<long>(known) : null;
         // First-time-drop guards (see the loop): never when the current view is a trade window, NPC
-        // shop or sack (items there are swapped, not dropped). A swap view as previous view already
+        // shop, sack or auction house (items there are swapped/bought, not dropped). A swap view as previous view already
         // returned above.
-        var allowFirstTimeCounting = !IsSwapView(args.msg.Chest);
+        var allowFirstTimeCounting = !IsSwapView(args.msg.Chest) && !IsAuctionView(args.msg.Chest);
         var previousIsRewardChest = IsRewardChestView(previousInventory);
+        var movedIntoCurrentContainer = GetCurrentContainerTags(args.msg.Chest);
         // (a) every tag anywhere in the previous view, including its container part
         // (a reward chest's container part is ignored, see GetItemsForSwapGuards)
         var previousTags = GetItemsForSwapGuards(previousInventory).Where(i => i.Tag != null).Select(i => i.Tag).ToHashSet();
@@ -501,8 +504,19 @@ public class CollectionListener : UpdateListener
             var previousCount = previousItems.Sum(i => (long)(i.Count ?? 0));
             var currentCount = currentItems.Sum(i => (long)(i.Count ?? 0));
             var diff = currentCount - previousCount;
-            if (diff != 0)
-                Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, tag, diff);
+            // items shift-clicked into a storage/transfer view that is already the current view were
+            // moved, not consumed (production: -64 GRIFFIN_FEATHER after an Ender Chest upload)
+            if (diff < 0 && movedIntoCurrentContainer.Contains(tag))
+                continue;
+            if (diff == 0)
+                continue;
+            Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, tag, diff);
+            // TEMPORARY diagnostic: learn which view pairs still produce phantom gains/losses
+            // (e.g. bazaar GUI titles IsBazaarWindow does not know yet)
+            if (Math.Abs(diff) >= BulkChangeLogThreshold)
+                args.GetService<ILogger<CollectionListener>>().LogInformation(
+                    "Bulk inventory change for {playerId}: {count}x {tag} between views {previousView} -> {currentView}",
+                    args.currentState.PlayerId, diff, tag, previousInventory.Name ?? "<inventory>", args.msg.Chest.Name ?? "<inventory>");
         }
         RegisterKnownItemUuids(args.currentState, args.msg.Chest);
 
@@ -515,6 +529,25 @@ public class CollectionListener : UpdateListener
                 .GroupBy(i => i.Tag)
                 .ToDictionary(g => g.Key, g => g.ToList());
         }
+    }
+
+    /// <summary>
+    /// When <paramref name="view"/> is a storage or transfer view (the same set the previous-view early
+    /// return in <see cref="HandleInventory"/> skips), the tags in its container part (everything before
+    /// the last 36 accessible inventory slots): a negative diff of such a tag means the player moved the
+    /// items into the container, not that they were consumed. Empty for every other view.
+    /// </summary>
+    internal static HashSet<string> GetCurrentContainerTags(Models.ChestView view)
+    {
+        var tags = new HashSet<string>();
+        if (view?.Name == null || view.Items == null)
+            return tags;
+        if (StorageListener.IsNotStorage(view) && !IsBazaarWindow(view) && !IsAuctionView(view) && !IsSwapView(view))
+            return tags;
+        foreach (var item in view.Items.Take(Math.Max(0, view.Items.Count - 36)))
+            if (item.Tag != null)
+                tags.Add(item.Tag);
+        return tags;
     }
 
     /// <summary>
@@ -702,14 +735,14 @@ public class CollectionListener : UpdateListener
 
     /// <summary>
     /// Views where items move between inventory, sacks, bazaar and NPCs instead of being looted:
-    /// <see cref="IsSwapView"/> (trade, sack, shop) and bazaar windows. Sack chat deltas right after
+    /// <see cref="IsSwapView"/> (trade, sack, shop), bazaar and auction house windows. Sack chat deltas right after
     /// one are transfers/sales - see <see cref="HandleSackNotification"/>.
     /// </summary>
     internal static bool IsTransferView(Models.ChestView? view)
     {
         if (view?.Name == null)
             return false;
-        return IsSwapView(view) || IsBazaarWindow(view) || IsBazaarOrderCreate(view);
+        return IsSwapView(view) || IsBazaarWindow(view) || IsAuctionView(view);
     }
 
     /// <summary>
@@ -724,16 +757,31 @@ public class CollectionListener : UpdateListener
         return name.StartsWith("You    ") || name.Contains("Sack") || name.Contains("Shop") || name.Contains("Trades");
     }
 
-    private static bool IsBazaarWindow(Models.ChestView previousInventory)
+    /// <summary>
+    /// Every bazaar GUI whose items/refunds move between inventory and orders. The sub-menu titles
+    /// ("Order options", the amount/price prompts) come from knowledge of the Hypixel GUI - an
+    /// unrecognised one shows up as a "Bulk inventory change" log line in <see cref="HandleInventory"/>.
+    /// </summary>
+    private static bool IsBazaarWindow(Models.ChestView view)
     {
         // maybe also check if previous Item was actually present
-        return previousInventory.Name.EndsWith("Bazaar Orders")
-            || previousInventory.Name.Contains('➜'); // for insta sells
+        var name = view.Name;
+        return name.EndsWith("Bazaar Orders")
+            || name.Contains('➜') // for insta sells
+            || name.Contains("Confirm") // order create / confirm sell offer
+            || name is "Order options" or "How many do you want?" or "How much do you want to pay?" or "At what price are you selling?"
+            || name.StartsWith("Bazaar");
     }
 
-    private static bool IsBazaarOrderCreate(Models.ChestView previousInventory)
+    /// <summary>
+    /// Auction House GUIs ("Auction View", "BIN Auction View", "Auction House", "Auctions Browser",
+    /// "Manage Auctions", "Create Auction", "Create BIN Auction", "Your Bids"): items arriving around
+    /// them are purchases/returns, never loot.
+    /// </summary>
+    private static bool IsAuctionView(Models.ChestView view)
     {
-        return previousInventory.Name.Contains("Confirm");
+        var name = view?.Name;
+        return name != null && (name.Contains("Auction") || name == "Your Bids");
     }
 
     /// <summary>

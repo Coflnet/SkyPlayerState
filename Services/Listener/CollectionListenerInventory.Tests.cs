@@ -739,4 +739,134 @@ public class CollectionListenerInventoryTests
 
         state.ItemsCollectedRecently.GetValueOrDefault("ENCHANTED_COBBLESTONE").Should().Be(36);
     }
+
+    private static async Task<CapturingLogger> ProcessViewLogged(StateObject state, ChestView chest)
+    {
+        var logger = new CapturingLogger();
+        var args = new MockedUpdateArgs
+        {
+            currentState = state,
+            msg = new UpdateMessage { Kind = UpdateMessage.UpdateKind.INVENTORY, PlayerId = "p1", Chest = chest, ReceivedAt = Now }
+        };
+        args.AddService<ILogger<CollectionListener>>(logger);
+        await new RecentViewsUpdate().Process(args);
+        await new CollectionListener().Process(args);
+        return logger;
+    }
+
+    [TestCase("Order options")]
+    [TestCase("How many do you want?")]
+    [TestCase("How much do you want to pay?")]
+    [TestCase("At what price are you selling?")]
+    [TestCase("Bazaar ➜ Farming")]
+    [TestCase("Bazaar")]
+    public async Task RefundAfterBazaarSubMenuIsNotCounted(string viewName)
+    {
+        var state = new StateObject();
+        await ProcessView(state, View(viewName, new(), StackableItem("SHARD_FLARE", 1)), Now);
+
+        await ProcessView(state, View("", new(), StackableItem("SHARD_FLARE", 132)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task SameRefundAfterPlainInventoryIsStillCountedAndLogged()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("SHARD_FLARE", 1)), Now);
+
+        var logger = await ProcessViewLogged(state, View("", new(), StackableItem("SHARD_FLARE", 132)));
+
+        state.ItemsCollectedRecently.GetValueOrDefault("SHARD_FLARE").Should().Be(131);
+        logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Information
+            && e.Message == "Bulk inventory change for " + state.PlayerId + ": 131x SHARD_FLARE between views  -> ");
+    }
+
+    [Test]
+    public async Task SmallChangesAreNotLoggedAsBulk()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("SHARD_FLARE", 1)), Now);
+
+        var logger = await ProcessViewLogged(state, View("", new(), StackableItem("SHARD_FLARE", 64)));
+
+        state.ItemsCollectedRecently.GetValueOrDefault("SHARD_FLARE").Should().Be(63);
+        logger.Entries.Should().NotContain(e => e.Message.StartsWith("Bulk inventory change"));
+    }
+
+    [TestCase("Auction View")]
+    [TestCase("BIN Auction View")]
+    [TestCase("Auction House")]
+    [TestCase("Auctions Browser")]
+    [TestCase("Manage Auctions")]
+    [TestCase("Create Auction")]
+    [TestCase("Create BIN Auction")]
+    [TestCase("Your Bids")]
+    public async Task ItemsArrivingAfterAuctionViewAreNotCounted(string viewName)
+    {
+        var state = new StateObject();
+        await ProcessView(state, View(viewName, new(), StackableItem("ENCHANTED_COBBLESTONE", 64)), Now);
+
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64), StackableItem("GIANTS_SWORD", 1)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task NewItemWhileCurrentViewIsAuctionViewIsNotCountedAsFirstTimeDrop()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64)), Now);
+
+        await ProcessView(state, View("BIN Auction View", new(), StackableItem("ENCHANTED_COBBLESTONE", 64), StackableItem("GIANTS_SWORD", 1)), Now);
+        state.ItemsCollectedRecently.Should().BeEmpty();
+
+        // control: the same arrival in a plain view is a first-time drop
+        var control = new StateObject();
+        await ProcessView(control, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64)), Now);
+        await ProcessView(control, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64), StackableItem("GIANTS_SWORD", 1)), Now);
+        control.ItemsCollectedRecently.GetValueOrDefault("GIANTS_SWORD").Should().Be(1);
+    }
+
+    [Test]
+    public void AuctionAndBazaarViewsAreTransferViews()
+    {
+        CollectionListener.IsTransferView(View("Auction View", new())).Should().BeTrue();
+        CollectionListener.IsTransferView(View("Order options", new())).Should().BeTrue();
+        CollectionListener.IsTransferView(View("Skyblock Menu", new())).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task NegativeDiffOfItemsMovedIntoCurrentStorageViewIsNotBooked()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("GRIFFIN_FEATHER", 128)), Now);
+
+        await ProcessView(state, View("Ender Chest (2/4)", new() { StackableItem("GRIFFIN_FEATHER", 64) }, StackableItem("GRIFFIN_FEATHER", 64)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task NegativeDiffWithTagAbsentFromCurrentStorageContainerIsStillBooked()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("GRIFFIN_FEATHER", 128)), Now);
+
+        await ProcessView(state, View("Ender Chest (2/4)", new() { StackableItem("ENCHANTED_COBBLESTONE", 64) }, StackableItem("GRIFFIN_FEATHER", 64)), Now);
+
+        state.ItemsCollectedRecently.GetValueOrDefault("GRIFFIN_FEATHER").Should().Be(-64);
+    }
+
+    [Test]
+    public async Task PositiveDiffWithCurrentStorageViewIsStillBooked()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("GRIFFIN_FEATHER", 10)), Now);
+
+        await ProcessView(state, View("Ender Chest (2/4)", new() { StackableItem("GRIFFIN_FEATHER", 64) }, StackableItem("GRIFFIN_FEATHER", 20)), Now);
+
+        state.ItemsCollectedRecently.GetValueOrDefault("GRIFFIN_FEATHER").Should().Be(10);
+    }
 }
