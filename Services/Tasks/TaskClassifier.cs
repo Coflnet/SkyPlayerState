@@ -162,7 +162,11 @@ public class TaskClassifier
                 return new(claimed.sig.MethodName, claimed.itemMatched, claimed.sig.Category);
         }
         var best = candidates
-            .OrderByDescending(c => c.itemMatched)          // item evidence beats location-only
+            // a fallback task (DetectionSignature.Fallback) only ever classifies a period no regular task
+            // matched at all - checked before the item evidence and the value, so a catch-all (even one
+            // with a pricey tag) can never take a period away from another task
+            .OrderBy(c => c.sig.Fallback)
+            .ThenByDescending(c => c.itemMatched)           // item evidence beats location-only
             .ThenByDescending(c => c.matchedValue)          // most valuable matched items win
             .ThenByDescending(c => c.sig.Priority)          // explicit override
             .ThenBy(c => c.sig.MethodName, StringComparer.Ordinal) // deterministic

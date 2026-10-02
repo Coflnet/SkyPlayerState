@@ -19,6 +19,11 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 /// (positive or negative) makes a location match item-matched and adds to its matchedValue, but an
 /// absent one never disqualifies the candidate (unlike DetectionItems).
 /// </param>
+/// <param name="Fallback">
+/// Catch-all flag (see MethodTask.Fallback): every candidate of a fallback task ranks below every
+/// candidate of a regular task, so it can only ever classify a period no regular task matched -
+/// never take one away from another task, not even by out-valuing it.
+/// </param>
 public record DetectionSignature(
     string MethodName,
     HashSet<string> Locations,
@@ -29,7 +34,8 @@ public record DetectionSignature(
     string Category,
     string DerivedFrom = null,
     int MinLocationOnlyItems = 5,
-    HashSet<string> EvidenceItems = null);
+    HashSet<string> EvidenceItems = null,
+    bool Fallback = false);
 
 /// <summary>
 /// One stat signal affecting a task's rates.

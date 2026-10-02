@@ -180,6 +180,16 @@ internal static class TaskCatalog
         // discovered from unclassified production revenue 2026-09-28
         tasks.Add<GoblinFarmingTask>();
         tasks.Add<MageOutlawTask>();
+        // catch-alls for frequent unclassified activity 2026-10 (CoverageGapTasks.cs)
+        tasks.Add<CrimsonIsleMobsTask>();
+        tasks.Add<GalateaContestsTask>();
+        tasks.Add<GlaciteWalkerTask>();
+        tasks.Add<ChillHuntingTask>();
+        tasks.Add<HoneybuzzHuntingTask>();
+        tasks.Add<YogAndBalTask>();
+        tasks.Add<BarnAnimalsTask>();
+        tasks.Add<FarmAndBarnCropsTask>();
+        tasks.Add<DungeonChestClaimsTask>();
 
         // Hunting tasks
         tasks.Add<RainSlimeHuntingTask>();

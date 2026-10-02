@@ -284,6 +284,16 @@ public abstract class MethodTask : ProfitTask
     protected virtual int MinLocationOnlyItems => 5;
 
     /// <summary>
+    /// Marks a catch-all task that only ever classifies a period no regular task matched at all
+    /// (neither on items nor on location): the classifier ranks every candidate of a fallback task
+    /// below every candidate of a regular task, whatever the item values (it orders by value first,
+    /// so without this a catch-all with a pricey tag like a contest coupon or a shard could take a
+    /// period away from the task the player was really doing). Adding a fallback task can therefore
+    /// only ever turn an unclassified period into a classified one. See <see cref="DetectionSignature.Fallback"/>.
+    /// </summary>
+    protected virtual bool Fallback => false;
+
+    /// <summary>
     /// Which player stats affect the rates of this task. Used to group data from
     /// players with similar stats. Empty means rates are not stat conditioned and
     /// all data lands in the unknown bucket.
@@ -295,7 +305,7 @@ public abstract class MethodTask : ProfitTask
     /// Exposes the same rules <see cref="FindMatchingPeriods"/> applies.
     /// </summary>
     public DetectionSignature GetDetectionSignature() => new(
-        MethodName, Locations, DetectionItems, RequireShardItems, ExcludeShardItems, Priority, Category, DerivedFrom, MinLocationOnlyItems, EvidenceItems);
+        MethodName, Locations, DetectionItems, RequireShardItems, ExcludeShardItems, Priority, Category, DerivedFrom, MinLocationOnlyItems, EvidenceItems, Fallback);
 
     /// <summary>
     /// Estimated multipliers from the declared effects, used to seed the

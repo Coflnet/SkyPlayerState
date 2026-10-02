@@ -23,7 +23,9 @@ public class TaskCatalogRegistrationTests
     [
         "BazaarPurchaseTask", "AuctionPurchaseTask", "MinionCollectionTask",
         // hidden zone tasks for zones where no money making method exists - see HiddenTasks.cs
-        "PrivateIslandActivityTask", "ForgeClaimsTask", "HubTradingTask", "RiftActivityTask", "UnknownLocationTask"
+        "PrivateIslandActivityTask", "ForgeClaimsTask", "HubTradingTask", "RiftActivityTask", "UnknownLocationTask",
+        // location-only catch-alls whose personal view would otherwise swallow a whole island - see CoverageGapTasks.cs
+        "CrimsonIsleMobsTask", "DungeonChestClaimsTask"
     ];
 
     private static readonly string[] ExpectedRegisteredTaskNames =
@@ -63,7 +65,10 @@ public class TaskCatalogRegistrationTests
         "WaterFishingHuntingTask", "WaterFishingTask", "WaterWormFishingHuntingTask", "WaterWormFishingTask",
         "WheatFarmingTask", "WildRoseFarmingTask",
         "WinterFishingTask", "WitherSpecterHuntingTask", "XyzHuntingTask", "YogHuntingTask", "ZealotHuntingTask",
-        "ZealotsFdTask"
+        "ZealotsFdTask",
+        // CoverageGapTasks.cs
+        "CrimsonIsleMobsTask", "GalateaContestsTask", "GlaciteWalkerTask", "ChillHuntingTask", "HoneybuzzHuntingTask",
+        "YogAndBalTask", "BarnAnimalsTask", "FarmAndBarnCropsTask", "DungeonChestClaimsTask"
     ];
 
     [Test]
