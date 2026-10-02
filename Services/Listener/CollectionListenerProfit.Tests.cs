@@ -1,3 +1,5 @@
+using System;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using AwesomeAssertions;
 using NUnit.Framework;
@@ -40,5 +42,29 @@ public class CollectionListenerProfitTests
         var profit = CollectionListener.ComputeProfit(collected, prices);
 
         profit.Should().Be(7_000_000, "DUNGEON_CHEST_COST is worth exactly 1 coin/unit and its count is already negative");
+    }
+
+    [TestCase("Wyld Woods", "Wyld Woods")]
+    [TestCase("Wizard Tower", "The Rift")]
+    [TestCase("Some Unregistered Rift Zone", "The Rift")]
+    public async Task RiftScoreboard_UsesRegisteredRiftZoneOrLiteralTheRift(string riftArea, string expectedLocation)
+    {
+        var state = new Models.StateObject();
+        state.ExtractedInfo.CurrentLocation = "Wizard Tower";
+        state.ExtractedInfo.LastLocationChange = DateTime.UtcNow.AddMinutes(-3);
+        var args = new Tests.MockedUpdateArgs
+        {
+            currentState = state,
+            msg = new Models.UpdateMessage
+            {
+                Kind = Models.UpdateMessage.UpdateKind.Scoreboard,
+                Scoreboard = new[] { "[SKYBLOCK]", $" {ScoreboardParser.AreaGlyphRift} {riftArea}", "Motes: 12,345" }
+            }
+        };
+
+        await new CollectionListener().Process(args);
+
+        state.ExtractedInfo.CurrentLocation.Should().Be(expectedLocation);
+        state.ExtractedInfo.LastLocationChange.Should().BeAfter(DateTime.UtcNow.AddMinutes(-1), "the Wizard Tower period was flushed");
     }
 }

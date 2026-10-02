@@ -348,4 +348,22 @@ public class SkyblockZonesTests
         var taskLocations = new HashSet<string> { "Your Island" };
         SkyblockZones.Matches(taskLocations, "Your Island").Should().BeTrue("the literal zone string must still match directly");
     }
+
+    [TestCase("Wyld Woods")]
+    [TestCase("Enigma's Crib")]
+    [TestCase("Mirrorverse")]
+    [TestCase("Time-Torn Isles")]
+    [TestCase("Stillgore Château")]
+    public void RiftZones_ResolveToRift(string zone)
+    {
+        SkyblockZones.IslandOf(zone).Should().Be("Rift");
+    }
+
+    [Test]
+    public void RiftZoneRegistration_DoesNotStealZonesOfOtherIslands()
+    {
+        SkyblockZones.IslandOf("Colosseum").Should().Be("Hub");
+        SkyblockZones.IslandOf("The Bastion").Should().BeNull("ambiguous zones stay unmapped");
+        SkyblockZones.IslandOf("Wizard Tower").Should().BeNull();
+    }
 }

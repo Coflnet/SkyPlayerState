@@ -298,8 +298,27 @@ public static class SkyblockZones
             "Jerry's Workshop", "Jerry Pond", "Sunken Jerry Pond", "Reflective Pond", "Mount Jerry",
             "Glacial Cave", "Hot Springs", "Gary's Shack", "Terry's Shack");
 
-        Add("Rift",
-            "The Rift", "Wyld Woods", "Dreadfarm", "West Village", "Shifted Tavern");
+        // Rift zones. The Rift replaces the overworld scoreboard, so these must resolve to "Rift"
+        // (see CollectionListener.HandleScoreboard). Names already mapped to another island (e.g. the
+        // Hub's "Colosseum") or listed in AmbiguousZones (e.g. "The Bastion", "Wizard Tower") are
+        // skipped - the Rift variant of those is handled by the literal "The Rift" fallback instead.
+        foreach (var riftZone in new[]
+        {
+            "The Rift", "Rift", "Wyld Woods", "Dreadfarm", "West Village", "Shifted Tavern",
+            "Black Lagoon", "Broken Cage", "Colosseum", "Déjà Vu Alley", "Dollhouse", "Enigma's Crib",
+            "Half-Eaten Cave", "Lagune", "Mirrorverse", "Murder House", "Otherworld", "Rift Gallery",
+            "Stillgore Château", "Tayber's Lab", "The Bastion",
+            "Pumpgrotto", "Otherside", "Lagoon Cave", "Lagoon Hut", "Leeches Lair", "Around Colosseum",
+            "Rift Gallery Entrance", "Dolphin Trainer", "Cake House", "Infested House", "Great Beanstalk",
+            "Village Plaza", "Taylor's", "Lonely Terrace", "Book In A Book", "Empty Bank", "Barry Center",
+            "Barry HQ", "Living Cave", "Living Stillness", "Barrier Street", "Photon Pathway", "Oubliette",
+            "Fairylosopher Tower", "Mountaintop", "Trial Grounds", "Time Chamber", "Wizard Brawl",
+            "Walk of Fame", "Continuum", "Time-Torn Isles"
+        })
+        {
+            if (!map.ContainsKey(riftZone))
+                Add("Rift", riftZone);
+        }
 
         Add("Dungeon Hub",
             "Dungeon Hub", "The Catacombs", "Master Mode", "Floor VII",

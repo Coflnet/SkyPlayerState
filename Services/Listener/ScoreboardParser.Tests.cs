@@ -87,6 +87,48 @@ public class ScoreboardParserTests
             "\"None\" is not a real area and must not overwrite CurrentLocation or trigger a location change");
     }
 
+    // ── Rift scoreboard: area glyph ф (U+0444) and "Motes:" instead of the purse ──
+
+    [Test]
+    public void ExtractArea_ReadsRiftGlyph()
+    {
+        ScoreboardParser.ExtractArea(new[] { "[SKYBLOCK]", " ф Wyld Woods", "Motes: 12,345" }).Should().Be("Wyld Woods");
+    }
+
+    [Test]
+    public void ExtractArea_RiftWithUnknownPrivateUseGlyph_FallsBackViaMotes()
+    {
+        ScoreboardParser.ExtractArea(new[] { "[SKYBLOCK]", " \uE100 Wyld Woods", "Motes: 1,234" }).Should().Be("Wyld Woods");
+    }
+
+    [Test]
+    public void ExtractArea_UnknownGlyphWithoutMotes_StaysNull()
+    {
+        ScoreboardParser.ExtractArea(new[] { "[SKYBLOCK]", " \uE100 Wyld Woods", "Purse: 1,234" }).Should().BeNull();
+    }
+
+    [Test]
+    public void ExtractArea_MotesFallbackIgnoresLettersAndDigitsAsGlyph()
+    {
+        ScoreboardParser.ExtractArea(new[] { " 2 Something", " a Other", "Motes: 5" }).Should().BeNull();
+    }
+
+    [Test]
+    public void IsRiftScoreboard_DetectsMotesOrRiftGlyph()
+    {
+        ScoreboardParser.IsRiftScoreboard(new[] { "§7Motes: §d12,345" }).Should().BeTrue();
+        ScoreboardParser.IsRiftScoreboard(new[] { " ф Wyld Woods" }).Should().BeTrue();
+        ScoreboardParser.IsRiftScoreboard(new[] { " ⏣ Hub", "Purse: 5" }).Should().BeFalse();
+        ScoreboardParser.IsRiftScoreboard(new[] { " ф" }).Should().BeFalse();
+        ScoreboardParser.IsRiftScoreboard(null).Should().BeFalse();
+    }
+
+    [Test]
+    public void ExtractArea_RiftNone_IsStillNull()
+    {
+        ScoreboardParser.ExtractArea(new[] { " ф None", "Motes: 1" }).Should().BeNull();
+    }
+
     [Test]
     public void IsAreaLine_DoesNotMatchOtherIndentedLines()
     {

@@ -48,13 +48,35 @@ public static class ScoreboardParser
     public const char AreaGlyphLegacy = '⏣';
     public const char AreaGlyphPrivateUse = '';
 
+    // In the Rift dimension the area marker is the Cyrillic letter ф (U+0444), e.g. " ф Wyld Woods"
+    // (community mods match `[⏣ф]`). Taken from community knowledge, not our own logs - hence the
+    // "Motes:" based fallback in ExtractArea for an unknown future Rift glyph.
+    public const char AreaGlyphRift = 'ф';
+
+    private static bool IsShapedLikeAreaLine(string line) =>
+        line != null && line.Length > 2 && line[0] == ' ' && line[2] == ' ';
+
     /// <summary>
     /// True when the line is an area marker line (" &lt;glyph&gt; &lt;Area Name&gt;").
     /// </summary>
     public static bool IsAreaLine(string line) =>
-        line != null && line.Length > 2 && line[0] == ' '
-        && (line[1] == AreaGlyphLegacy || line[1] == AreaGlyphPrivateUse)
-        && line[2] == ' ';
+        IsShapedLikeAreaLine(line)
+        && (line[1] == AreaGlyphLegacy || line[1] == AreaGlyphPrivateUse || line[1] == AreaGlyphRift);
+
+    private static List<string> StripCodes(IEnumerable<string> scoreboard) =>
+        (scoreboard ?? Enumerable.Empty<string>()).Where(l => l != null)
+            .Select(l => Regex.Replace(l, "§.", string.Empty)).ToList();
+
+    /// <summary>
+    /// True for a Rift scoreboard: it has a "Motes:" line (replaces the purse in the Rift) or an
+    /// area line using the Rift glyph ф.
+    /// </summary>
+    public static bool IsRiftScoreboard(IEnumerable<string> scoreboard)
+    {
+        var lines = StripCodes(scoreboard);
+        return lines.Any(l => l.Contains("Motes:"))
+            || lines.Any(l => IsShapedLikeAreaLine(l) && l[1] == AreaGlyphRift);
+    }
 
     /// <summary>
     /// The current area name from a scoreboard, or null when no area line is present.
@@ -62,10 +84,19 @@ public static class ScoreboardParser
     /// player Ekwav, on several islands) rather than omitting the area line entirely; that is
     /// treated the same as no area line so it does not trigger a location change or get stored
     /// as its own period (see CollectionListener.HandleScoreboard).
+    /// When the scoreboard has a "Motes:" line (Rift) but no known glyph matches, the first line shaped
+    /// " &lt;one symbol char&gt; &lt;name&gt;" is taken, so a future Rift glyph swap does not break detection.
+    /// Without "Motes:" other sidebar rows of that shape are never mistaken for an area.
     /// </summary>
     public static string ExtractArea(IEnumerable<string> scoreboard)
     {
-        var area = scoreboard?.FirstOrDefault(IsAreaLine)?.Substring(3).Trim();
+        var list = scoreboard?.ToList();
+        var area = list?.FirstOrDefault(IsAreaLine)?.Substring(3).Trim();
+        if (area == null && list != null && StripCodes(list).Any(l => l.Contains("Motes:")))
+        {
+            area = list.FirstOrDefault(l => IsShapedLikeAreaLine(l)
+                && !char.IsLetterOrDigit(l[1]) && !char.IsWhiteSpace(l[1]))?.Substring(3).Trim();
+        }
         return area == "None" ? null : area;
     }
 }

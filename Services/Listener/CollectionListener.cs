@@ -636,6 +636,14 @@ public class CollectionListener : UpdateListener
         {
             return;
         }
+        // In the Rift several zone names collide with overworld ones (e.g. "Wizard Tower"), and an
+        // unregistered Rift zone must never be mistaken for an overworld one - so only a name that is
+        // explicitly registered as a Rift zone is used, everything else becomes the literal "The Rift".
+        if (ScoreboardParser.IsRiftScoreboard(args.msg.Scoreboard)
+            && Tasks.SkyblockZones.IslandOf(currentLocation) != "Rift")
+        {
+            currentLocation = "The Rift";
+        }
         var now = DateTime.UtcNow;
         var previousLocation = args.currentState.ExtractedInfo.CurrentLocation;
         var zoneChanged = previousLocation != null && previousLocation != currentLocation;
