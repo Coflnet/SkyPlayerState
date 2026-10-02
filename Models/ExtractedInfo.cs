@@ -143,6 +143,16 @@ public class ExtractedInfo
     [Key(31)]
     public DateTime LastDungeonFloorAt { get; set; }
     /// <summary>
+    /// The last Kuudra tier zone ("Kuudra's Hollow (T5)") the player was seen in, or null. Used by
+    /// <see cref="Tasks.KuudraRewardAttribution"/> to attribute chest claims made at the Dungeon Hub /
+    /// Forgotten Skull back to the tier. Keys 41/42: 40 is <see cref="LastTransferViewAt"/>.
+    /// </summary>
+    [Key(41)]
+    public string? LastKuudraTier { get; set; }
+    /// <summary>When <see cref="LastKuudraTier"/> was last seen.</summary>
+    [Key(42)]
+    public DateTime LastKuudraTierAt { get; set; }
+    /// <summary>
     /// A dungeon reward chest GUI with a non-zero coin cost seen but not yet confirmed as bought (the
     /// click itself is invisible - only a purse drop on a later update confirms it) - see
     /// <see cref="Services.DungeonRewardListener"/>.
@@ -258,6 +268,8 @@ public class ExtractedInfo
         CurrentLocationSeenAt = extractedInfo.CurrentLocationSeenAt;
         LastDungeonFloor = extractedInfo.LastDungeonFloor;
         LastDungeonFloorAt = extractedInfo.LastDungeonFloorAt;
+        LastKuudraTier = extractedInfo.LastKuudraTier;
+        LastKuudraTierAt = extractedInfo.LastKuudraTierAt;
         PendingDungeonChestCharge = extractedInfo.PendingDungeonChestCharge == null ? null : new PendingDungeonChestCharge
         {
             ChestType = extractedInfo.PendingDungeonChestCharge.ChestType,

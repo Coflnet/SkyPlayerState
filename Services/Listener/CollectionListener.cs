@@ -845,6 +845,11 @@ public class CollectionListener : UpdateListener
             args.currentState.ExtractedInfo.LastDungeonFloor = currentLocation;
             args.currentState.ExtractedInfo.LastDungeonFloorAt = now;
         }
+        if (Tasks.KuudraRewardAttribution.IsTierZone(currentLocation))
+        {
+            args.currentState.ExtractedInfo.LastKuudraTier = Tasks.SkyblockZones.Canonical(currentLocation);
+            args.currentState.ExtractedInfo.LastKuudraTierAt = now;
+        }
         await ClassifyLive(args);
     }
 
@@ -992,6 +997,15 @@ public class CollectionListener : UpdateListener
             previousLocation, info.LastDungeonFloor, info.LastDungeonFloorAt, periodStart);
         if (resolvedLocation != previousLocation)
             Logger.LogInformation("Attributed Dungeon Hub reward claim of {playerId} to {floor}", args.currentState.PlayerId, resolvedLocation);
+        // Kuudra claims (chest loot at the Dungeon Hub/Forgotten Skull) and key purchases (Scarleton)
+        // take precedence over the Catacombs resolution - see Tasks.KuudraRewardAttribution.
+        var kuudraLocation = Tasks.KuudraRewardAttribution.ResolveLocation(
+            previousLocation, collected, info.LastKuudraTier, info.LastKuudraTierAt, periodStart);
+        if (kuudraLocation != previousLocation)
+        {
+            resolvedLocation = kuudraLocation;
+            Logger.LogInformation("Attributed Kuudra reward claim of {playerId} to {zone}", args.currentState.PlayerId, resolvedLocation);
+        }
         Dictionary<string, double> cleanPrices = null;
         if (collected.Count > 0)
         {
