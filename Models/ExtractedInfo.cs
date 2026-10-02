@@ -153,6 +153,12 @@ public class ExtractedInfo
     [Key(42)]
     public DateTime LastKuudraTierAt { get; set; }
     /// <summary>
+    /// Seconds spent in Kuudra tier zones without anything collected (so no stored period) since the
+    /// last claim - added to the claim period's start by <see cref="Tasks.KuudraRewardAttribution.UpdatePendingRun"/>.
+    /// </summary>
+    [Key(43)]
+    public double KuudraPendingRunSeconds { get; set; }
+    /// <summary>
     /// A dungeon reward chest GUI with a non-zero coin cost seen but not yet confirmed as bought (the
     /// click itself is invisible - only a purse drop on a later update confirms it) - see
     /// <see cref="Services.DungeonRewardListener"/>.
@@ -270,6 +276,7 @@ public class ExtractedInfo
         LastDungeonFloorAt = extractedInfo.LastDungeonFloorAt;
         LastKuudraTier = extractedInfo.LastKuudraTier;
         LastKuudraTierAt = extractedInfo.LastKuudraTierAt;
+        KuudraPendingRunSeconds = extractedInfo.KuudraPendingRunSeconds;
         PendingDungeonChestCharge = extractedInfo.PendingDungeonChestCharge == null ? null : new PendingDungeonChestCharge
         {
             ChestType = extractedInfo.PendingDungeonChestCharge.ChestType,

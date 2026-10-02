@@ -87,4 +87,65 @@ public class KuudraRewardAttributionTests
         var location = KuudraRewardAttribution.ResolveLocation("Dungeon Hub", Loot, "Kuudra's Hollow (T4)", Base, Base.AddMinutes(3));
         new TaskClassifier(new TaskRegistry()).Classify(location, Loot, 10)!.TaskName.Should().Be("Kuudra T4");
     }
+
+    [TestCase("Village")]
+    [TestCase("Hub")]
+    public void KeyGainOutsideTheCrimsonIsle_AloneOrWithPseudoTags_ResolvesToTier(string location)
+    {
+        var items = new Dictionary<string, int>
+        {
+            { "KUUDRA_HOT_TIER_KEY", 1 }, { "KUUDRA_TIER_KEY", -1 }, { "ENCHANTED_BOOK", -2 },
+            { PseudoItems.BAZAAR_PURCHASE, 5 }
+        };
+        KuudraRewardAttribution.ResolveLocation(location, items, null, default, Base).Should().Be("Kuudra's Hollow (T2)");
+    }
+
+    [Test]
+    public void KeyGainOutsideTheCrimsonIsle_WithOtherRealItem_NotAttributed()
+    {
+        var items = new Dictionary<string, int> { { "KUUDRA_HOT_TIER_KEY", 1 }, { "ENCHANTED_WHEAT", 300 } };
+        KuudraRewardAttribution.ResolveLocation("Village", items, null, default, Base).Should().Be("Village");
+    }
+
+    [Test]
+    public void EmptyTierFragmentsAccumulate_AndAClaimConsumesThem()
+    {
+        var now = Base;
+        var pending = KuudraRewardAttribution.UpdatePendingRun(0, now, now, true, TimeSpan.FromMinutes(3), false, out var shift);
+        pending = KuudraRewardAttribution.UpdatePendingRun(pending, now, now, true, TimeSpan.FromMinutes(2), false, out shift);
+        pending.Should().Be(300);
+        shift.Should().Be(TimeSpan.Zero);
+
+        pending = KuudraRewardAttribution.UpdatePendingRun(pending, now, now.AddMinutes(1), false, TimeSpan.FromSeconds(8), true, out shift);
+        pending.Should().Be(0);
+        shift.Should().Be(TimeSpan.FromSeconds(300));
+    }
+
+    [Test]
+    public void StalePendingIsDropped_AndKeyOnlyPeriodDoesNotConsume()
+    {
+        var stale = Base + KuudraRewardAttribution.MaxClaimDelay + TimeSpan.FromMinutes(1);
+        KuudraRewardAttribution.UpdatePendingRun(300, Base, stale, false, TimeSpan.FromSeconds(8), true, out var shift).Should().Be(0);
+        shift.Should().Be(TimeSpan.Zero);
+
+        // a key purchase is not a claim (claimedToTier false): pending stays
+        KuudraRewardAttribution.UpdatePendingRun(300, Base, Base.AddMinutes(5), false, TimeSpan.FromSeconds(8), false, out shift).Should().Be(300);
+        shift.Should().Be(TimeSpan.Zero);
+    }
+
+    [TestCase(0)]
+    [TestCase(-30)]
+    [TestCase(7200)]
+    public void NonPositiveOrAbsurdFragmentsAreIgnored(int seconds)
+    {
+        KuudraRewardAttribution.UpdatePendingRun(10, Base, Base, true, TimeSpan.FromSeconds(seconds), false, out _).Should().Be(10);
+    }
+
+    [Test]
+    public void IsClaimLocation_OnlyForHubAndSkull()
+    {
+        KuudraRewardAttribution.IsClaimLocation("Dungeon Hub").Should().BeTrue();
+        KuudraRewardAttribution.IsClaimLocation("Forgotten Skull").Should().BeTrue();
+        KuudraRewardAttribution.IsClaimLocation("Scarleton").Should().BeFalse();
+    }
 }

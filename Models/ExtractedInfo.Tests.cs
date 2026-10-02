@@ -34,7 +34,8 @@ public class ExtractedInfoTests
         {
             LastTransferViewAt = seenAt,
             LastKuudraTier = "Kuudra's Hollow (T5)",
-            LastKuudraTierAt = seenAt.AddMinutes(-5)
+            LastKuudraTierAt = seenAt.AddMinutes(-5),
+            KuudraPendingRunSeconds = 312.5
         };
 
         var copy = MessagePackSerializer.Deserialize<ExtractedInfo>(MessagePackSerializer.Serialize(info));
@@ -42,5 +43,7 @@ public class ExtractedInfoTests
         copy.LastTransferViewAt.Should().Be(seenAt);
         copy.LastKuudraTier.Should().Be("Kuudra's Hollow (T5)");
         copy.LastKuudraTierAt.Should().Be(seenAt.AddMinutes(-5));
+        copy.KuudraPendingRunSeconds.Should().Be(312.5);
+        new ExtractedInfo(info).KuudraPendingRunSeconds.Should().Be(312.5);
     }
 }

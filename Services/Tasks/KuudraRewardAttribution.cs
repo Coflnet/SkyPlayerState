@@ -75,8 +75,53 @@ public static class KuudraRewardAttribution
                 return location;
             return lastTierZone;
         }
-        if (SkyblockZones.IslandOf(location) == "Crimson Isle" && KeyTierGained(items) is { } tier)
+        if (KeyTierGained(items) is not { } tier)
+            return location;
+        // On the Crimson Isle (Scarleton) a key gain is a key purchase whatever else the period
+        // holds; anywhere else (production: a KUUDRA_HOT_TIER_KEY at "Village") only a period that
+        // is nothing but the key - a farming period that happens to receive one stays where it is.
+        if (SkyblockZones.IslandOf(location) == "Crimson Isle" || !HasOtherRealGain(items))
             return TierZone(tier);
         return location;
+    }
+
+    /// <summary>True when the items hold a positive count of something that is neither a Kuudra key nor a pseudo tag.</summary>
+    private static bool HasOtherRealGain(IReadOnlyDictionary<string, int> items)
+        => items.Any(kv => kv.Value > 0 && !PseudoItems.IsPseudo(kv.Key) && !KeyTiers.Any(k => k.Tag == kv.Key));
+
+    /// <summary>True for the locations where <see cref="ResolveLocation"/> reattributes chest-claim loot ("Dungeon Hub"/"Forgotten Skull").</summary>
+    public static bool IsClaimLocation(string location)
+    {
+        var canonical = SkyblockZones.Canonical(location);
+        return canonical == "Dungeon Hub" || canonical == "Forgotten Skull";
+    }
+
+    /// <summary>Longest single fragment that counts as Kuudra run time (anything longer is an idle/stale artifact).</summary>
+    private static readonly TimeSpan MaxRunFragment = TimeSpan.FromHours(1);
+
+    /// <summary>
+    /// Bookkeeping for <see cref="Models.ExtractedInfo.KuudraPendingRunSeconds"/>: the run itself
+    /// collects nothing so its tier-zone periods are never stored, and the claim period lasts seconds -
+    /// the tier task would show loot over seconds of tracked time. Returns the new pending seconds and
+    /// the time <paramref name="claimShift"/> the claim period's start has to move back by.
+    /// Stale pending (no tier zone seen for <see cref="MaxClaimDelay"/>) is dropped first; an empty
+    /// tier-zone fragment (<paramref name="emptyTierFragment"/>) adds its duration (non-positive or
+    /// over an hour ignored); a claim period (<paramref name="claimedToTier"/>) consumes everything.
+    /// A stored tier-zone period carries its own time, so it is neither added nor consumed.
+    /// </summary>
+    internal static double UpdatePendingRun(double pending, DateTime lastTierAt, DateTime now,
+        bool emptyTierFragment, TimeSpan fragmentDuration, bool claimedToTier, out TimeSpan claimShift)
+    {
+        claimShift = TimeSpan.Zero;
+        if (now - lastTierAt > MaxClaimDelay)
+            pending = 0;
+        if (emptyTierFragment && fragmentDuration > TimeSpan.Zero && fragmentDuration <= MaxRunFragment)
+            pending += fragmentDuration.TotalSeconds;
+        if (claimedToTier && pending > 0)
+        {
+            claimShift = TimeSpan.FromSeconds(pending);
+            pending = 0;
+        }
+        return pending;
     }
 }

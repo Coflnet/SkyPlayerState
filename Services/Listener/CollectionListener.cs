@@ -1065,6 +1065,14 @@ public class CollectionListener : UpdateListener
             resolvedLocation = kuudraLocation;
             Logger.LogInformation("Attributed Kuudra reward claim of {playerId} to {zone}", args.currentState.PlayerId, resolvedLocation);
         }
+        // The run itself collects nothing (its tier-zone periods are never stored) and the claim period
+        // lasts seconds: remember the empty run time and hand it to the claim period's start.
+        var claimedToTier = collected.Count > 0 && kuudraLocation != previousLocation
+            && Tasks.KuudraRewardAttribution.IsClaimLocation(previousLocation)
+            && Tasks.KuudraRewardAttribution.HasClaimLoot(collected);
+        info.KuudraPendingRunSeconds = Tasks.KuudraRewardAttribution.UpdatePendingRun(info.KuudraPendingRunSeconds,
+            info.LastKuudraTierAt, now, collected.Count == 0 && Tasks.KuudraRewardAttribution.IsTierZone(previousLocation),
+            now - periodStart, claimedToTier, out var claimShift);
         Dictionary<string, double> cleanPrices = null;
         if (collected.Count > 0)
         {
@@ -1074,7 +1082,7 @@ public class CollectionListener : UpdateListener
             var period = new TrackedProfitService.Period()
             {
                 EndTime = now,
-                StartTime = periodStart,
+                StartTime = periodStart - claimShift,
                 Location = resolvedLocation,
                 PlayerUuid = args.currentState.McInfo.Uuid.ToString("N"),
                 Server = args.currentState.ExtractedInfo.CurrentServer,
