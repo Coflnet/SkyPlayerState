@@ -16,6 +16,12 @@ namespace Coflnet.Sky.PlayerState.Services;
 /// </summary>
 public class AhBrowserListener : UpdateListener
 {
+    /// <summary>
+    /// Only warms the name cache and reports wipes, nothing downstream depends on it
+    /// (same as the other enrichment listeners), so a failure must not drop the inventory update.
+    /// </summary>
+    public override bool Optional => true;
+
     public override async Task Process(UpdateArgs args)
     {
         if (args.msg.Chest.Name == null || !args.msg.Chest.Name.Contains("Auction"))
@@ -55,8 +61,14 @@ public class AhBrowserListener : UpdateListener
                 Logger.LogDebug("Item from {seller} sold to: {buyer}",
                         parts.Where(x => x.StartsWith("§7Seller:")).FirstOrDefault()?.Replace("§7Seller: ", ""), buyer);
                 var clearedBuyer = buyer == null ? null : System.Text.RegularExpressions.Regex.Replace(buyer.Split(' ').Last(), "§[0-9a-f]", "").Trim();
-                var found = await args.GetService<IPlayerNameApi>().PlayerNameUuidNameGetAsync(clearedBuyer ?? ""); // trigger caching
-                if (string.IsNullOrEmpty(found) && clearedBuyer != null)
+                if (string.IsNullOrWhiteSpace(clearedBuyer))
+                {
+                    // the name api client throws ArgumentException on an empty name, which would fail the whole update
+                    Logger.LogDebug("Skipping sold item {itemName} without buyer name", item.ItemName);
+                    continue;
+                }
+                var found = await args.GetService<IPlayerNameApi>().PlayerNameUuidNameGetAsync(clearedBuyer); // trigger caching
+                if (string.IsNullOrEmpty(found))
                 {
                     try
                     {
