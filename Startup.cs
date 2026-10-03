@@ -98,6 +98,7 @@ public class Startup
         services.AddSingleton<IPlayerElectionService, PlayerElectionService>();
         services.AddSingleton<IMythologicalRitualService, MythologicalRitualService>();
         services.AddSingleton<RecipeService>();
+        services.AddSingleton<CraftRecipeCache>();
         services.AddSingleton<RngMeterService>();
         services.AddSingleton<ItemDetails>();
         services.AddSingleton<StorageService>();

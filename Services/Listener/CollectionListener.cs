@@ -495,13 +495,20 @@ public class CollectionListener : UpdateListener
     /// result in slot 25. A view without a result tag is not a recipe. The button name is compared
     /// without color codes: the mod for current Minecraft versions uploads "Supercraft", older ones
     /// "§aSupercraft" (production 2026-10-02: matching only the latter recognised no recipe view).
+    /// Some uploads of a recipe view have no button (production 2026-10-03, between two supercrafts:
+    /// 64x HEAVY_GABAGOOL booked as 22.6M coins after each of them), so the "Crafting Table" icon in
+    /// slot 23 ("Craft this recipe by using a crafting table or Supercraft.") counts as well.
     /// </summary>
     internal static bool TryGetRecipe(Models.ChestView? view, out string? resultTag, out HashSet<string> ingredientTags)
     {
         resultTag = null;
         ingredientTags = new HashSet<string>();
         var items = view?.Items;
-        if (items == null || items.Count < 9 * 10 || StripFormatting(items[32]?.ItemName) != "Supercraft")
+        if (items == null || items.Count < 9 * 10)
+            return false;
+        var hasCraftingIcon = items[23] is { Tag: null } icon && StripFormatting(icon.ItemName) == "Crafting Table"
+            && StripFormatting(icon.Description).Contains("Craft this recipe");
+        if (StripFormatting(items[32]?.ItemName) != "Supercraft" && !hasCraftingIcon)
             return false;
         resultTag = items[25]?.Tag;
         if (resultTag == null)
@@ -522,6 +529,32 @@ public class CollectionListener : UpdateListener
             return true;
         var lastCraftViewAt = args.currentState.ExtractedInfo.LastCraftViewAt;
         return lastCraftViewAt != default && args.msg.ReceivedAt - lastCraftViewAt <= SackNotificationTransferWindow;
+    }
+
+    /// <summary>
+    /// Crafts at the crafting table: after the "Craft Item" view the ingredients are gone and the output
+    /// shows up, which the diff would book as loot (production 2026-10-03: +1 BRAIDED_GRIFFIN_FEATHER
+    /// as 25.7M coins of Diana, six times a night). Empty without the <see cref="CraftRecipeCache"/> service.
+    /// </summary>
+    private static (Dictionary<string, int> Output, Dictionary<string, int> Consumed) DetectTableCraft(UpdateArgs args,
+        Models.ChestView previousInventory, Dictionary<string, List<Models.Item>> previousItems, Dictionary<string, List<Models.Item>> currentItems)
+    {
+        if (previousInventory.Name is not ("Craft Item" or "Quick Crafting"))
+            return (new(), new());
+        CraftRecipeCache? cache;
+        try
+        {
+            cache = args.GetService<CraftRecipeCache>();
+        }
+        catch (System.Exception)
+        {
+            return (new(), new());
+        }
+        if (cache == null)
+            return (new(), new());
+        static Dictionary<string, int> Counts(Dictionary<string, List<Models.Item>> items)
+            => items.ToDictionary(i => i.Key, i => i.Value.Sum(item => item.Count ?? 0));
+        return CraftDetection.Detect(Counts(previousItems), Counts(currentItems), cache.Get);
     }
 
     static void HandleInventory(UpdateArgs args)
@@ -564,6 +597,7 @@ public class CollectionListener : UpdateListener
             args.GetService<ILogger<CollectionListener>>().LogError(e, "Failed to handle inventory for player {PlayerId} {previousInventory}", args.currentState.PlayerId, JsonConvert.SerializeObject(previousInventory));
         }
         var currentInventory = GetLookupItemsByTag(args.msg.Chest);
+        var (craftedOutput, craftConsumed) = DetectTableCraft(args, previousInventory, mapOfItems, currentInventory);
         var previousIdentities = GetAccessibleIdentities(previousInventory);
         var currentIdentities = GetAccessibleIdentities(args.msg.Chest);
         if (IsWholesaleInventorySwap(previousIdentities, currentIdentities, out var keptIdentities))
@@ -638,6 +672,12 @@ public class CollectionListener : UpdateListener
                         continue;
                     newCount++;
                 }
+                if (newCount != 0 && craftedOutput.TryGetValue(tag, out var craftedUuids))
+                {
+                    var ignored = Math.Min(newCount, craftedUuids);
+                    LogIgnoredCraft(args, ignored, tag, previousInventory);
+                    newCount -= ignored;
+                }
                 if (newCount != 0 && previousIsRecipe && tag == craftedTag)
                 {
                     LogIgnoredCraft(args, newCount, tag, previousInventory);
@@ -650,6 +690,15 @@ public class CollectionListener : UpdateListener
             var previousCount = previousItems.Sum(i => (long)(i.Count ?? 0));
             var currentCount = currentItems.Sum(i => (long)(i.Count ?? 0));
             var diff = currentCount - previousCount;
+            // crafting table: the output is no loot and the ingredients that stay partly are no loss
+            if (diff > 0 && craftedOutput.TryGetValue(tag, out var craftedAmount))
+            {
+                var ignored = (int)Math.Min(diff, craftedAmount);
+                LogIgnoredCraft(args, ignored, tag, previousInventory);
+                diff -= ignored;
+            }
+            else if (diff < 0 && craftConsumed.TryGetValue(tag, out var consumedAmount))
+                diff = Math.Min(0, diff + consumedAmount);
             // items shift-clicked into a storage/transfer view that is already the current view were
             // moved, not consumed (production: -64 GRIFFIN_FEATHER after an Ender Chest upload). In a
             // transfer view (sack, bazaar, auction, shop, trade, Hunting Box) they do not show up in the
@@ -675,15 +724,20 @@ public class CollectionListener : UpdateListener
                 continue;
             if (diff == 0)
                 continue;
-            Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, tag, diff);
-            // TEMPORARY diagnostic: learn which view pairs still produce phantom shard gains/losses
-            // (e.g. bazaar GUI titles IsBazaarWindow does not know yet). Shards only: captured shards go
-            // to the Hunting Box and are counted from chat, so a bulk change in the inventory is suspect,
-            // while for every other item it is ordinary play (10k lines/hour when it was not restricted).
-            if (Math.Abs(diff) >= BulkChangeLogThreshold && tag.StartsWith("SHARD_", StringComparison.Ordinal))
+            // Captured shards go to the Hunting Box and are counted from chat; only a few arrive in the
+            // inventory as loot (Kuudra chests). 64 or more at once come back from the bazaar, a trade or
+            // the stash through a view that was not uploaded (production 2026-10-03, a shard flipper:
+            // +699x SHARD_HIDEONWALL and +468x SHARD_HIDEONFLOOR of a cancelled sell order booked as 160M
+            // coins of Critter Safari loot, where a run gives about 7). The log line stays to find the
+            // view pairs behind it.
+            if (diff >= BulkChangeLogThreshold && tag.StartsWith("SHARD_", StringComparison.Ordinal))
+            {
                 args.GetService<ILogger<CollectionListener>>().LogInformation(
                     "Bulk inventory change for {playerId}: {count}x {tag} between views {previousView} -> {currentView}",
                     args.currentState.PlayerId, diff, tag, previousInventory.Name ?? "<inventory>", args.msg.Chest.Name ?? "<inventory>");
+                continue;
+            }
+            Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, tag, diff);
         }
         RegisterKnownItemUuids(args.currentState, args.msg.Chest);
 
@@ -930,8 +984,12 @@ public class CollectionListener : UpdateListener
     /// <summary>
     /// Views whose items are swapped with the inventory rather than dropped into it: trade windows
     /// (name starts with "You    "), sacks, NPC shops, the Hunting Box (production: 64 shards
-    /// withdrawn from it counted as a gain, the bazaar sale afterwards was skipped) and the Fusion
-    /// Box. First-time counting is skipped around them.
+    /// withdrawn from it counted as a gain, the bazaar sale afterwards was skipped), the Fusion
+    /// Box, the Gemstone Grinder (gems move between the player's gear and the inventory; production
+    /// 2026-10-03: 683M coins of removed gems booked as loot in 11 hours) and the "Storage" overview
+    /// (the backpack opened from it is not always uploaded; production 2026-10-03: +150x SHARD_FUNGLOOM
+    /// and +160x GRIFFIN_FEATHER between "Storage" and the next storage page). First-time counting is
+    /// skipped around them.
     /// </summary>
     private static bool IsSwapView(Models.ChestView view)
     {
@@ -939,7 +997,7 @@ public class CollectionListener : UpdateListener
         if (name == null)
             return false;
         return name.StartsWith("You    ") || name.Contains("Sack") || name.Contains("Shop") || name.Contains("Trades")
-            || name.Contains("Hunting Box") || name.Contains("Fusion Box");
+            || name.Contains("Hunting Box") || name.Contains("Fusion Box") || name is "Gemstone Grinder" or "Storage";
     }
 
     /// <summary>
@@ -1226,6 +1284,28 @@ public class CollectionListener : UpdateListener
         }
     }
 
+    /// <summary>The default of <see cref="Models.ExtractedInfo.CurrentLocation"/>, absorbed by the hidden UnknownLocationTask.</summary>
+    internal const string UnknownLocation = "Unknown";
+    /// <summary>
+    /// The scoreboard ends a period at least every 5 minutes; the longest real ones (dungeon runs) take
+    /// about 30 minutes.
+    /// </summary>
+    internal static readonly TimeSpan StaleLocationAfter = TimeSpan.FromHours(1);
+
+    /// <summary>
+    /// Whether the scoreboard zone can no longer say where the pending items were collected: the period
+    /// runs for more than <see cref="StaleLocationAfter"/>, or no scoreboard confirmed the zone for that
+    /// long (players who upload inventories but no scoreboard, whose periods only end through
+    /// <see cref="StartNewPeriodAfterLargeChange"/>). Production 2026-10-03: 0.8% of the periods lasted
+    /// more than an hour, up to 35 days, and held more than half of all booked value - the catch-up of
+    /// everything that changed since the player was last seen, booked to the zone of back then
+    /// (12.6B "Melon Farming" at "The Garden", 6.3B "Diamond Mining" at "Glacite Tunnels").
+    /// </summary>
+    internal static bool IsLocationStale(Models.ExtractedInfo info, DateTime now)
+    {
+        return now - info.LastLocationChange > StaleLocationAfter || now - info.CurrentLocationSeenAt > StaleLocationAfter;
+    }
+
     private async Task StoreLocationProfit(UpdateArgs args, string previousLocation)
     {
         var now = DateTime.UtcNow;
@@ -1233,6 +1313,13 @@ public class CollectionListener : UpdateListener
         var collected = args.currentState.ItemsCollectedRecently;
         var info = args.currentState.ExtractedInfo;
         var periodStart = info.LastLocationChange;
+        if (IsLocationStale(info, now) && previousLocation != UnknownLocation)
+        {
+            if (collected.Count > 0)
+                Logger.LogInformation("Location {location} of {playerId} is stale (period since {periodStart}, last scoreboard {seenAt}), storing {count} item types at Unknown",
+                    previousLocation, args.currentState.PlayerId, periodStart, info.CurrentLocationSeenAt, collected.Count);
+            previousLocation = UnknownLocation;
+        }
         // A "Dungeon Hub" period shortly after the player's last confirmed Catacombs floor is really
         // the run's own reward-claim, not hub activity - fold it back into the floor so its loot
         // (essence, fragments, ...) counts toward that floor's task/session instead of going

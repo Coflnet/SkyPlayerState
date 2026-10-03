@@ -23,9 +23,14 @@ public abstract class BaseForagingTask : MethodTask
 public class HelixForagingTask : BaseForagingTask
 {
     protected override string MethodName => "Helix Foraging";
-    // Island key (Torrhus zones are Torrhus Canyon, Torrhus Heights, Miria's Hut, ... - see
-    // SkyblockZones); Where below names the actual spot to stand in.
-    protected override HashSet<string> Locations => ["Torrhus"];
+    // The Torrhus zones (see SkyblockZones) without the Critter Safari: no Helix tree grows in that
+    // minigame instance, and logs showing up in a Safari period took it away from the Critter Safari
+    // task (production 2026-10-03). Where below names the actual spot to stand in.
+    protected override HashSet<string> Locations =>
+    [
+        "Torrhus Canyon", "Miria's Hut", "Pangolin Hideaway", "Torrhus Heights", "Spring Path", "Torrhus Springs",
+        "Spring Shallows", "Spring Depths", "Ant's Cave", "Hotspot Haven", "Desert Temple"
+    ];
     protected override string Where => "Torrhus Heights";
     protected override HashSet<string> DetectionItems => ["HELIX_LOG", "ENCHANTED_HELIX_LOG"];
     protected override List<MethodDrop> FormulaDrops =>

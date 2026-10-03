@@ -981,6 +981,19 @@ public class TaskClassifierTests
         result!.TaskName.Should().Be("Critter Safari");
     }
 
+    /// <summary>
+    /// Production 2026-10-03 (nameeagleismy): a Safari run period that also held 100 Helix Logs was
+    /// classified as Helix Foraging, which matched the whole Torrhus island.
+    /// </summary>
+    [Test]
+    public void CritterSafariWithHelixLogs_StaysCritterSafari()
+    {
+        var items = new Dictionary<string, int> { { "SHARD_BLOODBAT", 5 }, { "SHARD_HIDEONWALL", 3 }, { "HELIX_LOG", 100 } };
+        Classifier.Classify("Critter Safari", items, 10)!.TaskName.Should().Be("Critter Safari");
+        Classifier.Classify("Torrhus Heights", new() { { "HELIX_LOG", 100 } }, 10)!.TaskName.Should().Be("Helix Foraging");
+        Classifier.Classify("Spring Path", new() { { "HELIX_LOG", 100 } }, 10)!.TaskName.Should().Be("Helix Foraging");
+    }
+
     // ── section D: hidden accounting tasks for zones with no money making method (HiddenTasks.cs) ──
 
     [Test]

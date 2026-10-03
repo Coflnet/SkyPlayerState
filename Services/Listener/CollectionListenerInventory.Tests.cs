@@ -41,7 +41,7 @@ public class CollectionListenerInventoryTests
         Count = count
     };
 
-    private static async Task ProcessView(StateObject state, ChestView chest, DateTime receivedAt = default)
+    private static async Task ProcessView(StateObject state, ChestView chest, DateTime receivedAt = default, CraftRecipeCache? craftCache = null)
     {
         var args = new MockedUpdateArgs
         {
@@ -50,6 +50,8 @@ public class CollectionListenerInventoryTests
         };
         // the swap guard logs through the DI logger, like production
         args.AddService<ILogger<CollectionListener>>(Microsoft.Extensions.Logging.Abstractions.NullLogger<CollectionListener>.Instance);
+        if (craftCache != null)
+            args.AddService(craftCache);
         // Matches production handler order (PlayerStateBackgroundService): RecentViewsUpdate pushes
         // the current view before CollectionListener reads "the previous view" from the same queue.
         await new RecentViewsUpdate().Process(args);
@@ -305,6 +307,7 @@ public class CollectionListenerInventoryTests
         var state = new StateObject();
         state.ExtractedInfo.CurrentLocation = "Your Island";
         state.ExtractedInfo.LastLocationChange = DateTime.UtcNow.AddMinutes(-2);
+        state.ExtractedInfo.CurrentLocationSeenAt = DateTime.UtcNow.AddSeconds(-10);
         async Task Process(ChestView chest)
         {
             var args = new MockedUpdateArgs
@@ -387,6 +390,53 @@ public class CollectionListenerInventoryTests
 
         stored.Should().BeEmpty();
         state.ExtractedInfo.PeriodSplitPending.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Production 2026-10-03 (Hyperrinon): no scoreboard upload for 35 days, zone still "The Garden". The
+    /// first large change stored everything that had changed since as 12.6B of "Melon Farming" there.
+    /// </summary>
+    [Test]
+    public async Task PeriodRunningForDaysIsStoredAtUnknown()
+    {
+        var (state, stored, Process) = PeriodHarness(new() { { "ENCHANTED_DIAMOND_BLOCK", 200_000 } });
+        state.ExtractedInfo.CurrentLocation = "The Garden";
+        state.ExtractedInfo.LastLocationChange = DateTime.UtcNow.AddDays(-35);
+        await Process(View("", new(), StackableItem("ENCHANTED_DIAMOND_BLOCK", 1)));
+        await Process(View("", new(), StackableItem("ENCHANTED_DIAMOND_BLOCK", 61)));
+
+        stored.Should().ContainSingle();
+        stored[0].Location.Should().Be("Unknown");
+        state.ExtractedInfo.CurrentLocation.Should().Be("The Garden", "the next scoreboard decides whether the zone changed");
+    }
+
+    /// <summary>
+    /// Production 2026-10-03 (Hyperrinon): the periods after the first one lasted seconds, but still no
+    /// scoreboard had confirmed the zone (2x 1.6B DIVAN_DRILL at "The Garden").
+    /// </summary>
+    [Test]
+    public async Task ShortPeriodWithoutAScoreboardForHoursIsStoredAtUnknown()
+    {
+        var (state, stored, Process) = PeriodHarness(new() { { "ENCHANTED_DIAMOND_BLOCK", 200_000 } });
+        state.ExtractedInfo.CurrentLocation = "The Garden";
+        state.ExtractedInfo.CurrentLocationSeenAt = DateTime.UtcNow.AddHours(-2);
+        await Process(View("", new(), StackableItem("ENCHANTED_DIAMOND_BLOCK", 1)));
+        await Process(View("", new(), StackableItem("ENCHANTED_DIAMOND_BLOCK", 61)));
+
+        stored.Should().ContainSingle();
+        stored[0].Location.Should().Be("Unknown");
+    }
+
+    [TestCase(4, 1, false, TestName = "Usual period")]
+    [TestCase(40, 35, false, TestName = "Dungeon run without a zone confirmation")]
+    [TestCase(61, 0, true, TestName = "Period of more than an hour")]
+    [TestCase(1, 61, true, TestName = "No scoreboard for more than an hour")]
+    public void LocationIsStaleAfterAnHour(int periodMinutes, int scoreboardMinutesAgo, bool stale)
+    {
+        var now = DateTime.UtcNow;
+        var info = new ExtractedInfo { LastLocationChange = now.AddMinutes(-periodMinutes), CurrentLocationSeenAt = now.AddMinutes(-scoreboardMinutesAgo) };
+
+        CollectionListener.IsLocationStale(info, now).Should().Be(stale);
     }
 
     [Test]
@@ -909,7 +959,7 @@ public class CollectionListenerInventoryTests
         state.ItemsCollectedRecently.GetValueOrDefault("ENCHANTED_COBBLESTONE").Should().Be(36);
     }
 
-    private static async Task<CapturingLogger> ProcessViewLogged(StateObject state, ChestView chest)
+    private static async Task<CapturingLogger> ProcessViewLogged(StateObject state, ChestView chest, CraftRecipeCache? craftCache = null)
     {
         var logger = new CapturingLogger();
         var args = new MockedUpdateArgs
@@ -918,6 +968,8 @@ public class CollectionListenerInventoryTests
             msg = new UpdateMessage { Kind = UpdateMessage.UpdateKind.INVENTORY, PlayerId = "p1", Chest = chest, ReceivedAt = Now }
         };
         args.AddService<ILogger<CollectionListener>>(logger);
+        if (craftCache != null)
+            args.AddService(craftCache);
         await new RecentViewsUpdate().Process(args);
         await new CollectionListener().Process(args);
         return logger;
@@ -939,15 +991,31 @@ public class CollectionListenerInventoryTests
         state.ItemsCollectedRecently.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Production 2026-10-03 (nameeagleismy, a shard flipper): 699 Hideonwall and 468 Hideonfloor shards
+    /// of a cancelled sell order arrived between "Critter Safari Entry" and the bare inventory and were
+    /// booked as 160M coins of Critter Safari loot; a Safari run gives about 7 Hideonwall shards.
+    /// </summary>
     [Test]
-    public async Task SameRefundAfterPlainInventoryIsStillCountedAndLogged()
+    public async Task BulkShardGainIsNotLoot()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("Critter Safari Entry", new(), StackableItem("SHARD_HIDEONWALL", 3), StackableItem("HELIX_LOG", 10)), Now);
+
+        await ProcessView(state, View("Crafting", new(), StackableItem("SHARD_HIDEONWALL", 702), StackableItem("SHARD_HIDEONFLOOR", 468), StackableItem("SHARD_GAZER", 6), StackableItem("HELIX_LOG", 110)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEquivalentTo(new Dictionary<string, int> { { "SHARD_GAZER", 6 }, { "HELIX_LOG", 100 } });
+    }
+
+    [Test]
+    public async Task SameRefundAfterPlainInventoryIsIgnoredAndLogged()
     {
         var state = new StateObject();
         await ProcessView(state, View("", new(), StackableItem("SHARD_FLARE", 1)), Now);
 
         var logger = await ProcessViewLogged(state, View("", new(), StackableItem("SHARD_FLARE", 132)));
 
-        state.ItemsCollectedRecently.GetValueOrDefault("SHARD_FLARE").Should().Be(131);
+        state.ItemsCollectedRecently.Should().BeEmpty();
         logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Information
             && e.Message == "Bulk inventory change for " + state.PlayerId + ": 131x SHARD_FLARE between views  -> ");
     }
@@ -1087,6 +1155,37 @@ public class CollectionListenerInventoryTests
         await ProcessView(state, View("Fusion Box", new(), StackableItem("SHARD_FLARE", 10)), Now);
 
         await ProcessView(state, View("Fusion Box", new(), StackableItem("SHARD_FLARE", 240)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Production 2026-10-03: gems removed from the own gear in the Gemstone Grinder (Gudzikk: 3x
+    /// PERFECT_ONYX_GEM, 17.8M coins each) and items taken out of a backpack whose view was not uploaded
+    /// (tsguy: +160x GRIFFIN_FEATHER between "Storage" and "Greater Backpack") were booked as loot.
+    /// </summary>
+    [TestCase("Gemstone Grinder", "Gemstone Grinder")]
+    [TestCase("Gemstone Grinder", "")]
+    [TestCase("Storage", "Greater Backpack (Slot #16)")]
+    [TestCase("Storage", "")]
+    public async Task ItemsArrivingAfterASwapViewAreNotLoot(string swapView, string nextView)
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("ENDER_PEARL", 16)), Now);
+        await ProcessView(state, View(swapView, new(), StackableItem("ENDER_PEARL", 16)), Now);
+
+        await ProcessView(state, View(nextView, new(), StackableItem("ENDER_PEARL", 16), StackableItem("PERFECT_ONYX_GEM", 1), StackableItem("GRIFFIN_FEATHER", 160)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task GemPutIntoGearInTheGemstoneGrinderIsNotALoss()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("PERFECT_ONYX_GEM", 3)), Now);
+
+        await ProcessView(state, View("Gemstone Grinder", new(), StackableItem("PERFECT_ONYX_GEM", 2)), Now);
 
         state.ItemsCollectedRecently.Should().BeEmpty();
     }
@@ -1259,9 +1358,35 @@ public class CollectionListenerInventoryTests
         ingredients.Should().BeEquivalentTo(new[] { "YOUNGITE", "TIMITE", "OBSOLITE" });
     }
 
+    /// <summary>
+    /// Production 2026-10-03 (Skiller0709, "Enchanted Melon Slice"): a recipe view uploaded without the
+    /// Supercraft button. Crafts after such an upload were booked as loot (gtulol: 64x HEAVY_GABAGOOL).
+    /// </summary>
+    [Test]
+    public async Task RecipeViewWithoutTheSupercraftButtonIsStillARecipeView()
+    {
+        var recipe = RecipeView("Enchanted Melon Slice", "ENCHANTED_MELON", ["MELON"], StackableItem("ENCHANTED_MELON", 6));
+        recipe.Items[32] = new Item { Count = 0 };
+        recipe.Items[23] = new Item { ItemName = "Crafting Table", Count = 1, Description = "Craft this recipe by using a crafting\ntable or Supercraft." };
+        CollectionListener.TryGetRecipe(recipe, out var result, out var ingredients).Should().BeTrue();
+        result.Should().Be("ENCHANTED_MELON");
+        ingredients.Should().BeEquivalentTo(new[] { "MELON" });
+        RecipeUpdate.ReadRecipe(recipe).Should().BeNull("the requirements are on the button");
+
+        var state = new StateObject();
+        await ProcessView(state, recipe, Now);
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_MELON", 70)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
     [Test]
     public void TryGetRecipeRejectsOtherViews()
     {
+        var realCraftingTable = RecipeView("x", "A", ["B"]);
+        realCraftingTable.Items[32] = new Item();
+        realCraftingTable.Items[23] = new Item { ItemName = "Crafting Table", Tag = "WORKBENCH", Count = 1 };
+        CollectionListener.TryGetRecipe(realCraftingTable, out _, out _).Should().BeFalse();
         CollectionListener.TryGetRecipe(PlainMenu(), out _, out _).Should().BeFalse();
         CollectionListener.TryGetRecipe(new ChestView { Items = Enumerable.Range(0, 89).Select(_ => new Item()).ToList() }, out _, out _).Should().BeFalse();
         CollectionListener.TryGetRecipe(new ChestView { Items = null }, out _, out _).Should().BeFalse();
@@ -1269,5 +1394,213 @@ public class CollectionListenerInventoryTests
         var noResult = RecipeView("x", "A", ["B"]);
         noResult.Items[25] = new Item();
         CollectionListener.TryGetRecipe(noResult, out _, out _).Should().BeFalse();
+    }
+
+    // ---- crafting table: a craft is a conversion, the output is no loot ----
+
+    private static CraftRecipeCache CacheWith(string result, int resultCount, params (string Tag, int Count)[] ingredients)
+    {
+        var cache = new CraftRecipeCache((Func<System.Threading.Tasks.Task<IEnumerable<Recipe>>>?)null);
+        cache.Add(MakeRecipe(result, resultCount, DateTime.UtcNow, ingredients));
+        return cache;
+    }
+
+    private static Recipe MakeRecipe(string result, int resultCount, DateTime updated, params (string Tag, int Count)[] ingredients) => new()
+    {
+        Tag = result,
+        ResultCount = resultCount,
+        LastUpdated = updated,
+        Requirements = new(),
+        Ingredients = ingredients.Select(i => new KeyValuePair<string?, int>(i.Tag, i.Count)).ToList()
+    };
+
+    private static CraftRecipeCache BraidedCache() => CacheWith("BRAIDED_GRIFFIN_FEATHER", 1, ("GRIFFIN_FEATHER", 160), ("SOUL_STRING", 256));
+
+    private static async Task<(StateObject State, CapturingLogger Logger)> CraftAt(string previousViewName, Item[] before, Item[] after, string nextViewName, CraftRecipeCache? cache)
+    {
+        var state = new StateObject();
+        var table = Enumerable.Range(0, 54).Select(_ => new Item()).ToList();
+        await ProcessView(state, View("", new(), before), Now, cache);
+        await ProcessView(state, View(previousViewName, table, before), Now, cache);
+        var logger = await ProcessViewLogged(state, View(nextViewName, new(), after), cache);
+        return (state, logger);
+    }
+
+    [TestCase("")]
+    [TestCase("Bazaar ➜ Mining")]
+    public async Task CraftAtCraftingTableIsNeitherLootNorLoss(string nextView)
+    {
+        // production 2026-10-03 (_I_am_better): +1 BRAIDED_GRIFFIN_FEATHER booked as 25.7M coins of Diana
+        var (state, logger) = await CraftAt("Craft Item",
+            [StackableItem("GRIFFIN_FEATHER", 160), StackableItem("SOUL_STRING", 256)],
+            [StackableItem("BRAIDED_GRIFFIN_FEATHER", 1)], nextView, BraidedCache());
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+        logger.Entries.Should().Contain(e => e.Message.StartsWith("Ignored crafted 1x BRAIDED_GRIFFIN_FEATHER"));
+    }
+
+    [Test]
+    public async Task QuickCraftingIsDetectedToo()
+    {
+        var (state, _) = await CraftAt("Quick Crafting",
+            [StackableItem("GRIFFIN_FEATHER", 160), StackableItem("SOUL_STRING", 256)],
+            [StackableItem("BRAIDED_GRIFFIN_FEATHER", 1)], "", BraidedCache());
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task PartlyRemainingIngredientsAreNotALoss()
+    {
+        var (state, logger) = await CraftAt("Craft Item",
+            [StackableItem("GRIFFIN_FEATHER", 200), StackableItem("SOUL_STRING", 256)],
+            [StackableItem("GRIFFIN_FEATHER", 40), StackableItem("BRAIDED_GRIFFIN_FEATHER", 1)], "", BraidedCache());
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+        logger.Entries.Should().Contain(e => e.Message.StartsWith("Ignored crafted 1x BRAIDED_GRIFFIN_FEATHER"));
+    }
+
+    [Test]
+    public async Task OutputWithoutShrinkingIngredientsIsLoot()
+    {
+        var (state, _) = await CraftAt("Craft Item",
+            [StackableItem("GRIFFIN_FEATHER", 160), StackableItem("SOUL_STRING", 256)],
+            [StackableItem("GRIFFIN_FEATHER", 160), StackableItem("SOUL_STRING", 256), StackableItem("BRAIDED_GRIFFIN_FEATHER", 1)], "", BraidedCache());
+
+        state.ItemsCollectedRecently.Should().BeEquivalentTo(new Dictionary<string, int> { { "BRAIDED_GRIFFIN_FEATHER", 1 } });
+    }
+
+    [Test]
+    public async Task GainBeyondWhatTheIngredientsExplainIsLoot()
+    {
+        var (state, _) = await CraftAt("Craft Item",
+            [StackableItem("GRIFFIN_FEATHER", 160), StackableItem("SOUL_STRING", 256)],
+            [StackableItem("BRAIDED_GRIFFIN_FEATHER", 3)], "", BraidedCache());
+
+        state.ItemsCollectedRecently.Should().BeEquivalentTo(new Dictionary<string, int> { { "BRAIDED_GRIFFIN_FEATHER", 2 } });
+    }
+
+    [Test]
+    public async Task UnknownRecipeIsBookedAsBefore()
+    {
+        var (state, _) = await CraftAt("Craft Item",
+            [StackableItem("GRIFFIN_FEATHER", 160), StackableItem("SOUL_STRING", 256)],
+            [StackableItem("BRAIDED_GRIFFIN_FEATHER", 1)], "", new CraftRecipeCache((Func<System.Threading.Tasks.Task<IEnumerable<Recipe>>>?)null));
+
+        state.ItemsCollectedRecently.Should().BeEquivalentTo(new Dictionary<string, int> { { "BRAIDED_GRIFFIN_FEATHER", 1 } });
+    }
+
+    [Test]
+    public async Task SameChangeAfterANonCraftingViewIsBookedAsBefore()
+    {
+        var (state, _) = await CraftAt("",
+            [StackableItem("GRIFFIN_FEATHER", 160), StackableItem("SOUL_STRING", 256)],
+            [StackableItem("BRAIDED_GRIFFIN_FEATHER", 1)], "", BraidedCache());
+
+        state.ItemsCollectedRecently.Should().BeEquivalentTo(new Dictionary<string, int> { { "BRAIDED_GRIFFIN_FEATHER", 1 } });
+    }
+
+    [Test]
+    public async Task CraftedNonStackableItemIsNotBooked()
+    {
+        var cache = CacheWith("HYPERION", 1, ("WITHER_BLOOD", 8), ("NECRON_HANDLE", 1));
+        var (state, logger) = await CraftAt("Craft Item",
+            [StackableItem("WITHER_BLOOD", 8), StackableItem("NECRON_HANDLE", 1)],
+            [GearItem("HYPERION", Guid.NewGuid().ToString())], "", cache);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+        logger.Entries.Should().Contain(e => e.Message.StartsWith("Ignored crafted 1x HYPERION"));
+    }
+
+    [Test]
+    public async Task CraftWithoutCacheServiceBehavesAsBefore()
+    {
+        var (state, _) = await CraftAt("Craft Item",
+            [StackableItem("GRIFFIN_FEATHER", 160), StackableItem("SOUL_STRING", 256)],
+            [StackableItem("BRAIDED_GRIFFIN_FEATHER", 1)], "", null);
+
+        state.ItemsCollectedRecently.Should().BeEquivalentTo(new Dictionary<string, int> { { "BRAIDED_GRIFFIN_FEATHER", 1 } });
+    }
+
+    [Test]
+    public void DetectionClaimsIngredientsOnlyOnce()
+    {
+        var recipes = new Dictionary<string, IReadOnlyList<CraftRecipe>>
+        {
+            ["A"] = new[] { new CraftRecipe(new() { { "X", 10 } }, 1, DateTime.UtcNow) },
+            ["B"] = new[] { new CraftRecipe(new() { { "X", 10 } }, 1, DateTime.UtcNow) },
+        };
+        var (output, consumed) = CraftDetection.Detect(new Dictionary<string, int> { { "X", 10 } },
+            new Dictionary<string, int> { { "A", 1 }, { "B", 1 } }, t => recipes.GetValueOrDefault(t) ?? Array.Empty<CraftRecipe>());
+
+        output.Should().BeEquivalentTo(new Dictionary<string, int> { { "A", 1 } });
+        consumed.Should().BeEquivalentTo(new Dictionary<string, int> { { "X", 10 } });
+    }
+
+    [Test]
+    public void DetectionUsesTheNewestFittingVariantAndResultCount()
+    {
+        var recipes = new[]
+        {
+            new CraftRecipe(new() { { "X", 20 } }, 2, DateTime.UtcNow),
+            new CraftRecipe(new() { { "Y", 5 } }, 1, DateTime.UtcNow.AddDays(-1)),
+        };
+        var (output, consumed) = CraftDetection.Detect(new Dictionary<string, int> { { "X", 40 }, { "Y", 5 } },
+            new Dictionary<string, int> { { "X", 0 }, { "Y", 5 }, { "A", 5 } }, _ => recipes);
+
+        // 5 gained, 2 per craft: 3 crafts would need 60 X, only 2 are possible -> 4 crafted
+        output.Should().BeEquivalentTo(new Dictionary<string, int> { { "A", 4 } });
+        consumed.Should().BeEquivalentTo(new Dictionary<string, int> { { "X", 40 } });
+    }
+
+    [Test]
+    public void CacheCollapsesVariantsAndOrdersNewestFirst()
+    {
+        var cache = new CraftRecipeCache((Func<System.Threading.Tasks.Task<IEnumerable<Recipe>>>?)null);
+        var old = DateTime.UtcNow.AddDays(-3);
+        cache.Add(MakeRecipe("R", 1, old, ("A", 2), ("B", 1)));
+        cache.Add(MakeRecipe("R", 1, DateTime.UtcNow, ("B", 1), ("A", 1), ("A", 1))); // same totals, newer
+        cache.Add(MakeRecipe("R", 1, DateTime.UtcNow.AddDays(-1), ("C", 4)));
+        cache.Add(MakeRecipe("R", 1, DateTime.UtcNow, ("R", 1), ("A", 1))); // contains the result
+        cache.Add(MakeRecipe("R", 1, DateTime.UtcNow)); // empty
+
+        var list = cache.Get("R");
+        list.Should().HaveCount(2);
+        list[0].Ingredients.Should().BeEquivalentTo(new Dictionary<string, int> { { "A", 2 }, { "B", 1 } });
+        list[1].Ingredients.Should().BeEquivalentTo(new Dictionary<string, int> { { "C", 4 } });
+        list[0].LastUpdated.Should().BeAfter(list[1].LastUpdated);
+    }
+
+    [Test]
+    public async Task CacheGetBeforeLoadIsEmptyAndLoadsInTheBackground()
+    {
+        var release = new System.Threading.Tasks.TaskCompletionSource<IEnumerable<Recipe>>();
+        var cache = new CraftRecipeCache(() => release.Task);
+
+        cache.Get("R").Should().BeEmpty();
+        release.SetResult(new[] { MakeRecipe("R", 1, DateTime.UtcNow, ("A", 1)) });
+        for (var i = 0; i < 100 && cache.Get("R").Count == 0; i++)
+            await Task.Delay(20);
+
+        cache.Get("R").Should().ContainSingle();
+    }
+
+    [Test]
+    public async Task CacheWithFailingLoaderDoesNotThrow()
+    {
+        var calls = 0;
+        var cache = new CraftRecipeCache(() => { calls++; throw new InvalidOperationException("cassandra down"); });
+
+        cache.Get("R").Should().BeEmpty();
+        await Task.Delay(100);
+        cache.Get("R").Should().BeEmpty();
+        await cache.LoadInternal();
+        calls.Should().BeGreaterThan(0);
+    }
+
+    [Test]
+    public void CacheWithoutRecipeServiceDoesNotThrow()
+    {
+        new CraftRecipeCache((RecipeService?)null, null).Get("R").Should().BeEmpty();
     }
 }

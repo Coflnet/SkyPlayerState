@@ -223,6 +223,9 @@ public class RecipeUpdate : UpdateListener
         if (!CollectionListener.TryGetRecipe(chest, out var resultTag, out _))
             return null;
         var items = chest!.Items;
+        // a recipe view uploaded without the button is still a recipe view, but the requirements are on the button
+        if (StripFormatting(items[32]?.ItemName ?? "") != "Supercraft")
+            return null;
         var requirements = items[32].Description?.Split('\n').Where(l => l.Contains("Requires")).Select(NormalizeRequirement).ToList();
         if (requirements == null)
             return null;
@@ -253,6 +256,14 @@ public class RecipeUpdate : UpdateListener
         recipe.LastUpdatedBy = args.msg.UserId + "-" + args.msg.PlayerId;
         Logger.LogInformation("Recipe update {chestName} {ingredients} {requirements}", args.msg.Chest.Name, JsonConvert.SerializeObject(recipe.Ingredients), JsonConvert.SerializeObject(recipe.Requirements));
         await args.GetService<RecipeService>().Save(recipe);
+        try
+        {
+            args.GetService<CraftRecipeCache>()?.Add(recipe);
+        }
+        catch (System.Exception e)
+        {
+            Logger.LogDebug(e, "Craft recipe cache not available");
+        }
     }
 
     private static void ExtractMuseumExp(UpdateArgs args)
