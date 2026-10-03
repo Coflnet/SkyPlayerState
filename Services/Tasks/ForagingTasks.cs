@@ -133,3 +133,67 @@ public class HoneycombGatheringTask : BaseForagingTask
         "Warp to Torrhus (needs Foraging XII and Heart of the Forest tier 4), then collect Honeycomb "
         + "from Honeyhives scattered around Torrhus Canyon.";
 }
+
+// ── Hub and Park wood (production 2026-10-02/03, per-hour medians of real periods) ──
+// One task per tree type, each in the zone that grows it. "Forest" is also the main Diana zone: a Diana
+// period holding a few logs stays Diana because its Ancient Claws/Enchanted Gold outvalue the logs.
+public class OakForagingTask : BaseForagingTask
+{
+    protected override string MethodName => "Oak Foraging";
+    protected override HashSet<string> Locations => ["Forest"];
+    protected override HashSet<string> DetectionItems => ["LOG", "ENCHANTED_OAK_LOG"];
+    protected override List<MethodDrop> FormulaDrops => [new("LOG", 1700)];
+    protected override double ActionsPerHour => 1700;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Oak_Log";
+    protected override string HowTo => "Go to the Forest and chop Oak trees with a Foraging axe. Collect the logs and sell them on the Bazaar.";
+}
+public class BirchForagingTask : BaseForagingTask
+{
+    protected override string MethodName => "Birch Foraging";
+    protected override HashSet<string> Locations => ["Birch Park"];
+    protected override HashSet<string> DetectionItems => ["LOG:2", "ENCHANTED_BIRCH_LOG"];
+    protected override List<MethodDrop> FormulaDrops => [new("LOG:2", 15000)];
+    protected override double ActionsPerHour => 15000;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Birch_Log";
+    protected override string HowTo => "Go to the Birch Park and chop Birch trees with a Foraging axe. Collect the logs and sell them on the Bazaar.";
+}
+public class SpruceForagingTask : BaseForagingTask
+{
+    protected override string MethodName => "Spruce Foraging";
+    protected override HashSet<string> Locations => ["Spruce Woods"];
+    protected override HashSet<string> DetectionItems => ["LOG:1", "ENCHANTED_SPRUCE_LOG"];
+    protected override List<MethodDrop> FormulaDrops => [new("LOG:1", 2100)];
+    protected override double ActionsPerHour => 2100;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Spruce_Log";
+    protected override string HowTo => "Go to the Spruce Woods and chop Spruce trees with a Foraging axe. Collect the logs and sell them on the Bazaar.";
+}
+public class DarkOakForagingTask : BaseForagingTask
+{
+    protected override string MethodName => "Dark Oak Foraging";
+    protected override HashSet<string> Locations => ["Dark Thicket"];
+    protected override HashSet<string> DetectionItems => ["LOG_2:1", "ENCHANTED_DARK_OAK_LOG"];
+    protected override List<MethodDrop> FormulaDrops => [new("LOG_2:1", 2300)];
+    protected override double ActionsPerHour => 2300;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Dark_Oak_Log";
+    protected override string HowTo => "Go to the Dark Thicket and chop Dark Oak trees with a Foraging axe. Collect the logs and sell them on the Bazaar.";
+}
+public class AcaciaForagingTask : BaseForagingTask
+{
+    protected override string MethodName => "Acacia Foraging";
+    protected override HashSet<string> Locations => ["Savanna Woodland"];
+    protected override HashSet<string> DetectionItems => ["LOG_2", "ENCHANTED_ACACIA_LOG"];
+    protected override List<MethodDrop> FormulaDrops => [new("LOG_2", 5300)];
+    protected override double ActionsPerHour => 5300;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Acacia_Log";
+    protected override string HowTo => "Go to the Savanna Woodland and chop Acacia trees with a Foraging axe. Collect the logs and sell them on the Bazaar.";
+}
+public class JungleForagingTask : BaseForagingTask
+{
+    protected override string MethodName => "Jungle Foraging";
+    protected override HashSet<string> Locations => ["Jungle Island"];
+    protected override HashSet<string> DetectionItems => ["LOG:3", "ENCHANTED_JUNGLE_LOG"];
+    protected override List<MethodDrop> FormulaDrops => [new("LOG:3", 3200)];
+    protected override double ActionsPerHour => 3200;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Jungle_Log";
+    protected override string HowTo => "Go to the Jungle Island and chop Jungle trees with a Foraging axe. Collect the logs and sell them on the Bazaar.";
+}

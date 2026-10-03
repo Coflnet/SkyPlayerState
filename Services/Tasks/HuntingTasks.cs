@@ -159,6 +159,10 @@ public class ZealotHuntingTask : BaseHuntingTask
     protected override string MethodName => "Zealot (Hunting)";
     protected override HashSet<string> Locations => ["The End", "Dragon's Nest", "Void Sepulture"];
     protected override HashSet<string> DetectionItems => ["SHARD_ZEALOT", "SUMMONING_EYE"];
+    // Same veto as ZealotsFdTask: its Summoning Eye is pricier than a Null Sphere, so without it a
+    // Voidgloom fight at the Hideout would stay here.
+    protected override Dictionary<string, HashSet<string>> ZoneExcludedItems =>
+        new() { ["Zealot Bruiser Hideout"] = ["NULL_SPHERE"] };
     protected override List<MethodDrop> FormulaDrops => [new("SUMMONING_EYE", 3)];
     protected override string HowTo => "Go to The End and hunt Zealots for Summoning Eyes. Kill Special Zealots for guaranteed eye drops. Fast kill speed is key.";
 }
@@ -316,4 +320,23 @@ public class CritterSafariTask : MethodTask
     protected override string HowTo =>
         "Go to the Safari Manager in Torrhus Canyon (needs Hunting 15 and a Safari Ticket from Miria's "
         + "Contests) and catch critters with Critter Capsules during a run.";
+}
+
+// ── Torrhus shards (production 2026-10-02/03, per-hour medians) ──
+
+public class DungBeetleHuntingTask : BaseHuntingTask
+{
+    protected override string MethodName => "Dung Beetle (Hunting)";
+    protected override HashSet<string> Locations => ["Torrhus Canyon", "Torrhus Heights", "Spring Path", "Torrhus Springs"];
+    protected override HashSet<string> DetectionItems => ["SHARD_DUNG_BEETLE"];
+    protected override List<MethodDrop> FormulaDrops => [new("SHARD_DUNG_BEETLE", 24)];
+    protected override string HowTo => "Go to Torrhus Canyon or Torrhus Heights on Torrhus and hunt Dung Beetles for their shard.";
+}
+public class HideonsunHuntingTask : BaseHuntingTask
+{
+    protected override string MethodName => "Hideonsun (Hunting)";
+    protected override HashSet<string> Locations => ["Torrhus Canyon", "Torrhus Heights", "Spring Path"];
+    protected override HashSet<string> DetectionItems => ["SHARD_HIDEONSUN"];
+    protected override List<MethodDrop> FormulaDrops => [new("SHARD_HIDEONSUN", 34)];
+    protected override string HowTo => "Go to Torrhus Canyon or Torrhus Heights on Torrhus and hunt Hideonsuns for their shard.";
 }

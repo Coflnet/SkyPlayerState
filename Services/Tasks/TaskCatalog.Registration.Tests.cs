@@ -69,7 +69,12 @@ public class TaskCatalogRegistrationTests
         // CoverageGapTasks.cs
         "CrimsonIsleMobsTask", "GalateaContestsTask", "GlaciteWalkerTask", "ChillHuntingTask", "HoneybuzzHuntingTask",
         "YogAndBalTask", "BarnAnimalsTask", "FarmAndBarnCropsTask", "DungeonChestClaimsTask",
-        "TorrhusSpringsHuntingTask", "SpiritCaveHuntingTask", "LapisZombieHuntingTask"
+        "TorrhusSpringsHuntingTask", "SpiritCaveHuntingTask", "LapisZombieHuntingTask",
+        // production periods 2026-10-02/03
+        "OakForagingTask", "BirchForagingTask", "SpruceForagingTask", "DarkOakForagingTask", "AcaciaForagingTask", "JungleForagingTask",
+        "RubyMiningTask", "TopazMiningTask", "AquamarineMiningTask", "CitrineMiningTask", "OnyxMiningTask", "FossilExcavationTask",
+        "GoldMiningTask", "IronMiningTask", "LapisMiningTask", "EmeraldMiningTask",
+        "DungBeetleHuntingTask", "HideonsunHuntingTask", "StridersurferTask", "TarantulaSlayerTask"
     ];
 
     [Test]

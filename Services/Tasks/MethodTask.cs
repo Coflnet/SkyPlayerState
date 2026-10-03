@@ -43,6 +43,19 @@ public abstract class MethodTask : ProfitTask
     /// </summary>
     protected virtual HashSet<string> DetectionItems => [];
     /// <summary>
+    /// Zone-specific replacement of <see cref="DetectionItems"/>, keyed like <see cref="Locations"/> (a zone
+    /// or island name): in a matching zone the period needs one of THESE items instead, so a shared
+    /// task can demand a stricter signal in one zone only (e.g. only a Null Sphere proves a Voidgloom
+    /// fight at the Zealot Bruiser Hideout, where Summoning Eyes also drop from plain Zealots).
+    /// </summary>
+    protected virtual Dictionary<string, HashSet<string>> ZoneDetectionItems => [];
+    /// <summary>
+    /// Zone-specific veto, keyed like <see cref="Locations"/>: in a matching zone a period with a
+    /// positive count of any of these items is never this task's, however much its other items are
+    /// worth (value tie-breaks cannot be trusted when the vetoed item belongs to a more specific task).
+    /// </summary>
+    protected virtual Dictionary<string, HashSet<string>> ZoneExcludedItems => [];
+    /// <summary>
     /// Optional supporting items that strengthen a location match without being required: a period
     /// holding a non-zero count (positive or negative) of one counts as item-matched for the
     /// classifier, but their absence never rules this task out (unlike <see cref="DetectionItems"/>,
@@ -343,7 +356,7 @@ public abstract class MethodTask : ProfitTask
     /// Exposes the same rules <see cref="FindMatchingPeriods"/> applies.
     /// </summary>
     public DetectionSignature GetDetectionSignature() => new(
-        MethodName, Locations, DetectionItems, RequireShardItems, ExcludeShardItems, Priority, Category, DerivedFrom, MinLocationOnlyItems, EvidenceItems, Fallback);
+        MethodName, Locations, DetectionItems, RequireShardItems, ExcludeShardItems, Priority, Category, DerivedFrom, MinLocationOnlyItems, EvidenceItems, Fallback, ZoneDetectionItems, ZoneExcludedItems);
 
     /// <summary>
     /// Estimated multipliers from the declared effects, used to seed the
@@ -442,16 +455,18 @@ public abstract class MethodTask : ProfitTask
 
     protected List<Period> FindMatchingPeriods(TaskParams parameters)
     {
-        IEnumerable<Period> candidates = Locations.Count > 0
-            ? parameters.LocationProfit
-                .Where(lp => SkyblockZones.Matches(Locations, lp.Key))
-                .SelectMany(lp => lp.Value)
-            : parameters.LocationProfit.SelectMany(lp => lp.Value);
-
-        if (DetectionItems.Count > 0)
-            candidates = candidates.Where(p =>
-                p.ItemsCollected != null &&
-                p.ItemsCollected.Keys.Any(k => DetectionItems.Contains(k)));
+        var signature = GetDetectionSignature();
+        IEnumerable<KeyValuePair<string, Period[]>> zones = Locations.Count > 0
+            ? parameters.LocationProfit.Where(lp => SkyblockZones.Matches(Locations, lp.Key))
+            : parameters.LocationProfit;
+        IEnumerable<Period> candidates = zones.SelectMany(lp => lp.Value
+            .Where(p => !signature.IsExcludedAt(lp.Key, p.ItemsCollected?.Where(i => i.Value > 0).Select(i => i.Key) ?? []))
+            .Where(p =>
+            {
+                var detection = signature.DetectionItemsAt(lp.Key);
+                return detection.Count == 0
+                    || (p.ItemsCollected != null && p.ItemsCollected.Keys.Any(k => detection.Contains(k)));
+            }));
 
         if (RequireShardItems)
             candidates = candidates.Where(p =>

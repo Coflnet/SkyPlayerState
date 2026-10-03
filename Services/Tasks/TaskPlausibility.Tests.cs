@@ -148,7 +148,7 @@ public class TaskPlausibilityTests
             foreach (var drop in task.FormulaDropsForTest)
             {
                 drop.ItemTag.Should().NotBeNullOrWhiteSpace($"{task.Name} has a drop with null/empty ItemTag");
-                drop.ItemTag.Should().MatchRegex("^[A-Z0-9_]+$", $"{task.Name} drop tag '{drop.ItemTag}' should be uppercase with underscores (game item ID format)");
+                drop.ItemTag.Should().MatchRegex(@"^[A-Z0-9_]+(:\d+)?$", $"{task.Name} drop tag '{drop.ItemTag}' should be uppercase with underscores (game item ID format, optionally with the legacy damage suffix like LOG:2 or INK_SACK:4)");
                 drop.RatePerHour.Should().BeGreaterThan(0, $"{task.Name} drop '{drop.ItemTag}' should have positive rate per hour");
                 drop.RatePerHour.Should().BeLessThan(100_000, $"{task.Name} drop '{drop.ItemTag}' rate {drop.RatePerHour}/h seems unreasonably high");
             }

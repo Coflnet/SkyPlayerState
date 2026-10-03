@@ -8,6 +8,10 @@ public class ZealotsFdTask : MethodTask
     protected override string MethodName => "Zealots (FD)";
     protected override HashSet<string> Locations => ["The End", "Dragon's Nest", "Void Sepulture"];
     protected override HashSet<string> DetectionItems => ["SUMMONING_EYE", "ENDER_PEARL"];
+    // A Null Sphere is a Voidgloom boss drop, see T4VoidgloomsTask - without the veto the pricey
+    // pearls/eyes of the same period could outvalue it and keep the fight here.
+    protected override Dictionary<string, HashSet<string>> ZoneExcludedItems =>
+        new() { ["Zealot Bruiser Hideout"] = ["NULL_SPHERE"] };
     protected override List<MethodDrop> FormulaDrops => [new("SUMMONING_EYE", 4), new("ENDER_PEARL", 300)];
     protected override string Category => "Combat";
     protected override string HowTo => "Go to The End and grind Zealots for Summoning Eyes. Kill Zealots rapidly; Special Zealots have a guaranteed eye drop. Formula-based estimate.";

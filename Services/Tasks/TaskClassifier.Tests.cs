@@ -1287,4 +1287,149 @@ public class TaskClassifierTests
         name.Should().Be("Unknown Location");
         IsHidden(name!).Should().BeTrue();
     }
+
+    // ── 2026-10-03 production method tasks ──
+
+    private static string? NameAtPriced(string location, Dictionary<string, int> items, Dictionary<string, double> prices)
+        => Classifier.Classify(location, items, 10, prices: prices)?.TaskName;
+
+    [Test]
+    [TestCase("Forest", "LOG", "ENCHANTED_OAK_LOG", "Oak Foraging")]
+    [TestCase("Birch Park", "LOG:2", "ENCHANTED_BIRCH_LOG", "Birch Foraging")]
+    [TestCase("Spruce Woods", "LOG:1", "ENCHANTED_SPRUCE_LOG", "Spruce Foraging")]
+    [TestCase("Dark Thicket", "LOG_2:1", "ENCHANTED_DARK_OAK_LOG", "Dark Oak Foraging")]
+    [TestCase("Savanna Woodland", "LOG_2", "ENCHANTED_ACACIA_LOG", "Acacia Foraging")]
+    [TestCase("Jungle Island", "LOG:3", "ENCHANTED_JUNGLE_LOG", "Jungle Foraging")]
+    public void WoodZones_ClassifyToTheirForagingTask(string zone, string log, string enchanted, string expected)
+    {
+        NameAt(zone, new() { { log, 250 } }).Should().Be(expected);
+        NameAt(zone, new() { { enchanted, 3 } }).Should().Be(expected);
+    }
+
+    [Test]
+    public void ForestDianaPeriodWithAFewLogs_StaysDiana()
+        => NameAtPriced("Forest", new() { { "ENCHANTED_GOLD", 40 }, { "ANCIENT_CLAW", 20 }, { "GRIFFIN_FEATHER", 2 }, { "LOG", 12 } },
+            new() { { "ENCHANTED_GOLD", 15_000 }, { "ANCIENT_CLAW", 400_000 }, { "GRIFFIN_FEATHER", 20_000 }, { "LOG", 5 } }).Should().Be("Diana");
+
+    [Test]
+    [TestCase("Crystal Hollows", "RUBY", "Ruby Mining")]
+    [TestCase("Mines of Divan", "RUBY", "Ruby Mining")]
+    [TestCase("Crystal Nucleus", "RUBY", "Ruby Mining")]
+    [TestCase("Khazad-dûm", "TOPAZ", "Topaz Mining")]
+    [TestCase("Magma Fields", "TOPAZ", "Topaz Mining")]
+    [TestCase("Glacite Tunnels", "AQUAMARINE", "Aquamarine Mining")]
+    [TestCase("Glacite Mineshafts", "CITRINE", "Citrine Mining")]
+    [TestCase("Dwarven Base Camp", "ONYX", "Onyx Mining")]
+    public void NewGemstoneZones_ClassifyToTheirGemTask(string zone, string gem, string expected)
+        => NameAt(zone, new() { { $"FLAWED_{gem}_GEM", 90 }, { $"FINE_{gem}_GEM", 30 } }).Should().Be(expected);
+
+    [Test]
+    public void GlaciteRoughRubyIsRuby_ButAquamarineNeedsItsOwnGems()
+    {
+        NameAt("Glacite Tunnels", new() { { "FINE_ONYX_GEM", 40 } }).Should().Be("Onyx Mining");
+        NameAt("Glacite Tunnels", new() { { "FINE_AQUAMARINE_GEM", 40 }, { "FLAWED_AQUAMARINE_GEM", 100 } }).Should().Be("Aquamarine Mining");
+    }
+
+    [Test]
+    [TestCase("Fossil Research Center", "CLAW_FOSSIL")]
+    [TestCase("Fossil Research Center", "FOSSIL_THE_FISH")]
+    public void FossilItems_ClassifyToFossilExcavation(string zone, string item)
+        => NameAt(zone, new() { { item, 6 } }).Should().Be("Fossil Excavation");
+
+    [Test]
+    public void GlaciteMiningWithExpensiveScrap_StaysMining()
+        => NameAtPriced("Glacite Mineshafts", new() { { "UMBER", 900 }, { "ENCHANTED_UMBER", 4 }, { "SUSPICIOUS_SCRAP", 2 } },
+            new() { { "ENCHANTED_UMBER", 2_000 }, { "SUSPICIOUS_SCRAP", 500_000 } }).Should().Be("Umber Mining");
+
+    [Test]
+    [TestCase("Torrhus Canyon", "SHARD_DUNG_BEETLE", "Dung Beetle (Hunting)")]
+    [TestCase("Torrhus Springs", "SHARD_DUNG_BEETLE", "Dung Beetle (Hunting)")]
+    [TestCase("Torrhus Heights", "SHARD_HIDEONSUN", "Hideonsun (Hunting)")]
+    [TestCase("Spring Path", "SHARD_HIDEONSUN", "Hideonsun (Hunting)")]
+    public void TorrhusShards_ClassifyToTheirHuntingTask(string zone, string shard, string expected)
+        => NameAt(zone, new() { { shard, 3 } }).Should().Be(expected);
+
+    [Test]
+    [TestCase("South Reaches")]
+    [TestCase("Stride-Ember Fissure")]
+    public void StriderSurferShards_ClassifyToStridersurfer(string zone)
+        => NameAt(zone, new() { { "SHARD_STRIDER_SURFER", 40 } }).Should().Be("Stridersurfer");
+
+    [Test]
+    [TestCase("Gold Mine", "GOLD_INGOT", "Gold Mining")]
+    [TestCase("Royal Mines", "ENCHANTED_GOLD", "Gold Mining")]
+    [TestCase("Gunpowder Mines", "IRON_INGOT", "Iron Mining")]
+    [TestCase("Gold Mine", "ENCHANTED_IRON", "Iron Mining")]
+    [TestCase("Lapis Quarry", "INK_SACK:4", "Lapis Mining")]
+    [TestCase("Slimehill", "EMERALD", "Emerald Mining")]
+    public void PureOreZones_ClassifyToTheirOreTask(string zone, string item, string expected)
+        => NameAt(zone, new() { { item, 600 } }).Should().Be(expected);
+
+    // ── Tarantula Slayer in the Spider's Den (was Voracious Spider) ──
+
+    private static readonly Dictionary<string, double> SpiderPrices =
+        new() { { "TARANTULA_WEB", 50 }, { "TOXIC_ARROW_POISON", 20 }, { "STRING", 100 }, { "SPIDER_EYE", 100 } };
+
+    [Test]
+    [TestCase("Arachne's Burrow")]
+    [TestCase("Arachne's Sanctuary")]
+    [TestCase("Spider's Den")]
+    [TestCase("Spider Mound")]
+    public void SpidersDenPeriodWithTarantulaWeb_IsTarantulaSlayer_EvenWithPricierString(string zone)
+    {
+        NameAtPriced(zone, new() { { "TARANTULA_WEB", 450 }, { "TOXIC_ARROW_POISON", 120 }, { "STRING", 300 } }, SpiderPrices).Should().Be("Tarantula Slayer");
+        NameAt(zone, new() { { "TOXIC_ARROW_POISON", 120 }, { "TARANTULA_SILK", 2 } }).Should().Be("Tarantula Slayer");
+    }
+
+    [Test]
+    [TestCase("Arachne's Burrow")]
+    [TestCase("Arachne's Sanctuary")]
+    public void SpidersDenPeriodWithOnlyStringAndSpiderEye_StaysVoraciousSpider(string zone)
+        => NameAtPriced(zone, new() { { "STRING", 600 }, { "SPIDER_EYE", 150 } }, SpiderPrices).Should().Be("Voracious Spider");
+
+    // ── Voidgloom slayer at the Zealot Bruiser Hideout (was Zealots (FD)) ──
+
+    private static readonly Dictionary<string, double> EndPrices =
+        new() { { "NULL_SPHERE", 100_000 }, { "SUMMONING_EYE", 800_000 }, { "ENDER_PEARL", 500 }, { "ENCHANTED_ENDER_PEARL", 90_000 } };
+
+    [Test]
+    public void ZealotBruiserHideoutWithNullSphere_IsT4Voidglooms_EvenWithPricierPearls()
+    {
+        NameAtPriced("Zealot Bruiser Hideout", new() { { "NULL_SPHERE", 4 }, { "ENDER_PEARL", 300 }, { "ENCHANTED_ENDER_PEARL", 20 } }, EndPrices)
+            .Should().Be("T4 Voidglooms");
+        NameAtPriced("Zealot Bruiser Hideout", new() { { "NULL_SPHERE", 4 }, { "SUMMONING_EYE", 1 } }, EndPrices).Should().Be("T4 Voidglooms");
+    }
+
+    [Test]
+    public void ZealotBruiserHideoutWithoutNullSphere_StaysZealotsFd()
+    {
+        NameAtPriced("Zealot Bruiser Hideout", new() { { "ENDER_PEARL", 300 }, { "ENCHANTED_ENDER_PEARL", 20 }, { "SUMMONING_EYE", 1 } }, EndPrices)
+            .Should().Be("Zealots (FD)");
+    }
+
+    [Test]
+    public void DragonsNestSummoningEyeOnly_KeepsItsClassification()
+        => NameAtPriced("Dragon's Nest", new() { { "SUMMONING_EYE", 2 } }, EndPrices).Should().Be(DragonsNestEyeOnlyBaseline);
+
+    private const string DragonsNestEyeOnlyBaseline = "T4 Voidglooms";
+
+    [Test]
+    public void T4VoidgloomsPersonalView_DropsHideoutPeriodsWithoutNullSphere()
+    {
+        Period Make(string tag) => new()
+        {
+            Location = "Zealot Bruiser Hideout",
+            ItemsCollected = new() { { tag, 3 } },
+            StartTime = new DateTime(2026, 10, 3, 12, 0, 0),
+            EndTime = new DateTime(2026, 10, 3, 12, 10, 0),
+            PlayerUuid = "test"
+        };
+        var task = Registry.MethodTasks.First(t => t.GetDetectionSignature().MethodName == "T4 Voidglooms");
+        var matched = task.FindMatchingPeriodsForAggregation(new TaskParams
+        {
+            TestTime = new DateTime(2026, 10, 3, 12, 10, 0),
+            LocationProfit = new() { { "Zealot Bruiser Hideout", [Make("SUMMONING_EYE"), Make("NULL_SPHERE")] } }
+        });
+        matched.Should().ContainSingle().Which.ItemsCollected.Should().ContainKey("NULL_SPHERE");
+    }
 }

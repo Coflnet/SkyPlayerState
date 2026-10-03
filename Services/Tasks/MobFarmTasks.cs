@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
 
@@ -98,10 +99,12 @@ public class MatchoTask : BaseGalateaMobTask
 public class StridersurferTask : BaseGalateaMobTask
 {
     protected override string MethodName => "Stridersurfer";
-    protected override HashSet<string> Locations => ["Stride-Ember Fissure", "Side-Ember Way", "Dive-Ember Pass"];
+    // Confirmed in production 2026-10-03: tag SHARD_STRIDER_SURFER, ~550/h at South Reaches and ~275/h
+    // at Stride-Ember Fissure (Stridersurfers also walk the other Ember zones).
+    protected override HashSet<string> Locations => ["South Reaches", "Stride-Ember Fissure", "Side-Ember Way", "Dive-Ember Pass"];
     protected override HashSet<string> DetectionItems => ["SHARD_STRIDER_SURFER"];
-    protected override List<MethodDrop> FormulaDrops => [new("SHARD_STRIDER_SURFER", 320)];
-    protected override string HowTo => "Go to the Ember areas on Galatea and kill Stridersurfers. Higher drop rate than other Ember mobs.";
+    protected override List<MethodDrop> FormulaDrops => [new("SHARD_STRIDER_SURFER", 550)];
+    protected override string HowTo => "Go to the South Reaches or the Ember areas on Galatea and kill Stridersurfers. Higher drop rate than other Ember mobs.";
 }
 public class SporeTask : BaseGalateaMobTask
 {
@@ -243,8 +246,11 @@ public class VoraciousSpiderTask : MethodTask
     protected override HashSet<string> Locations => ["Spider's Den", "The Spider's Den", "Arachne's Sanctuary", "Spider Mound"];
     // Voracious Spiders drop String (100%) + Spider Eye; Tarantula Web is a Broodfather-boss drop, not this mob.
     protected override HashSet<string> DetectionItems => ["SHARD_VORACIOUS_SPIDER", "STRING"];
+    // A period with Tarantula Web is a Spider Slayer fight (TarantulaSlayerTask) whatever else dropped.
+    protected override Dictionary<string, HashSet<string>> ZoneExcludedItems =>
+        Locations.ToDictionary(zone => zone, _ => new HashSet<string> { "TARANTULA_WEB" });
     protected override List<MethodDrop> FormulaDrops => [new("STRING", 4000), new("SPIDER_EYE", 300)];
-    protected override string HowTo => "Go to the Spider's Den and kill Voracious Spiders. Good for Tarantula Web drops.";
+    protected override string HowTo => "Go to the Spider's Den and kill Voracious Spiders. They drop String and Spider Eyes.";
     protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "Weapon" }];
     protected override List<DropEffect> Effects => [
         new() { Name = "Magic Find", Description = "Increases rare drop chance", EstimatedMultiplier = 1.2 },

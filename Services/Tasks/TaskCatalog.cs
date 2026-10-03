@@ -46,7 +46,6 @@ internal static class TaskCatalog
         typeof(WinterFishingHuntingTask),   // fishing nets (shard hunting) do not work at Jerry's Workshop
         typeof(OasisFishingHuntingTask),    // real activity is Tomb Floodway shard fishing, mislabeled as Oasis
         typeof(CinderbatTask),              // real mob but spawns on Crimson Isle not Galatea; SHARD_CINDER_BAT tag unconfirmed
-        typeof(StridersurferTask),          // real, but SHARD_STRIDER_SURFER tag id needs confirming
         typeof(XyzMobTask),                 // duplicate of XyzHuntingTask; wrong location (Exe mob is on Crimson Isle)
         typeof(GhostMobTask),               // duplicate of GhostHuntingTask; GHOST_COIN is not a real item id
         typeof(SludgeMiningCoalTask),       // fabricated "coal from sludge" variant; sludge is a Crystal Hollows grind
@@ -142,6 +141,7 @@ internal static class TaskCatalog
         tasks.Add<RevenantSlayerTask>();
         tasks.Add<SvenSlayerTask>();
         tasks.Add<TarantulaSlayerCrimsonIsleTask>();
+        tasks.Add<TarantulaSlayerTask>();
         // Renamed from BlazeFarmingTask 2026-09 (was "Mob farm tasks"): Derelict Ashe only drops
         // from the Inferno Demonlord boss, so this is a Blaze Slayer session, not mob farming.
         tasks.Add<BlazeSlayerTask>();
@@ -152,7 +152,7 @@ internal static class TaskCatalog
         tasks.Add<LumisquidTask>();
         tasks.Add<ShellwiseTask>();
         tasks.Add<MatchoTask>();
-        // tasks.Add<StridersurferTask>();  // deactivated: SHARD_STRIDER_SURFER tag id needs confirming
+        tasks.Add<StridersurferTask>();     // re-registered 2026-10: SHARD_STRIDER_SURFER confirmed in production
         // tasks.Add<SporeTask>();          // removed 2026-07: no such Galatea mob/shard (see IntentionallyUnregistered)
         tasks.Add<BladesoulTask>();
         tasks.Add<JoydiveTask>();
@@ -217,6 +217,8 @@ internal static class TaskCatalog
         tasks.Add<MinerZombieHuntingTask>();
         tasks.Add<MudwormHuntingTask>();
         tasks.Add<BirriesHuntingTask>();
+        tasks.Add<DungBeetleHuntingTask>();
+        tasks.Add<HideonsunHuntingTask>();
         tasks.Add<CritterSafariTask>();
 
         // Diana / Mythological event tasks
@@ -229,6 +231,11 @@ internal static class TaskCatalog
         tasks.Add<AmberMiningTask>();
         tasks.Add<SapphireMiningTask>();
         tasks.Add<PeridotMiningTask>();
+        tasks.Add<RubyMiningTask>();
+        tasks.Add<TopazMiningTask>();
+        tasks.Add<AquamarineMiningTask>();
+        tasks.Add<CitrineMiningTask>();
+        tasks.Add<OnyxMiningTask>();
 
         // Mining tasks (ore)
         tasks.Add<CoalMiningTask>();
@@ -242,6 +249,12 @@ internal static class TaskCatalog
         tasks.Add<MithrilMiningTask>();
         tasks.Add<GlaciteMiningTask>();
         tasks.Add<FlintMiningTask>();
+        tasks.Add<FossilExcavationTask>();
+        // pure ores, discovered from production periods 2026-10-02/03
+        tasks.Add<GoldMiningTask>();
+        tasks.Add<IronMiningTask>();
+        tasks.Add<LapisMiningTask>();
+        tasks.Add<EmeraldMiningTask>();
 
         // Mining tasks (special)
         tasks.Add<NucleusMiningTask>();
@@ -263,6 +276,13 @@ internal static class TaskCatalog
         tasks.Add<MangroveForagingTask>();
         // discovered from unclassified production revenue 2026-09-28
         tasks.Add<HoneycombGatheringTask>();
+        // one task per Hub/Park wood, discovered from production periods 2026-10-02/03
+        tasks.Add<OakForagingTask>();
+        tasks.Add<BirchForagingTask>();
+        tasks.Add<SpruceForagingTask>();
+        tasks.Add<DarkOakForagingTask>();
+        tasks.Add<AcaciaForagingTask>();
+        tasks.Add<JungleForagingTask>();
 
         // Crafting tasks
         tasks.Add<ReaperScytheTask>();

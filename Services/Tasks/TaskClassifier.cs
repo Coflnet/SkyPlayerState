@@ -116,10 +116,13 @@ public class TaskClassifier
                 if (!locationMatches)
                     continue;
             }
+            if (sig.IsExcludedAt(location, itemsCollected.Where(kv => kv.Value > 0).Select(kv => kv.Key)))
+                continue;
             List<string> matched = null;
-            if (sig.DetectionItems.Count > 0)
+            var detectionItems = sig.DetectionItemsAt(location);
+            if (detectionItems.Count > 0)
             {
-                matched = itemsCollected.Keys.Where(k => sig.DetectionItems.Contains(k)).ToList();
+                matched = itemsCollected.Keys.Where(k => detectionItems.Contains(k)).ToList();
                 if (matched.Count == 0)
                     continue;
             }

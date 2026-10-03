@@ -503,3 +503,126 @@ public class FlintMiningTask : BaseMiningTask
         new() { Number = 7, Text = "Check /cofl task again to see your real coins/hour." },
     ];
 }
+
+// Discovered from 24 h of production periods (2026-10-02/03, per-hour medians). No Opal task: production
+// has no Opal period in a real zone.
+public class RubyMiningTask : BaseMiningTask
+{
+    protected override string MethodName => "Ruby Mining";
+    protected override HashSet<string> Locations => ["Crystal Hollows", "Jungle", "Mithril Deposits", "Precursor Remnants", "Magma Fields", "Goblin Holdout", "Mines of Divan", "Crystal Nucleus"];
+    protected override HashSet<string> DetectionItems => ["FINE_RUBY_GEM", "FLAWED_RUBY_GEM", "ROUGH_RUBY_GEM"];
+    protected override List<MethodDrop> FormulaDrops => [new("ROUGH_RUBY_GEM", 600), new("FLAWED_RUBY_GEM", 70)];
+    protected override string HowTo => "Equip a Gemstone Gauntlet and mine Ruby gemstone veins in the Crystal Hollows.";
+    protected override double ActionsPerHour => 3000;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Ruby_Gemstone";
+    protected override List<TaskStep> Steps => GemstoneSteps("Ruby", WikiUrl, CrystalHollowsAccessNote);
+}
+public class TopazMiningTask : BaseMiningTask
+{
+    protected override string MethodName => "Topaz Mining";
+    protected override HashSet<string> Locations => ["Crystal Hollows", "Magma Fields", "Khazad-dûm"];
+    protected override HashSet<string> DetectionItems => ["FINE_TOPAZ_GEM", "FLAWED_TOPAZ_GEM", "ROUGH_TOPAZ_GEM"];
+    protected override List<MethodDrop> FormulaDrops => [new("ROUGH_TOPAZ_GEM", 390), new("FLAWED_TOPAZ_GEM", 130), new("FINE_TOPAZ_GEM", 13)];
+    protected override string HowTo => "Equip a Gemstone Gauntlet and mine Topaz gemstone veins in the Crystal Hollows.";
+    protected override double ActionsPerHour => 3000;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Topaz_Gemstone";
+    protected override List<TaskStep> Steps => GemstoneSteps("Topaz", WikiUrl, CrystalHollowsAccessNote);
+}
+public class AquamarineMiningTask : BaseMiningTask
+{
+    protected override string MethodName => "Aquamarine Mining";
+    protected override HashSet<string> Locations => ["Glacite Tunnels", "Glacite Mineshafts", "Dwarven Base Camp"];
+    protected override HashSet<string> DetectionItems => ["FINE_AQUAMARINE_GEM", "FLAWED_AQUAMARINE_GEM", "ROUGH_AQUAMARINE_GEM"];
+    protected override List<MethodDrop> FormulaDrops => [new("FLAWED_AQUAMARINE_GEM", 500), new("FINE_AQUAMARINE_GEM", 160)];
+    protected override string HowTo => "Equip a Gemstone Gauntlet and mine Aquamarine gemstone veins in the Glacite Tunnels.";
+    protected override double ActionsPerHour => 3000;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Aquamarine_Gemstone";
+    protected override List<TaskStep> Steps => GemstoneSteps("Aquamarine", WikiUrl, GlaciteAccessNote);
+}
+public class CitrineMiningTask : BaseMiningTask
+{
+    protected override string MethodName => "Citrine Mining";
+    protected override HashSet<string> Locations => ["Glacite Tunnels", "Glacite Mineshafts", "Dwarven Base Camp"];
+    protected override HashSet<string> DetectionItems => ["FINE_CITRINE_GEM", "FLAWED_CITRINE_GEM", "ROUGH_CITRINE_GEM"];
+    protected override List<MethodDrop> FormulaDrops => [new("FLAWED_CITRINE_GEM", 320), new("FINE_CITRINE_GEM", 76)];
+    protected override string HowTo => "Equip a Gemstone Gauntlet and mine Citrine gemstone veins in the Glacite Tunnels.";
+    protected override double ActionsPerHour => 3000;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Citrine_Gemstone";
+    protected override List<TaskStep> Steps => GemstoneSteps("Citrine", WikiUrl, GlaciteAccessNote);
+}
+public class OnyxMiningTask : BaseMiningTask
+{
+    protected override string MethodName => "Onyx Mining";
+    protected override HashSet<string> Locations => ["Glacite Tunnels", "Glacite Mineshafts", "Dwarven Base Camp"];
+    protected override HashSet<string> DetectionItems => ["FINE_ONYX_GEM", "FLAWED_ONYX_GEM", "ROUGH_ONYX_GEM"];
+    protected override List<MethodDrop> FormulaDrops => [new("FINE_ONYX_GEM", 180)];
+    protected override string HowTo => "Equip a Gemstone Gauntlet and mine Onyx gemstone veins in the Glacite Tunnels.";
+    protected override double ActionsPerHour => 3000;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Onyx_Gemstone";
+    protected override List<TaskStep> Steps => GemstoneSteps("Onyx", WikiUrl, GlaciteAccessNote);
+}
+
+// Fossil Excavation: Suspicious Scrap is spent at the Fossil Research Center and yields the fossils.
+// The scrap itself is a mining by-product (production 2026-10-03: 250 Glacite/Umber/Tungsten periods held
+// one), so only the fossils prove the excavation.
+public class FossilExcavationTask : BaseMiningTask
+{
+    protected override string MethodName => "Fossil Excavation";
+    protected override HashSet<string> Locations => ["Fossil Research Center", "Dwarven Base Camp", "Glacite Tunnels"];
+    protected override HashSet<string> DetectionItems =>
+    [
+        "FOSSIL_THE_FISH", "CLUBBED_FOSSIL", "FOOTPRINT_FOSSIL", "TUSK_FOSSIL",
+        "WEBBED_FOSSIL", "SPINE_FOSSIL", "UGLY_FOSSIL", "CLAW_FOSSIL"
+    ];
+    // Production medians (2026-10-02/03) per hour: each fossil ~12 at the research center.
+    protected override List<MethodDrop> FormulaDrops =>
+    [
+        new("FOSSIL_THE_FISH", 12), new("CLUBBED_FOSSIL", 12), new("FOOTPRINT_FOSSIL", 12),
+        new("TUSK_FOSSIL", 12), new("WEBBED_FOSSIL", 12), new("SPINE_FOSSIL", 12), new("UGLY_FOSSIL", 12), new("CLAW_FOSSIL", 12)
+    ];
+    // no gauntlet needed: the excavator is an NPC machine
+    protected override List<RequiredItem> RequiredItems => [];
+    protected override string HowTo =>
+        "Bring Suspicious Scrap (found while mining in the Glacite Mineshafts) to the Fossil Research Center "
+        + "in the Dwarven Base Camp and excavate it for fossils.";
+    protected override double ActionsPerHour => 96;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Fossil_Research_Center";
+}
+
+// ── Pure ores (production 2026-10-02/03) ──
+public class GoldMiningTask : BaseMiningTask
+{
+    protected override string MethodName => "Gold Mining";
+    protected override HashSet<string> Locations => ["Gold Mine", "Gunpowder Mines", "Royal Mines", "Mines of Divan"];
+    protected override HashSet<string> DetectionItems => ["GOLD_INGOT", "GOLD_ORE", "ENCHANTED_GOLD", "ENCHANTED_GOLD_BLOCK"];
+    protected override List<MethodDrop> FormulaDrops => [new("GOLD_INGOT", 800)];
+    protected override string HowTo => "Mine gold ore in the Gold Mine, Gunpowder Mines or Royal Mines with a pickaxe.";
+    protected override double ActionsPerHour => 800;
+}
+public class IronMiningTask : BaseMiningTask
+{
+    protected override string MethodName => "Iron Mining";
+    protected override HashSet<string> Locations => ["Gold Mine", "Gunpowder Mines", "Royal Mines"];
+    protected override HashSet<string> DetectionItems => ["IRON_INGOT", "IRON_ORE", "ENCHANTED_IRON"];
+    protected override List<MethodDrop> FormulaDrops => [new("IRON_INGOT", 450)];
+    protected override string HowTo => "Mine iron ore in the Gold Mine, Gunpowder Mines or Royal Mines with a pickaxe.";
+    protected override double ActionsPerHour => 450;
+}
+public class LapisMiningTask : BaseMiningTask
+{
+    protected override string MethodName => "Lapis Mining";
+    protected override HashSet<string> Locations => ["Lapis Quarry"];
+    protected override HashSet<string> DetectionItems => ["INK_SACK:4", "ENCHANTED_LAPIS_LAZULI"];
+    protected override List<MethodDrop> FormulaDrops => [new("INK_SACK:4", 6400)];
+    protected override string HowTo => "Mine lapis ore in the Lapis Quarry with a pickaxe.";
+    protected override double ActionsPerHour => 6400;
+}
+public class EmeraldMiningTask : BaseMiningTask
+{
+    protected override string MethodName => "Emerald Mining";
+    protected override HashSet<string> Locations => ["Slimehill"];
+    protected override HashSet<string> DetectionItems => ["EMERALD", "ENCHANTED_EMERALD"];
+    protected override List<MethodDrop> FormulaDrops => [new("EMERALD", 1300)];
+    protected override string HowTo => "Mine emerald ore in Slimehill with a pickaxe.";
+    protected override double ActionsPerHour => 1300;
+}

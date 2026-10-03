@@ -210,8 +210,13 @@ public class BarbarianDukeXTask : MethodTask
 public class T4VoidgloomsTask : MethodTask
 {
     protected override string MethodName => "T4 Voidglooms";
-    protected override HashSet<string> Locations => ["Dragon's Nest", "Void Sepulture"];
+    protected override HashSet<string> Locations => ["Dragon's Nest", "Void Sepulture", "Zealot Bruiser Hideout"];
     protected override HashSet<string> DetectionItems => ["NULL_SPHERE", "SUMMONING_EYE"];
+    // Zealots (and Bruisers) farmed at the Hideout drop Summoning Eyes too (production 2026-10-03: 211
+    // periods there were Voidgloom fights misread as Zealots (FD)), so only the Null Sphere - a
+    // boss-only drop - proves the slayer fight in that zone.
+    protected override Dictionary<string, HashSet<string>> ZoneDetectionItems =>
+        new() { ["Zealot Bruiser Hideout"] = ["NULL_SPHERE"] };
     protected override List<MethodDrop> FormulaDrops => [new("NULL_SPHERE", 15), new("SUMMONING_EYE", 2)];
     protected override string Category => "Slayer";
     protected override string HowTo => "Go to The End and spawn T4 Voidgloom Seraphs. Use Terminator or Juju bow for high DPS. Requires Combat 24+ and Enderman Slayer 7.";
@@ -300,6 +305,31 @@ public class TarantulaSlayerCrimsonIsleTask : MethodTask
         "Buy a Maddox Batphone, start a Spider Slayer quest, then kill Flaming Spiders [Lv80] in the "
         + "Burning Desert on the Crimson Isle to spawn Tarantula Broodfather quickly (they also drop "
         + "Burning Eye, 20% chance). Kill the boss for Tarantula Web.";
+    // no RequiredItems: no specific weapon is verified for this slayer, a generic one would mislead
+    protected override List<DropEffect> Effects => [
+        new() { Name = "Magic Find", Description = "Increases rare drop chance from slayer bosses", EstimatedMultiplier = 1.2 },
+        new() { Name = "Combat Level", Description = "Higher combat level unlocks higher slayer tiers", EstimatedMultiplier = 1.1 }
+    ];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Tarantula_Broodfather";
+}
+
+/// <summary>
+/// Tarantula Broodfather (Spider Slayer boss) fought in the Spider's Den, where Arachne's Burrow and
+/// Arachne's Sanctuary are the usual spots (production 2026-10-03: 473 of these periods were
+/// attributed to Voracious Spider). The boss drops Tarantula Web (the Voracious Spider mob does not), so a
+/// web period is this task's, see <see cref="VoraciousSpiderTask"/>. Crimson Isle variant: <see cref="TarantulaSlayerCrimsonIsleTask"/>.
+/// </summary>
+public class TarantulaSlayerTask : MethodTask
+{
+    protected override string MethodName => "Tarantula Slayer";
+    protected override HashSet<string> Locations => ["Arachne's Burrow", "Arachne's Sanctuary", "Spider's Den", "Spider Mound"];
+    protected override HashSet<string> DetectionItems => ["TARANTULA_WEB", "TARANTULA_SILK", "TOXIC_ARROW_POISON", "SPIDER_CATALYST"];
+    // Production medians (2026-10-02/03) per hour: TARANTULA_WEB 2700, TOXIC_ARROW_POISON 750, TARANTULA_SILK 12.
+    protected override List<MethodDrop> FormulaDrops => [new("TARANTULA_WEB", 2700), new("TOXIC_ARROW_POISON", 750), new("TARANTULA_SILK", 12)];
+    protected override string Category => "Slayer";
+    protected override string HowTo =>
+        "Buy a Maddox Batphone, start a Spider Slayer quest, then kill spiders in the Spider's Den "
+        + "(Arachne's Burrow or Arachne's Sanctuary) to spawn Tarantula Broodfather. Kill the boss for Tarantula Web.";
     // no RequiredItems: no specific weapon is verified for this slayer, a generic one would mislead
     protected override List<DropEffect> Effects => [
         new() { Name = "Magic Find", Description = "Increases rare drop chance from slayer bosses", EstimatedMultiplier = 1.2 },
