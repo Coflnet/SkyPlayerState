@@ -873,6 +873,7 @@ public abstract class MethodTask : ProfitTask
             ItemTag = r.ItemTag,
             Name = string.IsNullOrEmpty(r.Name) ? parameters.Names.GetValueOrDefault(r.ItemTag, r.ItemTag) : r.Name,
             Reason = r.Reason,
+            Category = r.Category,
             EstimatedPrice = (long)prices.GetValueOrDefault(r.ItemTag, 0)
         }).ToList();
     }

@@ -57,6 +57,19 @@ public class TaskParams
     /// </summary>
     public string PlayerName { get; set; }
 
+    /// <summary>
+    /// Item tags the player state shows (inventory, hunting weapon/toolkit, pets as PET_&lt;TYPE&gt;, and the
+    /// persisted storage containers), built once per request by <see cref="TaskExecutionService"/>.
+    /// Null when no player state is available, which makes <see cref="RequiredItem.Owned"/> null everywhere.
+    /// </summary>
+    public HashSet<string> OwnedItemTags { get; set; }
+
+    /// <summary>
+    /// True when the storage containers (ender chest, backpacks) could not be read, so an item missing from
+    /// <see cref="OwnedItemTags"/> is not proof the player lacks it and its Owned stays null.
+    /// </summary>
+    public bool OwnedItemsIncomplete { get; set; }
+
     public T GetService<T>() where T : class
     {
         return ServiceProvider?.GetService<T>();

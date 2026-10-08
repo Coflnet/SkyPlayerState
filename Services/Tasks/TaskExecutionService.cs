@@ -117,6 +117,8 @@ public class TaskExecutionService
         {
             var result = await task.Execute(parameters);
             result.Name ??= task.Name;
+            // additive gear ownership info, never affects profit/sorting/accessibility
+            GearOwnership.Annotate(result, parameters);
             return result;
         }
         catch (Exception e)
@@ -147,6 +149,8 @@ public class TaskExecutionService
         // be requested once the state (and thus the uuid to resolve it from) has loaded - it cannot
         // be kicked off eagerly alongside the tasks above the way it used to be.
         var (state, history, resolvedId) = await LoadStateAndHistory(playerId, cancellationToken);
+
+        var (ownedTags, ownedIncomplete) = await LoadOwnedTags(state, cancellationToken);
 
         var prices = await pricesTask;
         var bazaarPrices = await bazaarPricesTask;
@@ -186,8 +190,38 @@ public class TaskExecutionService
             ServerEstimates = serverEstimates.ToDictionary(e => e.TaskName, e => e, StringComparer.OrdinalIgnoreCase),
             ServiceProvider = serviceProvider,
             PlayerUuid = resolvedId,
-            PlayerName = playerId
+            PlayerName = playerId,
+            OwnedItemTags = ownedTags,
+            OwnedItemsIncomplete = ownedIncomplete
         };
+    }
+
+    /// <summary>
+    /// Builds the owned item tag set once per request (see <see cref="GearOwnership.BuildOwnedTags"/>).
+    /// Null when there is no player state. The persisted storage containers (ender chest, backpacks)
+    /// live in <see cref="StorageService"/> keyed by (player, active profile); when they cannot be read
+    /// the set is flagged incomplete so absent items stay unknown instead of "missing".
+    /// </summary>
+    private async Task<(HashSet<string> Owned, bool Incomplete)> LoadOwnedTags(StateObject state, CancellationToken cancellationToken)
+    {
+        if (state == null)
+            return (null, false);
+        var storage = serviceProvider?.GetService(typeof(StorageService)) as StorageService;
+        var uuid = state.McInfo?.Uuid ?? Guid.Empty;
+        var profile = state.Profiles?.FirstOrDefault()?.Uuid ?? Guid.Empty;
+        List<IEnumerable<Models.Item>> containers = null;
+        var incomplete = true;
+        if (storage != null && uuid != Guid.Empty && profile != Guid.Empty)
+        {
+            var items = await LoadOptional(() => storage.GetStorageItems(uuid, profile), (List<StorageService.StorageItem>)null,
+                "player storage", state.PlayerId, PlayerDataReadTimeout, cancellationToken);
+            if (items != null)
+            {
+                containers = items.Select(i => (IEnumerable<Models.Item>)i.Items).ToList();
+                incomplete = false;
+            }
+        }
+        return (GearOwnership.BuildOwnedTags(state, containers), incomplete);
     }
 
     /// <summary>

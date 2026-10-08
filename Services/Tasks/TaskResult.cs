@@ -130,6 +130,19 @@ public class MethodBreakdown
     /// Ordered, followable steps a total beginner can click through - see MethodTask.Steps.
     /// </summary>
     public List<TaskStep> Steps { get; set; } = [];
+    /// <summary>
+    /// Total <see cref="RequiredItem.EstimatedPrice"/> of the required items the player is known to be missing
+    /// (<see cref="RequiredItem.Owned"/> == false), i.e. what it costs to get the gear for this method.
+    /// 0 when all required items are owned. Null when it cannot be determined: no player state, no
+    /// required items, or no item is known missing while some are undecidable (<c>Owned == null</c>).
+    /// When some items are missing and others undecidable it is the sum of the known missing ones.
+    /// </summary>
+    public long? MissingItemsCost { get; set; }
+    /// <summary>
+    /// True when there are required items and all are known owned, false when at least one is known
+    /// missing, null when unknown (no player state, undecidable items) or the method has no required items.
+    /// </summary>
+    public bool? GearOwned { get; set; }
 }
 
 /// <summary>
@@ -160,6 +173,17 @@ public class RequiredItem
     /// Estimated price at time of calculation (0 if unknown)
     /// </summary>
     public long EstimatedPrice { get; set; }
+    /// <summary>
+    /// Whether the player's state shows this item (or an equivalent/better one, see GearOwnership).
+    /// True = has it, false = state loaded and it was not found, null = unknown (no player state, or the
+    /// entry cannot be decided from state, e.g. worn armor, consumables, example weapons).
+    /// </summary>
+    public bool? Owned { get; set; }
+    /// <summary>
+    /// Optional requirement class when the entry is an example of a category rather than one specific
+    /// item (e.g. "HUNT_WEAPON": any weapon on the hunting weapon ladder satisfies it). Null for plain items.
+    /// </summary>
+    public string Category { get; set; }
 }
 
 public class DropInfo
