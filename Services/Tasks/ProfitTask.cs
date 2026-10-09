@@ -1,12 +1,70 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using Period = Coflnet.Sky.PlayerState.Services.TrackedProfitService.Period;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
 
 public abstract class ProfitTask
 {
     public abstract Task<TaskResult> Execute(TaskParams parameters);
+
+    /// <summary>
+    /// What the player must have before this task is doable (declared in order of progression: the first
+    /// known unmet hard one is named in the inaccessible reason). Island and zone requirements come
+    /// automatically from <see cref="AreaRequirements"/> and need not be repeated here.
+    /// </summary>
+    protected virtual List<TaskRequirement> Requirements => [];
+    /// <summary>The zones the task is done in, used for the automatic area requirements. Defaults to <see cref="Where"/>.</summary>
+    protected virtual IEnumerable<string> AreaZones => string.IsNullOrEmpty(Where) ? [] : [Where];
+
+    /// <summary>Area requirements first (get there), then the task's own, duplicates merged.</summary>
+    public List<TaskRequirement> AllRequirements =>
+        RequirementEvaluator.Merge(AreaRequirements.ForZones(AreaZones).Concat(Requirements));
+
+    /// <summary>
+    /// <see cref="Execute"/> plus the requirement check against <see cref="TaskParams.ProfileSnapshot"/>: fills
+    /// <see cref="MethodBreakdown.Requirements"/> and marks the task inaccessible when a hard requirement is
+    /// known unmet. This is the entry point the task list uses.
+    /// </summary>
+    public async Task<TaskResult> ExecuteWithRequirements(TaskParams parameters)
+    {
+        var result = await Execute(parameters);
+        var requirements = AllRequirements;
+        // results without data ("No X tracked yet", formula without prices) have no breakdown to carry them
+        if (requirements.Count > 0 && result.Breakdown == null)
+            result.Breakdown = NewGuidanceBreakdown();
+        RequirementEvaluator.Apply(result, requirements, parameters);
+        return result;
+    }
+    /// <summary>
+    /// Rewards that arrive after the work that earned them (Galatea contest coupons, a slayer boss's
+    /// drops): the tags, the time earning them takes and a display label; null (default) = none. A
+    /// period holding only these items is not work time: when it follows this task's work (see
+    /// <see cref="LateRewardAttribution"/>, stored as the period's DetectedTask) its value is added to the
+    /// task without its own seconds; when a method task detects it itself (a slayer boss-only period) it counts
+    /// for at least <see cref="LateRewardSpec.EarnDuration"/>, never for the raw seconds. Works for every
+    /// task base class (method tasks and island trackers alike).
+    /// </summary>
+    protected virtual LateRewardSpec LateReward => null;
+    /// <summary>Public accessor for the listener/tests - see <see cref="LateReward"/>.</summary>
+    public LateRewardSpec LateRewardDeclaration => LateReward;
+
+    /// <summary>The name this task is registered (and stored as a period's DetectedTask) under.</summary>
+    public virtual string RegistryName => Name;
+
+    /// <summary>True when the period holds nothing but this task's <see cref="LateReward"/> items.</summary>
+    public bool IsLateRewardOnly(Period period) => LateReward?.IsOnlyReward(period.ItemsCollected) == true;
+
+    /// <summary>
+    /// A reward-only period the listener credited to this task (DetectedTask set, see
+    /// <see cref="LateRewardAttribution"/>). It adds value but no time.
+    /// </summary>
+    public virtual bool IsAttributedLateReward(Period period)
+        => IsLateRewardOnly(period)
+           && string.Equals(period.DetectedTask, RegistryName, StringComparison.OrdinalIgnoreCase);
+
     public abstract string Description { get; }
     public virtual string Name => GetType().Name.Replace("Task", "");
 

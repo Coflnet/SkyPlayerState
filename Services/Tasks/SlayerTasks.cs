@@ -18,6 +18,7 @@ public abstract class IndividualSlayerTask : ProfitTask
 
     /// <summary>Where a slayer boss is fought - defaults to the first of its LocationNames.</summary>
     protected override string Where => LocationNames.FirstOrDefault();
+    protected override IEnumerable<string> AreaZones => LocationNames;
     /// <summary>
     /// Falls back to the island's wiki page (always resolvable - see SkyblockZones.IslandInfo);
     /// specific bosses (Inferno Demonlord) override this with the boss's own wiki page.
@@ -109,6 +110,64 @@ public abstract class IndividualSlayerTask : ProfitTask
     }
 }
 
+/// <summary>
+/// Boss-only drops of the slayer tasks that name one in their comments. The mobs killed to spawn the boss
+/// drop their small items in earlier periods, the boss drops these afterwards, which is one action: a
+/// period of nothing but these counts for at least this long. 5 minutes is deliberately modest (the
+/// per-period floor never reaches back across the previous period, so it cannot double count the mob
+/// time). Only declared where the code says the item is boss-only (NULL_SPHERE: T4Voidglooms'
+/// ZoneDetectionItems; TARANTULA_WEB: "the boss drops Tarantula Web (the Voracious Spider mob does not)").
+/// </summary>
+/// <summary>
+/// Slayer unlock and tier requirements. Source: https://hypixelskyblock.minecraft.wiki/w/Slayer (and the boss pages).
+/// Each boss family opens when another family's tier was killed (Spider: Revenant T2, Wolf: Tarantula T2,
+/// Enderman: Sven T4, Blaze: Voidgloom T3); each tier needs the previous tier of the same boss killed. The
+/// Vampire unlock is described differently on different wiki pages, so it is not declared.
+/// </summary>
+internal static class SlayerRequirements
+{
+    private static readonly Dictionary<string, (string Slayer, int Tier)> Unlocks = new()
+    {
+        ["spider"] = ("zombie", 2),
+        ["wolf"] = ("spider", 2),
+        ["enderman"] = ("wolf", 4),
+        ["blaze"] = ("enderman", 3),
+    };
+
+    /// <summary>Combat level per Revenant Horror tier 2..5 (tier 1 needs none).</summary>
+    private static readonly int[] RevenantCombat = [5, 10, 15, 25];
+
+    /// <summary>Only what opens the boss family, for tasks that are not tied to one boss tier.</summary>
+    public static List<TaskRequirement> Unlock(string slayer) =>
+        Unlocks.TryGetValue(slayer, out var unlock) ? [TaskRequirement.SlayerTier(unlock.Slayer, unlock.Tier)] : [];
+
+    /// <summary>The family unlock, the previous tier killed and the tier's own combat/slayer level gates.</summary>
+    public static List<TaskRequirement> ForTier(string slayer, int tier)
+    {
+        var requirements = new List<TaskRequirement>();
+        if (slayer == "zombie" && tier >= 2)
+            requirements.Add(TaskRequirement.Skill("combat", RevenantCombat[tier - 2]));
+        if (tier == 5 && slayer is "zombie" or "spider")
+        {
+            requirements.Add(TaskRequirement.Skill("combat", 25));
+            requirements.Add(TaskRequirement.SlayerLevel(slayer, 7));
+        }
+        requirements.AddRange(Unlock(slayer));
+        if (tier > 1)
+            requirements.Add(TaskRequirement.SlayerTier(slayer, tier - 1));
+        return requirements;
+    }
+}
+
+internal static class SlayerBossDrops
+{
+    public const string Label = "Boss drop";
+    // Guess. No slayer run-length key is recorded (no verified signal in the data, see RunLengthKeys); once one exists, e.g. "slayer:<boss>:<tier>", replace this with its median.
+    public static readonly TimeSpan Earn = TimeSpan.FromMinutes(5);
+    public static readonly LateRewardSpec NullSphere = new(new HashSet<string> { "NULL_SPHERE" }, Earn, Label);
+    public static readonly LateRewardSpec TarantulaWeb = new(new HashSet<string> { "TARANTULA_WEB" }, Earn, Label);
+}
+
 // ── Blaze Slayer ──
 // Bare island name "Crimson Isle" deliberately excluded from LocationNames below - it is fought
 // in the Smoldering Tomb specifically (see InfernoDemonlordGuide), and IndividualSlayerTask.Execute
@@ -116,6 +175,7 @@ public abstract class IndividualSlayerTask : ProfitTask
 // Isle zone (Mycelium mining in Mystic Marsh, fishing in Scarleton/Oasis, ...) as this slayer.
 public class T4InfernoDemonlordTask : IndividualSlayerTask
 {
+    protected override List<TaskRequirement> Requirements => SlayerRequirements.ForTier("blaze", 4);
     protected override string SlayerName => "T4 Inferno Demonlord";
     protected override HashSet<string> LocationNames => ["Stronghold", "Smoldering Tomb", "The Bastion"];
     public override string Description => "T4 Inferno Demonlord (Blaze Slayer)";
@@ -124,6 +184,7 @@ public class T4InfernoDemonlordTask : IndividualSlayerTask
 }
 public class T3InfernoDemonlordTask : IndividualSlayerTask
 {
+    protected override List<TaskRequirement> Requirements => SlayerRequirements.ForTier("blaze", 3);
     protected override string SlayerName => "T3 Inferno Demonlord";
     protected override HashSet<string> LocationNames => ["Stronghold", "Smoldering Tomb", "The Bastion"];
     public override string Description => "T3 Inferno Demonlord (Blaze Slayer)";
@@ -167,12 +228,14 @@ internal static class InfernoDemonlordGuide
 // zone string, not the island key, so it stays.
 public class T5TarantulaTask : IndividualSlayerTask
 {
+    protected override List<TaskRequirement> Requirements => SlayerRequirements.ForTier("spider", 5);
     protected override string SlayerName => "T5 Tarantula";
     protected override HashSet<string> LocationNames => ["The Spider's Den", "Arachne's Sanctuary", "Spider Mound"];
     public override string Description => "T5 Tarantula Broodfather";
 }
 public class T4TarantulaTask : IndividualSlayerTask
 {
+    protected override List<TaskRequirement> Requirements => SlayerRequirements.ForTier("spider", 4);
     protected override string SlayerName => "T4 Tarantula";
     protected override HashSet<string> LocationNames => ["The Spider's Den", "Arachne's Sanctuary", "Spider Mound"];
     public override string Description => "T4 Tarantula Broodfather";
@@ -209,6 +272,10 @@ public class BarbarianDukeXTask : MethodTask
 // Demonlord comment above.
 public class T4VoidgloomsTask : MethodTask
 {
+    // Terminator (the listed weapon) needs Enderman Slayer 7; recommended, not needed to fight the boss
+    protected override List<TaskRequirement> Requirements =>
+        [.. SlayerRequirements.ForTier("enderman", 4), TaskRequirement.SlayerLevel("enderman", 7, hard: false)];
+    protected override LateRewardSpec LateReward => SlayerBossDrops.NullSphere;
     protected override string MethodName => "T4 Voidglooms";
     protected override HashSet<string> Locations => ["Dragon's Nest", "Void Sepulture", "Zealot Bruiser Hideout"];
     protected override HashSet<string> DetectionItems => ["NULL_SPHERE", "SUMMONING_EYE"];
@@ -269,6 +336,7 @@ public class RevenantSlayerTask : MethodTask
 /// </summary>
 public class SvenSlayerTask : MethodTask
 {
+    protected override List<TaskRequirement> Requirements => SlayerRequirements.Unlock("wolf");
     protected override string MethodName => "Sven Slayer";
     protected override HashSet<string> Locations => ["Howling Cave", "Soul Cave", "Spirit Cave", "Ruins"];
     protected override HashSet<string> DetectionItems => ["WOLF_TOOTH", "HAMSTER_WHEEL", "RED_CLAW_EGG", "FURBALL"];
@@ -295,6 +363,8 @@ public class SvenSlayerTask : MethodTask
 /// </summary>
 public class TarantulaSlayerCrimsonIsleTask : MethodTask
 {
+    protected override List<TaskRequirement> Requirements => SlayerRequirements.Unlock("spider");
+    protected override LateRewardSpec LateReward => SlayerBossDrops.TarantulaWeb;
     protected override string MethodName => "Tarantula Slayer (Crimson Isle)";
     protected override HashSet<string> Locations => ["Burning Desert", "Dragontail", "Crimson Isle"];
     protected override HashSet<string> DetectionItems => ["TARANTULA_WEB", "TARANTULA_SILK", "TOXIC_ARROW_POISON", "BURNING_EYE"];
@@ -321,6 +391,8 @@ public class TarantulaSlayerCrimsonIsleTask : MethodTask
 /// </summary>
 public class TarantulaSlayerTask : MethodTask
 {
+    protected override List<TaskRequirement> Requirements => SlayerRequirements.Unlock("spider");
+    protected override LateRewardSpec LateReward => SlayerBossDrops.TarantulaWeb;
     protected override string MethodName => "Tarantula Slayer";
     protected override HashSet<string> Locations => ["Arachne's Burrow", "Arachne's Sanctuary", "Spider's Den", "Spider Mound"];
     protected override HashSet<string> DetectionItems => ["TARANTULA_WEB", "TARANTULA_SILK", "TOXIC_ARROW_POISON", "SPIDER_CATALYST"];
@@ -340,6 +412,10 @@ public class TarantulaSlayerTask : MethodTask
 
 public class T4VoidgloomsFdTask : MethodTask
 {
+    // Terminator (the listed weapon) needs Enderman Slayer 7; recommended, not needed to fight the boss
+    protected override List<TaskRequirement> Requirements =>
+        [.. SlayerRequirements.ForTier("enderman", 4), TaskRequirement.SlayerLevel("enderman", 7, hard: false)];
+    protected override LateRewardSpec LateReward => SlayerBossDrops.NullSphere;
     protected override string MethodName => "T4 Voidglooms (FD)";
     protected override HashSet<string> Locations => ["Dragon's Nest", "Void Sepulture"];
     protected override HashSet<string> DetectionItems => ["NULL_SPHERE", "SUMMONING_EYE"];

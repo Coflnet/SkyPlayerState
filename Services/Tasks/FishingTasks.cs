@@ -67,6 +67,8 @@ public abstract class BaseFishingTask : MethodTask
     ];
     protected override string Category => "Fishing";
     protected override string ActionUnit => "catches";
+    // fishing on Galatea fills the contests too (the coupons are handed in minutes later)
+    protected override LateRewardSpec LateReward => GalateaContestRewards.ForLocations(Locations);
     protected override List<DropEffect> Effects =>
     [
         new() { Name = "Fishing Speed", Description = "Higher fishing speed reduces time between catches", EstimatedMultiplier = 1.3 },

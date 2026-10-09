@@ -101,6 +101,21 @@ public class TaskAggregateService
         }
     }
 
+    /// <summary>The not yet flushed contribution of one task over all buckets (wSeconds, item counts), for tests.</summary>
+    internal (double wSeconds, Dictionary<string, double> itemCounts) PendingForTest(string task)
+    {
+        var seconds = 0.0;
+        var items = new Dictionary<string, double>();
+        foreach (var ((name, _), delta) in pending.Where(p => p.Key.task == task))
+            lock (delta.gate)
+            {
+                seconds += delta.WSeconds;
+                foreach (var (tag, count) in delta.ItemCounts)
+                    items[tag] = items.GetValueOrDefault(tag) + count;
+            }
+        return (seconds, items);
+    }
+
     /// <summary>
     /// Flush accumulated in-memory deltas to this instance's cassandra rows.
     /// Called on a timer (every ~60s).
@@ -251,14 +266,14 @@ public class TaskAggregateService
 
     // ── Per player rolled up stats ──
 
-    public async Task UpsertPlayerStat(TaskPlayerStatRow row)
+    public virtual async Task UpsertPlayerStat(TaskPlayerStatRow row)
     {
         if (playerTable == null)
             await Setup();
         await playerTable!.Insert(row).SetTTL(TTL_SECONDS).ExecuteAsync();
     }
 
-    public async Task<TaskPlayerStatRow> GetPlayerStat(string playerUuid, string task)
+    public virtual async Task<TaskPlayerStatRow> GetPlayerStat(string playerUuid, string task)
     {
         if (playerTable == null)
             await Setup();

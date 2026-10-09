@@ -187,6 +187,8 @@ public abstract class MethodTask : ProfitTask
     /// or a reason string if not (e.g. "Only available during Diana mayor", "Rain Slimes only spawn :00-:20")
     /// </summary>
     protected virtual string CheckAccessibility(TaskParams parameters) => null;
+    /// <summary>All declared Locations (the task is doable in any of them), else the Where spot.</summary>
+    protected override IEnumerable<string> AreaZones => Locations.Count > 0 ? Locations : base.AreaZones;
     protected virtual DateTime? GetNextAvailableAt(TaskParams parameters) => null;
 
     // ── "Where do I go / what do I click" metadata (helpful task list) ──
@@ -314,13 +316,51 @@ public abstract class MethodTask : ProfitTask
     /// </summary>
     protected virtual TimeSpan MinimumPeriodDuration => TimeSpan.Zero;
 
+    private bool MatchesOwnDetection(Period period)
+    {
+        var detection = GetDetectionSignature().DetectionItemsAt(period.Location);
+        return detection.Count > 0 && period.ItemsCollected != null && period.ItemsCollected.Keys.Any(detection.Contains);
+    }
+
+    /// <summary>
+    /// A reward-only period the listener credited to this task because it followed this task's work
+    /// (DetectedTask set, see <see cref="LateRewardAttribution"/>) and that this task would not detect
+    /// on its own. It adds value but no time.
+    /// </summary>
+    public override bool IsAttributedLateReward(Period period)
+        => base.IsAttributedLateReward(period) && !MatchesOwnDetection(period);
+
+    /// <summary>The registry key of a method task is its method name.</summary>
+    public override string RegistryName => MethodName;
+
     /// <summary>The larger of the real duration and the floor (one place for the arithmetic).</summary>
     internal static TimeSpan EffectiveDuration(TimeSpan actual, TimeSpan minimum)
         => actual < minimum ? minimum : actual;
 
     /// <summary>Duration a period counts for on this task, applying <see cref="MinimumPeriodDuration"/>.</summary>
     public TimeSpan EffectiveDuration(Period period)
-        => EffectiveDuration(period.EndTime - period.StartTime, MinimumPeriodDuration);
+        => EffectiveDuration(period.EndTime - period.StartTime, FloorOf(period));
+
+    /// <summary>The duration floor of one period: <see cref="MinimumPeriodDuration"/>, raised to the earn duration for a reward-only period.</summary>
+    private TimeSpan FloorOf(Period period)
+        => LateReward != null && IsLateRewardOnly(period) && MatchesOwnDetection(period)
+            ? (MinimumPeriodDuration > LateReward.EarnDuration ? MinimumPeriodDuration : LateReward.EarnDuration)
+            : MinimumPeriodDuration;
+
+    /// <summary>
+    /// Hours the player's periods count for on this task (see <see cref="EffectiveHours(IEnumerable{Period},TimeSpan)"/>):
+    /// attributed late rewards add no time, a reward-only period this task detects itself counts for at
+    /// least the earn duration. When nothing but attributed rewards is left (their work fell out of the
+    /// window) each counts for the earn duration instead of zero.
+    /// </summary>
+    internal double WorkHours(IEnumerable<Period> periods)
+    {
+        var all = periods.ToList();
+        var work = all.Where(p => !IsAttributedLateReward(p)).ToList();
+        if (work.Count == 0 && all.Count > 0)
+            return all.Count * LateReward.EarnDuration.TotalHours;
+        return EffectiveHours(work, FloorOf);
+    }
 
     /// <summary>
     /// Hours a player's periods count for on this task. The floor stretches a short period backwards
@@ -329,13 +369,16 @@ public abstract class MethodTask : ProfitTask
     /// intervals. A period never counts for less than its real duration.
     /// </summary>
     internal static double EffectiveHours(IEnumerable<Period> periods, TimeSpan minimum)
+        => EffectiveHours(periods, _ => minimum);
+
+    internal static double EffectiveHours(IEnumerable<Period> periods, Func<Period, TimeSpan> minimumOf)
     {
         var hours = 0d;
         DateTime? previousEnd = null;
         foreach (var period in periods.OrderBy(p => p.EndTime))
         {
             var actual = period.EndTime - period.StartTime;
-            var counted = EffectiveDuration(actual, minimum);
+            var counted = EffectiveDuration(actual, minimumOf(period));
             if (previousEnd.HasValue && period.EndTime - counted < previousEnd.Value)
                 counted = EffectiveDuration(actual, period.EndTime - previousEnd.Value);
             hours += counted.TotalHours;
@@ -437,7 +480,7 @@ public abstract class MethodTask : ProfitTask
         {
             var cutoff = now.AddHours(-windowHours);
             var inWindow = allMatched.Where(p => p.EndTime >= cutoff).ToList();
-            var totalHours = EffectiveHours(inWindow, MinimumPeriodDuration);
+            var totalHours = WorkHours(inWindow);
             // Need at least 1 period and 5 minutes of data
             if (inWindow.Count >= 1 && totalHours >= 5.0 / 60)
                 return inWindow;
@@ -478,13 +521,21 @@ public abstract class MethodTask : ProfitTask
                 p.ItemsCollected == null ||
                 !p.ItemsCollected.Keys.Any(k => k.StartsWith("SHARD_")));
 
-        return candidates.ToList();
+        var matched = candidates.ToList();
+        if (LateReward != null)
+        {
+            // reward-only periods the listener credited to this task, wherever on the island they happened
+            var known = new HashSet<Period>(matched, ReferenceEqualityComparer.Instance);
+            matched.AddRange(parameters.LocationProfit.Values.SelectMany(v => v)
+                .Where(p => IsAttributedLateReward(p) && known.Add(p)));
+        }
+        return matched;
     }
 
     protected Task<TaskResult> ComputeFromPlayerData(TaskParams parameters, List<Period> periods)
     {
         var totalProfit = periods.Sum(p => (double)p.Profit);
-        var totalHours = EffectiveHours(periods, MinimumPeriodDuration);
+        var totalHours = WorkHours(periods);
 
         if (totalHours <= 0)
             return Task.FromResult(new TaskResult
@@ -523,7 +574,9 @@ public abstract class MethodTask : ProfitTask
             .Aggregate((a, b) => a + "\n" + b);
 
         var prices = parameters.GetPrices();
-        var drops = items.Take(20).Select(i => new DropInfo
+        // a late reward is always listed, however few of it there are among the logs/mobs of the work
+        var shownItems = items.Take(20).Concat(items.Skip(20).Where(i => LateReward?.Tags.Contains(i.Key) == true)).ToList();
+        var drops = shownItems.Select(i => new DropInfo
         {
             ItemTag = i.Key,
             Name = parameters.Names.GetValueOrDefault(i.Key, i.Key),
@@ -576,6 +629,9 @@ public abstract class MethodTask : ProfitTask
                 Type = TaskType
             }
         };
+        ApplyLateReward(result.Breakdown);
+        if (result.Breakdown.LateRewardPerHour is > 0 and var lateShare)
+            result.Details += $"\n{result.Breakdown.LateRewardLabel}: {fmt.FormatPrice((long)lateShare)}/h (included)";
         PopulateGuidanceFields(result.Breakdown);
         return Task.FromResult(result);
     }
@@ -683,6 +739,7 @@ public abstract class MethodTask : ProfitTask
                 Type = TaskType
             }
         };
+        ApplyLateReward(formulaResult.Breakdown);
         PopulateGuidanceFields(formulaResult.Breakdown);
         return Task.FromResult(formulaResult);
     }
@@ -745,6 +802,7 @@ public abstract class MethodTask : ProfitTask
                 Type = TaskType
             }
         };
+        ApplyLateReward(avgResult.Breakdown);
         PopulateGuidanceFields(avgResult.Breakdown);
         return Task.FromResult(avgResult);
     }
@@ -820,6 +878,7 @@ public abstract class MethodTask : ProfitTask
                 Type = TaskType
             }
         };
+        ApplyLateReward(serverResult.Breakdown);
         PopulateGuidanceFields(serverResult.Breakdown);
         return Task.FromResult(serverResult);
     }
@@ -863,6 +922,27 @@ public abstract class MethodTask : ProfitTask
             });
         }
         return (costs, totalPerHour);
+    }
+
+    /// <summary>
+    /// Marks the drops that are this task's <see cref="LateReward"/> (Kind/Label) and fills the breakdown's
+    /// late reward share, so a client can show it as its own labelled part of the total.
+    /// </summary>
+    private void ApplyLateReward(MethodBreakdown breakdown)
+    {
+        var spec = LateReward;
+        if (spec == null || breakdown?.Drops == null)
+            return;
+        var late = breakdown.Drops.Where(d => spec.Tags.Contains(d.ItemTag)).ToList();
+        if (late.Count == 0)
+            return;
+        foreach (var drop in late)
+        {
+            drop.Kind = LateRewardSpec.DropKind;
+            drop.Label = spec.Label;
+        }
+        breakdown.LateRewardPerHour = late.Sum(d => d.ContributionPerHour);
+        breakdown.LateRewardLabel = spec.Label;
     }
 
     private List<RequiredItem> BuildRequiredItems(TaskParams parameters)

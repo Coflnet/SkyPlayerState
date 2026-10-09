@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
@@ -40,11 +41,17 @@ public class CrimsonIsleMobsTask : MethodTask
 }
 
 /// <summary>
-/// Galatea contest rewards: Agatha's/Miria's coupons and the Miria/Starlyn prizes - one drop each
-/// per contest, on both Galatea islands (Moonglade and Torrhus, hence the "Galatea" group key).
+/// Hidden sink for Galatea contest rewards (Agatha's/Miria's coupons and the Miria/Starlyn prizes) that no
+/// earning activity could be identified for. A contest cannot be done on its own - it is won while
+/// foraging, hunting or fishing, and those tasks declare the rewards as <see cref="MethodTask.LateReward"/>
+/// and receive them when they follow their work (see <see cref="LateRewardAttribution"/>). What is left
+/// lands here, counted for the full 20 minute contest instead of the seconds the hand-in takes, and is never
+/// shown as a task.
 /// </summary>
 public class GalateaContestsTask : MethodTask
 {
+    protected override bool Hidden => true;
+    protected override TimeSpan MinimumPeriodDuration => GalateaContestRewards.ContestDuration;
     protected override string MethodName => "Galatea Contests";
     protected override string Category => "Event";
     protected override string ActionUnit => "contests";

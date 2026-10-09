@@ -53,7 +53,20 @@ public class TaskPeriodFolder
     /// <summary>
     /// Fold a flushed, already classified period. No-op when unclassified or filtered out.
     /// </summary>
-    public async Task Fold(Period period, StateObject state, Dictionary<string, double> prices)
+    public Task Fold(Period period, StateObject state, Dictionary<string, double> prices)
+        => FoldCore(period, state, prices, false);
+
+    /// <summary>
+    /// Fold a reward-only period the listener credited to the task that earned it (see
+    /// <see cref="LateRewardAttribution"/>): its items add value to the task's aggregate and the player's
+    /// stat, but no seconds - the work time was already folded with the work, and the hand-in's own few
+    /// seconds must not count. The too-short gate, winsorizing and the AFK check are skipped: they
+    /// compare a coin rate against a duration this period deliberately does not have.
+    /// </summary>
+    public Task FoldLateReward(Period period, StateObject state, Dictionary<string, double> prices)
+        => FoldCore(period, state, prices, true);
+
+    private async Task FoldCore(Period period, StateObject state, Dictionary<string, double> prices, bool lateReward)
     {
         using var span = TaskTelemetry.Source.StartActivity("task-period-fold");
         try
@@ -64,10 +77,17 @@ public class TaskPeriodFolder
             if (task == null)
                 return;
             var methodTask = registry.GetByName(task) as MethodTask;
+            if (lateReward && methodTask == null)
+            {
+                // island trackers (Galatea fishing/diving) read the period list directly, there is no aggregate to fold into
+                span?.SetTag("dropped", "not_a_method_task");
+                return;
+            }
             // one folded session/period = one unit of the task's minimum duration (claim tasks)
-            var minutes = (methodTask?.EffectiveDuration(period) ?? period.EndTime - period.StartTime).TotalMinutes;
+            var minutes = lateReward ? 0 : (methodTask?.EffectiveDuration(period) ?? period.EndTime - period.StartTime).TotalMinutes;
             span?.SetTag("minutes", minutes);
-            if (minutes < 2)
+            span?.SetTag("late_reward", lateReward);
+            if (!lateReward && minutes < 2)
             {
                 span?.SetTag("dropped", "too_short");
                 return;
@@ -95,7 +115,7 @@ public class TaskPeriodFolder
             // winsorize the common coin rate against the current bucket estimate
             var hours = minutes / 60.0;
             double commonValue = commonCounts.Sum(c => coinValues.Value(c.Key, prices) * c.Value);
-            if (bucketAgg != null && bucketAgg.WSeconds / 3600.0 >= WinsorMinBucketHours)
+            if (!lateReward && bucketAgg != null && bucketAgg.WSeconds / 3600.0 >= WinsorMinBucketHours)
             {
                 var bucketRate = EstimateBucketRate(methodTask, bucketAgg, prices);
                 var cap = WinsorFactor * bucketRate * hours;
@@ -110,7 +130,7 @@ public class TaskPeriodFolder
             }
 
             // AFK contamination: coin rate far below the community rate for the task
-            if (bucketAgg != null && bucketAgg.WSeconds / 3600.0 >= WinsorMinBucketHours)
+            if (!lateReward && bucketAgg != null && bucketAgg.WSeconds / 3600.0 >= WinsorMinBucketHours)
             {
                 var bucketRate = EstimateBucketRate(methodTask, bucketAgg, prices);
                 var thisRate = (commonValue + rareCoins) / hours;
@@ -132,7 +152,8 @@ public class TaskPeriodFolder
 
             await UpdatePlayerStat(period.PlayerUuid, task, seconds, commonCounts, residual, rareCoins, itemValue, minutes, prices);
 
-            await FoldDerivedTasks(task, commonCounts, hours, minutes, seconds, weight, period.PlayerUuid, state, prices, span);
+            if (!lateReward)
+                await FoldDerivedTasks(task, commonCounts, hours, minutes, seconds, weight, period.PlayerUuid, state, prices, span);
         }
         catch (Exception e)
         {

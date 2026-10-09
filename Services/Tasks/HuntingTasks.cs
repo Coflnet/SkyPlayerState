@@ -15,6 +15,8 @@ public abstract class BaseHuntingTask : MethodTask
     ];
     protected override string Category => "Hunting";
     protected override string ActionUnit => "kills";
+    // hunting on Galatea fills contests on the side - rewards on the island's own tasks only
+    protected override LateRewardSpec LateReward => GalateaContestRewards.ForLocations(Locations);
     protected override List<DropEffect> Effects =>
     [
         new() { Name = "Magic Find", Description = "Increases chance of rare shard drops", EstimatedMultiplier = 1.3 },

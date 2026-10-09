@@ -1132,6 +1132,8 @@ public class CollectionListener : UpdateListener
             // still describe the zone that just ended - only updated below, AFTER this flush).
             await StoreLocationProfit(args, previousLocation);
         }
+        if (zoneChanged)
+            await RecordFinishedRun(args, previousLocation);
         args.currentState.ExtractedInfo.CurrentLocation = currentLocation;
         if (zoneChanged)
         {
@@ -1153,6 +1155,28 @@ public class CollectionListener : UpdateListener
             args.currentState.ExtractedInfo.LastKuudraTierAt = now;
         }
         await ClassifyLive(args);
+    }
+
+    /// <summary>
+    /// Records the length of a finished dungeon floor run: from entering the floor zone to leaving it (last scoreboard
+    /// tick inside, so a gap in updates is not counted). Uses CurrentLocationSince, which only moves on a real zone change,
+    /// so the 5 minute same-zone period flush never splits a run. Must be called before CurrentLocationSince is reset.
+    /// Implausible values are dropped by the recorder (<see cref="RunLengthBounds.Dungeon"/>).
+    /// </summary>
+    private async Task RecordFinishedRun(UpdateArgs args, string previousLocation)
+    {
+        var key = RunLengthKeys.ForDungeonZone(previousLocation);
+        if (key == null)
+            return;
+        var info = args.currentState.ExtractedInfo;
+        try
+        {
+            await args.GetService<IRunLengthRecorder>().Record(key, info.CurrentLocationSeenAt - info.CurrentLocationSince, RunLengthBounds.Dungeon);
+        }
+        catch (Exception e)
+        {
+            Logger.LogDebug(e, "Could not record run length {key}", key);
+        }
     }
 
     /// <summary>
@@ -1346,6 +1370,8 @@ public class CollectionListener : UpdateListener
             info.LastKuudraTierAt, now, collected.Count == 0 && Tasks.KuudraRewardAttribution.IsTierZone(previousLocation),
             now - periodStart, claimedToTier, out var claimShift);
         Dictionary<string, double> cleanPrices = null;
+        string lateRewardTask = null;
+        TrackedProfitService.Period lateRewardPeriod = null;
         if (collected.Count > 0)
         {
             cleanPrices = await GetCleanPrices(args);
@@ -1362,6 +1388,8 @@ public class CollectionListener : UpdateListener
                 Profit = profit
             };
             ClassifyPeriod(args, period, cleanPrices);
+            lateRewardTask = AttributeLateReward(args, period);
+            lateRewardPeriod = lateRewardTask == null ? null : period;
             await args.GetService<TrackedProfitService>().AddPeriod(period);
             try
             {
@@ -1376,7 +1404,7 @@ public class CollectionListener : UpdateListener
             Logger.LogInformation("Profit summary for {playerId} at {location}: {profit} coins from {items}", args.currentState.PlayerId, resolvedLocation, profit, string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}")));
         }
         // fold task attribution per session (spanning locations), not per location fragment
-        await AccumulateSession(args, resolvedLocation, collected, cleanPrices, now);
+        await AccumulateSession(args, resolvedLocation, collected, cleanPrices, now, lateRewardPeriod);
         args.currentState.ItemsCollectedRecently.Clear();
         args.currentState.ExtractedInfo.LastLocationChange = now;
         args.currentState.ExtractedInfo.PeriodSplitPending = false;
@@ -1390,7 +1418,8 @@ public class CollectionListener : UpdateListener
     /// contribution, never the raw period.
     /// </summary>
     private async Task AccumulateSession(UpdateArgs args, string previousLocation,
-        Dictionary<string, int> collected, Dictionary<string, double> cleanPrices, DateTime now)
+        Dictionary<string, int> collected, Dictionary<string, double> cleanPrices, DateTime now,
+        TrackedProfitService.Period lateRewardPeriod = null)
     {
         try
         {
@@ -1401,6 +1430,14 @@ public class CollectionListener : UpdateListener
             if (state.McInfo.Uuid == default)
                 return;
             var playerUuid = state.McInfo.Uuid.ToString("N");
+            if (lateRewardPeriod != null && state.ExtractedInfo.CurrentSession == null)
+            {
+                // a reward-only hand-in (Galatea coupons) after the work that earned it, whose session already
+                // ended: value for the earning task, no session of its own and none of its hand-in seconds
+                PeriodClassifiedCounter.WithLabels(lateRewardPeriod.DetectedTask).Inc();
+                await args.GetService<Tasks.TaskPeriodFolder>().FoldLateReward(lateRewardPeriod, state, cleanPrices ?? await GetCleanPrices(args));
+                return;
+            }
             var fragment = new TrackedProfitService.Period()
             {
                 EndTime = now,
@@ -1442,10 +1479,60 @@ public class CollectionListener : UpdateListener
         return claim;
     }
 
+    internal static Tasks.ProfitTask FindIslandEarner(Tasks.TaskRegistry registry, TrackedProfitService.Period period)
+    {
+        // a hand-in is not work, and a period nothing was collected in cannot reach here
+        return registry.Tasks.OfType<Tasks.IslandTask>()
+            .Where(t => t.LateRewardDeclaration != null && !t.IsLateRewardOnly(period) && t.CoversLocation(period.Location))
+            .OrderBy(t => t.LocationCount) // the most specific tracker (fishing) before the wider one (diving)
+            .FirstOrDefault();
+    }
+
     /// <summary>
     /// Attributes a flushed period to a task. Failures only lose the attribution,
     /// never the period itself.
     /// </summary>
+    /// <summary>
+    /// Late reward bookkeeping for a just classified period (see <see cref="Tasks.MethodTask.LateReward"/>):
+    /// remembers the last period of a task that declares one, and credits a reward-only period (Galatea
+    /// contest coupons) following it to that task by setting its DetectedTask. Returns the credited task's
+    /// name when it was reattributed, otherwise null.
+    /// </summary>
+    private string AttributeLateReward(UpdateArgs args, TrackedProfitService.Period period)
+    {
+        try
+        {
+            var info = args.currentState.ExtractedInfo;
+            var registry = args.GetService<Tasks.TaskRegistry>();
+            var classified = period.DetectedTask == null ? null : registry.GetByName(period.DetectedTask);
+            // island trackers (Galatea fishing/diving) are never a period's DetectedTask: the work is theirs by location
+            var workedFor = classified?.LateRewardDeclaration != null ? classified : FindIslandEarner(registry, period);
+            if (workedFor != null)
+            {
+                if (!workedFor.IsAttributedLateReward(period))
+                {
+                    info.LastLateRewardTask = workedFor.RegistryName;
+                    info.LastLateRewardTaskAt = period.EndTime;
+                    info.LastLateRewardTaskLocation = period.Location;
+                }
+                return null;
+            }
+            var earner = info.LastLateRewardTask == null ? null : registry.GetByName(info.LastLateRewardTask);
+            var credited = Tasks.LateRewardAttribution.Resolve(earner, info.LastLateRewardTaskAt, info.LastLateRewardTaskLocation,
+                period.Location, period.ItemsCollected, period.StartTime);
+            if (credited == null)
+                return null;
+            period.DetectedTask = credited.RegistryName;
+            Logger.LogInformation("Attributed late reward of {playerId} at {location} to {task}", args.currentState.PlayerId, period.Location, period.DetectedTask);
+            return period.DetectedTask;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to attribute late reward at {location}", period.Location);
+            return null;
+        }
+    }
+
     private void ClassifyPeriod(UpdateArgs args, TrackedProfitService.Period period, Dictionary<string, double> cleanPrices)
     {
         try

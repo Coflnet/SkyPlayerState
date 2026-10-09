@@ -70,6 +70,13 @@ public class TaskParams
     /// </summary>
     public bool OwnedItemsIncomplete { get; set; }
 
+    /// <summary>
+    /// The player's progression from the Hypixel profile (skills, dungeons, Kuudra, slayers...), checked by
+    /// <see cref="RequirementEvaluator"/>. Null when the profile service could not be read, which leaves every
+    /// profile based requirement unknown (never blocking).
+    /// </summary>
+    public PlayerProfileSnapshot ProfileSnapshot { get; set; }
+
     public T GetService<T>() where T : class
     {
         return ServiceProvider?.GetService<T>();

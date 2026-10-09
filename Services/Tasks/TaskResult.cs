@@ -106,6 +106,13 @@ public class MethodBreakdown
     /// </summary>
     public double CoopBonus { get; set; } = 1.0;
     /// <summary>
+    /// Part of the task's coins/hour that comes from late rewards (the drops with Kind "late_reward"), already
+    /// included in the total. Null when the task has no late reward.
+    /// </summary>
+    public double? LateRewardPerHour { get; set; }
+    /// <summary>Display label of the late reward ("Contest reward", "Boss drop"), null when the task has none.</summary>
+    public string LateRewardLabel { get; set; }
+    /// <summary>
     /// Task type classification (Active, Passive, Limited)
     /// </summary>
     public TaskType Type { get; set; } = TaskType.Active;
@@ -143,6 +150,18 @@ public class MethodBreakdown
     /// missing, null when unknown (no player state, undecidable items) or the method has no required items.
     /// </summary>
     public bool? GearOwned { get; set; }
+    /// <summary>
+    /// The task's requirements checked against the player's profile (see <see cref="TaskRequirement"/>), in the
+    /// order they should be reached. Null when the task declares none, and also null on results produced
+    /// without the requirement check.
+    /// </summary>
+    public List<TaskRequirement> Requirements { get; set; }
+    /// <summary>
+    /// Tri-state over the hard requirements only: true when all are met, false when at least one is known unmet
+    /// (the task is then inaccessible), null when unknown or the task has none. Lets a client tell
+    /// "locked by progression" from "missing gear" (<see cref="GearOwned"/>).
+    /// </summary>
+    public bool? RequirementsMet { get; set; }
 }
 
 /// <summary>
@@ -193,6 +212,14 @@ public class DropInfo
     public double RatePerHour { get; set; }
     public double PriceEach { get; set; }
     public double ContributionPerHour { get; set; }
+    /// <summary>
+    /// Null for an ordinary drop of the activity itself. "late_reward" for an item that arrives after the
+    /// work that earned it (Galatea contest coupons, a slayer boss drop - see MethodTask.LateReward), so a
+    /// client can show it as its own part of the task's total.
+    /// </summary>
+    public string Kind { get; set; }
+    /// <summary>Short display label of <see cref="Kind"/> (e.g. "Contest reward", "Boss drop"); null when <see cref="Kind"/> is null.</summary>
+    public string Label { get; set; }
 }
 
 public class DropEffect

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Coflnet.Sky.Commands.MC;
+using Period = Coflnet.Sky.PlayerState.Services.TrackedProfitService.Period;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
 
@@ -42,16 +43,58 @@ public abstract class IslandTask : ProfitTask
         }
     }
 
+    /// <summary>True when <paramref name="location"/> is one of this tracker's zones.</summary>
+    public bool CoversLocation(string location) => SkyblockZones.Matches(locationNames, location);
+    /// <summary>Number of zones tracked, smaller = more specific.</summary>
+    public int LocationCount => locationNames.Count;
+
     private MethodBreakdown BuildBreakdown() => NewGuidanceBreakdown("Island", "player_data");
+
+    /// <summary>
+    /// Breakdown with the <see cref="ProfitTask.LateReward"/> items as labelled drops (see
+    /// <see cref="ApplyLateReward"/> on method tasks): a client can show the contest coupons as their own part.
+    /// </summary>
+    private MethodBreakdown BuildBreakdown(List<Period> latePeriods, double workHours, TaskParams parameters)
+    {
+        var breakdown = BuildBreakdown();
+        var spec = LateReward;
+        if (spec == null || latePeriods.Count == 0 || workHours <= 0)
+            return breakdown;
+        breakdown.TrackedHours = workHours;
+        breakdown.Drops = [];
+        foreach (var group in latePeriods.SelectMany(p => p.ItemsCollected).Where(i => i.Value > 0 && spec.Tags.Contains(i.Key))
+                     .GroupBy(i => i.Key, i => i.Value))
+        {
+            var price = parameters.CleanPrices?.GetValueOrDefault(group.Key) ?? 0;
+            var perHour = group.Sum() / workHours;
+            breakdown.Drops.Add(new DropInfo
+            {
+                ItemTag = group.Key,
+                Name = parameters.Names?.GetValueOrDefault(group.Key) ?? group.Key,
+                RatePerHour = perHour,
+                PriceEach = price,
+                ContributionPerHour = perHour * price,
+                Kind = LateRewardSpec.DropKind,
+                Label = spec.Label
+            });
+        }
+        breakdown.LateRewardPerHour = breakdown.Drops.Sum(d => d.ContributionPerHour);
+        breakdown.LateRewardLabel = spec.Label;
+        return breakdown;
+    }
 
     public override Task<TaskResult> Execute(TaskParams parameters)
     {
+        // reward-only periods the listener credited to this tracker: value without work time
+        var latePeriods = LateReward == null ? []
+            : parameters.LocationProfit.Values.SelectMany(v => v).Where(IsAttributedLateReward).ToList();
         var locations = parameters.LocationProfit
-            .Where(l => SkyblockZones.Matches(locationNames, l.Key))
-            .Select(l => (data: l.Value,
-                totalProfit: l.Value.Sum(l => l.Profit),
-                totalTime: TimeSpan.FromHours(l.Value.Sum(l => (l.EndTime - l.StartTime).TotalHours)),
-                perHour: l.Value.Sum(l => l.Profit) / l.Value.Sum(l => (l.EndTime - l.StartTime).TotalHours)))
+            .Select(l => (key: l.Key, periods: l.Value.Where(p => !latePeriods.Contains(p)).ToArray()))
+            .Where(l => l.periods.Length > 0 && SkyblockZones.Matches(locationNames, l.key))
+            .Select(l => (data: l.periods,
+                totalProfit: l.periods.Sum(l => l.Profit),
+                totalTime: TimeSpan.FromHours(l.periods.Sum(l => (l.EndTime - l.StartTime).TotalHours)),
+                perHour: l.periods.Sum(l => l.Profit) / l.periods.Sum(l => (l.EndTime - l.StartTime).TotalHours)))
             .OrderByDescending(l => l.totalTime < TimeSpan.FromMinutes(1) ? l.perHour / 100 : l.perHour)
             .ToList();
         if (locations.Count == 0)
@@ -78,7 +121,7 @@ public abstract class IslandTask : ProfitTask
         var totalTime = locations.Sum(l => l.data.Sum(d => (d.EndTime - d.StartTime).TotalHours));
         var fmt = parameters.Formatter;
         var formattedDuration = fmt.FormatTime(TimeSpan.FromHours(totalTime));
-        var items = locations.SelectMany(l=>l.data).SelectMany(i => i.ItemsCollected)
+        var items = locations.SelectMany(l=>l.data).Concat(latePeriods).SelectMany(i => i.ItemsCollected)
             .GroupBy(i => i.Key, i => i.Value)
             .ToDictionary(g => g.Key, g => g.Sum())
             .OrderByDescending(i => i.Value);
@@ -86,7 +129,7 @@ public abstract class IslandTask : ProfitTask
             .Take(20)
             .Select(i => $"{McColorCodes.YELLOW}{i.Key} {McColorCodes.GRAY}x{i.Value}")
             .Aggregate((a, b) => a + "\n" + b);
-        var totalProfit = locations.Sum(l => l.totalProfit);
+        var totalProfit = locations.Sum(l => l.totalProfit) + latePeriods.Sum(p => p.Profit);
         var perHour = totalProfit / totalTime;
         var itemCount = items.Where(i => i.Value > 0).Sum(i => i.Value);
         return Task.FromResult(new TaskResult
@@ -97,7 +140,7 @@ public abstract class IslandTask : ProfitTask
                       $"Time tracked: {formattedDuration}\n"
                       + $"Items collected:\n{itemBreakDown}",
             OnClick = EffectiveWarpCommand,
-            Breakdown = BuildBreakdown()
+            Breakdown = BuildBreakdown(latePeriods, totalTime, parameters)
         });
     }
 

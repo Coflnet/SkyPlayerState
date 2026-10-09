@@ -9,6 +9,29 @@ public abstract class BaseKuudraTask : MethodTask
     protected override string Category => "Kuudra";
     protected override string ActionUnit => "runs";
     protected override string WarpCommand => "/warp kuudra";
+    /// <summary>Kuudra tier this task covers, 1 (Basic) to 5 (Infernal); 0 for tasks not tied to one tier.</summary>
+    protected virtual int KuudraTier => 0;
+    /// <summary>Reputation with either Crimson Isle faction needed to start a tier (Basic needs none).</summary>
+    private static readonly int[] ReputationPerTier = [0, 1_000, 3_000, 7_000, 12_000];
+
+    /// <summary>
+    /// Source: https://hypixelskyblock.minecraft.wiki/w/Kuudra. Kuudra is on the Crimson Isle (Combat 22). Each tier
+    /// opens when the previous one is cleared; Hot, Burning, Fiery and Infernal also need 1,000 / 3,000 / 7,000 /
+    /// 12,000 reputation in either faction (the higher of the two counts).
+    /// </summary>
+    protected override List<TaskRequirement> Requirements
+    {
+        get
+        {
+            var requirements = new List<TaskRequirement> { TaskRequirement.Skill("combat", 22) };
+            if (KuudraTier > 1)
+            {
+                requirements.Add(TaskRequirement.KuudraTier(KuudraTier - 1));
+                requirements.Add(TaskRequirement.KuudraReputation(ReputationPerTier[KuudraTier - 1]));
+            }
+            return requirements;
+        }
+    }
     // A Kuudra tier zone ("Kuudra's Hollow (T1)".."(T5)") is a dedicated instance - it can only ever
     // mean that one tier, so a couple of essence/attribute shard items is already unambiguous
     // evidence, unlike a shared open-world zone. See DungeonTasks.BaseDungeonTask for the same idea.
@@ -31,6 +54,7 @@ public abstract class BaseKuudraTask : MethodTask
 public class KuudraT1Task : BaseKuudraTask
 {
     protected override string MethodName => "Kuudra T1";
+    protected override int KuudraTier => 1;
     protected override HashSet<string> Locations => ["Kuudra's Hollow (T1)"];
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 600)];
     protected override double ActionsPerHour => 12;
@@ -39,14 +63,16 @@ public class KuudraT1Task : BaseKuudraTask
 public class KuudraT2Task : BaseKuudraTask
 {
     protected override string MethodName => "Kuudra T2";
+    protected override int KuudraTier => 2;
     protected override HashSet<string> Locations => ["Kuudra's Hollow (T2)"];
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 900)];
     protected override double ActionsPerHour => 10;
-    protected override string HowTo => "Queue for Kuudra Hot (T2). Requires better gear than T1, drops more Crimson Essence.";
+    protected override string HowTo => "Queue for Kuudra Hot (T2). Needs Basic cleared and 1,000 reputation; better gear than T1 is recommended, drops more Crimson Essence.";
 }
 public class KuudraT3Task : BaseKuudraTask
 {
     protected override string MethodName => "Kuudra T3";
+    protected override int KuudraTier => 3;
     protected override HashSet<string> Locations => ["Kuudra's Hollow (T3)"];
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 1200), new("ATTRIBUTE_SHARD", 15)];
     protected override double ActionsPerHour => 8;
@@ -55,6 +81,7 @@ public class KuudraT3Task : BaseKuudraTask
 public class KuudraT4Task : BaseKuudraTask
 {
     protected override string MethodName => "Kuudra T4";
+    protected override int KuudraTier => 4;
     protected override HashSet<string> Locations => ["Kuudra's Hollow (T4)"];
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 1500), new("ATTRIBUTE_SHARD", 30)];
     protected override double ActionsPerHour => 6;
@@ -63,6 +90,7 @@ public class KuudraT4Task : BaseKuudraTask
 public class KuudraT5Task : BaseKuudraTask
 {
     protected override string MethodName => "Kuudra T5";
+    protected override int KuudraTier => 5;
     protected override HashSet<string> Locations => ["Kuudra's Hollow (T5)"];
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 2000), new("ATTRIBUTE_SHARD", 50)];
     protected override double ActionsPerHour => 5;

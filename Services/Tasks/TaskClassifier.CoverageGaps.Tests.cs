@@ -39,7 +39,11 @@ public class TaskClassifierCoverageGapsTests
             signature.Fallback.Should().BeTrue($"{name} may only classify periods no other task claims");
             // a location-only task's personal view (FindMatchingPeriods) takes every period in its zones,
             // so on a whole island it must stay a hidden accounting bucket
-            task.IsHidden.Should().Be(signature.DetectionItems.Count == 0, $"{name}: location-only catch-alls are hidden, item keyed ones public");
+            // Galatea Contests is the exception: a contest cannot be done on its own, its coupons are a late
+            // reward of the Galatea foraging/hunting tasks (see LateReward.Tests.cs), so what no task earned
+            // stays a hidden sink although it is item keyed
+            var expectHidden = signature.DetectionItems.Count == 0 || name == "Galatea Contests";
+            task.IsHidden.Should().Be(expectHidden, $"{name}: location-only catch-alls (and the contest reward sink) are hidden, item keyed ones public");
         }
     }
 
@@ -107,6 +111,9 @@ public class TaskClassifierCoverageGapsTests
     [TestCase("Murkwater Loch", "STARLYN_PRIZE")]
     public void GalateaContestRewards_ClassifyToGalateaContests(string zone, string tag)
     {
+        // unchanged classification, new meaning: "Galatea Contests" is now a hidden sink (never a public task).
+        // The listener credits a reward-only period to the foraging/hunting task that preceded it before this
+        // sink is considered - see LateReward.Tests.cs
         // both Galatea islands: Murkwater Loch/Wyrmgrove Tomb are Moonglade, Torrhus Canyon/Miria's Hut Torrhus
         Classify(zone, new() { { tag, 3 } }).Should().Be("Galatea Contests");
     }

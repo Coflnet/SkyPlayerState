@@ -14,6 +14,8 @@ public abstract class BaseGalateaMobTask : MethodTask
     ];
     protected override string Category => "Mob Farming";
     protected override string ActionUnit => "kills";
+    // killing mobs on Galatea fills contests on the side
+    protected override LateRewardSpec LateReward => GalateaContestRewards.ForLocations(Locations);
     protected override List<DropEffect> Effects =>
     [
         new() { Name = "Magic Find", Description = "Increases chance of rare drops", EstimatedMultiplier = 1.2 },
@@ -41,6 +43,7 @@ public class BurningsoulTask : BaseGalateaMobTask
     // 2026-04-30 changelog, it is Epic and drops ONLY from the Inferno Demonlord boss (Blaze Slayer,
     // Crimson Isle) - T2 1.54%, T3 2.90%, T4 5.27% per kill, 1 per drop. It no longer drops from
     // Galatea ember zone mobs or the old Burningsoul Demon miniboss.
+    protected override List<TaskRequirement> Requirements => [.. base.Requirements, .. SlayerRequirements.Unlock("blaze")];
     protected override string MethodName => "Inferno Demonlord";
     // Bare island name "Crimson Isle" deliberately excluded - IndividualSlayerTask/MethodTask both
     // match via SkyblockZones.Matches, so an island-level entry would wrongly count every Crimson
@@ -412,6 +415,7 @@ public class GhostMistTask : MethodTask
 // Chamber and Mystic Marsh, not just the Tomb.
 public class BlazeSlayerTask : MethodTask
 {
+    protected override List<TaskRequirement> Requirements => SlayerRequirements.Unlock("blaze");
     protected override string MethodName => "Blaze Slayer";
     protected override string Category => "Slayer";
     protected override string ActionUnit => "kills";

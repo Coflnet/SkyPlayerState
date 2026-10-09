@@ -277,6 +277,9 @@ public class ExtractedInfo
         LastKuudraTier = extractedInfo.LastKuudraTier;
         LastKuudraTierAt = extractedInfo.LastKuudraTierAt;
         KuudraPendingRunSeconds = extractedInfo.KuudraPendingRunSeconds;
+        LastLateRewardTask = extractedInfo.LastLateRewardTask;
+        LastLateRewardTaskAt = extractedInfo.LastLateRewardTaskAt;
+        LastLateRewardTaskLocation = extractedInfo.LastLateRewardTaskLocation;
         PendingDungeonChestCharge = extractedInfo.PendingDungeonChestCharge == null ? null : new PendingDungeonChestCharge
         {
             ChestType = extractedInfo.PendingDungeonChestCharge.ChestType,
@@ -317,6 +320,17 @@ public class ExtractedInfo
     /// </summary>
     [Key(46)]
     public bool PeriodSplitPending { get; set; }
+    /// <summary>
+    /// Last task that declares a late reward (see <c>MethodTask.LateReward</c>) the player worked at, with the
+    /// time and zone of that period: a reward-only period (Galatea contest coupons) shortly after it is
+    /// credited to that task. See <c>LateRewardAttribution</c>.
+    /// </summary>
+    [Key(47)]
+    public string? LastLateRewardTask { get; set; }
+    [Key(48)]
+    public DateTime LastLateRewardTaskAt { get; set; }
+    [Key(49)]
+    public string? LastLateRewardTaskLocation { get; set; }
 }
 
 /// <summary>

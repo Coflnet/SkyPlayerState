@@ -12,6 +12,8 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 public class GalateaDivingTask : IslandTask
 {
     protected override string RegionName => "galatea";
+    // the Agatha/Starlyn contest is filled by this and handed in minutes later
+    protected override LateRewardSpec LateReward => GalateaContestRewards.Moonglade;
     protected override HashSet<string> locationNames =>
     [
         "Driptoad Delve",
@@ -28,6 +30,8 @@ public class GalateaDivingTask : IslandTask
 public class GalateaFishingTask : IslandTask
 {
     protected override string RegionName => "galatea";
+    // the Agatha/Starlyn contest is filled by this and handed in minutes later
+    protected override LateRewardSpec LateReward => GalateaContestRewards.Moonglade;
     protected override HashSet<string> locationNames =>
     [
         "Driptoad Delve"

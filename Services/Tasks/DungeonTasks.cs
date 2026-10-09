@@ -6,6 +6,63 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 // ── Base class for dungeon tasks ──
 public abstract class BaseDungeonTask : MethodTask
 {
+    /// <summary>
+    /// Catacombs level needed per floor. Source: https://hypixelskyblock.minecraft.wiki/w/The_Catacombs
+    /// (Normal Mode F1..F7 = 1, 3, 5, 9, 14, 19, 24; Master Mode M1..M7 = 24, 26, 28, 30, 32, 34, 36).
+    /// </summary>
+    private static readonly int[] NormalLevels = [1, 3, 5, 9, 14, 19, 24];
+    private static readonly int[] MasterLevels = [24, 26, 28, 30, 32, 34, 36];
+    /// <summary>Highest floor number; clearing normal F7 is what opens Master Mode.</summary>
+    private const int LastFloor = 7;
+
+    /// <summary>
+    /// The floor this task covers, read from its "The Catacombs (F3)" / "(M7)" zone so every floor task,
+    /// hand written or derived from <see cref="BaseCatacombsFloorTask"/>, gets its requirements from one place.
+    /// Null for a dungeon task that is not one specific floor.
+    /// </summary>
+    private (bool Master, int Floor)? FloorOfTask
+    {
+        get
+        {
+            foreach (var location in Locations)
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(location, @"^The Catacombs \(([FM])([1-7])\)$");
+                if (match.Success)
+                    return (match.Groups[1].Value == "M", int.Parse(match.Groups[2].Value));
+            }
+            return null;
+        }
+    }
+
+    /// <summary>Catacombs level required for a floor, for tests and callers that need the table.</summary>
+    public static int RequiredLevelOf(bool master, int floor) => (master ? MasterLevels : NormalLevels)[floor - 1];
+
+    /// <summary>
+    /// Entering a dungeon needs Combat 15 (the Dungeoneering menu entry says so), the floor's Catacombs level,
+    /// and the previous floor cleared: the wiki says beating a floor unlocks the one after it, Master Mode opens
+    /// with Floor 7 cleared. The wiki is not explicit that M(n) needs M(n-1) cleared; the owner states dungeon
+    /// floors unlock incrementally, so that is applied to Master Mode as well.
+    /// Floor 1 gets no Catacombs level requirement even though the table says 1: a player starts at level 0 and
+    /// only reaches level 1 by running Floor 1, so requiring it would lock the first floor for everyone new.
+    /// </summary>
+    protected override List<TaskRequirement> Requirements
+    {
+        get
+        {
+            if (FloorOfTask == null)
+                return [];
+            var (master, floor) = FloorOfTask.Value;
+            var requirements = new List<TaskRequirement> { TaskRequirement.Skill("combat", 15) };
+            if (master || floor > 1)
+                requirements.Add(TaskRequirement.CatacombsLevel(RequiredLevelOf(master, floor)));
+            if (floor > 1)
+                requirements.Add(TaskRequirement.DungeonFloor(master, floor - 1));
+            else if (master)
+                requirements.Add(TaskRequirement.DungeonFloor(false, LastFloor));
+            return requirements;
+        }
+    }
+
     protected override string Category => "Dungeon";
     protected override string ActionUnit => "runs";
     // A Catacombs floor zone ("The Catacombs (F6)", "(M7)", ...) is a dedicated dungeon instance -
@@ -199,7 +256,7 @@ public class M4Task : BaseDungeonTask
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 300)];
     protected override string HowTo => "Queue for Master Mode Floor 4 in the Dungeon Hub. Requires Catacombs level 30+. Run with a party of 5 for efficient clears.";
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "WITHER_CHESTPLATE", Reason = "Dungeon armor for survivability" }
+        new() { ItemTag = "WITHER_CHESTPLATE", Reason = "Recommended dungeon armor for survivability" }
     ];
 }
 public class M5Task : BaseDungeonTask
@@ -209,7 +266,7 @@ public class M5Task : BaseDungeonTask
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 400)];
     protected override string HowTo => "Queue for Master Mode Floor 5. Requires Catacombs level 32+. Boss fight is Professor with Guardians phase.";
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "WITHER_CHESTPLATE", Reason = "Dungeon armor for survivability" }
+        new() { ItemTag = "WITHER_CHESTPLATE", Reason = "Recommended dungeon armor for survivability" }
     ];
 }
 public class M6Task : BaseDungeonTask
@@ -219,19 +276,29 @@ public class M6Task : BaseDungeonTask
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 500)];
     protected override string HowTo => "Queue for Master Mode Floor 6. Requires Catacombs level 34+. Boss is Sadan with terracotta phases.";
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "WITHER_CHESTPLATE", Reason = "Dungeon armor for survivability" },
-        new() { ItemTag = "HYPERION", Reason = "Mage weapon for efficient clears" }
+        new() { ItemTag = "WITHER_CHESTPLATE", Reason = "Recommended dungeon armor for survivability" },
+        new() { ItemTag = "HYPERION", Reason = "Recommended mage weapon for efficient clears (standard from M4 up, not enforced by the game)" }
     ];
 }
 public class M7Task : BaseDungeonTask
 {
+    /// <summary>
+    /// M7 runs per hour: a party finder M7 takes about 6 minutes plus about 2 minutes between runs, so 7 an hour.
+    /// An inference from forum reports, not a measured value. FormulaDrops of both M7 tasks are per hour, so
+    /// anything that is per run (the Kismet) is multiplied by this.
+    /// </summary>
+    // TODO once data exists: replace with 3600 / median seconds of run-length key "dungeon:M7" (IRunLengthRecorder.GetMedian, GET /RunLength/dungeon:M7).
+    public const double RunsPerHour = 7;
+    /// <summary>Necron's Handle per hour of plain M7.</summary>
+    public const double HandlePerHour = 0.05;
     protected override string MethodName => "M7";
     protected override HashSet<string> Locations => ["The Catacombs (M7)"];
-    protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 600), new("NECRON_HANDLE", 0.05)];
+    protected override double ActionsPerHour => RunsPerHour;
+    protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 600), new("NECRON_HANDLE", HandlePerHour)];
     protected override string HowTo => "Queue for Master Mode Floor 7. Requires Catacombs level 36+. Boss is Necron with multiple phases. Handle drop is rare (~1/20).";
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "HYPERION", Reason = "Best mage weapon for M7" },
-        new() { ItemTag = "TERMINATOR", Reason = "Best archer weapon for M7" }
+        new() { ItemTag = "HYPERION", Reason = "Recommended mage weapon for M7 (standard from M4 up, not enforced by the game)" },
+        new() { ItemTag = "TERMINATOR", Reason = "Recommended archer/berserk/tank weapon for M7 (standard from M4 up, needs Enderman Slayer 7 to use)" }
     ];
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Necron";
     protected override List<TaskStep> Steps =>
@@ -250,12 +317,15 @@ public class M7KismetTask : BaseDungeonTask
     protected override string MethodName => "M7 (Kismet)";
     protected override HashSet<string> Locations => ["The Catacombs (M7)"];
     protected override HashSet<string> DetectionItems => ["KISMET_FEATHER"];
-    protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 600), new("NECRON_HANDLE", 0.1)];
-    protected override List<MethodDrop> FormulaCosts => [new("KISMET_FEATHER", 1)];
+    protected override double ActionsPerHour => M7Task.RunsPerHour;
+    // a Kismet rerolls the end chest once, so the chance doubles to twice the plain M7 rate
+    protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 600), new("NECRON_HANDLE", 2 * M7Task.HandlePerHour)];
+    // one Kismet per run, and the drops and costs here are per hour
+    protected override List<MethodDrop> FormulaCosts => [new("KISMET_FEATHER", M7Task.RunsPerHour)];
     protected override string HowTo => "Queue for Master Mode Floor 7 with Kismet Feathers for double chest reroll. Doubles the handle chance but costs a Kismet per run.";
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "KISMET_FEATHER", Reason = "Rerolls dungeon chest for better drops" },
-        new() { ItemTag = "HYPERION", Reason = "Best mage weapon for M7" }
+        new() { ItemTag = "KISMET_FEATHER", Reason = "Rerolls dungeon chest for better drops (one per run)" },
+        new() { ItemTag = "HYPERION", Reason = "Recommended mage weapon for M7 (standard from M4 up, not enforced by the game)" }
     ];
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Necron";
     protected override List<TaskStep> Steps =>

@@ -95,6 +95,10 @@ public class Startup
         services.AddSingleton<IBazaarProfitTracker, BazaarProfitTracker>();
         services.AddSingleton<IMayorAuraService, MayorAuraService>();
         services.AddSingleton<IBitService, BitService>();
+        services.AddSingleton<IMenuSampleStore, RedisMenuSampleStore>();
+        services.AddSingleton<IRunLengthStore, RedisRunLengthStore>();
+        services.AddSingleton<IRunLengthRecorder, RunLengthRecorder>();
+        services.AddSingleton<ReadOnlyCqlRunner>();
         services.AddSingleton<IPlayerElectionService, PlayerElectionService>();
         services.AddSingleton<IMythologicalRitualService, MythologicalRitualService>();
         services.AddSingleton<RecipeService>();
@@ -128,6 +132,7 @@ public class Startup
         services.AddSingleton<Crafts.Client.Api.IForgeApi>(sp => new Crafts.Client.Api.ForgeApi(Configuration["CRAFTS_BASE_URL"]));
         services.AddSingleton<Mayor.Client.Api.IMayorApiApi>(sp => new Mayor.Client.Api.MayorApiApi(Configuration["MAYOR_BASE_URL"]));
         services.AddSingleton<Tasks.ProfileForgeClient>();
+        services.AddSingleton<Tasks.ProfileSnapshotService>();
         services.AddSingleton<Tasks.ForgeFlipService>();
         services.AddSingleton<Tasks.IForgeFlipService>(p => p.GetRequiredService<Tasks.ForgeFlipService>());
         services.AddSingleton<Tasks.CurrentMayorService>();

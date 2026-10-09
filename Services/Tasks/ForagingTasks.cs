@@ -7,6 +7,8 @@ public abstract class BaseForagingTask : MethodTask
 {
     protected override string Category => "Foraging";
     protected override string ActionUnit => "logs";
+    // Galatea foraging earns contest coupons on the side (a Galatea contest is won by foraging)
+    protected override LateRewardSpec LateReward => GalateaContestRewards.ForLocations(Locations);
     public override List<StatFactor> StatFactors =>
     [
         new("skill:Foraging", 0.5, 50),

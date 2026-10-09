@@ -25,7 +25,9 @@ public class TaskCatalogRegistrationTests
         // hidden zone tasks for zones where no money making method exists - see HiddenTasks.cs
         "PrivateIslandActivityTask", "ForgeClaimsTask", "HubTradingTask", "RiftActivityTask", "UnknownLocationTask",
         // location-only catch-alls whose personal view would otherwise swallow a whole island - see CoverageGapTasks.cs
-        "CrimsonIsleMobsTask", "DungeonChestClaimsTask"
+        "CrimsonIsleMobsTask", "DungeonChestClaimsTask",
+        // sink for Galatea contest rewards no foraging/hunting task earned: a contest cannot be done on its own (LateReward)
+        "GalateaContestsTask"
     ];
 
     private static readonly string[] ExpectedRegisteredTaskNames =

@@ -115,7 +115,7 @@ public class TaskExecutionService
     {
         try
         {
-            var result = await task.Execute(parameters);
+            var result = await task.ExecuteWithRequirements(parameters);
             result.Name ??= task.Name;
             // additive gear ownership info, never affects profit/sorting/accessibility
             GearOwnership.Annotate(result, parameters);
@@ -151,6 +151,7 @@ public class TaskExecutionService
         var (state, history, resolvedId) = await LoadStateAndHistory(playerId, cancellationToken);
 
         var (ownedTags, ownedIncomplete) = await LoadOwnedTags(state, cancellationToken);
+        var snapshot = await LoadProfileSnapshot(resolvedId, cancellationToken);
 
         var prices = await pricesTask;
         var bazaarPrices = await bazaarPricesTask;
@@ -192,8 +193,24 @@ public class TaskExecutionService
             PlayerUuid = resolvedId,
             PlayerName = playerId,
             OwnedItemTags = ownedTags,
-            OwnedItemsIncomplete = ownedIncomplete
+            OwnedItemsIncomplete = ownedIncomplete,
+            ProfileSnapshot = snapshot
         };
+    }
+
+    /// <summary>
+    /// The player's profile progression for the requirement check. Optional like the other reads: a missing
+    /// service, a name instead of a uuid, a timeout or a failure yield null, which leaves requirements unknown
+    /// (non blocking). A timed out download keeps running inside <see cref="ProfileSnapshotService"/> and is
+    /// picked up by the next request.
+    /// </summary>
+    private async Task<PlayerProfileSnapshot> LoadProfileSnapshot(string uuid, CancellationToken cancellationToken)
+    {
+        var service = serviceProvider?.GetService(typeof(ProfileSnapshotService)) as ProfileSnapshotService;
+        if (service == null || !Guid.TryParse(uuid, out _))
+            return null;
+        return await LoadOptional(() => service.Get(uuid), (PlayerProfileSnapshot)null,
+            "profile snapshot", uuid, OptionalReadTimeout, cancellationToken);
     }
 
     /// <summary>
