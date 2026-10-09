@@ -52,6 +52,8 @@ public class MenuSamplerListenerTests
             .ToList();
         if (menuSlots > 3)
             items[3] = new Item { Tag = null, ItemName = null, Description = null }; // empty glass pane slot without data
+        if (menuSlots > 4)
+            items[4] = new Item { Tag = null, ItemName = "§cClose", Description = "lore 4" }; // every SkyBlock menu has tagless buttons
         var args = new MockedUpdateArgs
         {
             currentState = new StateObject { PlayerId = player },
@@ -70,11 +72,13 @@ public class MenuSamplerListenerTests
 
     // ── normalization ──
 
-    [TestCase("(1/3) Loadouts", "(#/#) Loadouts")]
+    [TestCase("(1/3) Loadouts", "(1/#) Loadouts")]
+    [TestCase("(2/2) Loadouts", "(2/#) Loadouts")]
+    [TestCase("(5/9) Loadouts", "(5/#) Loadouts")]
     [TestCase("(12/20) Loadouts", "(#/#) Loadouts")]
     [TestCase("§aCatacombs Gate", "Catacombs Gate")]
     [TestCase("Backpack (Slot 12)", "Backpack (Slot #)")]
-    [TestCase("Ender Chest (4/9)", "Ender Chest (#/#)")]
+    [TestCase("Ender Chest (4/9)", "Ender Chest (4/#)")]
     [TestCase("  Your   Skills ", "Your Skills")]
     [TestCase("Auctions: \"hyperion\"", "Auctions: \"*\"")]
     [TestCase("Auctions: \"Aspect of the End 2\"", "Auctions: \"*\"")]
@@ -91,6 +95,64 @@ public class MenuSamplerListenerTests
     public void TitlesAreNormalized(string? title, string expected)
     {
         MenuTitleNormalizer.Normalize(title).Should().Be(expected);
+    }
+
+    // real title shapes from the production names list (player names invented)
+    [TestCase("Shards ➜ Torrid Shard", "Shards ➜ *")]
+    [TestCase("Shards ➜ Giant Isopod Shard", "Shards ➜ *")]
+    [TestCase("Enchant Item ➜ Sharpness VII", "Enchant Item ➜ *")]
+    [TestCase("Reforge Stones ➜ Moil", "Reforge Stones ➜ *")]
+    [TestCase("Mining ➜ Shards", "Mining ➜ *")]
+    [TestCase("(2/4) Museum ➜ Farming", "(2/#) Museum ➜ *")]
+    [TestCase("Catacombs Misc. ➜ Wither Cataly", "Catacombs Misc. ➜ *")]
+    [TestCase("Fishing Minion IX", "* Minion #")]
+    [TestCase("Coal Minion VII", "* Minion #")]
+    [TestCase("Mangrove Log VI Rewards", "* # Rewards")]
+    [TestCase("Redstone Dust IX Rewards", "* # Rewards")]
+    [TestCase("The Professor III Rewards", "* # Rewards")]
+    [TestCase("Vampire Slayer LVL Rewards", "* Slayer LVL Rewards")]
+    [TestCase("Mithril Collection", "* Collection")]
+    [TestCase("Mangrove Log Collection", "* Collection")]
+    [TestCase("Slayer Recipes", "* Recipes")]
+    [TestCase("(1/2) Voidgloom Seraph Recipes", "(1/#) * Recipes")]
+    [TestCase("Cobblestone Minion Recipes", "* Minion Recipes")]
+    [TestCase("Large Enchanted Fishing Sack", "* Sack")]
+    [TestCase("Witch's Sack", "* Sack")]
+    [TestCase("Abiphone XIII", "Abiphone #")]
+    [TestCase("Abiphone XIII Jade", "Abiphone # *")]
+    [TestCase("(2/3) Abiphone XIV Black", "(2/#) Abiphone # *")]
+    [TestCase("Abiphone Shop", "Abiphone Shop")]
+    [TestCase("Abiphone Flip+", "Abiphone Flip+")]
+    [TestCase("Visit portal_hub", "Visit *")]
+    [TestCase("Profile: Cucumber", "Profile: *")]
+    [TestCase("Profile: Cucumber (Co-op)", "Profile: * (Co-op)")]
+    [TestCase("Akhil_5's Profile [GUEST]", "<player>'s Profile [GUEST]")]
+    [TestCase("_I_Shadow_I_'s Profile [GUEST]", "<player>'s Profile [GUEST]")]
+    [TestCase("Bobby' Profile [GUEST]", "<player>'s Profile [GUEST]")]
+    [TestCase("AsianPampers' Profile [GUEST]", "<player>'s Profile [GUEST]")]
+    [TestCase("Catacombs - Floor VII", "Catacombs - Floor VII")]
+    [TestCase("Master Catacombs - Floor III", "Master Catacombs - Floor III")]
+    [TestCase("Catacombs (M4) RNG Meter", "Catacombs (M4) RNG Meter")]
+    [TestCase("(1/2) Catacombs (M7) RNG Meter", "(1/#) Catacombs (M7) RNG Meter")]
+    [TestCase("(2/2) Catacombs (M7) RNG Meter", "(2/#) Catacombs (M7) RNG Meter")]
+    [TestCase("Catacombs (F7) RNG Meter", "Catacombs (F7) RNG Meter")]
+    [TestCase("Auctions: \"Final Destination He", "Auctions: \"*\"")]
+    [TestCase("Catacombs Gate", "Catacombs Gate")]
+    [TestCase("Agatha's Shop", "Agatha's Shop")]
+    public void ProductionTitlesAreNormalized(string title, string expected)
+    {
+        MenuTitleNormalizer.Normalize(title).Should().Be(expected);
+    }
+
+    [Test]
+    public void DifferentFloorsStayDistinct_DifferentGuestsAndMinionsCollapse()
+    {
+        new[] { "Catacombs (M4) RNG Meter", "Catacombs (M7) RNG Meter", "Catacombs (F7) RNG Meter" }
+            .Select(MenuTitleNormalizer.Normalize).Distinct().Should().HaveCount(3);
+        new[] { "Master Catacombs - Floor III", "Master Catacombs - Floor IV" }
+            .Select(MenuTitleNormalizer.Normalize).Distinct().Should().HaveCount(2);
+        new[] { "Anna's Profile [GUEST]", "Bob_7' Profile [GUEST]" }.Select(MenuTitleNormalizer.Normalize).Distinct().Should().ContainSingle();
+        new[] { "Cow Minion VI", "Cow Minion IX", "Iron Minion XI" }.Select(MenuTitleNormalizer.Normalize).Distinct().Should().ContainSingle();
     }
 
     [Test]
@@ -115,12 +177,12 @@ public class MenuSamplerListenerTests
 
         await Listener().Process(Args("§a(2/3) Loadouts", store));
 
-        var sample = store.Samples["(#/#) Loadouts"].Single().Sample;
-        sample.Title.Should().Be("(#/#) Loadouts");
+        var sample = store.Samples["(2/#) Loadouts"].Single().Sample;
+        sample.Title.Should().Be("(2/#) Loadouts");
         sample.SampledAt.Should().Be(T0);
         sample.TotalSlots.Should().Be(90);
         sample.Items.Should().HaveCount(53, "54 menu slots minus the empty one");
-        sample.Items.Should().OnlyContain(i => i.Slot < 54 && i.Tag!.StartsWith("MENU_"), "the player's inventory is not menu content");
+        sample.Items.Should().OnlyContain(i => i.Slot < 54 && (i.Tag == null || i.Tag.StartsWith("MENU_")), "the player's inventory is not menu content");
         sample.Items.Single(i => i.Slot == 5).Should().BeEquivalentTo(new MenuSampleItem { Slot = 5, Tag = "MENU_5", Name = "§aItem 5", Description = "lore 5" });
     }
 
@@ -210,6 +272,101 @@ public class MenuSamplerListenerTests
         await Listener().Process(Args(title, store));
 
         store.AddCalls.Should().Be(0);
+    }
+
+    private static Item Button(string name) => new() { Tag = null, ItemName = name, Description = "" };
+    private static Item Pane() => new() { Tag = null, ItemName = " ", Description = "" };
+    private static Item Drop(string tag) => new() { Tag = tag, ItemName = tag, Description = "drop" };
+
+    private static MockedUpdateArgs ViewArgs(string title, IMenuSampleStore store, List<Item> menu)
+    {
+        var items = menu.Concat(Enumerable.Range(0, 36).Select(i => Drop($"INV_{i}"))).ToList();
+        var args = new MockedUpdateArgs
+        {
+            currentState = new StateObject { PlayerId = "p1" },
+            msg = new UpdateMessage { ReceivedAt = T0, PlayerId = "p1", Chest = new ChestView { Name = title, Items = items } }
+        };
+        args.AddService<IMenuSampleStore>(store);
+        return args;
+    }
+
+    /// <summary>Shape of the Catacombs RNG meter sample: tagged drops, named tagless buttons at 4 and 48+.</summary>
+    private static List<Item> RngMeterLike()
+    {
+        var menu = Enumerable.Range(0, 54).Select(_ => Pane()).ToList();
+        menu[4] = Button("Catacombs (M7) RNG Meter");
+        menu[10] = Drop("PRECURSOR_GEAR");
+        menu[43] = Drop("IMPLOSION_SCROLL");
+        menu[48] = Button("Go Back");
+        menu[49] = Button("Close");
+        return menu;
+    }
+
+    [Test]
+    public async Task MenuWithTaggedDropsAndTaglessButtons_IsSampled()
+    {
+        var store = new FakeStore();
+
+        await Listener().Process(ViewArgs("(2/2) Catacombs (M7) RNG Meter", store, RngMeterLike()));
+
+        store.Samples.Keys.Should().BeEquivalentTo("(2/#) Catacombs (M7) RNG Meter");
+    }
+
+    [TestCase("Большой сундук")]
+    [TestCase("Coffre")]
+    public async Task PlainLocalizedContainer_WithoutButtons_IsNotSampled(string title)
+    {
+        var store = new FakeStore();
+        var menu = Enumerable.Range(0, 54).Select(i => i % 3 == 0 ? Drop("ENCHANTED_COAL") : Pane()).ToList();
+
+        await Listener().Process(ViewArgs(title, store, menu));
+
+        store.AddCalls.Should().Be(0);
+    }
+
+    [Test]
+    public async Task ButtonsOnlyInThePlayersInventoryPart_DoNotMakeAMenu()
+    {
+        var store = new FakeStore();
+        var menu = Enumerable.Range(0, 54).Select(_ => Pane()).ToList();
+        var args = ViewArgs("Kiste", store, menu);
+        args.msg.Chest!.Items[60] = Button("Close");
+
+        await Listener().Process(args);
+
+        store.AddCalls.Should().Be(0);
+    }
+
+    [Test]
+    public async Task BazaarProductPage_TitledLikeTheItem_IsStoredUnderOneName()
+    {
+        var store = new FakeStore();
+        foreach (var product in new[] { "Diamond", "Enchanted Coal" })
+        {
+            var menu = Enumerable.Range(0, 54).Select(_ => Pane()).ToList();
+            menu[10] = Button("§aBuy Instantly");
+            menu[11] = Button("§6Create Buy Order");
+            menu[49] = Button("Close");
+            await Listener().Process(ViewArgs(product, store, menu));
+        }
+
+        store.Samples.Keys.Should().BeEquivalentTo(MenuSamplerListener.BazaarProductName);
+    }
+
+    [Test]
+    public async Task RecipePage_TitledLikeTheItem_IsStoredUnderOneName()
+    {
+        var store = new FakeStore();
+        foreach (var product in new[] { "Magnetic Talisman", "Aspect of the Void" })
+        {
+            var menu = Enumerable.Range(0, 54).Select(_ => Pane()).ToList();
+            menu[25] = Drop("RESULT");
+            menu[32] = Button("§aSupercraft");
+            menu[49] = Button("Close");
+            await Listener().Process(ViewArgs(product, store, menu));
+        }
+
+        store.Samples.Keys.Should().BeEquivalentTo(MenuSamplerListener.RecipeName);
     }
 
     [Test]
@@ -389,7 +546,7 @@ public class MenuSamplerListenerTests
         all.Items.Should().HaveCount(2);
         (await controller.GetNames(pageSize: 2, page: 1)).Items.Should().HaveCount(1);
         var filtered = await controller.GetNames("LOADOUT");
-        filtered.Items.Select(i => i.Name).Should().Equal("(#/#) Loadouts");
+        filtered.Items.Select(i => i.Name).Should().Equal("(1/#) Loadouts");
         filtered.Items[0].Samples.Should().Be(1);
     }
 
@@ -398,7 +555,7 @@ public class MenuSamplerListenerTests
     {
         var (_, controller) = await Seeded();
 
-        (await controller.GetSamples("(3/3) Loadouts")).Value.Should().HaveCount(1);
+        (await controller.GetSamples("(1/9) Loadouts")).Value.Should().HaveCount(1);
         (await controller.GetSamples("Nothing")).Result.Should().BeOfType<Microsoft.AspNetCore.Mvc.NotFoundObjectResult>();
     }
 
@@ -425,7 +582,7 @@ public class MenuSamplerListenerTests
 
         var result = (await controller.Search("loadouts")).Value!;
 
-        result.Results.Should().ContainSingle(r => r.Name == "(#/#) Loadouts" && r.NameMatch);
+        result.Results.Should().ContainSingle(r => r.Name == "(1/#) Loadouts" && r.NameMatch);
     }
 
     [Test]

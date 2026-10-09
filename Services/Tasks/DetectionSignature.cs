@@ -46,8 +46,15 @@ public record DetectionSignature(
     HashSet<string> EvidenceItems = null,
     bool Fallback = false,
     Dictionary<string, HashSet<string>> ZoneDetectionItems = null,
-    Dictionary<string, HashSet<string>> ZoneExcludedItems = null)
+    Dictionary<string, HashSet<string>> ZoneExcludedItems = null,
+    bool Hidden = false)
 {
+    /// <summary>
+    /// True for the hidden Bazaar/Auction purchase accounting tasks: their only detection items are
+    /// purchase pseudo tags. They classify purchase-only periods but must never displace a real task.
+    /// </summary>
+    public bool IsPurchaseSink => DetectionItems.Count > 0 && DetectionItems.All(PseudoItems.IsPurchase);
+
     /// <summary>The items one of which a period at <paramref name="zone"/> must hold: the zone-specific set when one applies, else <see cref="DetectionItems"/>.</summary>
     public HashSet<string> DetectionItemsAt(string zone)
     {

@@ -45,9 +45,11 @@ public static class GearOwnership
     /// <summary>
     /// Collects every item tag the state holds: inventory, the hunting weapon and toolkit, pets
     /// (as <c>PET_&lt;TYPE&gt;</c>) and the given persisted storage containers (ender chest, backpacks).
-    /// Not available in the state, so not covered: worn armor/equipment, wardrobe, accessory bag.
+    /// An upgraded item also counts as its base items (<paramref name="upgradeBases"/>, see <see cref="ItemUpgradeMap"/>); without the map only the starred prefix is known.
+    /// Worn armor/equipment/pet are included once the "Stats &amp; Equipment" or "Loadouts" menu was seen (<see cref="ExtractedInfo.WornGearTags"/>). Not covered: wardrobe, accessory bag.
     /// </summary>
-    public static HashSet<string> BuildOwnedTags(StateObject state, IEnumerable<IEnumerable<Item>> storage = null)
+    public static HashSet<string> BuildOwnedTags(StateObject state, IEnumerable<IEnumerable<Item>> storage = null,
+        IReadOnlyDictionary<string, HashSet<string>> upgradeBases = null)
     {
         var owned = new HashSet<string>(StringComparer.Ordinal);
         void AddAll(IEnumerable<Item> items)
@@ -69,6 +71,13 @@ public static class GearOwnership
         if (info?.WeaponInHuntaxe?.Tag != null)
             owned.Add(info.WeaponInHuntaxe.Tag);
         AddAll(info?.HuntingToolkitItems);
+        foreach (var worn in info?.WornGearTags ?? [])
+        {
+            owned.Add(worn);
+            // a starred piece is the same item as the plain tag a task requires
+            if (worn.StartsWith(StarredPrefix, StringComparison.Ordinal))
+                owned.Add(worn[StarredPrefix.Length..]);
+        }
         if (info?.Pets != null)
             foreach (var pet in info.Pets)
             {
@@ -77,8 +86,11 @@ public static class GearOwnership
                 if (!string.IsNullOrWhiteSpace(pet?.Tag))
                     owned.Add(pet.Tag);
             }
+        ItemUpgradeMap.AddBases(owned, upgradeBases);
         return owned;
     }
+
+    private const string StarredPrefix = "STARRED_";
 
     /// <summary>Annotates a result's breakdown in place. No-op when it has no breakdown.</summary>
     public static void Annotate(TaskResult result, TaskParams parameters)

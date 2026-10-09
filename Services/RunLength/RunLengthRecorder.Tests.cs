@@ -189,6 +189,7 @@ public class RunLengthRecorderTests
         // pretend the run has been going for 9 minutes
         state.ExtractedInfo.CurrentLocationSince = DateTime.UtcNow.AddMinutes(-9);
         state.ExtractedInfo.CurrentLocationSeenAt = DateTime.UtcNow;
+        state.ExtractedInfo.LastDungeonRunCompletedAt = DateTime.UtcNow.AddMinutes(-1); // the results header was seen
         await Tick(state, recorder.Object, "Dungeon Hub");
 
         var run = recorded.Should().ContainSingle().Subject;

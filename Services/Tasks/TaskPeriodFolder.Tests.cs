@@ -36,6 +36,16 @@ public class TaskPeriodFolderTests
     }
 
     [Test]
+    public void FilterOwnedItems_DropsPurchaseCoinsFromActivityTask_ButKeepsThemForThePurchaseTask()
+    {
+        var items = new Dictionary<string, int> { { PseudoItems.BAZAAR_PURCHASE, 9_269_101 }, { "MANGROVE_LOG", 93 } };
+
+        TaskPeriodFolder.FilterOwnedItems(items, new M7KismetTask()).Should().NotContainKey(PseudoItems.BAZAAR_PURCHASE)
+            .And.ContainKey("MANGROVE_LOG");
+        TaskPeriodFolder.FilterOwnedItems(items, new BazaarPurchaseTask()).Should().ContainKey(PseudoItems.BAZAAR_PURCHASE);
+    }
+
+    [Test]
     public void FilterOwnedItems_KeepsPseudoCostTagRegardlessOfMethodTask()
     {
         var items = new Dictionary<string, int> { { PseudoItems.DUNGEON_CHEST_COST, -2_000_000 } };

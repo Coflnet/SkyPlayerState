@@ -82,9 +82,9 @@ public interface IMenuSampleStore
 /// Redis backed store (the service already uses redis for small shared auxiliary data, see TaskActivityService).
 /// Layout, deliberately the simplest that makes list and search workable:
 /// <list type="bullet">
-/// <item><c>menu_sample:index</c> hash, field = normalized name, value = "samples|lastSampledUnixSeconds" (the list route reads only this);</item>
-/// <item><c>menu_sample:v2:{name}</c> string, JSON list of <see cref="StoredMenuSample"/> (at most one per player, newest first).</item>
-/// <item><c>menu_sample:dropped</c> counter of attempts dropped by the name cap.</item>
+/// <item><c>menu_sample:v3:index</c> hash, field = normalized name, value = "samples|lastSampledUnixSeconds" (the list route reads only this);</item>
+/// <item><c>menu_sample:v3:{name}</c> string, JSON list of <see cref="StoredMenuSample"/> (at most one per player, newest first).</item>
+/// <item><c>menu_sample:v3:dropped</c> counter of attempts dropped by the name cap.</item>
 /// </list>
 /// Read-modify-write is not atomic, a sample may rarely be lost to a race, which is fine for diagnostics.
 /// Values have no expiry (the number of names is capped, a re-sample refreshes them); the sizes are bounded by
@@ -92,9 +92,11 @@ public interface IMenuSampleStore
 /// </summary>
 public class RedisMenuSampleStore(IConnectionMultiplexer redis) : IMenuSampleStore
 {
-    private const string IndexKey = "menu_sample:index";
-    private const string DroppedKey = "menu_sample:dropped";
-    private static RedisKey KeyOf(string name) => "menu_sample:v2:" + name;
+    // v3: the naming rules changed (see MenuTitleNormalizer), the v2 keys are left to rot (a name used to
+    // be stored under a different key, mixing them would list both); nothing reads them any more
+    private const string IndexKey = "menu_sample:v3:index";
+    private const string DroppedKey = "menu_sample:v3:dropped";
+    private static RedisKey KeyOf(string name) => "menu_sample:v3:" + name;
 
     public async Task<MenuAddResult> Add(string name, string playerKey, MenuSample sample, int maxNames, int maxPlayers)
     {
@@ -280,7 +282,9 @@ public class MenuSamplerListener : UpdateListener
             var chest = args.msg.Chest;
             if (chest?.Items == null || string.IsNullOrEmpty(chest.Name))
                 return;
-            var name = MenuTitleNormalizer.Normalize(chest.Name);
+            if (!HasMenuButton(chest))
+                return; // a plain container (any language), not a menu
+            var name = ClassifyByContent(chest) ?? MenuTitleNormalizer.Normalize(chest.Name);
             if (name.Length == 0 || options.IsDenied(name))
                 return;
             var playerKey = PlayerKeyOf(args);
@@ -307,6 +311,37 @@ public class MenuSamplerListener : UpdateListener
         {
             Logger.LogWarning(e, "Failed to sample menu {menu}", args.msg?.Chest?.Name);
         }
+    }
+
+    /// <summary>Name for bazaar product pages, whose title is the product name.</summary>
+    public const string BazaarProductName = "<bazaar product>";
+    /// <summary>Name for recipe pages, whose title is the crafted item.</summary>
+    public const string RecipeName = "<recipe>";
+
+    /// <summary>
+    /// Menus titled like an item are named after what they are, not after the item: a bazaar product page holds
+    /// the "Buy Instantly"/"Create Buy Order" buttons, a recipe page is recognised like the recipe listeners do
+    /// (<see cref="CollectionListener.TryGetRecipe"/>). Null for every other menu (the title decides).
+    /// </summary>
+    public static string? ClassifyByContent(ChestView chest)
+    {
+        if (CollectionListener.TryGetRecipe(chest, out _, out _))
+            return RecipeName;
+        var menuSlots = CollectionListener.AccessibleInventoryStart(chest.Items);
+        var buttons = chest.Items.Take(menuSlots).Where(i => i.ItemName != null)
+            .Select(i => MenuTitleNormalizer.StripColors(i.ItemName!).Trim()).ToHashSet();
+        return buttons.Contains("Buy Instantly") && buttons.Contains("Create Buy Order") ? BazaarProductName : null;
+    }
+
+    /// <summary>
+    /// SkyBlock menus always have buttons (Close, Go Back, info items): an item without a tag but with a name.
+    /// A plain container (a chest in a language the deny list does not know) only holds real items and blank
+    /// panes. The player's last 36 inventory slots are not looked at.
+    /// </summary>
+    public static bool HasMenuButton(ChestView chest)
+    {
+        var menuSlots = CollectionListener.AccessibleInventoryStart(chest.Items);
+        return chest.Items.Take(menuSlots).Any(i => i.Tag == null && !string.IsNullOrWhiteSpace(MenuTitleNormalizer.StripColors(i.ItemName ?? "")));
     }
 
     /// <summary>The gate: false means nothing needs to be (re)sampled for this name/player right now.</summary>

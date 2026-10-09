@@ -19,6 +19,11 @@ public record RunLengthBounds(TimeSpan Min, TimeSpan Max)
     /// hop; the scoreboard-visible stay of a floor is normally 3 to 15 minutes, over 45 minutes is AFK.
     /// </summary>
     public static readonly RunLengthBounds Dungeon = new(TimeSpan.FromSeconds(60), TimeSpan.FromMinutes(45));
+    /// <summary>
+    /// Kuudra tier: a T1 clear with a strong team still takes about 2 minutes of scoreboard-visible stay (lobby, supplies,
+    /// build, fight); under 90 s is a lobby hop, over 20 minutes AFK. No tier is known to take longer than 15 minutes.
+    /// </summary>
+    public static readonly RunLengthBounds Kuudra = new(TimeSpan.FromSeconds(90), TimeSpan.FromMinutes(20));
 }
 
 /// <summary>Aggregate over the recent window of durations recorded under one key.</summary>
@@ -191,9 +196,18 @@ public class RunLengthRecorder(IRunLengthStore store, ILogger<RunLengthRecorder>
     }
 }
 
-/// <summary>Activity keys for <see cref="IRunLengthRecorder"/>. Kuudra (<c>kuudra:T5</c>) and others can add theirs here later.</summary>
+/// <summary>Activity keys for <see cref="IRunLengthRecorder"/>: <c>dungeon:M7</c>, <c>kuudra:T5</c>.</summary>
 public static class RunLengthKeys
 {
+    /// <summary><c>kuudra:T2</c> for a Kuudra tier zone ("Kuudra's Hollow (T2)"), null for anything else.</summary>
+    public static string? ForKuudraZone(string? zone)
+    {
+        if (zone == null || !Tasks.KuudraRewardAttribution.IsTierZone(zone))
+            return null;
+        var canonical = Tasks.SkyblockZones.Canonical(zone)!;
+        return "kuudra:" + canonical[(canonical.LastIndexOf('(') + 1)..^1];
+    }
+
     /// <summary><c>dungeon:M7</c> for a Catacombs floor zone ("The Catacombs (M7)"), null for anything else (including the Entrance).</summary>
     public static string? ForDungeonZone(string? zone)
     {

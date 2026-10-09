@@ -238,7 +238,12 @@ public class TaskExecutionService
                 incomplete = false;
             }
         }
-        return (GearOwnership.BuildOwnedTags(state, containers), incomplete);
+        // upgraded gear (Storm's Chestplate) counts as its base; without the map ownership works as before
+        var upgrades = serviceProvider?.GetService(typeof(ItemUpgradeService)) as ItemUpgradeService;
+        var upgradeBases = upgrades == null ? null
+            : await LoadOptional(() => upgrades.GetBases(cancellationToken), (IReadOnlyDictionary<string, HashSet<string>>)null,
+                "item upgrade map", state.PlayerId, OptionalReadTimeout, cancellationToken);
+        return (GearOwnership.BuildOwnedTags(state, containers, upgradeBases), incomplete);
     }
 
     /// <summary>

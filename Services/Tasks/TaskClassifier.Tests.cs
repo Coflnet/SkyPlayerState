@@ -495,20 +495,59 @@ public class TaskClassifierTests
     }
 
     /// <summary>
-    /// Purchase evidence must still win the tie inside the classifier even when it happens right
-    /// after a dungeon run in the same zone (e.g. buying a Hyperion in the Dungeon Hub right after
-    /// clearing M7, before walking away) - TaskClassifier orders item-evidence matches ahead of
-    /// location-only matches regardless of matchedValue, so the floor task (location-only, no
-    /// DetectionItems) never outranks the AUCTION_PURCHASE-matched hidden task.
+    /// A purchase made in a dungeon floor zone never displaces the floor: the floor is real activity
+    /// and the purchase is only accounting (production 2026-10: M7 runs with a Bazaar purchase in the
+    /// window were classified "Bazaar Purchases").
     /// </summary>
     [Test]
-    public void AuctionPurchaseInDungeonZone_ClassifiesToAuctionPurchases_NotTheFloorTask()
+    public void AuctionPurchaseInDungeonZone_StaysOnTheFloorTask()
     {
         var items = new Dictionary<string, int> { { "HYPERION", 1 }, { PseudoItems.AUCTION_PURCHASE, 970_000_000 } };
         var prices = new Dictionary<string, double> { { "HYPERION", 970_000_000 } };
         var result = Classifier.Classify("The Catacombs (M7)", items, 10, prices: prices);
         result.Should().NotBeNull();
-        result!.TaskName.Should().Be("Auction Purchases");
+        result!.TaskName.Should().Be("M7");
+    }
+
+    [Test]
+    public void BazaarPurchase_DoesNotStealKuudraRun()
+    {
+        var items = new Dictionary<string, int> { { "BAZAAR_PURCHASE", 73_947_046 }, { "KUUDRA_TEETH", 1 }, { "TERROR_CHESTPLATE", 1 } };
+        Classifier.Classify("Kuudra's Hollow (T2)", items, 5)!.TaskName.Should().Be("Kuudra T2");
+    }
+
+    [Test]
+    public void BazaarPurchase_DoesNotStealKismetM7ChestClaim()
+    {
+        var items = new Dictionary<string, int>
+        {
+            { "BAZAAR_PURCHASE", 8_588_970 }, { "DUNGEON_CHEST_COST", -500_000 }, { "ENCHANTED_BOOK", 10 },
+            { "ESSENCE_UNDEAD", 90 }, { "ESSENCE_WITHER", 70 }, { "KISMET_FEATHER", -5 }
+        };
+        Classifier.Classify("The Catacombs (M7)", items, 5, prices: new() { { "KISMET_FEATHER", 2_000_000 } })!.TaskName.Should().Be("M7 (Kismet)");
+    }
+
+    [Test]
+    public void ShortChestClaimWindow_ClassifiesToFloorOnlyWhenInstanceWindowsAreAllowed()
+    {
+        var items = new Dictionary<string, int> { { "DUNGEON_CHEST_COST", -2_000_000 }, { "ENCHANTED_BOOK", 4 }, { "ESSENCE_WITHER", 106 } };
+        Classifier.Classify("The Catacombs (M7)", items, 36.0 / 60).Should().BeNull();
+        Classifier.Classify("The Catacombs (M7)", items, 36.0 / 60, allowShortInstanceWindow: true)!.TaskName.Should().Be("M7");
+        // a short window in an open world zone stays unclassified
+        Classifier.Classify("Gold Mine", new() { { "GOLD_INGOT", 50 } }, 0.5, allowShortInstanceWindow: true).Should().BeNull();
+    }
+
+    [Test]
+    public void ZeroCountEntries_DecideNothing()
+    {
+        Classifier.Classify("Kuudra's Hollow (T2)", new() { { "FISH_BAIT", 0 } }, 5).Should().BeNull();
+    }
+
+    [Test]
+    public void PurchaseCoins_DoNotCountAsLocationOnlyActivity()
+    {
+        // 1000 coins spent must not satisfy a location-only task's "5 items collected" threshold
+        Classifier.Classify("Gold Mine", new() { { "BAZAAR_PURCHASE", 1000 } }, 10)!.TaskName.Should().Be("Bazaar Purchases");
     }
 
     // ── New tasks discovered from unclassified production revenue (2026-09) ──
@@ -1160,12 +1199,12 @@ public class TaskClassifierTests
     }
 
     [Test]
-    public void ResolvedFloorPeriod_SmallerChestCostThanBazaarPurchase_StaysBazaarPurchases()
+    public void ResolvedFloorPeriod_SmallerChestCostThanBazaarPurchase_StillClassifiesToFloor()
     {
         var items = new Dictionary<string, int> { { "BAZAAR_PURCHASE", 4_088_598 }, { "DUNGEON_CHEST_COST", -1_000_000 } };
         var result = Classifier.Classify("The Catacombs (F7)", items, 10);
         result.Should().NotBeNull();
-        result!.TaskName.Should().Be("Bazaar Purchases");
+        result!.TaskName.Should().Be("F7");
     }
 
     [Test]

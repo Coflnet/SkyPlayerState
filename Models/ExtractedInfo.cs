@@ -293,6 +293,17 @@ public class ExtractedInfo
         LastCraftViewAt = extractedInfo.LastCraftViewAt;
         LastCraftIngredients = extractedInfo.LastCraftIngredients == null ? new() : new List<string>(extractedInfo.LastCraftIngredients);
         PeriodSplitPending = extractedInfo.PeriodSplitPending;
+        LastDungeonRunCompletedAt = extractedInfo.LastDungeonRunCompletedAt;
+        LastKuudraRunCompletedAt = extractedInfo.LastKuudraRunCompletedAt;
+        UnrecordedRunKey = extractedInfo.UnrecordedRunKey;
+        UnrecordedRunSeconds = extractedInfo.UnrecordedRunSeconds;
+        UnrecordedRunEndedAt = extractedInfo.UnrecordedRunEndedAt;
+        BazaarProductTag = extractedInfo.BazaarProductTag;
+        BazaarProductSeenAt = extractedInfo.BazaarProductSeenAt;
+        BazaarGuardSkipped = extractedInfo.BazaarGuardSkipped;
+        PendingPurchaseDiscounts = extractedInfo.PendingPurchaseDiscounts == null ? new() : new Dictionary<string, int>(extractedInfo.PendingPurchaseDiscounts);
+        PendingPurchaseDiscountAt = extractedInfo.PendingPurchaseDiscountAt;
+        WornGearTags = extractedInfo.WornGearTags == null ? new() : new List<string>(extractedInfo.WornGearTags);
     }
 
     /// <summary>
@@ -331,6 +342,52 @@ public class ExtractedInfo
     public DateTime LastLateRewardTaskAt { get; set; }
     [Key(49)]
     public string? LastLateRewardTaskLocation { get; set; }
+    /// <summary>
+    /// Tags of the worn equipment, armor and active pet seen in the "Stats &amp; Equipment" and "Loadouts" menus
+    /// (see <see cref="Services.WornGearListener"/>): worn gear is not part of the inventory, so this is
+    /// what makes it count as owned. Only grows (capped), a swapped out piece is still owned.
+    /// </summary>
+    [Key(50)]
+    public List<string> WornGearTags { get; set; } = new();
+    /// <summary>
+    /// When the dungeon results header ("The Catacombs - Floor VII", see <see cref="Services.DungeonRewardListener"/>) was last
+    /// seen: a floor stay that contains it is a completed run, one that does not was left or failed.
+    /// </summary>
+    [Key(51)]
+    public DateTime LastDungeonRunCompletedAt { get; set; }
+    /// <summary>
+    /// When Kuudra's "KUUDRA DOWN!" chat line was last seen (a defeat sets nothing): a tier stay that contains it is
+    /// a completed run, see <see cref="Services.CollectionListener.IsCompletedKuudraRun"/>.
+    /// </summary>
+    [Key(52)]
+    public DateTime LastKuudraRunCompletedAt { get; set; }
+    /// <summary>
+    /// Key ("dungeon:M7", "kuudra:T5") of the last run stay that ended without a completion signal, kept for
+    /// <see cref="Services.RunLengthCredit.LateCompletionWindow"/> because the completion line can arrive just after the zone changed.
+    /// </summary>
+    [Key(53)]
+    public string? UnrecordedRunKey { get; set; }
+    /// <summary>Length in seconds of the stay behind <see cref="UnrecordedRunKey"/>.</summary>
+    [Key(54)]
+    public double UnrecordedRunSeconds { get; set; }
+    /// <summary>When the stay behind <see cref="UnrecordedRunKey"/> ended (the zone change).</summary>
+    [Key(55)]
+    public DateTime UnrecordedRunEndedAt { get; set; }
+    /// <summary>Item tag of the last bazaar product page seen ("Buy Instantly" + "Create Buy Order"), see <see cref="Tasks.PurchaseDiscount"/>.</summary>
+    [Key(56)]
+    public string? BazaarProductTag { get; set; }
+    /// <summary>When <see cref="BazaarProductTag"/>'s page was last seen.</summary>
+    [Key(57)]
+    public DateTime BazaarProductSeenAt { get; set; }
+    /// <summary>Items of <see cref="BazaarProductTag"/> kept out of the drops by the page guard that no bazaar chat line explained yet.</summary>
+    [Key(58)]
+    public int BazaarGuardSkipped { get; set; }
+    /// <summary>Bazaar purchases from chat not yet seen as an inventory increase (tag -> amount), see <see cref="Tasks.PurchaseDiscount"/>.</summary>
+    [Key(59)]
+    public Dictionary<string, int> PendingPurchaseDiscounts { get; set; } = new();
+    /// <summary>When <see cref="PendingPurchaseDiscounts"/> was last added to; the whole set expires together.</summary>
+    [Key(60)]
+    public DateTime PendingPurchaseDiscountAt { get; set; }
 }
 
 /// <summary>

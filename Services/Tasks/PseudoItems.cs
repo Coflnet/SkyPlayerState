@@ -55,6 +55,11 @@ public static class PseudoItems
         DUNGEON_CHEST_COST
     };
 
+    /// <summary>True for the Bazaar/Auction purchase evidence tags (coins spent buying, not a drop and not activity).</summary>
+    public static bool IsPurchase(string tag) =>
+        string.Equals(tag, BAZAAR_PURCHASE, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tag, AUCTION_PURCHASE, StringComparison.OrdinalIgnoreCase);
+
     /// <summary>True for any pseudo tag (evidence or cost), used to keep them out of user-facing drop breakdowns.</summary>
     public static bool IsPseudo(string tag) => IsEvidence(tag) || IsCost(tag);
 

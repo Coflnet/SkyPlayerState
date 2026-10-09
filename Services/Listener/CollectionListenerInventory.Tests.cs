@@ -419,12 +419,30 @@ public class CollectionListenerInventoryTests
     {
         var (state, stored, Process) = PeriodHarness(new() { { "ENCHANTED_DIAMOND_BLOCK", 200_000 } });
         state.ExtractedInfo.CurrentLocation = "The Garden";
-        state.ExtractedInfo.CurrentLocationSeenAt = DateTime.UtcNow.AddHours(-2);
+        state.ExtractedInfo.LastLocationChange = DateTime.UtcNow.AddHours(-3);
+        var lastSeen = DateTime.UtcNow.AddHours(-2);
+        state.ExtractedInfo.CurrentLocationSeenAt = lastSeen;
         await Process(View("", new(), StackableItem("ENCHANTED_DIAMOND_BLOCK", 1)));
         await Process(View("", new(), StackableItem("ENCHANTED_DIAMOND_BLOCK", 61)));
 
         stored.Should().ContainSingle();
         stored[0].Location.Should().Be("Unknown");
+        stored[0].EndTime.Should().BeCloseTo(lastSeen, TimeSpan.FromSeconds(1),
+            "the player was offline after the last scoreboard, the period must not span the gap to the next login");
+    }
+
+    [Test]
+    public void PeriodEndIsTheLastScoreboardOnlyAfterAnOfflineGap()
+    {
+        var now = DateTime.UtcNow;
+        var online = new ExtractedInfo { LastLocationChange = now.AddMinutes(-4), CurrentLocationSeenAt = now.AddMinutes(-1) };
+        CollectionListener.PeriodEnd(online, now).Should().Be(now);
+        // chest claim at the end of a session, flushed 16.6 h later at the next login
+        var offline = new ExtractedInfo { LastLocationChange = now.AddHours(-17), CurrentLocationSeenAt = now.AddHours(-16.5) };
+        CollectionListener.PeriodEnd(offline, now).Should().Be(now.AddHours(-16.5));
+        // never before the period start
+        var neverConfirmed = new ExtractedInfo { LastLocationChange = now.AddHours(-3), CurrentLocationSeenAt = now.AddHours(-5) };
+        CollectionListener.PeriodEnd(neverConfirmed, now).Should().Be(now.AddHours(-3));
     }
 
     [TestCase(4, 1, false, TestName = "Usual period")]

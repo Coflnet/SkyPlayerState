@@ -7,6 +7,7 @@ using Coflnet.Sky.PlayerState.Models;
 using Coflnet.Sky.PlayerState.Tasks;
 using Coflnet.Sky.PlayerState.Tests;
 using Microsoft.Extensions.Logging;
+using Moq;
 using NUnit.Framework;
 
 namespace Coflnet.Sky.PlayerState.Services;
@@ -497,6 +498,37 @@ public class DungeonChatTests
         {
             ChestType = type, CostCoins = cost, PurseAtOpen = purse, SeenAt = DateTime.UtcNow, Floor = "F7"
         };
+    }
+
+    [Test]
+    public async Task HeaderJustAfterLeavingTheFloor_CreditsTheRunThatEnded()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.CurrentLocation = "Dungeon Hub";
+        RunLengthCredit.Remember(state.ExtractedInfo, "dungeon:F7", TimeSpan.FromMinutes(9), DateTime.UtcNow.AddSeconds(-5));
+        var recorder = new Moq.Mock<IRunLengthRecorder>();
+        var args = Chat(state, "                The Catacombs - Floor VII");
+        args.AddService(recorder.Object);
+
+        await new DungeonRewardListener().Process(args);
+
+        recorder.Verify(r => r.Record("dungeon:F7", TimeSpan.FromMinutes(9), RunLengthBounds.Dungeon), Moq.Times.Once);
+        state.ExtractedInfo.UnrecordedRunKey.Should().BeNull();
+    }
+
+    [Test]
+    public async Task HeaderInsideTheNextFloor_DoesNotCreditTheRunThatEndedBefore()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.CurrentLocation = "The Catacombs (F7)";
+        RunLengthCredit.Remember(state.ExtractedInfo, "dungeon:F7", TimeSpan.FromMinutes(1), DateTime.UtcNow.AddSeconds(-5));
+        var recorder = new Moq.Mock<IRunLengthRecorder>();
+        var args = Chat(state, "                The Catacombs - Floor VII");
+        args.AddService(recorder.Object);
+
+        await new DungeonRewardListener().Process(args);
+
+        recorder.Verify(r => r.Record(It.IsAny<string>(), It.IsAny<TimeSpan>(), It.IsAny<RunLengthBounds>()), Moq.Times.Never);
     }
 
     [Test]

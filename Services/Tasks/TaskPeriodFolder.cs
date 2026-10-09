@@ -332,7 +332,10 @@ public class TaskPeriodFolder
     {
         var formulaCostTags = new HashSet<string>(
             methodTask?.FormulaCostsForTest.Select(c => c.ItemTag) ?? [], StringComparer.OrdinalIgnoreCase);
+        // purchase evidence (coins spent) is accounting of the purchase task, not an item the activity earned
+        var dropPurchases = methodTask != null && !methodTask.GetDetectionSignature().IsPurchaseSink;
         return new Dictionary<string, int>(itemsCollected
+            .Where(e => !(dropPurchases && PseudoItems.IsPurchase(e.Key)))
             .Where(e => e.Value > 0 || PseudoItems.IsCost(e.Key) || (e.Value < 0 && formulaCostTags.Contains(e.Key)))
             .ToDictionary(e => e.Key, e => e.Value));
     }

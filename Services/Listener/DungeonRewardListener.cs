@@ -229,18 +229,17 @@ public class DungeonRewardListener : UpdateListener
     /// <summary>In-memory only (like <see cref="discoveryLogThrottle"/>): last counted run header per player, for the 60s duplicate window.</summary>
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> lastRunHeader = new();
 
-    public override Task Process(UpdateArgs args)
+    public override async Task Process(UpdateArgs args)
     {
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.CHAT)
-            HandleChat(args);
+            await HandleChat(args);
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.INVENTORY)
             HandleInventory(args);
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.Scoreboard)
             HandleScoreboard(args);
-        return Task.CompletedTask;
     }
 
-    private void HandleChat(UpdateArgs args)
+    private async Task HandleChat(UpdateArgs args)
     {
         foreach (var raw in args.msg.ChatBatch ?? [])
         {
@@ -250,7 +249,9 @@ public class DungeonRewardListener : UpdateListener
             var header = FloorHeaderRegex.Match(line);
             if (header.Success)
             {
-                HandleFloorHeader(args, header);
+                // the header can arrive just after the scoreboard already left the floor
+                if (HandleFloorHeader(args, header) && !Tasks.DungeonRewardAttribution.IsFloorZone(args.currentState.ExtractedInfo.CurrentLocation))
+                    await RunLengthCredit.TryCredit(args, "dungeon:", DateTime.UtcNow, Logger);
                 continue;
             }
             var score = TeamScoreRegex.Match(line);
@@ -266,7 +267,7 @@ public class DungeonRewardListener : UpdateListener
         }
     }
 
-    private void HandleFloorHeader(UpdateArgs args, Match header)
+    private bool HandleFloorHeader(UpdateArgs args, Match header)
     {
         string zone;
         if (header.Groups[3].Success)
@@ -275,9 +276,9 @@ public class DungeonRewardListener : UpdateListener
         {
             int number;
             try { number = Coflnet.Sky.Core.Roman.From(header.Groups[2].Value); }
-            catch (Exception) { return; }
+            catch (Exception) { return false; }
             if (number < 1 || number > 7)
-                return;
+                return false;
             zone = $"The Catacombs ({(header.Groups[1].Success ? "M" : "F")}{number})";
         }
         var info = args.currentState.ExtractedInfo;
@@ -286,13 +287,15 @@ public class DungeonRewardListener : UpdateListener
         if (lastRunHeader.TryGetValue(key, out var last) && now - last < DuplicateHeaderWindow)
         {
             Logger.LogDebug("Ignoring duplicate dungeon run header for {playerId}", key);
-            return;
+            return false;
         }
         lastRunHeader[key] = now;
         info.LastDungeonFloor = zone;
         info.LastDungeonFloorAt = now;
+        info.LastDungeonRunCompletedAt = now;
         Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, Tasks.PseudoItems.DUNGEON_RUN, 1);
         Logger.LogDebug("Dungeon run completed for {playerId} on {floor}", key, zone);
+        return true;
     }
 
     private void HandleChestRewardsLine(UpdateArgs args, string tier)

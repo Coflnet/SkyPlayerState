@@ -129,6 +129,8 @@ public class Startup
 
         // task estimation system
         services.AddSingleton<Crafts.Client.Api.IKatApi>(sp => new Crafts.Client.Api.KatApi(Configuration["CRAFTS_BASE_URL"]));
+        services.AddSingleton<Crafts.Client.Api.ICraftsApi>(sp => new Crafts.Client.Api.CraftsApi(Configuration["CRAFTS_BASE_URL"]));
+        services.AddSingleton<Tasks.ItemUpgradeService>();
         services.AddSingleton<Crafts.Client.Api.IForgeApi>(sp => new Crafts.Client.Api.ForgeApi(Configuration["CRAFTS_BASE_URL"]));
         services.AddSingleton<Mayor.Client.Api.IMayorApiApi>(sp => new Mayor.Client.Api.MayorApiApi(Configuration["MAYOR_BASE_URL"]));
         services.AddSingleton<Tasks.ProfileForgeClient>();

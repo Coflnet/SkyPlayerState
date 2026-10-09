@@ -87,6 +87,47 @@ public static class PurchaseParser
         return false;
     }
 
-    private static string StripFormatting(string value) =>
+    /// <summary>
+    /// Like <see cref="TryParse"/> for the Bazaar buy lines only, additionally returning what was bought: the
+    /// amount and the item display name ("[Bazaar] Bought 64x Enchanted Diamond for 10,240 coins!"). The name still
+    /// has to be resolved to a tag (<c>BazaarOrderListener.GetTagForName</c>).
+    /// </summary>
+    public static bool TryParseBazaarBuy(string chatLine, out int amount, out string itemName, out long coins)
+    {
+        amount = 0;
+        itemName = null;
+        coins = 0;
+        if (string.IsNullOrWhiteSpace(chatLine))
+            return false;
+        var line = StripFormatting(chatLine).Trim();
+        if (BazaarSellRegex.IsMatch(line))
+            return false;
+        var match = BazaarBuyRegex.Match(line);
+        if (!match.Success || !int.TryParse(match.Groups[1].Value.Replace(",", ""), out amount) || amount <= 0)
+            return false;
+        itemName = match.Groups[2].Value.Trim();
+        coins = ParseCoins(match.Groups[3].Value);
+        return true;
+    }
+
+    /// <summary>
+    /// Like <see cref="TryParse"/> for the Auction House line only, additionally returning the item display name as written in
+    /// chat ("You purchased §6[Lvl 100] Golden Dragon for 1,000 coins!"), colour codes stripped. It is the same decorated name the
+    /// item has in the "BIN Auction View"/"Confirm Purchase" screens, but carries no amount.
+    /// </summary>
+    public static bool TryParseAuctionBuy(string chatLine, out string itemName)
+    {
+        itemName = null;
+        if (string.IsNullOrWhiteSpace(chatLine))
+            return false;
+        var match = AuctionPurchaseRegex.Match(StripFormatting(chatLine).Trim());
+        if (!match.Success)
+            return false;
+        itemName = match.Groups[1].Value.Trim();
+        return itemName.Length > 0;
+    }
+
+    /// <summary>Removes the section sign colour/format codes of a Minecraft display name.</summary>
+    public static string StripFormatting(string value) =>
         string.IsNullOrEmpty(value) ? string.Empty : FormatCodeRegex.Replace(value, "");
 }

@@ -43,6 +43,7 @@ public class CollectionListener : UpdateListener
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.INVENTORY)
         {
             var collectedBefore = new Dictionary<string, int>(args.currentState.ItemsCollectedRecently);
+            ArmBazaarProductGuard(args);
             HandleInventory(args);
             HandleCroesusChest(args);
             await StartNewPeriodAfterLargeChange(args, collectedBefore);
@@ -73,6 +74,8 @@ public class CollectionListener : UpdateListener
                     await HandleSackNotification(args, uploadedLine);
                 if (uploadedLine.StartsWith("Removed items:"))
                     await HandleSackNotification(args, uploadedLine);
+                if (ParseKuudraEnd(uploadedLine) == true)
+                    await HandleKuudraEnd(args);
                 if (uploadedLine.Contains("Chameleon (0."))
                     Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, "SHARD_CHAMELEON", 1);
             }
@@ -684,7 +687,8 @@ public class CollectionListener : UpdateListener
                     continue;
                 }
                 if (newCount != 0)
-                    Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, tag, newCount);
+                    Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, tag, Tasks.PurchaseDiscount.AdjustIncrease(
+                        args.currentState.ExtractedInfo, tag, newCount, args.msg.ReceivedAt));
                 continue;
             }
             var previousCount = previousItems.Sum(i => (long)(i.Count ?? 0));
@@ -737,7 +741,9 @@ public class CollectionListener : UpdateListener
                     args.currentState.PlayerId, diff, tag, previousInventory.Name ?? "<inventory>", args.msg.Chest.Name ?? "<inventory>");
                 continue;
             }
-            Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, tag, diff);
+            Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, tag, diff > 0
+                ? Tasks.PurchaseDiscount.AdjustIncrease(args.currentState.ExtractedInfo, tag, (int)Math.Min(diff, int.MaxValue), args.msg.ReceivedAt)
+                : diff);
         }
         RegisterKnownItemUuids(args.currentState, args.msg.Chest);
 
@@ -749,6 +755,22 @@ public class CollectionListener : UpdateListener
                 .GroupBy(i => i.Tag)
                 .ToDictionary(g => g.Key, g => g.ToList());
         }
+    }
+
+    /// <summary>
+    /// A bazaar product page (see <see cref="MenuSamplerListener.ClassifyByContent"/>) names the item about to be bought: the product
+    /// item sits in its menu part (slot 13, the first tagged item otherwise). <see cref="Tasks.PurchaseDiscount"/> keeps increases of
+    /// it out of the drops for a short while.
+    /// </summary>
+    private static void ArmBazaarProductGuard(UpdateArgs args)
+    {
+        var chest = args.msg.Chest;
+        if (chest?.Items == null || MenuSamplerListener.ClassifyByContent(chest) != MenuSamplerListener.BazaarProductName)
+            return;
+        var menu = chest.Items.Take(AccessibleInventoryStart(chest.Items)).ToList();
+        var product = (menu.Count > 13 && menu[13]?.Tag != null ? menu[13] : null) ?? menu.FirstOrDefault(i => i?.Tag != null);
+        if (product?.Tag != null)
+            Tasks.PurchaseDiscount.ArmProductGuard(args.currentState.ExtractedInfo, product.Tag, args.msg.ReceivedAt);
     }
 
     /// <summary>
@@ -1165,18 +1187,71 @@ public class CollectionListener : UpdateListener
     /// </summary>
     private async Task RecordFinishedRun(UpdateArgs args, string previousLocation)
     {
-        var key = RunLengthKeys.ForDungeonZone(previousLocation);
-        if (key == null)
-            return;
         var info = args.currentState.ExtractedInfo;
+        var key = RunLengthKeys.ForDungeonZone(previousLocation);
+        var bounds = RunLengthBounds.Dungeon;
+        bool completed;
+        if (key != null)
+            completed = IsCompletedRun(info);
+        else if ((key = RunLengthKeys.ForKuudraZone(previousLocation)) != null)
+        {
+            bounds = RunLengthBounds.Kuudra;
+            completed = IsCompletedKuudraRun(info);
+        }
+        else
+            return;
+        var length = info.CurrentLocationSeenAt - info.CurrentLocationSince;
+        // only completed runs: abandoned and failed ones (p25 of F7 was 135 s) would drag the median down. The
+        // completion line can still arrive just after the zone change, so the stay is kept for a moment.
+        if (!completed)
+        {
+            RunLengthCredit.Remember(info, key, length, DateTime.UtcNow);
+            return;
+        }
+        info.UnrecordedRunKey = null;
         try
         {
-            await args.GetService<IRunLengthRecorder>().Record(key, info.CurrentLocationSeenAt - info.CurrentLocationSince, RunLengthBounds.Dungeon);
+            await args.GetService<IRunLengthRecorder>().Record(key, length, bounds);
         }
         catch (Exception e)
         {
             Logger.LogDebug(e, "Could not record run length {key}", key);
         }
+    }
+
+    /// <summary>The results header of the dungeon (<see cref="Models.ExtractedInfo.LastDungeonRunCompletedAt"/>) was seen during the stay that is ending.</summary>
+    internal static bool IsCompletedRun(Models.ExtractedInfo info)
+        => info.LastDungeonRunCompletedAt != default && info.LastDungeonRunCompletedAt >= info.CurrentLocationSince;
+
+    /// <summary>"KUUDRA DOWN!" (<see cref="Models.ExtractedInfo.LastKuudraRunCompletedAt"/>) was seen during the stay that is ending.</summary>
+    internal static bool IsCompletedKuudraRun(Models.ExtractedInfo info)
+        => info.LastKuudraRunCompletedAt != default && info.LastKuudraRunCompletedAt >= info.CurrentLocationSince;
+
+    /// <summary>
+    /// Kuudra's end-of-run banner (centered, colour coded): "KUUDRA DOWN!" for a win, "DEFEAT" for a loss.
+    /// Returns null for any other line, true for a win, false for a defeat.
+    /// </summary>
+    internal static bool? ParseKuudraEnd(string? chatLine)
+    {
+        if (string.IsNullOrWhiteSpace(chatLine))
+            return null;
+        var line = StripFormatting(chatLine).Trim();
+        if (line == "KUUDRA DOWN!")
+            return true;
+        return line == "DEFEAT" ? false : null;
+    }
+
+    private async Task HandleKuudraEnd(UpdateArgs args)
+    {
+        var info = args.currentState.ExtractedInfo;
+        var now = DateTime.UtcNow;
+        var inTier = Tasks.KuudraRewardAttribution.IsTierZone(info.CurrentLocation);
+        // a win while still in the tier zone is picked up when the zone is left; one that arrives after the
+        // scoreboard moved on credits the stay that just ended
+        if (inTier)
+            info.LastKuudraRunCompletedAt = now;
+        else
+            await RunLengthCredit.TryCredit(args, "kuudra:", now, Logger);
     }
 
     /// <summary>
@@ -1330,11 +1405,31 @@ public class CollectionListener : UpdateListener
         return now - info.LastLocationChange > StaleLocationAfter || now - info.CurrentLocationSeenAt > StaleLocationAfter;
     }
 
+    /// <summary>
+    /// End of the period being flushed at <paramref name="now"/>. Normally now; when the last scoreboard
+    /// update that confirmed the zone is more than <see cref="StaleLocationAfter"/> ago the player was
+    /// offline in between (the flush only happens at the next login), and the period ends at that last
+    /// confirmation instead of spanning the offline gap (production 2026-10: "Unknown" chest-claim periods
+    /// of 16 hours that made "Kuudra Chest Claims" show 1708 tracked hours).
+    /// </summary>
+    internal static DateTime PeriodEnd(Models.ExtractedInfo info, DateTime now)
+    {
+        if (now - info.CurrentLocationSeenAt <= StaleLocationAfter)
+            return now;
+        var end = info.CurrentLocationSeenAt;
+        return end < info.LastLocationChange ? info.LastLocationChange : end;
+    }
+
     private async Task StoreLocationProfit(UpdateArgs args, string previousLocation)
     {
         var now = DateTime.UtcNow;
+        var periodEnd = PeriodEnd(args.currentState.ExtractedInfo, now);
         var profit = 0L;
         var collected = args.currentState.ItemsCollectedRecently;
+        // an item that came and went again (FISH_BAIT:0) is no collection: it must neither store a period
+        // nor make an empty Kuudra run look like one with loot (its time is handed to the claim period)
+        foreach (var zero in collected.Where(c => c.Value == 0).Select(c => c.Key).ToList())
+            collected.Remove(zero);
         var info = args.currentState.ExtractedInfo;
         var periodStart = info.LastLocationChange;
         if (IsLocationStale(info, now) && previousLocation != UnknownLocation)
@@ -1379,7 +1474,7 @@ public class CollectionListener : UpdateListener
             profit = ComputeProfit(collected, cleanPrices);
             var period = new TrackedProfitService.Period()
             {
-                EndTime = now,
+                EndTime = periodEnd,
                 StartTime = periodStart - claimShift,
                 Location = resolvedLocation,
                 PlayerUuid = args.currentState.McInfo.Uuid.ToString("N"),
@@ -1404,7 +1499,7 @@ public class CollectionListener : UpdateListener
             Logger.LogInformation("Profit summary for {playerId} at {location}: {profit} coins from {items}", args.currentState.PlayerId, resolvedLocation, profit, string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}")));
         }
         // fold task attribution per session (spanning locations), not per location fragment
-        await AccumulateSession(args, resolvedLocation, collected, cleanPrices, now, lateRewardPeriod);
+        await AccumulateSession(args, resolvedLocation, collected, cleanPrices, now, periodEnd, lateRewardPeriod);
         args.currentState.ItemsCollectedRecently.Clear();
         args.currentState.ExtractedInfo.LastLocationChange = now;
         args.currentState.ExtractedInfo.PeriodSplitPending = false;
@@ -1418,7 +1513,7 @@ public class CollectionListener : UpdateListener
     /// contribution, never the raw period.
     /// </summary>
     private async Task AccumulateSession(UpdateArgs args, string previousLocation,
-        Dictionary<string, int> collected, Dictionary<string, double> cleanPrices, DateTime now,
+        Dictionary<string, int> collected, Dictionary<string, double> cleanPrices, DateTime now, DateTime periodEnd,
         TrackedProfitService.Period lateRewardPeriod = null)
     {
         try
@@ -1440,7 +1535,7 @@ public class CollectionListener : UpdateListener
             }
             var fragment = new TrackedProfitService.Period()
             {
-                EndTime = now,
+                EndTime = periodEnd,
                 StartTime = state.ExtractedInfo.LastLocationChange,
                 Location = previousLocation ?? state.ExtractedInfo.CurrentLocation,
                 PlayerUuid = playerUuid,
@@ -1545,7 +1640,8 @@ public class CollectionListener : UpdateListener
             var classification = args.GetService<Tasks.TaskClassifier>().Classify(
                 period.Location, period.ItemsCollected,
                 (period.EndTime - period.StartTime).TotalMinutes, null, cleanPrices,
-                info.CurrentIsland, info.CurrentIslandAt, info.CurrentLocationSince, info.CurrentLocationSeenAt);
+                info.CurrentIsland, info.CurrentIslandAt, info.CurrentLocationSince, info.CurrentLocationSeenAt,
+                allowShortInstanceWindow: true);
             period.DetectedTask = classification?.TaskName;
         }
         catch (Exception ex)

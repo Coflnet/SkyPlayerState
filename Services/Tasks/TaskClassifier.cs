@@ -55,6 +55,11 @@ public class TaskClassifier
     /// location-only match with fewer items collected than that task's own
     /// <see cref="DetectionSignature.MinLocationOnlyItems"/>, 5 by default).
     /// </summary>
+    /// <param name="allowShortInstanceWindow">
+    /// Classify windows under 3 minutes too, but only for dedicated-instance signatures
+    /// (<see cref="DetectionSignature.MinLocationOnlyItems"/> &lt;= 1). Used for the raw per period column, where
+    /// the seconds long chest claim of a run would otherwise be left without a task.
+    /// </param>
     /// <param name="location">the area name the items were collected in</param>
     /// <param name="itemsCollected">tag to count of items collected in the window</param>
     /// <param name="minutes">length of the window in minutes</param>
@@ -86,13 +91,17 @@ public class TaskClassifier
     /// </param>
     public Classification Classify(string location, Dictionary<string, int> itemsCollected, double minutes,
         string claimedTask = null, Dictionary<string, double> prices = null, string currentIsland = null,
-        DateTime? currentIslandAt = null, DateTime? currentLocationSince = null, DateTime? currentLocationSeenAt = null)
+        DateTime? currentIslandAt = null, DateTime? currentLocationSince = null, DateTime? currentLocationSeenAt = null,
+        bool allowShortInstanceWindow = false)
     {
-        if (minutes < 3 || itemsCollected == null || itemsCollected.Count == 0)
+        // a zero count (an item that came and went again) is no signal, whatever the window
+        if ((minutes < 3 && !allowShortInstanceWindow) || itemsCollected == null || itemsCollected.Values.All(v => v == 0))
             return null;
-        var totalItems = itemsCollected.Values.Where(v => v > 0).Sum(v => (long)v);
+        // coins spent on a purchase are not activity (their count is coins, not items) - see PseudoItems.IsPurchase
+        var activityItems = itemsCollected.Where(kv => !PseudoItems.IsPurchase(kv.Key)).ToList();
+        var totalItems = activityItems.Where(kv => kv.Value > 0).Sum(kv => (long)kv.Value);
         // dedicated-instance signatures (MinLocationOnlyItems <= 1) also count consumption/cost - see below
-        var totalActivity = itemsCollected.Values.Where(v => v != 0).Sum(v => Math.Abs((long)v));
+        var totalActivity = activityItems.Where(kv => kv.Value != 0).Sum(kv => Math.Abs((long)kv.Value));
         var hasShard = itemsCollected.Keys.Any(k => k.StartsWith("SHARD_"));
         // Only a currentIsland that is both needed (the static map has no answer for this exact
         // zone - never overrides a zone the map DOES resolve, even to a non-matching island) and
@@ -105,6 +114,9 @@ public class TaskClassifier
         var candidates = new List<(DetectionSignature sig, bool itemMatched, double matchedValue)>();
         foreach (var sig in signatures)
         {
+            // a short window is only trusted for dedicated instances (a floor's chest claim takes seconds)
+            if (minutes < 3 && sig.MinLocationOnlyItems > 1)
+                continue;
             if (sig.Locations.Count > 0)
             {
                 // the zone map resolves most island-level Locations against the sub-zone the
@@ -164,11 +176,16 @@ public class TaskClassifier
             if (claimed.sig != null)
                 return new(claimed.sig.MethodName, claimed.itemMatched, claimed.sig.Category);
         }
+        // a purchase (coins spent in a Bazaar/Auction chat line) happens during any activity and must never
+        // take the period from a real, non-hidden task that also matched; it only classifies periods that
+        // have no real activity (hidden accounting tasks like Hub Trading do not count as activity)
+        var hasRealActivity = candidates.Any(c => !c.sig.Hidden && !c.sig.IsPurchaseSink);
         var best = candidates
             // a fallback task (DetectionSignature.Fallback) only ever classifies a period no regular task
             // matched at all - checked before the item evidence and the value, so a catch-all (even one
             // with a pricey tag) can never take a period away from another task
             .OrderBy(c => c.sig.Fallback)
+            .ThenBy(c => hasRealActivity && c.sig.IsPurchaseSink)
             .ThenByDescending(c => c.itemMatched)           // item evidence beats location-only
             .ThenByDescending(c => c.matchedValue)          // most valuable matched items win
             .ThenByDescending(c => c.sig.Priority)          // explicit override
