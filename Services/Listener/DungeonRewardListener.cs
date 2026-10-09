@@ -250,8 +250,16 @@ public class DungeonRewardListener : UpdateListener
             if (header.Success)
             {
                 // the header can arrive just after the scoreboard already left the floor
-                if (HandleFloorHeader(args, header) && !Tasks.DungeonRewardAttribution.IsFloorZone(args.currentState.ExtractedInfo.CurrentLocation))
+                var previousCompletion = args.currentState.ExtractedInfo.LastDungeonRunCompletedAt;
+                if (HandleFloorHeader(args, header)
+                    && (!Tasks.DungeonRewardAttribution.IsFloorZone(args.currentState.ExtractedInfo.CurrentLocation)
+                        || RunLengthCredit.BelongsToPreviousRun(args.currentState.ExtractedInfo, "dungeon:", DateTime.UtcNow)))
+                {
+                    // a header that lands right after a direct requeue ended the previous run, not the new one
+                    if (Tasks.DungeonRewardAttribution.IsFloorZone(args.currentState.ExtractedInfo.CurrentLocation))
+                        args.currentState.ExtractedInfo.LastDungeonRunCompletedAt = previousCompletion;
                     await RunLengthCredit.TryCredit(args, "dungeon:", DateTime.UtcNow, Logger);
+                }
                 continue;
             }
             var score = TeamScoreRegex.Match(line);

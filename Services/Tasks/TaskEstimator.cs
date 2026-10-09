@@ -352,7 +352,7 @@ public class TaskEstimator
         return (liveItemValue - cost + pools) / hours;
     }
 
-    private List<TaskDropRate> BuildDrops(MethodTask task, Dictionary<string, double> itemCounts, double wSeconds, Dictionary<string, double> prices)
+    internal static List<TaskDropRate> BuildDrops(MethodTask task, Dictionary<string, double> itemCounts, double wSeconds, Dictionary<string, double> prices)
     {
         var drops = new List<TaskDropRate>();
         // Cold-start (formula tier): no tracked item counts yet, so surface the task's
@@ -373,7 +373,8 @@ public class TaskEstimator
             return drops;
         }
         var hours = wSeconds / 3600.0;
-        foreach (var (tag, count) in itemCounts.OrderByDescending(e => e.Value).Take(12))
+        // pseudo tags (purchase evidence, dungeon runs, costs) are accounting signal, never drops shown to users
+        foreach (var (tag, count) in itemCounts.Where(e => !PseudoItems.IsPseudo(e.Key)).OrderByDescending(e => e.Value).Take(12))
         {
             var price = prices?.GetValueOrDefault(tag) ?? 0;
             var rate = count / hours;

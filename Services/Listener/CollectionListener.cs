@@ -626,14 +626,14 @@ public class CollectionListener : UpdateListener
         var currentIsTransferView = IsTransferView(args.msg.Chest);
         // (a) every tag anywhere in the previous view, including its container part
         // (a reward chest's container part is ignored, see GetItemsForSwapGuards)
-        var previousTags = GetItemsForSwapGuards(previousInventory).Where(i => i.Tag != null).Select(i => i.Tag).ToHashSet();
+        var previousTags = GetItemsForSwapGuards(previousInventory).Where(i => i.Tag != null).Select(CountTag).ToHashSet();
         // (b) every tag in any other recent view (the current view is the last entry)
         var olderViewTags = new HashSet<string>();
         foreach (var view in args.currentState.RecentViews.Take(Math.Max(0, args.currentState.RecentViews.Count - 1)))
         {
             foreach (var item in GetItemsForSwapGuards(view))
                 if (item.Tag != null)
-                    olderViewTags.Add(item.Tag);
+                    olderViewTags.Add(CountTag(item));
         }
         foreach (var (tag, currentItems) in currentInventory)
         {
@@ -752,7 +752,7 @@ public class CollectionListener : UpdateListener
             var accessibleInventory = previousInventory.Items.Skip(AccessibleInventoryStart(previousInventory.Items)).Take(36).ToList();
             return accessibleInventory
                 .Where(i => i.Tag != null && i.ItemName != null)
-                .GroupBy(i => i.Tag)
+                .GroupBy(CountTag)
                 .ToDictionary(g => g.Key, g => g.ToList());
         }
     }
@@ -788,8 +788,25 @@ public class CollectionListener : UpdateListener
             return tags;
         foreach (var item in view.Items.Take(AccessibleInventoryStart(view.Items)))
             if (item.Tag != null)
-                tags.Add(item.Tag);
+                tags.Add(CountTag(item));
         return tags;
+    }
+
+    /// <summary>
+    /// The tag an inventory item is counted (and priced) under: a book with exactly one enchantment is the bazaar
+    /// product <c>ENCHANTMENT_&lt;ENCHANT&gt;_&lt;LEVEL&gt;</c> ("ultimate_wise" level 2 -> ENCHANTMENT_ULTIMATE_WISE_2), the same
+    /// mapping Coflnet.Sky.Core applies to auctions. Books with none or several enchantments (and every other item)
+    /// keep their tag, <c>ENCHANTED_BOOK</c> has no price of its own.
+    /// </summary>
+    internal static string CountTag(Models.Item item)
+    {
+        if (item.Tag == "ENCHANTED_BOOK" && item.Enchantments is { Count: 1 })
+        {
+            var (enchant, level) = item.Enchantments.First();
+            if (level > 0 && !string.IsNullOrWhiteSpace(enchant))
+                return $"ENCHANTMENT_{enchant.ToUpperInvariant()}_{level}";
+        }
+        return item.Tag;
     }
 
     /// <summary>Slots of a bare inventory upload from Minecraft 1.21: 5 crafting, 4 armor, 36 inventory, 1 offhand.</summary>
@@ -1110,6 +1127,7 @@ public class CollectionListener : UpdateListener
         var currentDate = DateTime.UtcNow.ToString("MM/dd/yy");
         var yesterdayDate = DateTime.UtcNow.AddDays(-1).ToString("MM/dd/yy");
         var server = args.msg.Scoreboard?.FirstOrDefault(s => s.StartsWith(currentDate) || s.StartsWith(yesterdayDate))?.Split(' ').ElementAtOrDefault(1);
+        var previousServer = args.currentState.ExtractedInfo.CurrentServer;
         if (server != null)
         {
             args.currentState.ExtractedInfo.CurrentServer = server;
@@ -1138,14 +1156,18 @@ public class CollectionListener : UpdateListener
         var now = DateTime.UtcNow;
         var previousLocation = args.currentState.ExtractedInfo.CurrentLocation;
         var zoneChanged = previousLocation != null && previousLocation != currentLocation;
-        if (!zoneChanged)
+        // Players requeue straight from one dungeon/Kuudra run into the next without leaving the zone: inside an
+        // instanced zone a new server id (a tick without one never counts) with the same location is the end
+        // of one run and the start of the next.
+        var newInstance = IsNewInstanceInSameZone(previousLocation, currentLocation, previousServer, server);
+        if (!zoneChanged && !newInstance)
         {
             // Reconfirm we're still in the same zone as of this scoreboard update - bumped on
             // every tick (not just a flush) so a live classification in between flushes always
             // sees a fresh CurrentLocationSeenAt (see TaskClassifier.Classify's tab-fallback gate).
             args.currentState.ExtractedInfo.CurrentLocationSeenAt = now;
         }
-        if (zoneChanged
+        if (zoneChanged || newInstance
             // if the same location is used, attempt to store it for people staying in same location
             || args.currentState.ExtractedInfo.LastLocationChange < now.AddMinutes(-5))
         {
@@ -1154,10 +1176,10 @@ public class CollectionListener : UpdateListener
             // still describe the zone that just ended - only updated below, AFTER this flush).
             await StoreLocationProfit(args, previousLocation);
         }
-        if (zoneChanged)
+        if (zoneChanged || newInstance)
             await RecordFinishedRun(args, previousLocation);
         args.currentState.ExtractedInfo.CurrentLocation = currentLocation;
-        if (zoneChanged)
+        if (zoneChanged || newInstance)
         {
             args.currentState.ExtractedInfo.CurrentLocationSince = now;
             args.currentState.ExtractedInfo.CurrentLocationSeenAt = now;
@@ -1177,6 +1199,18 @@ public class CollectionListener : UpdateListener
             args.currentState.ExtractedInfo.LastKuudraTierAt = now;
         }
         await ClassifyLive(args);
+    }
+
+    /// <summary>
+    /// True when the player stays in the same dungeon floor / Kuudra tier zone but the server id changed, i.e. one run
+    /// ended and the next was queued directly. Missing server ids never count as a change.
+    /// </summary>
+    internal static bool IsNewInstanceInSameZone(string previousLocation, string currentLocation, string previousServer, string server)
+    {
+        if (previousLocation == null || previousLocation != currentLocation
+            || string.IsNullOrEmpty(previousServer) || string.IsNullOrEmpty(server) || previousServer == server)
+            return false;
+        return Tasks.DungeonRewardAttribution.IsFloorZone(currentLocation) || Tasks.KuudraRewardAttribution.IsTierZone(currentLocation);
     }
 
     /// <summary>
@@ -1248,7 +1282,9 @@ public class CollectionListener : UpdateListener
         var inTier = Tasks.KuudraRewardAttribution.IsTierZone(info.CurrentLocation);
         // a win while still in the tier zone is picked up when the zone is left; one that arrives after the
         // scoreboard moved on credits the stay that just ended
-        if (inTier)
+        if (inTier && RunLengthCredit.BelongsToPreviousRun(info, "kuudra:", now))
+            await RunLengthCredit.TryCredit(args, "kuudra:", now, Logger);
+        else if (inTier)
             info.LastKuudraRunCompletedAt = now;
         else
             await RunLengthCredit.TryCredit(args, "kuudra:", now, Logger);
@@ -1308,8 +1344,42 @@ public class CollectionListener : UpdateListener
         return $"The Catacombs ({(isMaster ? "M" : "F")}{floorNumber})";
     }
 
+    private static readonly Regex CroesusKuudraTitleRegex = new(@"^Kuudra - (Basic|Hot|Burning|Fiery|Infernal)$", RegexOptions.Compiled);
+    private static readonly string[] KuudraTierNames = ["Basic", "Hot", "Burning", "Fiery", "Infernal"];
+
+    /// <summary>
+    /// Parses a Croesus Kuudra chest title ("Kuudra - Basic".."Kuudra - Infernal", Basic = T1 .. Infernal = T5) into the
+    /// tier zone string in <see cref="Models.ExtractedInfo.LastKuudraTier"/> format ("Kuudra's Hollow (T5)"), or null.
+    /// </summary>
+    internal static string TryParseCroesusKuudraTier(string chestName)
+    {
+        if (string.IsNullOrEmpty(chestName))
+            return null;
+        var match = CroesusKuudraTitleRegex.Match(Tasks.SkyblockZones.Canonical(chestName));
+        if (!match.Success)
+            return null;
+        return Tasks.SkyblockZones.Canonical(Tasks.KuudraRewardAttribution.TierZone(Array.IndexOf(KuudraTierNames, match.Groups[1].Value) + 1));
+    }
+
+    private static void HandleCroesusKuudraChest(UpdateArgs args)
+    {
+        var tier = TryParseCroesusKuudraTier(args.msg.Chest?.Name);
+        if (tier == null)
+            return;
+        var info = args.currentState.ExtractedInfo;
+        var stamp = DateTime.UtcNow;
+        // like the floor reading: the claim period is the one the player is in right now, so stamp it with that
+        // period's start (KuudraRewardAttribution.ResolveLocation measures the delay from there)
+        if (Tasks.SkyblockZones.Canonical(info.CurrentLocation) == "Dungeon Hub"
+            && info.LastLocationChange != default && info.LastLocationChange < stamp)
+            stamp = info.LastLocationChange;
+        info.LastKuudraTier = tier;
+        info.LastKuudraTierAt = stamp;
+    }
+
     private static void HandleCroesusChest(UpdateArgs args)
     {
+        HandleCroesusKuudraChest(args);
         var floor = TryParseCroesusFloor(args.msg.Chest);
         if (floor == null)
             return;
@@ -1641,7 +1711,7 @@ public class CollectionListener : UpdateListener
                 period.Location, period.ItemsCollected,
                 (period.EndTime - period.StartTime).TotalMinutes, null, cleanPrices,
                 info.CurrentIsland, info.CurrentIslandAt, info.CurrentLocationSince, info.CurrentLocationSeenAt,
-                allowShortInstanceWindow: true);
+                allowShortInstanceWindow: true, allowShortItemMatch: true);
             period.DetectedTask = classification?.TaskName;
         }
         catch (Exception ex)

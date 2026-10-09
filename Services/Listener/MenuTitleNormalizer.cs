@@ -43,9 +43,9 @@ public static class MenuTitleNormalizer
     // "<name>'s Profile" style titles of menus that show another player's data
     private static readonly Regex PlayerMenus = new(@"^[A-Za-z0-9_]{1,16}'s? (Profile|Auctions|Island|Skyblock Profile|Stats)$", RegexOptions.Compiled);
     private static readonly Regex GuestProfile = new(@"^[A-Za-z0-9_]{1,16}'s? Profile \[GUEST\]$", RegexOptions.Compiled);
-    private static readonly Regex PagePrefix = new(@"^(\(\d+/\d+\) )(.*)$", RegexOptions.Compiled);
-    // (page counter) | (floor, kept) | any other number
-    private static readonly Regex Numbers = new(@"\((\d+)/(\d+)\)|\(([FM]\d)\)|\d[\d,.]*", RegexOptions.Compiled);
+    private static readonly Regex PagePrefix = new(@"^(\(\d+/(?:\d+|#)\) )(.*)$", RegexOptions.Compiled);
+    // (page counter, also an already normalized "(2/#)" so Normalize is idempotent) | (floor, kept) | any other number
+    private static readonly Regex Numbers = new(@"\((\d+)/(?:\d+|#)\)|\(([FM]\d)\)|\d[\d,.]*", RegexOptions.Compiled);
 
     private static readonly (Regex Pattern, string Replacement)[] ItemMenus =
     [
@@ -86,7 +86,7 @@ public static class MenuTitleNormalizer
 
     private static string KeepOrCollapse(Match m)
     {
-        if (m.Groups[3].Success)
+        if (m.Groups[2].Success)
             return m.Value; // (F7) / (M4)
         if (m.Groups[1].Success)
             return int.TryParse(m.Groups[1].Value, out var page) && page <= KeptPageUpTo ? $"({page}/#)" : "(#/#)";

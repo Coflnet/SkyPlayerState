@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -143,9 +144,77 @@ public class RngMeterService
         return await table.Where(r => r.ChestName == chestName).ExecuteAsync();
     }
 
+    /// <summary>The meter of <paramref name="chestName"/> (page prefix ignored) with all of its pages merged, see <see cref="RngMeterPages"/>.</summary>
+    public async Task<List<RngMeterItem>> GetMerged(string chestName)
+    {
+        var baseName = RngMeterPages.BaseName(chestName);
+        var all = await GetAll();
+        return RngMeterPages.Merge(all.Where(r => RngMeterPages.BaseName(r.ChestName) == baseName))
+            .GetValueOrDefault(baseName) ?? [];
+    }
+
     public async Task<System.Collections.Generic.IEnumerable<RngMeterItem>> GetAll()
     {
         return await table.ExecuteAsync();
+    }
+}
+
+/// <summary>
+/// The game pages the RNG meter menu ("(2/2) Catacombs (M7) RNG Meter"), and the rows are stored under the title as
+/// received, so one meter exists under up to three keys (no page prefix, "(1/2) ", "(2/2) "). Readers go through this
+/// class to see them as one meter; storing is left alone so existing rows stay reachable.
+/// </summary>
+public static class RngMeterPages
+{
+    private static readonly Regex PagePrefix = new(@"^\(\d+/\d+\)\s*", RegexOptions.Compiled);
+
+    /// <summary>The chest name without its "(n/m) " page prefix.</summary>
+    public static string BaseName(string chestName)
+        => chestName == null ? null : PagePrefix.Replace(chestName, "");
+
+    /// <summary>Page number of a chest name, 1 when it has no page prefix.</summary>
+    public static int PageOf(string chestName)
+    {
+        var match = chestName == null ? null : Regex.Match(chestName, @"^\((\d+)/\d+\)");
+        return match is { Success: true } && int.TryParse(match.Groups[1].Value, out var page) ? page : 1;
+    }
+
+    private static bool IsNavigation(RngMeterItem item)
+    {
+        var name = item.ItemName == null ? "" : Regex.Replace(item.ItemName, "§.", "").Trim();
+        return name is "Next Page" or "Previous Page";
+    }
+
+    /// <summary>
+    /// Groups rows of all key shapes by page-less chest name. Per key the rows are ordered by slot, stop at the
+    /// meter's own header/close items like before; keys are concatenated page by page (the same slot exists on every page, so
+    /// slots can't be merged) and a row seen on several pages/keys (same tag, or same name without a tag) is kept once, newest.
+    /// </summary>
+    public static Dictionary<string, List<RngMeterItem>> Merge(IEnumerable<RngMeterItem> rows)
+    {
+        var result = new Dictionary<string, List<RngMeterItem>>();
+        foreach (var meter in rows.GroupBy(r => BaseName(r.ChestName)))
+        {
+            var items = new List<RngMeterItem>();
+            foreach (var key in meter.GroupBy(r => r.ChestName).OrderBy(g => PageOf(g.Key)).ThenBy(g => g.Key, StringComparer.Ordinal))
+            {
+                var page = key.OrderBy(i => i.ItemIndex)
+                    .Where(i => i.ItemName != "§dRNG Meter")
+                    .TakeWhile(i => i.ItemName != "§cClose")
+                    .Where(i => !IsNavigation(i));
+                foreach (var item in page)
+                {
+                    var identity = string.IsNullOrEmpty(item.ItemTag) ? item.ItemName : item.ItemTag;
+                    var existing = items.FindIndex(i => (string.IsNullOrEmpty(i.ItemTag) ? i.ItemName : i.ItemTag) == identity);
+                    if (existing < 0)
+                        items.Add(item);
+                    else if (item.LastUpdated > items[existing].LastUpdated)
+                        items[existing] = item;
+                }
+            }
+            result[meter.Key] = items;
+        }
+        return result;
     }
 }
 

@@ -19,6 +19,9 @@ public record Classification(string TaskName, bool ItemMatched, string Category)
 /// </summary>
 public class TaskClassifier
 {
+    /// <summary>Shortest window <c>allowShortItemMatch</c> classifies; shorter ones are zone transits whose items say little about where they came from.</summary>
+    public const double ShortItemMatchMinMinutes = 0.5;
+
     private readonly List<DetectionSignature> signatures;
     private readonly Dictionary<string, List<string>> derivedByPrimary;
 
@@ -60,6 +63,13 @@ public class TaskClassifier
     /// (<see cref="DetectionSignature.MinLocationOnlyItems"/> &lt;= 1). Used for the raw per period column, where
     /// the seconds long chest claim of a run would otherwise be left without a task.
     /// </param>
+    /// <param name="allowShortItemMatch">
+    /// Per period column only: a window under 3 minutes (but at least <see cref="ShortItemMatchMinMinutes"/>) may also be
+    /// attributed to a signature that is not a dedicated instance, when the window holds one of its DetectionItems and at
+    /// least its <see cref="DetectionSignature.MinLocationOnlyItems"/> items in total. Players of an activity that flips between
+    /// zones (Blaze Slayer between Smoldering Tomb and The Wasteland) end up with many 1-3 minute periods, which the 3 minute
+    /// rule left without a task even though they hold the boss exclusive drops.
+    /// </param>
     /// <param name="location">the area name the items were collected in</param>
     /// <param name="itemsCollected">tag to count of items collected in the window</param>
     /// <param name="minutes">length of the window in minutes</param>
@@ -92,7 +102,7 @@ public class TaskClassifier
     public Classification Classify(string location, Dictionary<string, int> itemsCollected, double minutes,
         string claimedTask = null, Dictionary<string, double> prices = null, string currentIsland = null,
         DateTime? currentIslandAt = null, DateTime? currentLocationSince = null, DateTime? currentLocationSeenAt = null,
-        bool allowShortInstanceWindow = false)
+        bool allowShortInstanceWindow = false, bool allowShortItemMatch = false)
     {
         // a zero count (an item that came and went again) is no signal, whatever the window
         if ((minutes < 3 && !allowShortInstanceWindow) || itemsCollected == null || itemsCollected.Values.All(v => v == 0))
@@ -115,7 +125,8 @@ public class TaskClassifier
         foreach (var sig in signatures)
         {
             // a short window is only trusted for dedicated instances (a floor's chest claim takes seconds)
-            if (minutes < 3 && sig.MinLocationOnlyItems > 1)
+            var shortItemMatchOnly = minutes < 3 && sig.MinLocationOnlyItems > 1;
+            if (shortItemMatchOnly && !(allowShortItemMatch && minutes >= ShortItemMatchMinMinutes))
                 continue;
             if (sig.Locations.Count > 0)
             {
@@ -138,6 +149,9 @@ public class TaskClassifier
                 if (matched.Count == 0)
                     continue;
             }
+            // a short window of a non-instance signature needs a detection item hit and real activity, not just the zone
+            if (shortItemMatchOnly && (matched == null || totalItems < sig.MinLocationOnlyItems))
+                continue;
             if (sig.RequireShardItems && !hasShard)
                 continue;
             if (sig.ExcludeShardItems && hasShard)

@@ -235,6 +235,50 @@ public class CollectionListenerInventoryTests
         CollectionListener.TryParseCroesusFloor(view).Should().BeNull();
     }
 
+    [TestCase("Kuudra - Basic", "Kuudra's Hollow (T1)")]
+    [TestCase("Kuudra - Hot", "Kuudra's Hollow (T2)")]
+    [TestCase("Kuudra - Burning", "Kuudra's Hollow (T3)")]
+    [TestCase("Kuudra - Fiery", "Kuudra's Hollow (T4)")]
+    [TestCase("Kuudra - Infernal", "Kuudra's Hollow (T5)")]
+    [TestCase("Catacombs - Floor VII", null)]
+    [TestCase("Kuudra - Mystery", null)]
+    public void CroesusKuudraTitle_MapsToTierZone(string title, string expected)
+        => CollectionListener.TryParseCroesusKuudraTier(title).Should().Be(expected);
+
+    [Test]
+    public async Task CroesusKuudraChest_OverridesTheTrackedTier_AndAttributesTheHubClaimToIt()
+    {
+        var state = new StateObject();
+        var changed = DateTime.UtcNow.AddMinutes(-1);
+        state.ExtractedInfo.CurrentLocation = "Dungeon Hub";
+        state.ExtractedInfo.LastLocationChange = changed;
+        // last real run was T5 3.5 hours ago and a dungeon floor shortly before the claim
+        state.ExtractedInfo.LastKuudraTier = "Kuudra's Hollow (T5)";
+        state.ExtractedInfo.LastKuudraTierAt = DateTime.UtcNow.AddHours(-3.5);
+        state.ExtractedInfo.LastDungeonFloor = "The Catacombs (F7)";
+        state.ExtractedInfo.LastDungeonFloorAt = changed.AddMinutes(-3);
+        var args = new MockedUpdateArgs
+        {
+            currentState = state,
+            msg = new UpdateMessage
+            {
+                Kind = UpdateMessage.UpdateKind.INVENTORY, PlayerId = "p1",
+                Chest = new ChestView { Name = "Kuudra - Fiery", Items = new() { new Item { ItemName = "Free Chest" }, new Item { ItemName = "Paid Chest" } } }
+            }
+        };
+
+        await new CollectionListener().Process(args);
+
+        var info = state.ExtractedInfo;
+        info.LastKuudraTier.Should().Be("Kuudra's Hollow (T4)");
+        info.LastKuudraTierAt.Should().Be(changed);
+        var loot = new Dictionary<string, int> { ["AURORA_CHESTPLATE"] = 1, ["KUUDRA_MANDIBLE"] = 3 };
+        Tasks.DungeonRewardAttribution.ResolveLocation("Dungeon Hub", info.LastDungeonFloor, info.LastDungeonFloorAt, changed)
+            .Should().Be("The Catacombs (F7)", "the dungeon claim attribution alone would swallow the period");
+        Tasks.KuudraRewardAttribution.ResolveLocation("Dungeon Hub", loot, info.LastKuudraTier, info.LastKuudraTierAt, changed)
+            .Should().Be("Kuudra's Hollow (T4)");
+    }
+
     // ---- first-time drops (tag absent from the previous accessible inventory) ----
 
     /// <summary>Container part followed by the 36 accessible slots (padded with empty slots).</summary>
@@ -476,6 +520,45 @@ public class CollectionListenerInventoryTests
         var items = Enumerable.Range(0, slots).Select(_ => new Item()).ToList();
 
         CollectionListener.AccessibleInventoryStart(items).Should().Be(expectedStart);
+    }
+
+    private static Item Book(params (string Enchant, byte Level)[] enchants) => new()
+    {
+        Tag = "ENCHANTED_BOOK",
+        ItemName = "Enchanted Book",
+        Count = 1,
+        Enchantments = enchants.ToDictionary(e => e.Enchant, e => e.Level)
+    };
+
+    [Test]
+    public async Task SingleEnchantBook_IsCountedUnderItsBazaarTag()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64)));
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64), Book(("ultimate_wise", 2))));
+
+        state.ItemsCollectedRecently.Should().Equal(new Dictionary<string, int> { ["ENCHANTMENT_ULTIMATE_WISE_2"] = 1 });
+    }
+
+    [Test]
+    public async Task BooksWithZeroOrSeveralEnchants_StayEnchantedBook()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64)));
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64), Book(), Book(("sharpness", 5), ("looting", 3))));
+
+        state.ItemsCollectedRecently.Should().Equal(new Dictionary<string, int> { ["ENCHANTED_BOOK"] = 2 });
+    }
+
+    [Test]
+    public async Task SingleEnchantBookAlreadyHeld_IsNoGainWhenOnlyMoved()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), Book(("rejuvenate", 3))));
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64), Book(("rejuvenate", 3))));
+
+        state.ItemsCollectedRecently.Should().NotContainKey("ENCHANTMENT_REJUVENATE_3");
+        state.ItemsCollectedRecently.Should().NotContainKey("ENCHANTED_BOOK");
     }
 
     [Test]

@@ -450,4 +450,41 @@ public class PurchaseDiscountTests
         state.ExtractedInfo.BazaarGuardSkipped.Should().Be(64);
         state.ExtractedInfo.BazaarProductTag.Should().Be(Diamond);
     }
+
+    private static ChestView RealConfirmScreen(string purchasingLore, string itemLore, string tag, int count)
+    {
+        var screen = AuctionScreen("Confirm Purchase", "BUYING ITEM:", tag, count, T0);
+        screen.Items[11] = new Item { ItemName = "Confirm Purchase", Description = purchasingLore };
+        screen.Items[13].Description = itemLore;
+        return screen;
+    }
+
+    [TestCase("Radiant Power Orb")]
+    [TestCase("§aRadiant Power Orb")]
+    public void ConfirmScreen_BuyingItemSlot_MatchesTheFirstLoreLine(string chatName)
+    {
+        var screen = RealConfirmScreen("§7Cost: §6349,000 coins\n\nClick to confirm!", "\nRadiant Power Orb\n§6Ability: Mana Infusion", "RADIANT_POWER_ORB", 1);
+
+        PurchaseDiscount.TryFindAuctionItem([screen], chatName, T0.AddSeconds(5), out var tag, out var count).Should().BeTrue();
+        tag.Should().Be("RADIANT_POWER_ORB");
+        count.Should().Be(1);
+    }
+
+    [Test]
+    public void ConfirmScreen_PetItem_MatchesViaThePurchasingLine_AndKeepsTheItemCount()
+    {
+        var screen = RealConfirmScreen("§7Purchasing: §7[Lvl 1] §5Slug\n§7Cost: §6500 coins\n\nClick to confirm!", "\nSomething else\nFarming Pet", "PET_SLUG", 3);
+
+        PurchaseDiscount.TryFindAuctionItem([screen], "[Lvl 1] Slug", T0.AddSeconds(5), out var tag, out var count).Should().BeTrue();
+        tag.Should().Be("PET_SLUG");
+        count.Should().Be(3);
+    }
+
+    [Test]
+    public void ConfirmScreen_BuyingItemSlot_DoesNotMatchAnotherName()
+    {
+        var screen = RealConfirmScreen("§7Purchasing: §aRadiant Power Orb", "\nRadiant Power Orb\n§6Ability", "RADIANT_POWER_ORB", 1);
+
+        PurchaseDiscount.TryFindAuctionItem([screen], "Mana Flux Power Orb", T0.AddSeconds(5), out _, out _).Should().BeFalse();
+    }
 }

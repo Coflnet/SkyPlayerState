@@ -246,6 +246,82 @@ public class CollectionListenerProfitTests
         recorder.Verify(r => r.Record(It.IsAny<string>(), It.IsAny<TimeSpan>(), It.IsAny<RunLengthBounds>()), Moq.Times.Never);
     }
 
+    private static Tests.MockedUpdateArgs ScoreboardArgs(Models.StateObject state, Moq.Mock<IRunLengthRecorder> recorder, string zone, string server)
+    {
+        var lines = new List<string> { "[SKYBLOCK]" };
+        if (server != null)
+            lines.Add($"{DateTime.UtcNow:MM/dd/yy} {server}");
+        lines.Add($" {ScoreboardParser.AreaGlyphPrivateUse} {zone}");
+        lines.Add("Purse: 1");
+        var args = new Tests.MockedUpdateArgs
+        {
+            currentState = state,
+            msg = new Models.UpdateMessage { Kind = Models.UpdateMessage.UpdateKind.Scoreboard, Scoreboard = lines.ToArray() }
+        };
+        args.AddService(recorder.Object);
+        return args;
+    }
+
+    [TestCase("Kuudra's Hollow (T5)", "kuudra:T5")]
+    [TestCase("The Catacombs (F7)", "dungeon:F7")]
+    public async Task DirectRequeue_NewServerInSameZone_RecordsTheFinishedRunAndStartsANewOne(string zone, string key)
+    {
+        var (state, args, recorder) = RunLeaveHarness(zone, completed: true);
+        state.ExtractedInfo.CurrentServer = "m90DN";
+        var oldSince = state.ExtractedInfo.CurrentLocationSince;
+        args = ScoreboardArgs(state, recorder, zone, "m19E");
+
+        await new CollectionListener().Process(args);
+
+        recorder.Verify(r => r.Record(key, It.Is<TimeSpan>(t => t > TimeSpan.FromMinutes(7)), It.IsAny<RunLengthBounds>()), Moq.Times.Once);
+        state.ExtractedInfo.CurrentLocationSince.Should().BeAfter(oldSince);
+        state.ExtractedInfo.CurrentLocation.Should().Be(zone);
+        // the completion of the run that just ended must not complete the next one
+        CollectionListener.IsCompletedRun(state.ExtractedInfo).Should().BeFalse();
+        CollectionListener.IsCompletedKuudraRun(state.ExtractedInfo).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task SameServerOrMissingServer_InInstancedZone_IsNoNewRun()
+    {
+        var (state, _, recorder) = RunLeaveHarness("Kuudra's Hollow (T5)", completed: true);
+        state.ExtractedInfo.CurrentServer = "m90DN";
+        var since = state.ExtractedInfo.CurrentLocationSince;
+
+        await new CollectionListener().Process(ScoreboardArgs(state, recorder, "Kuudra's Hollow (T5)", "m90DN"));
+        await new CollectionListener().Process(ScoreboardArgs(state, recorder, "Kuudra's Hollow (T5)", null));
+
+        recorder.Verify(r => r.Record(It.IsAny<string>(), It.IsAny<TimeSpan>(), It.IsAny<RunLengthBounds>()), Moq.Times.Never);
+        state.ExtractedInfo.CurrentLocationSince.Should().Be(since);
+    }
+
+    [Test]
+    public async Task NewServerOutsideInstancedZones_IsNoNewRun()
+    {
+        var (state, _, recorder) = RunLeaveHarness("Dungeon Hub", completed: true);
+        state.ExtractedInfo.CurrentServer = "dh1";
+        var since = state.ExtractedInfo.CurrentLocationSince;
+
+        await new CollectionListener().Process(ScoreboardArgs(state, recorder, "Dungeon Hub", "dh2"));
+
+        recorder.Verify(r => r.Record(It.IsAny<string>(), It.IsAny<TimeSpan>(), It.IsAny<RunLengthBounds>()), Moq.Times.Never);
+        state.ExtractedInfo.CurrentLocationSince.Should().Be(since);
+    }
+
+    [Test]
+    public async Task KuudraDownRightAfterRequeue_CreditsThePreviousRun_NotTheNewOne()
+    {
+        var (state, _, recorder) = RunLeaveHarness("Kuudra's Hollow (T5)", completed: false);
+        state.ExtractedInfo.CurrentServer = "m90DN";
+        await new CollectionListener().Process(ScoreboardArgs(state, recorder, "Kuudra's Hollow (T5)", "m19E"));
+        recorder.Verify(r => r.Record(It.IsAny<string>(), It.IsAny<TimeSpan>(), It.IsAny<RunLengthBounds>()), Moq.Times.Never);
+
+        await new CollectionListener().Process(ChatArgs(state, recorder, "                        KUUDRA DOWN!"));
+
+        recorder.Verify(r => r.Record("kuudra:T5", It.IsAny<TimeSpan>(), RunLengthBounds.Kuudra), Moq.Times.Once);
+        CollectionListener.IsCompletedKuudraRun(state.ExtractedInfo).Should().BeFalse();
+    }
+
     [TestCase("Kuudra's Hollow (T1)", "kuudra:T1")]
     [TestCase("Kuudra's Hollow (T5)", "kuudra:T5")]
     [TestCase("Dungeon Hub", null)]

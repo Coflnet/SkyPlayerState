@@ -97,6 +97,43 @@ public class MenuSamplerListenerTests
         MenuTitleNormalizer.Normalize(title).Should().Be(expected);
     }
 
+    [TestCase("(2/2) Catacombs (M7) RNG Meter", "(2/#) Catacombs (M7) RNG Meter")]
+    [TestCase("(2/#) Catacombs (M7) RNG Meter", "(2/#) Catacombs (M7) RNG Meter")]
+    [TestCase("(12/#) Loadouts", "(#/#) Loadouts")]
+    [TestCase("Ender Chest (4/#)", "Ender Chest (4/#)")]
+    public void Normalize_IsIdempotentOnItsOwnOutput(string title, string expected)
+    {
+        var once = MenuTitleNormalizer.Normalize(title);
+        once.Should().Be(expected);
+        MenuTitleNormalizer.Normalize(once).Should().Be(once);
+    }
+
+    [Test]
+    public async Task GetSamples_ReadsAStoredPagedNameAsGiven()
+    {
+        var store = new Mock<IMenuSampleStore>();
+        var sample = new MenuSample { Title = "(2/#) Catacombs (M7) RNG Meter" };
+        store.Setup(s => s.Get("(2/#) Catacombs (M7) RNG Meter")).ReturnsAsync([sample]);
+        store.Setup(s => s.Get("(#/#) Catacombs (M7) RNG Meter")).ReturnsAsync([]);
+
+        var result = await new MenuSampleController(store.Object).GetSamples("(2/#) Catacombs (M7) RNG Meter");
+
+        result.Value.Should().ContainSingle().Which.Should().BeSameAs(sample);
+    }
+
+    [Test]
+    public async Task GetSamples_FallsBackToTheNormalizedRawTitle()
+    {
+        var store = new Mock<IMenuSampleStore>();
+        var sample = new MenuSample { Title = "(2/#) Loadouts" };
+        store.Setup(s => s.Get(It.IsAny<string>())).ReturnsAsync([]);
+        store.Setup(s => s.Get("(2/#) Loadouts")).ReturnsAsync([sample]);
+
+        var result = await new MenuSampleController(store.Object).GetSamples("(2/3) Loadouts");
+
+        result.Value.Should().ContainSingle();
+    }
+
     // real title shapes from the production names list (player names invented)
     [TestCase("Shards ➜ Torrid Shard", "Shards ➜ *")]
     [TestCase("Shards ➜ Giant Isopod Shard", "Shards ➜ *")]

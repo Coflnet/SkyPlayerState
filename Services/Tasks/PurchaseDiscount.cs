@@ -128,6 +128,7 @@ public static class PurchaseDiscount
                     .Concat(menu.Where((_, i) => i != AuctionItemSlot));
                 var item = candidates.FirstOrDefault(i => i?.Tag != null && i.ItemName != null
                     && string.Equals(PurchaseParser.StripFormatting(i.ItemName).Trim(), wanted, StringComparison.OrdinalIgnoreCase));
+                item ??= FindOnConfirmScreen(screen, menu, wanted);
                 if (item == null)
                     continue;
                 tag = item.Tag;
@@ -137,6 +138,38 @@ public static class PurchaseDiscount
         }
         return false;
     }
+
+    private const string ConfirmScreenName = "Confirm Purchase";
+    private const int ConfirmButtonSlot = 11;
+    private const string BuyingItemName = "BUYING ITEM:";
+    private const string PurchasingPrefix = "Purchasing:";
+
+    /// <summary>
+    /// The "Confirm Purchase" screen names its centre item "BUYING ITEM:" and puts the real name in the first lore line; the
+    /// confirm button (slot 11) repeats it as "Purchasing: &lt;name&gt;". Returns the centre item when either says <paramref name="wanted"/>.
+    /// </summary>
+    private static Item FindOnConfirmScreen(ChestView screen, List<Item> menu, string wanted)
+    {
+        if (screen.Name != ConfirmScreenName || menu.Count <= AuctionItemSlot)
+            return null;
+        var item = menu[AuctionItemSlot];
+        if (item?.Tag == null || PurchaseParser.StripFormatting(item.ItemName ?? "").Trim() != BuyingItemName)
+            return null;
+        var firstLine = LoreLines(item).FirstOrDefault();
+        if (firstLine != null && string.Equals(firstLine, wanted, StringComparison.OrdinalIgnoreCase))
+            return item;
+        var purchasing = menu.Count > ConfirmButtonSlot ? LoreLines(menu[ConfirmButtonSlot])
+            .FirstOrDefault(l => l.StartsWith(PurchasingPrefix, StringComparison.Ordinal)) : null;
+        if (purchasing != null && string.Equals(purchasing.Substring(PurchasingPrefix.Length).Trim(), wanted, StringComparison.OrdinalIgnoreCase))
+            return item;
+        return null;
+    }
+
+    /// <summary>Non-empty lore lines of an item with colour codes stripped (<see cref="Item.Description"/> joins them with newlines).</summary>
+    private static IEnumerable<string> LoreLines(Item item)
+        => (item?.Description ?? "").Split('\n')
+            .Select(l => PurchaseParser.StripFormatting(l).Trim())
+            .Where(l => l.Length > 0);
 
     private static bool IsAuctionScreen(ChestView view) =>
         view.Name is "Auction View" or "BIN Auction View" or "Confirm Purchase";

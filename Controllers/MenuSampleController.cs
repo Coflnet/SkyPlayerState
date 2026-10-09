@@ -54,14 +54,18 @@ public class MenuSampleController : ControllerBase
 
     /// <summary>
     /// The samples (one per player, at most 3, newest first) of one chest name. The name is normalized like
-    /// a title is on sampling, so a raw title such as "(2/3) Loadouts" works too.
+    /// a title is on sampling, so a raw title such as "(2/3) Loadouts" works too; a stored name is tried as given first.
     /// </summary>
     [HttpGet]
     [Route("samples")]
     public async Task<ActionResult<List<MenuSample>>> GetSamples(string name)
     {
+        // stored names are already normalized ("(2/#) Catacombs (M7) RNG Meter"): try the name as given first, a raw title second
+        var exact = (name ?? "").Trim();
         var normalized = MenuTitleNormalizer.Normalize(name);
-        var samples = normalized.Length == 0 ? [] : await store.Get(normalized);
+        var samples = exact.Length == 0 ? [] : await store.Get(exact);
+        if (samples.Count == 0 && normalized.Length > 0 && normalized != exact)
+            samples = await store.Get(normalized);
         if (samples.Count == 0)
             return NotFound($"no samples for '{normalized}', list the known names at GET /MenuSample");
         return samples;

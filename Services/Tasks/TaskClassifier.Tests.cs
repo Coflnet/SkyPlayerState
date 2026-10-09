@@ -607,6 +607,34 @@ public class TaskClassifierTests
         result!.TaskName.Should().Be("Blaze Slayer");
     }
 
+    // production 2026-10: Blaze Slayer periods of 189 s and longer got the task, every one under 180 s (and 33M profit among
+    // them) got none, whatever it held - the classifier's 3 minute minimum
+    [TestCase(173)]
+    [TestCase(99)]
+    [TestCase(60)]
+    public void ShortSmolderingTombPeriodWithDerelictAshe_IsBlazeSlayer_ForThePeriodColumn(int seconds)
+    {
+        var items = new Dictionary<string, int> { { "BLAZE_ROD", 20 }, { "BLAZE_ASHES", 5 }, { "DERELICT_ASHE", 330 } };
+
+        Classifier.Classify("Smoldering Tomb", items, seconds / 60.0, allowShortInstanceWindow: true).Should().BeNull("the live/session path keeps its minimum");
+        Classifier.Classify("Smoldering Tomb", items, seconds / 60.0, allowShortInstanceWindow: true, allowShortItemMatch: true)!
+            .TaskName.Should().Be("Blaze Slayer");
+    }
+
+    [Test]
+    public void ShortPeriods_WithoutADetectionItemOrWithTooFewItems_StayUnclassified()
+    {
+        // zone alone is no evidence in a short window
+        Classifier.Classify("Smoldering Tomb", new() { { "BLAZE_ROD", 40 } }, 2, allowShortInstanceWindow: true, allowShortItemMatch: true)
+            .Should().BeNull();
+        // a lone drop is not an activity either
+        Classifier.Classify("Smoldering Tomb", new() { { "DERELICT_ASHE", 1 } }, 2, allowShortInstanceWindow: true, allowShortItemMatch: true)
+            .Should().BeNull();
+        // and a zone transit is too short whatever it holds
+        Classifier.Classify("Smoldering Tomb", new() { { "DERELICT_ASHE", 50 } }, 10 / 60.0, allowShortInstanceWindow: true, allowShortItemMatch: true)
+            .Should().BeNull();
+    }
+
     [Test]
     public void GardenWithPestCountAndWheat_ClassifiesToWheatFarming()
     {

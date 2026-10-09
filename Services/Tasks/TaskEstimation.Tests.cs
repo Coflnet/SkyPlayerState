@@ -12,6 +12,44 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 public class TaskEstimationTests
 {
     [Test]
+    public void BuildDrops_NeverListsPseudoItems()
+    {
+        var counts = new Dictionary<string, double>
+        {
+            ["BAZAAR_PURCHASE"] = 104187, ["AUCTION_PURCHASE"] = 1581, ["DUNGEON_RUN"] = 50, ["DUNGEON_CHEST_COST"] = -9000, ["ENCHANTED_COAL"] = 10
+        };
+
+        var drops = TaskEstimator.BuildDrops(new LotusAtollTask(), counts, 3600, new Dictionary<string, double> { ["ENCHANTED_COAL"] = 100 });
+
+        drops.Select(d => d.ItemTag).Should().Equal("ENCHANTED_COAL");
+    }
+
+    [Test]
+    public async Task ServerEstimate_NeverListsPseudoItemsAsDrops()
+    {
+        var estimate = new TaskEstimate
+        {
+            TaskName = "Lotus Atoll", Source = "personal", CoinsPerHour = 1000,
+            Drops = [new TaskDropRate { ItemTag = "BAZAAR_PURCHASE", RatePerHour = 104187 }, new TaskDropRate { ItemTag = "ENCHANTED_COAL", RatePerHour = 2, PriceEach = 100, ContributionPerHour = 200 }]
+        };
+
+        var result = await new LotusAtollTask().Execute(new TaskParams
+        {
+            TestTime = DateTime.UtcNow,
+            ExtractedInfo = new Models.ExtractedInfo(),
+            Formatter = new SimpleTaskFormatProvider(),
+            Cache = new System.Collections.Concurrent.ConcurrentDictionary<Type, TaskParams.CalculationCache>(),
+            LocationProfit = new(),
+            Names = new(),
+            CleanPrices = new(),
+            BazaarPrices = new(),
+            ServerEstimates = new() { ["Lotus Atoll"] = estimate }
+        });
+
+        result.Breakdown.Drops.Select(d => d.ItemTag).Should().Equal("ENCHANTED_COAL");
+    }
+
+    [Test]
     public void EstimateTaskName_MatchesClassifierAndAggregateKey()
     {
         TaskEstimator.GetTaskName(new LotusAtollTask()).Should().Be("Lotus Atoll");

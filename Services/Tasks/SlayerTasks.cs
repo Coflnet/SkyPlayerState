@@ -81,6 +81,7 @@ public abstract class IndividualSlayerTask : ProfitTask
 
         var perHour = totalProfit / totalHours;
         var items = matched.SelectMany(p => p.ItemsCollected)
+            .Where(i => !PseudoItems.IsPseudo(i.Key))
             .GroupBy(i => i.Key).ToDictionary(g => g.Key, g => (long)g.Sum(v => v.Value))
             .OrderByDescending(i => i.Value);
         var fmt = parameters.Formatter;

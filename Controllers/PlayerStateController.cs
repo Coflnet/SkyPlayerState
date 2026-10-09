@@ -209,14 +209,8 @@ namespace Coflnet.Sky.PlayerState.Controllers
         public async Task<object> GetAllRngMeters([FromServices] RngMeterService rngService)
         {
             var all = await rngService.GetAll();
-            // group by chest name
-            var grouped = all.GroupBy(i => i.ChestName)
-                .ToDictionary(g => g.Key,
-                        g => g.OrderBy(i => i.ItemIndex)
-                            .Where(i => i.ItemName != "§dRNG Meter")
-                            .TakeWhile(i => i.ItemName != "§cClose")
-                            .ToList());
-            return grouped;
+            // group by chest name, the pages of one meter ("(2/2) Catacombs (M7) RNG Meter") are one meter
+            return RngMeterPages.Merge(all);
         }
     }
 }

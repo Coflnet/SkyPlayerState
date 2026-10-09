@@ -15,6 +15,15 @@ public static class RunLengthCredit
     /// <summary>How long after the zone change a completion line still credits the run that just ended.</summary>
     public static readonly TimeSpan LateCompletionWindow = TimeSpan.FromSeconds(30);
 
+    /// <summary>
+    /// True when a completion line arriving at <paramref name="now"/> belongs to the run remembered on <paramref name="info"/>
+    /// rather than to the current stay: the current stay only just started (a directly requeued run, see
+    /// CollectionListener.IsNewInstanceInSameZone) and no run can be completed that fast.
+    /// </summary>
+    public static bool BelongsToPreviousRun(ExtractedInfo info, string keyPrefix, DateTime now)
+        => info.UnrecordedRunKey != null && info.UnrecordedRunKey.StartsWith(keyPrefix, StringComparison.Ordinal)
+            && now - info.CurrentLocationSince <= LateCompletionWindow;
+
     /// <summary>Remembers a stay that ended without a completion signal (overwrites an older one).</summary>
     public static void Remember(ExtractedInfo info, string key, TimeSpan length, DateTime endedAt)
     {

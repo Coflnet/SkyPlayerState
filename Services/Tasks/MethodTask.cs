@@ -753,7 +753,7 @@ public abstract class MethodTask : ProfitTask
         var fmt = parameters.Formatter;
         var totalSamples = avgDrops.Max(d => d.SampleCount);
 
-        foreach (var drop in avgDrops)
+        foreach (var drop in avgDrops.Where(d => !PseudoItems.IsPseudo(d.ItemTag)))
         {
             var price = prices.GetValueOrDefault(drop.ItemTag, 0);
             if (price <= 0) continue;
@@ -818,7 +818,7 @@ public abstract class MethodTask : ProfitTask
     protected Task<TaskResult> ComputeFromServerEstimate(TaskParams parameters, TaskEstimate estimate)
     {
         var fmt = parameters.Formatter;
-        var drops = (estimate.Drops ?? []).Select(d => new DropInfo
+        var drops = (estimate.Drops ?? []).Where(d => !PseudoItems.IsPseudo(d.ItemTag)).Select(d => new DropInfo
         {
             ItemTag = d.ItemTag,
             Name = parameters.Names.GetValueOrDefault(d.ItemTag, d.ItemTag),
