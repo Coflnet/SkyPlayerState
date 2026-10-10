@@ -1704,4 +1704,122 @@ public class CollectionListenerInventoryTests
     {
         new CraftRecipeCache((RecipeService?)null, null).Get("R").Should().BeEmpty();
     }
+
+    // ── Placed Summoning Eyes (Dragon's Nest) ──
+
+    private static StateObject StateAt(string location)
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.CurrentLocation = location;
+        state.ExtractedInfo.LastLocationChange = DateTime.UtcNow;
+        state.ExtractedInfo.CurrentLocationSeenAt = DateTime.UtcNow;
+        return state;
+    }
+
+    [TestCase(3, 1, -2)]
+    [TestCase(2, 0, -2)]
+    public async Task EyesDroppingAtDragonsNest_AreBookedAsCost(int before, int after, int expected)
+    {
+        var state = StateAt("Dragon's Nest");
+        await ProcessView(state, View("", new(), StackableItem("ENDER_PEARL", 16), StackableItem("SUMMONING_EYE", before)));
+        await ProcessView(state, View("", new(), after == 0
+            ? [StackableItem("ENDER_PEARL", 16)]
+            : [StackableItem("ENDER_PEARL", 16), StackableItem("SUMMONING_EYE", after)]));
+
+        state.ItemsCollectedRecently.Should().BeEquivalentTo(new Dictionary<string, int> { { "SUMMONING_EYE", expected } });
+    }
+
+    [TestCase("Hub")]
+    [TestCase("Village")]
+    public async Task EyesDroppingElsewhere_AreNotBooked(string location)
+    {
+        var state = StateAt(location);
+        await ProcessView(state, View("", new(), StackableItem("ENDER_PEARL", 16), StackableItem("SUMMONING_EYE", 3)));
+        await ProcessView(state, View("", new(), StackableItem("ENDER_PEARL", 16), StackableItem("SUMMONING_EYE", 1)));
+        await ProcessView(state, View("", new(), StackableItem("ENDER_PEARL", 16)));
+
+        state.ItemsCollectedRecently.Should().NotContainKey("SUMMONING_EYE");
+    }
+
+    [TestCase("Bazaar ➜ Instasell Ender Pearl", true)]
+    [TestCase("Ender Chest (1/9)", true)]
+    [TestCase("Ender Chest (1/9)", false)]
+    [TestCase("Sack of Sacks", false)]
+    public async Task EyesLeavingThroughStorageOrTransferViews_AreNotBookedAtDragonsNest(string viewName, bool asCurrent)
+    {
+        var state = StateAt("Dragon's Nest");
+        var withEyes = View(asCurrent ? "" : viewName, new(), StackableItem("ENDER_PEARL", 16), StackableItem("SUMMONING_EYE", 3));
+        var without = View(asCurrent ? viewName : "", new(), StackableItem("ENDER_PEARL", 16));
+        await ProcessView(state, withEyes);
+        await ProcessView(state, without);
+
+        state.ItemsCollectedRecently.Should().NotContainKey("SUMMONING_EYE");
+    }
+
+    [Test]
+    public async Task EyesIncreasingAtDragonsNest_StillBookTheGain()
+    {
+        var state = StateAt("Dragon's Nest");
+        await ProcessView(state, View("", new(), StackableItem("ENDER_PEARL", 16), StackableItem("SUMMONING_EYE", 1)));
+        await ProcessView(state, View("", new(), StackableItem("ENDER_PEARL", 16), StackableItem("SUMMONING_EYE", 3)));
+
+        state.ItemsCollectedRecently.Should().BeEquivalentTo(new Dictionary<string, int> { { "SUMMONING_EYE", 2 } });
+    }
+
+    // ── Critter Safari: the game swaps the inventory, the real one returns on exit ──
+
+    [Test]
+    public async Task SafariExit_EmptyInventoryReplacedByRealOne_IsNotBooked()
+    {
+        var state = StateAt("Hub");
+        await ProcessView(state, View("", new(), NormalInventory()));
+        state.ExtractedInfo.CurrentLocation = "Critter Safari";
+        // two uploads push the pre-safari view out of the three recent views, which the first-time-drop guards read
+        await ProcessView(state, View("", new()));
+        await ProcessView(state, View("", new()));
+        state.ExtractedInfo.CurrentLocation = "Critter Safari Entrance";
+        await ProcessView(state, View("", new(), NormalInventory()));
+
+        state.ItemsCollectedRecently.Should().BeEmpty("the phantom period after a safari run was the whole inventory coming back");
+    }
+
+    [Test]
+    public async Task SafariInventoryWithPartialOverlap_IsNotBooked_InEitherDirection()
+    {
+        // 2 of 10 items kept is above the wholesale threshold, so only the location based guard catches it
+        var state = StateAt("Critter Safari Entrance");
+        await ProcessView(state, View("", new(), NormalInventory()));
+        state.ExtractedInfo.CurrentLocation = "Critter Safari";
+        await ProcessView(state, View("", new(), NormalInventory().Take(3).Append(StackableItem("SAFARI_NET", 1)).ToArray()));
+        await ProcessView(state, View("", new(), NormalInventory().Take(3).Append(StackableItem("SAFARI_NET", 1)).Append(StackableItem("CRITTER_JAR", 4)).ToArray()));
+        state.ExtractedInfo.CurrentLocation = "Critter Safari Entrance";
+        await ProcessView(state, View("", new(), NormalInventory()));
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task SafariChatLoot_IsStillBooked()
+    {
+        var state = StateAt("Critter Safari");
+        var args = new MockedUpdateArgs
+        {
+            currentState = state,
+            msg = new UpdateMessage { Kind = UpdateMessage.UpdateKind.CHAT, PlayerId = "p1", ChatBatch = ["You caught a Bluebird and gained 2x Bluebird Shards!"] }
+        };
+        args.AddService<ILogger<CollectionListener>>(Microsoft.Extensions.Logging.Abstractions.NullLogger<CollectionListener>.Instance);
+        await new CollectionListener().Process(args);
+
+        state.ItemsCollectedRecently.Should().Contain("SHARD_BLUEBIRD", 2);
+    }
+
+    [Test]
+    public async Task GainAtSafariEntranceWithoutSafariVisit_IsBooked()
+    {
+        var state = StateAt("Critter Safari Entrance");
+        await ProcessView(state, View("", new(), NormalInventory()));
+        await ProcessView(state, View("", new(), NormalInventory().Append(StackableItem("HELIX_LOG", 30)).ToArray()));
+
+        state.ItemsCollectedRecently.Should().BeEquivalentTo(new Dictionary<string, int> { { "HELIX_LOG", 30 } });
+    }
 }

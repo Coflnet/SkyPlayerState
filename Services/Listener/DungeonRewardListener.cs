@@ -221,6 +221,8 @@ public class DungeonRewardListener : UpdateListener
     private readonly System.Collections.Concurrent.ConcurrentDictionary<(string PlayerId, string Title), DateTime> discoveryLogThrottle = new();
 
     private static readonly TimeSpan DuplicateHeaderWindow = TimeSpan.FromSeconds(60);
+    /// <summary>No run can be completed this soon after the previous one, so a second header in the same stay within it is a repeat.</summary>
+    private static readonly TimeSpan SameStayDuplicateWindow = TimeSpan.FromMinutes(2);
     private static readonly Regex FloorHeaderRegex = new(@"^(Master Mode )?The Catacombs - (?:Floor ([IVX]+)|(Entrance))$", RegexOptions.Compiled);
     private static readonly Regex TeamScoreRegex = new(@"^Team Score: (\d+) \(([A-Z+]+)\)(?: \(NEW RECORD!\))?$", RegexOptions.Compiled);
     private static readonly Regex EssenceLineRegex = new(@"^(\w+) Essence x(\d+)$", RegexOptions.Compiled);
@@ -292,6 +294,16 @@ public class DungeonRewardListener : UpdateListener
         var info = args.currentState.ExtractedInfo;
         var now = DateTime.UtcNow;
         var key = args.msg.PlayerId ?? args.currentState.PlayerId ?? string.Empty;
+        // persisted (shared by all pods) check: a run was already completed in this very stay a moment ago. The time limit
+        // keeps runs counting when requeues are not seen as a new stay (scoreboard without server id).
+        if (Tasks.DungeonRewardAttribution.IsFloorZone(info.CurrentLocation)
+            && info.LastDungeonRunCompletedAt != default
+            && info.LastDungeonRunCompletedAt >= info.CurrentLocationSince
+            && now - info.LastDungeonRunCompletedAt < SameStayDuplicateWindow)
+        {
+            Logger.LogDebug("Ignoring repeated dungeon run header in the same stay for {playerId}", key);
+            return false;
+        }
         if (lastRunHeader.TryGetValue(key, out var last) && now - last < DuplicateHeaderWindow)
         {
             Logger.LogDebug("Ignoring duplicate dungeon run header for {playerId}", key);
@@ -377,6 +389,10 @@ public class DungeonRewardListener : UpdateListener
             // log them as a dungeon chest and never attribute a floor to them; Debug only.
             Logger.LogDebug("Kuudra reward chest {chest} seen for {playerId}, contents {contents}",
                 chest.ChestType, args.msg.PlayerId, string.Join(", ", chest.Contents));
+            // a reward chest viewed inside the tier zone means the run was won, the same signal as "KUUDRA DOWN!"
+            // (which does not always reach us); at Croesus' hub it is just a claim and completes nothing
+            if (Tasks.KuudraRewardAttribution.IsTierZone(info.CurrentLocation))
+                info.LastKuudraRunCompletedAt = DateTime.UtcNow;
             return;
         }
 

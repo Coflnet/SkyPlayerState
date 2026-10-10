@@ -211,11 +211,23 @@ public class GalateaFishingMethodTask : BaseFishingTask
 public class LotusAtollTask : BaseFishingTask
 {
     protected override string MethodName => "Lotus Atoll";
+    // Island key: the trophy frogs are caught at Lotus Highlands, Lotus Eater's Cave and Tewtil Tunnel as well.
     protected override HashSet<string> Locations => ["Lotus Atoll"];
     // The lily pads pushed together are WATER_LILY/LOTUS; the pile explodes into sea
     // creatures and fish that are caught for SHARD_LOTUS_FISH, which is the main value.
     // Shards are deliberately not excluded so their value counts toward this activity.
-    protected override HashSet<string> DetectionItems => ["LOTUS", "WATER_LILY"];
+    protected override HashSet<string> DetectionItems =>
+    [
+        "LOTUS", "WATER_LILY", "FROGCOIN",
+        .. FrogSpecies.SelectMany(f => FrogTiers.Select(t => $"{f}_{t}"))
+    ];
+    // Trophy frogs, tags are <NAME>_<TIER> (production 2026-10-10: ~90 unclassified periods).
+    private static readonly string[] FrogSpecies =
+    [
+        "LOTUS", "COMMON_FROG", "BULLFROG", "WETLANDS_FROG", "PUDDLE_JUMPER", "REALITY_HOPPER", "LEAP_FROG", "EXPLODING_FROG",
+        "BLESSED_FROG", "CAVE_FROG", "SEA_FROG", "TREE_FROG", "HIGHLANDS_FROG"
+    ];
+    private static readonly string[] FrogTiers = ["BRONZE", "SILVER", "GOLD", "DIAMOND"];
     // Lotus Atoll is its own separate Fishing island (reached via the Ship Navigator NPC on
     // Backwater Bayou) - NOT part of Galatea, despite the name similarity. Corrected 2026-09,
     // verified hypixelskyblock.minecraft.wiki/w/Lotus_Atoll (see SkyblockZones.cs).
@@ -259,8 +271,20 @@ public class MagmaCoreFishingTask : BaseFishingTask
     protected override string MethodName => "Magma Core Fishing";
     protected override HashSet<string> Locations => ["Magma Fields", "Crystal Hollows"];
     protected override HashSet<string> DetectionItems => ["MAGMA_CORE"];
+    // Lava fishing at Magma Fields mostly yields junk (production 2026-10-10: 1,700 periods without a single
+    // Magma Core, they were unclassified, Coal Mining or Water Fishing), so any of its lava catches proves it there.
+    protected override Dictionary<string, HashSet<string>> ZoneDetectionItems => new()
+    {
+        ["Magma Fields"] =
+        [
+            "MAGMA_CORE", "BLAZE_ROD", "ENCHANTED_BLAZE_ROD", "ENCHANTED_BLAZE_POWDER", "CHUM", "SULPHUR_ORE", "NETHERRACK",
+            "CORRUPTED_FRAGMENT", "ETERNAL_FLAME_RING", "BLAZEN_SPHERE", "ENCHANTED_NETHER_STALK"
+        ]
+    };
     protected override bool ExcludeShardItems => true;
-    protected override List<MethodDrop> FormulaDrops => [new("MAGMA_CORE", 8)];
+    // Junk rates measured over 165 h from 111 players (2026-10-10).
+    protected override List<MethodDrop> FormulaDrops =>
+        [new("MAGMA_CORE", 8), new("BLAZE_ROD", 1800), new("NETHERRACK", 1000), new("COAL", 290), new("CHUM", 120), new("SULPHUR_ORE", 80)];
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Magma_Core";
     protected override List<TaskStep> Steps =>
     [
@@ -276,7 +300,9 @@ public class MagmaCoreFishingTask : BaseFishingTask
 public class FlamingWormFishingTask : BaseFishingTask
 {
     protected override string MethodName => "Flaming Worm Fishing";
-    protected override HashSet<string> Locations => ["Crystal Hollows", "Precursor Remnants"];
+    // Membranes at the other Crystal Hollows zones come from worm/Scatha tunnel mining (Magma Fields: 232 periods
+    // with hard stone, iron and mithril, no lava catches); only these two zones show lava-fished ones (with chum/sulphur).
+    protected override HashSet<string> Locations => ["Precursor Remnants", "Khazad-dûm"];
     protected override HashSet<string> DetectionItems => ["WORM_MEMBRANE"];
     protected override List<MethodDrop> FormulaDrops => [new("ROUGH_SAPPHIRE_GEM", 250), new("WORM_MEMBRANE", 2.5), new("ETERNAL_FLAME_RING", 0.05)];
 }

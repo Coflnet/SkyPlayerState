@@ -146,7 +146,10 @@ public class TaskClassifier
             if (detectionItems.Count > 0)
             {
                 matched = itemsCollected.Keys.Where(k => detectionItems.Contains(k)).ToList();
-                if (matched.Count == 0)
+                // a cost (negative count) of an evidence item stands in for a detection item: a period of only
+                // consumed items (eyes placed on the dragon altar) still belongs to the task that consumes them
+                if (matched.Count == 0 && !(sig.EvidenceItems is { Count: > 0 }
+                    && itemsCollected.Any(kv => kv.Value < 0 && sig.EvidenceItems.Contains(kv.Key))))
                     continue;
             }
             // a short window of a non-instance signature needs a detection item hit and real activity, not just the zone
@@ -201,6 +204,9 @@ public class TaskClassifier
             .OrderBy(c => c.sig.Fallback)
             .ThenBy(c => hasRealActivity && c.sig.IsPurchaseSink)
             .ThenByDescending(c => c.itemMatched)           // item evidence beats location-only
+            // a negative priority accounting bucket (Forge Claims) that matched by item must not take a period from a
+            // public task that matched too, however pricey its items are (refined mithril vs the mined ore)
+            .ThenBy(c => c.itemMatched && c.sig.Hidden && c.sig.Priority < 0)
             .ThenByDescending(c => c.matchedValue)          // most valuable matched items win
             .ThenByDescending(c => c.sig.Priority)          // explicit override
             .ThenBy(c => c.sig.MethodName, StringComparer.Ordinal) // deterministic

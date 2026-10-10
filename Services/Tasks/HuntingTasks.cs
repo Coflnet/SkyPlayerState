@@ -188,7 +188,8 @@ public class PestHuntingTask : BaseHuntingTask
     protected override string Where => "The Garden";
     // PEST_KILL/PESTERMINATOR never occur in production (fabricated) - see PestEvidence for the
     // real pest-drop tags (vinyls + rare pest items), shared with PestTask.
-    protected override HashSet<string> DetectionItems => PestEvidence.Items;
+    protected override HashSet<string> DetectionItems => [.. PestEvidence.Items, .. PestEvidence.Shards];
+    protected override Dictionary<string, HashSet<string>> ZoneExcludedItems => new() { ["Garden"] = PestEvidence.Crops };
     protected override string HowTo => "Go to The Garden and hunt Pests that spawn on your plots. Use the Pesterminator vacuum or manual combat.";
     protected override string Category => "Garden";
 }

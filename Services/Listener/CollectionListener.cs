@@ -575,6 +575,11 @@ public class CollectionListener : UpdateListener
             args.currentState.ExtractedInfo.LastCraftViewAt = args.msg.ReceivedAt;
             args.currentState.ExtractedInfo.LastCraftIngredients = currentIngredients.Union(craftIngredients).ToList();
         }
+        if (IsSafariInventorySwap(args))
+        {
+            RegisterKnownItemUuids(args.currentState, args.msg.Chest);
+            return;
+        }
         if (previousInventory == null)
         {
             RegisterKnownItemUuids(args.currentState, args.msg.Chest);
@@ -728,6 +733,10 @@ public class CollectionListener : UpdateListener
                 continue;
             if (diff == 0)
                 continue;
+            // placed eyes are booked by BookPlacedSummoningEyes, only in the Dragon's Nest; anywhere else the
+            // eyes were sold or stashed
+            if (diff < 0 && tag == SummoningEyeTag)
+                continue;
             // Captured shards go to the Hunting Box and are counted from chat; only a few arrive in the
             // inventory as loot (Kuudra chests). 64 or more at once come back from the bazaar, a trade or
             // the stash through a view that was not uploaded (production 2026-10-03, a shard flipper:
@@ -745,6 +754,7 @@ public class CollectionListener : UpdateListener
                 ? Tasks.PurchaseDiscount.AdjustIncrease(args.currentState.ExtractedInfo, tag, (int)Math.Min(diff, int.MaxValue), args.msg.ReceivedAt)
                 : diff);
         }
+        BookPlacedSummoningEyes(args, previousInventory, mapOfItems, currentInventory);
         RegisterKnownItemUuids(args.currentState, args.msg.Chest);
 
         static Dictionary<string, List<Models.Item>> GetLookupItemsByTag(Models.ChestView? previousInventory)
@@ -755,6 +765,57 @@ public class CollectionListener : UpdateListener
                 .GroupBy(CountTag)
                 .ToDictionary(g => g.Key, g => g.ToList());
         }
+    }
+
+    internal const string SummoningEyeTag = "SUMMONING_EYE";
+    private const string DragonZone = "Dragon's Nest";
+
+    /// <summary>
+    /// An eye placed on the dragon altar leaves the inventory, and when it was the last one the tag is gone from
+    /// the current view, which the loop in <see cref="HandleInventory"/> never visits. Books the drop as a negative
+    /// <see cref="SummoningEyeTag"/> count - the cost of the Ender Dragon fight - only in the Dragon's Nest and
+    /// not around storage/transfer views or a stale location, where eyes that disappear were stashed or sold.
+    /// </summary>
+    private static void BookPlacedSummoningEyes(UpdateArgs args, Models.ChestView previousInventory,
+        Dictionary<string, List<Models.Item>> previousItems, Dictionary<string, List<Models.Item>> currentItems)
+    {
+        var info = args.currentState.ExtractedInfo;
+        if (Tasks.SkyblockZones.Canonical(info.CurrentLocation) != DragonZone)
+            return;
+        var current = args.msg.Chest;
+        if (IsTransferView(current) || (current.Name != null && !StorageListener.IsNotStorage(current)) || IsLocationStale(info, DateTime.UtcNow))
+            return;
+        long Count(Dictionary<string, List<Models.Item>> items) =>
+            items.TryGetValue(SummoningEyeTag, out var list) ? list.Sum(i => (long)(i.Count ?? 0)) : 0;
+        var placed = Count(previousItems) - Count(currentItems);
+        if (placed <= 0)
+            return;
+        Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, SummoningEyeTag, -(int)Math.Min(placed, int.MaxValue));
+        args.GetService<ILogger<CollectionListener>>().LogInformation(
+            "Placed {count} Summoning Eye(s) for {playerId}", placed, args.currentState.PlayerId);
+    }
+
+    /// <summary>
+    /// The Critter Safari shows another (production: an empty) inventory and the real one returns on exit, which
+    /// the wholesale swap check misses because it needs a non-empty current inventory: the whole inventory was
+    /// booked as gains at "Critter Safari Entrance" after each run. Uploads inside the safari are never loot (its
+    /// loot comes from chat), and the first one after leaving only re-baselines. Same effect as the Rift swap.
+    /// </summary>
+    private static bool IsSafariInventorySwap(UpdateArgs args)
+    {
+        var info = args.currentState.ExtractedInfo;
+        if (Tasks.SkyblockZones.Canonical(info.CurrentLocation) == "Critter Safari")
+        {
+            info.SafariInventorySeen = true;
+            return true;
+        }
+        if (!info.SafariInventorySeen)
+            return false;
+        info.SafariInventorySeen = false;
+        args.GetService<ILogger<CollectionListener>>().LogInformation(
+            "Inventory after leaving the Critter Safari for {playerId} at {location} is a swap, not booking it",
+            args.currentState.PlayerId, info.CurrentLocation);
+        return true;
     }
 
     /// <summary>

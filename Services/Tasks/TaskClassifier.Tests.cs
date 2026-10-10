@@ -95,15 +95,15 @@ public class TaskClassifierTests
     [Test]
     public void MostValuableMatchedItems_WinAmongItemMatches()
     {
-        // both magma core and flaming worm tasks can match in Magma Fields
+        // both magma core and flaming worm tasks can match at the Precursor Remnants
         var items = new Dictionary<string, int> { { "MAGMA_CORE", 10 }, { "WORM_MEMBRANE", 10 } };
         var prices = new Dictionary<string, double> { { "MAGMA_CORE", 100_000 }, { "WORM_MEMBRANE", 1_000 } };
-        var result = Classifier.Classify("Crystal Hollows", items, 15, prices: prices);
+        var result = Classifier.Classify("Precursor Remnants", items, 15, prices: prices);
         result.Should().NotBeNull();
         result.TaskName.Should().Be("Magma Core Fishing");
 
         prices = new Dictionary<string, double> { { "MAGMA_CORE", 1_000 }, { "WORM_MEMBRANE", 100_000 } };
-        result = Classifier.Classify("Crystal Hollows", items, 15, prices: prices);
+        result = Classifier.Classify("Precursor Remnants", items, 15, prices: prices);
         result.TaskName.Should().Be("Flaming Worm Fishing");
     }
 
@@ -1385,7 +1385,7 @@ public class TaskClassifierTests
     [TestCase("Khazad-dûm", "TOPAZ", "Topaz Mining")]
     [TestCase("Magma Fields", "TOPAZ", "Topaz Mining")]
     [TestCase("Glacite Tunnels", "AQUAMARINE", "Aquamarine Mining")]
-    [TestCase("Glacite Mineshafts", "CITRINE", "Citrine Mining")]
+    [TestCase("Great Glacite Lake", "CITRINE", "Citrine Mining")]
     [TestCase("Dwarven Base Camp", "ONYX", "Onyx Mining")]
     public void NewGemstoneZones_ClassifyToTheirGemTask(string zone, string gem, string expected)
         => NameAt(zone, new() { { $"FLAWED_{gem}_GEM", 90 }, { $"FINE_{gem}_GEM", 30 } }).Should().Be(expected);
@@ -1405,7 +1405,7 @@ public class TaskClassifierTests
 
     [Test]
     public void GlaciteMiningWithExpensiveScrap_StaysMining()
-        => NameAtPriced("Glacite Mineshafts", new() { { "UMBER", 900 }, { "ENCHANTED_UMBER", 4 }, { "SUSPICIOUS_SCRAP", 2 } },
+        => NameAtPriced("Glacite Tunnels", new() { { "UMBER", 900 }, { "ENCHANTED_UMBER", 4 }, { "SUSPICIOUS_SCRAP", 2 } },
             new() { { "ENCHANTED_UMBER", 2_000 }, { "SUSPICIOUS_SCRAP", 500_000 } }).Should().Be("Umber Mining");
 
     [Test]
@@ -1499,4 +1499,214 @@ public class TaskClassifierTests
         });
         matched.Should().ContainSingle().Which.ItemsCollected.Should().ContainKey("NULL_SPHERE");
     }
+
+    // ── 2026-10-10 production round ──
+
+    private static readonly string[] EndEnemyDrops =
+        ["ENDER_PEARL", "ENCHANTED_ENDER_PEARL", "SUMMONING_EYE", "CRYSTAL_FRAGMENT", "MITE_GEL", "NULL_SPHERE", "ENDER_GAUNTLET", "ENDER_BELT", "ENDER_NECKLACE", "ENDER_CLOAK"];
+
+    [Test]
+    public void MagmaFieldsLavaFishing_WithoutMagmaCore_IsMagmaCoreFishing()
+    {
+        NameAt("Magma Fields", new() { { "BLAZE_ROD", 400 }, { "CHUM", 23 }, { "NETHERRACK", 25 } }).Should().Be("Magma Core Fishing");
+        // coal is lava fishing junk here, not coal mining
+        NameAt("Magma Fields", new() { { "COAL", 40 }, { "BLAZE_ROD", 310 }, { "NETHERRACK", 91 }, { "CHUM", 12 } }).Should().Be("Magma Core Fishing");
+    }
+
+    [Test]
+    public void CoalAtCrystalHollows_IsNotCoalMining()
+    {
+        NameAt("Jungle", new() { { "COAL", 30 }, { "ENCHANTED_HARD_STONE", 5 }, { "HARD_STONE", 200 } }).Should().Be("Jungle Powder Mining");
+        NameAt("Coal Mine", new() { { "COAL", 300 } }).Should().Be("Coal Mining");
+    }
+
+    [Test]
+    public void WormMembraneWithHardStoneAtMagmaFields_IsScathaMining()
+        => NameAt("Magma Fields", new() { { "WORM_MEMBRANE", 3 }, { "HARD_STONE", 400 }, { "IRON_INGOT", 20 }, { "MITHRIL_ORE", 80 } }).Should().Be("Scatha Mining");
+
+    [Test]
+    public void WormMembraneWithChumAtPrecursorRemnants_IsFlamingWormFishing()
+    {
+        NameAt("Precursor Remnants", new() { { "WORM_MEMBRANE", 3 }, { "CHUM", 10 } }).Should().Be("Flaming Worm Fishing");
+        NameAt("Khazad-dûm", new() { { "WORM_MEMBRANE", 3 }, { "SULPHUR_ORE", 10 } }).Should().Be("Flaming Worm Fishing");
+    }
+
+    [Test]
+    public void WormMembraneWithFishAtGoblinHoldout_StaysWaterWormFishing()
+        => NameAt("Goblin Holdout", new() { { "WORM_MEMBRANE", 3 }, { "RAW_FISH", 80 } }).Should().Be("Water Worm Fishing");
+
+    [Test]
+    [TestCase("Dragon's Nest")]
+    [TestCase("Zealot Bruiser Hideout")]
+    [TestCase("The End")]
+    [TestCase("Void Slate")]
+    public void ObsidianWithEnderPearlsAtTheEnd_IsNotObsidianMining(string zone)
+        => NameAt(zone, new() { { "OBSIDIAN", 12 }, { "ENDER_PEARL", 40 }, { "ENDER_STONE", 5 } }).Should().NotBe("Obsidian Mining");
+
+    [Test]
+    public void ObsidianWithEnderPearlsAtDragonsNest_IsZealotsFd()
+        => NameAt("Dragon's Nest", new() { { "OBSIDIAN", 12 }, { "ENDER_PEARL", 40 }, { "ENDER_STONE", 5 } }).Should().Be("Zealots (FD)");
+
+    [Test]
+    public void ObsidianOnlyAtDragonsNest_StaysObsidianMining()
+        => NameAt("Dragon's Nest", new() { { "OBSIDIAN", 64 } }).Should().Be("Obsidian Mining");
+
+    [Test]
+    public void EnchantedEnderPearlsOnly_IsZealotsFd()
+        => NameAt("Void Sepulture", new() { { "ENCHANTED_ENDER_PEARL", 6 } }).Should().Be("Zealots (FD)");
+
+    [Test]
+    public void EveryEndEnemyDrop_VetoesObsidianMining()
+    {
+        foreach (var drop in EndEnemyDrops)
+            NameAt("Dragon's Nest", new() { { "OBSIDIAN", 64 }, { drop, 1 } }).Should().NotBe("Obsidian Mining", $"{drop} proves enemy grinding");
+    }
+
+    [Test]
+    public void GreatGlaciteLake_IsGlaciteMining()
+        => NameAt("Great Glacite Lake", new() { { "GLACITE", 300 }, { "ENCHANTED_GLACITE", 2 } }).Should().Be("Glacite Mining");
+
+    [Test]
+    public void MineshaftCorpseLootOnly_IsGlaciteMineshafts()
+        => NameAt("Glacite Mineshafts", new() { { "GLACITE_JEWEL", 2 }, { "GOBLIN_EGG_BLUE", 1 }, { "SUSPICIOUS_SCRAP", 4 } }).Should().Be("Glacite Mineshafts");
+
+    [Test]
+    public void DragonLootAtDragonsNest_IsEnderDragon()
+    {
+        NameAt("Dragon's Nest", new() { { "UNSTABLE_FRAGMENT", 6 }, { "SHARD_DRACONIC", 1 } }).Should().Be("Ender Dragon");
+        NameAt("The End", new() { { "OLD_DRAGON_HELMET", 1 } }).Should().Be("Ender Dragon");
+    }
+
+    [Test]
+    public void DragonFragmentsInDungeons_StayDungeonFloor()
+        => NameAt("The Catacombs (F7)", new() { { "WISE_FRAGMENT", 3 }, { "ESSENCE_WITHER", 90 } }).Should().Be("F7");
+
+    [Test]
+    public void PlacedEyesWithDragonLoot_AreEnderDragon_AndTheEyesStayAsCost()
+    {
+        var items = new Dictionary<string, int> { { "STRONG_FRAGMENT", 8 }, { "SUMMONING_EYE", -2 } };
+        NameAt("Dragon's Nest", items).Should().Be("Ender Dragon");
+
+        TaskPeriodFolder.FilterOwnedItems(items, new EnderDragonTask()).Should().Contain("SUMMONING_EYE", -2);
+    }
+
+    [Test]
+    public void PlacedEyesOnly_AreEnderDragon()
+        => NameAt("Dragon's Nest", new() { { "SUMMONING_EYE", -2 } }).Should().Be("Ender Dragon");
+
+    [Test]
+    public void ZealotLootWithEyesAtDragonsNest_StaysZealotsFd()
+    {
+        // priced like production: without prices the pearls and the single eye tie and T4 Voidglooms wins by name
+        var prices = new Dictionary<string, double> { { "ENDER_PEARL", 100 }, { "SUMMONING_EYE", 1_000_000 } };
+        NameAtPriced("Dragon's Nest", new() { { "ENDER_PEARL", 40 }, { "SUMMONING_EYE", 1 } }, prices).Should().Be("Zealots (FD)");
+        NameAtPriced("Dragon's Nest", new() { { "ENDER_PEARL", 40 }, { "SUMMONING_EYE", 1 }, { "ENDER_STONE", 3 } }, prices).Should().Be("Zealots (FD)");
+    }
+
+    [Test]
+    public void ObsidianWithDragonFragmentsAtDragonsNest_IsNotObsidianMining()
+        => NameAt("Dragon's Nest", new() { { "OBSIDIAN", 12 }, { "YOUNG_FRAGMENT", 5 } }).Should().Be("Ender Dragon");
+
+    [Test]
+    public void MineshaftOre_IsGlaciteMineshafts_NotTunnelMining()
+    {
+        NameAt("Glacite Mineshafts", new() { { "UMBER", 900 }, { "SUSPICIOUS_SCRAP", 2 } }).Should().Be("Glacite Mineshafts");
+        NameAt("Glacite Mineshafts", new() { { "GLACITE", 900 } }).Should().Be("Glacite Mineshafts");
+        NameAt("Glacite Mineshafts", new() { { "FLAWLESS_ONYX_GEM", 1 } }).Should().Be("Glacite Mineshafts");
+    }
+
+    [Test]
+    public void MineshaftWithOnlyTitanium_IsGlaciteMineshafts_NotMithrilMining()
+        => NameAt("Glacite Mineshafts", new() { { "TITANIUM_ORE", 300 } }).Should().Be("Glacite Mineshafts");
+
+    [Test]
+    public void MineshaftKeysAndRefinedLoot_StayWithMineshafts_NotForgeClaims()
+    {
+        NameAt("Glacite Mineshafts", new() { { "UMBER_KEY", -1 }, { "REFINED_UMBER", 1 }, { "SUSPICIOUS_SCRAP", 2 } }).Should().Be("Glacite Mineshafts");
+        NameAt("Glacite Mineshafts", new() { { "SKELETON_KEY", 1 }, { "PERFECT_PLATE", 1 } }).Should().NotBe("Forge Claims");
+    }
+
+    [Test]
+    public void BaseCampCorpseLoot_IsGlaciteMineshafts()
+    {
+        NameAt("Dwarven Base Camp", new() { { "GLACITE_JEWEL", 3 }, { "SUSPICIOUS_SCRAP", 6 } }).Should().Be("Glacite Mineshafts");
+        // forged at the camp as well, so no proof of a shaft run
+        NameAt("Dwarven Base Camp", new() { { "UMBER_KEY", 2 } }).Should().NotBe("Glacite Mineshafts");
+    }
+
+    [Test]
+    public void BaseCampOre_StaysTunnelMining()
+    {
+        NameAt("Dwarven Base Camp", new() { { "TUNGSTEN", 800 }, { "SUSPICIOUS_SCRAP", 3 } }).Should().Be("Tungsten Mining");
+        NameAt("Dwarven Base Camp", new() { { "UMBER", 800 }, { "GLACITE_JEWEL", 3 } }).Should().Be("Umber Mining");
+    }
+
+    [Test]
+    public void GlaciteTunnelsOreWithScrap_IsTungstenMining()
+        => NameAt("Glacite Tunnels", new() { { "TUNGSTEN", 800 }, { "SUSPICIOUS_SCRAP", 3 } }).Should().Be("Tungsten Mining");
+
+    [Test]
+    public void ForgeOutputsAnywhereInDwarvenMines_AreForgeClaims()
+    {
+        NameAt("Dwarven Mines", new() { { "PERFECT_PLATE", 1 } }).Should().Be("Forge Claims");
+        NameAt("Rampart's Quarry", new() { { "SKELETON_KEY", 1 } }).Should().Be("Forge Claims");
+        NameAt("The Lift", new() { { "REFINED_DIAMOND", 2 } }).Should().Be("Forge Claims");
+    }
+
+    [Test]
+    public void ForgeClaimsAtTheForge_StaysLocationOnly()
+        => NameAt("The Forge", new() { { "SOME_GENERIC_ITEM", 1 } }).Should().Be("Forge Claims");
+
+    [Test]
+    public void MithrilWithRefinedMithril_StaysMithrilMining_EvenWithPricierRefined()
+    {
+        NameAt("Rampart's Quarry", new() { { "MITHRIL_ORE", 500 }, { "REFINED_MITHRIL", 1 } }).Should().Be("Mithril Mining");
+        NameAtPriced("Rampart's Quarry", new() { { "MITHRIL_ORE", 500 }, { "REFINED_MITHRIL", 1 } },
+            new() { { "MITHRIL_ORE", 2 }, { "REFINED_MITHRIL", 5000 } }).Should().Be("Mithril Mining");
+    }
+
+    [Test]
+    public void ArbitraryItemsInDwarvenMines_AreNotForgeClaims()
+        => NameAt("Rampart's Quarry", new() { { "A_ITEM", 3 }, { "B_ITEM", 3 }, { "C_ITEM", 3 } }).Should().NotBe("Forge Claims");
+
+    [Test]
+    public void GardenPestShardsOnly_IsPestHunting()
+    {
+        NameAt("The Garden", new() { { "SHARD_LOCUST", 2 }, { "SHARD_MITE", 1 } }).Should().Be("Pest (Hunting)");
+        NameAt("The Garden", new() { { "SHARD_FIREFLY", 1 } }).Should().Be("Pest (Hunting)");
+    }
+
+    [Test]
+    public void GardenPestRareDrops_ArePest()
+    {
+        NameAt("The Garden", new() { { "ENCHANTMENT_PESTERMINATOR_1", 1 } }).Should().Be("Pest");
+        NameAt("The Garden", new() { { "PET_SLUG", 1 } }).Should().Be("Pest");
+        NameAt("The Garden", new() { { "SQUEAKY_MOUSEMAT", 1 } }).Should().Be("Pest");
+    }
+
+    [Test]
+    public void GardenCarrotsWithAFewPestShards_StaysCarrotFarming()
+    {
+        // production prices 2026-10-10: three Cricket shards (130k) are worth more than the period's
+        // carrots (58k), which moved 1,450 crop periods to Pest (Hunting) in the replay
+        var prices = new Dictionary<string, double> { { "ENCHANTED_CARROT", 459 }, { "ENCHANTED_WHEAT", 922 }, { "SHARD_CRICKET", 43419 }, { "SHARD_FLY", 42527 } };
+        NameAtPriced("The Garden \ue07f x6", new() { { "ENCHANTED_CARROT", 126 }, { "SHARD_CRICKET", 3 } }, prices).Should().Be("Carrot Farming");
+        NameAtPriced("The Garden \ue07f x1", new() { { "ENCHANTED_WHEAT", 33 }, { "SHARD_FLY", 3 } }, prices).Should().Be("Wheat Farming");
+        NameAtPriced("The Garden \ue07f x2", new() { { "SHARD_CRICKET", 3 } }, prices).Should().Be("Pest (Hunting)");
+    }
+
+    [Test]
+    public void BlazeSlayerRngDropsOnly_AreBlazeSlayer()
+    {
+        NameAt("Smoldering Tomb", new() { { "HIGH_CLASS_ARCHFIEND_DICE", 1 } }).Should().Be("Blaze Slayer");
+        NameAt("Smoldering Tomb", new() { { "KELVIN_INVERTER", 1 }, { "MANA_DISINTEGRATOR", 1 } }).Should().Be("Blaze Slayer");
+    }
+
+    [Test]
+    [TestCase("Lotus Atoll")]
+    [TestCase("Lotus Highlands")]
+    [TestCase("Lotus Eater's Cave")]
+    [TestCase("Tewtil Tunnel")]
+    public void LotusTrophyFrogs_AreLotusAtoll(string zone)
+        => NameAt(zone, new() { { "COMMON_FROG_GOLD", 1 }, { "CAVE_FROG_SILVER", 1 } }).Should().Be("Lotus Atoll");
 }

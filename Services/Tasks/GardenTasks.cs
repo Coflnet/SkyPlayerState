@@ -28,7 +28,40 @@ internal static class PestEvidence
         // that killed one pest still stays with the crop task.
         "COMPOST", "HONEY_JAR", "DUNG", "PLANT_MATTER", "CHEESE_FUEL", "JELLY",
         // Dragonfly rare drop
-        "VERMIN_VAPORIZER_GARDEN_CHIP"
+        "VERMIN_VAPORIZER_GARDEN_CHIP",
+        // Pesterminator book, Slug pet and Field Mouse mousemat (rare drops seen in production 2026-10-10)
+        "ENCHANTMENT_PESTERMINATOR_1", "PET_SLUG", "SQUEAKY_MOUSEMAT"
+    ];
+
+    /// <summary>
+    /// Pest shards. With Hunting a garden period holding only these is a pest hunt, so only
+    /// <see cref="PestHuntingTask"/> detects them (<see cref="PestTask"/> excludes shard periods).
+    /// </summary>
+    public static readonly HashSet<string> Shards =
+    [
+        "SHARD_CRICKET", "SHARD_LOCUST", "SHARD_MOTH", "SHARD_KEELED_SLUG", "SHARD_RAT", "SHARD_MITE", "SHARD_TERMITE",
+        "SHARD_CROPEETLE", "SHARD_FLY", "SHARD_PRAYING_MANTIS", "SHARD_MOSQUITO", "SHARD_DRAGONFLY", "SHARD_LUNAR_MOTH",
+        "SHARD_PEST", "SHARD_FIREFLY"
+    ];
+
+    /// <summary>
+    /// Everything the garden crop tasks detect. Pests spawn while farming and a pest shard is worth
+    /// more than a period's crops (Cricket ~43k vs 150 Enchanted Carrot ~70k for three shards), so a
+    /// period with crops is farming, whatever the shards are worth - replay 2026-10-10: without this
+    /// 1,450 crop periods moved to <see cref="PestHuntingTask"/>.
+    /// </summary>
+    public static readonly HashSet<string> Crops =
+    [
+        "WHEAT", "ENCHANTED_WHEAT", "SEEDS", "ENCHANTED_SEEDS", "ENCHANTED_HAY_BLOCK",
+        "CARROT_ITEM", "ENCHANTED_CARROT", "ENCHANTED_GOLDEN_CARROT",
+        "POTATO_ITEM", "ENCHANTED_POTATO", "ENCHANTED_BAKED_POTATO",
+        "PUMPKIN", "ENCHANTED_PUMPKIN", "MELON", "ENCHANTED_MELON", "ENCHANTED_MELON_BLOCK",
+        "SUGAR_CANE", "ENCHANTED_SUGAR", "ENCHANTED_SUGAR_CANE", "NETHER_STALK", "ENCHANTED_NETHER_STALK",
+        "CACTUS", "BUILDER_CACTUS", "ENCHANTED_CACTUS_GREEN", "ENCHANTED_CACTUS",
+        "BROWN_MUSHROOM", "BUILDER_BROWN_MUSHROOM", "ENCHANTED_BROWN_MUSHROOM",
+        "RED_MUSHROOM", "BUILDER_RED_MUSHROOM", "ENCHANTED_RED_MUSHROOM",
+        "INK_SACK:3", "ENCHANTED_COCOA", "DOUBLE_PLANT", "ENCHANTED_SUNFLOWER", "COMPACTED_SUNFLOWER",
+        "MOONFLOWER", "ENCHANTED_MOONFLOWER", "WILD_ROSE", "ENCHANTED_WILD_ROSE"
     ];
 }
 

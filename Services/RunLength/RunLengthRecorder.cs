@@ -20,11 +20,15 @@ public record RunLengthBounds(TimeSpan Min, TimeSpan Max)
     /// </summary>
     public static readonly RunLengthBounds Dungeon = new(TimeSpan.FromSeconds(60), TimeSpan.FromMinutes(45));
     /// <summary>
-    /// Kuudra tier: a T1 clear with a strong team still takes about 2 minutes of scoreboard-visible stay (lobby, supplies,
-    /// build, fight); under 90 s is a lobby hop, over 20 minutes AFK. No tier is known to take longer than 15 minutes.
+    /// Kuudra tier: measured full cycles (instance to instance) of a T5 party requeuing directly were 76 to 104 s
+    /// (76, 77, 79, 80, 81, 83, 88, 90, 91, 94, 94, 95, 104), so a minimum of 90 s dropped about half of the real runs.
+    /// Only completed runs are recorded anyway, so the minimum merely guards against a nonsensical stay; over 20 minutes is AFK.
     /// </summary>
-    public static readonly RunLengthBounds Kuudra = new(TimeSpan.FromSeconds(90), TimeSpan.FromMinutes(20));
+    public static readonly RunLengthBounds Kuudra = new(TimeSpan.FromSeconds(45), TimeSpan.FromMinutes(20));
 }
+
+/// <summary>One recorded run: its length in seconds and when it was recorded (UTC).</summary>
+public record RunLengthEntry(double Seconds, DateTime At);
 
 /// <summary>Aggregate over the recent window of durations recorded under one key.</summary>
 public class RunLengthStats
@@ -79,6 +83,8 @@ public interface IRunLengthRecorder
     Task Record(string key, TimeSpan duration, RunLengthBounds? bounds = null);
     Task<RunLengthStats?> GetStats(string key);
     Task<List<RunLengthStats>> GetAll();
+    /// <summary>The raw window entries of a key, newest first; null for an invalid key, empty when nothing was recorded.</summary>
+    Task<List<RunLengthEntry>?> GetEntries(string key);
     /// <summary>
     /// The recorded median run length for a key, or null while fewer than <see cref="RunLengthRecorder.MinSamples"/> runs
     /// were recorded (or the store is unavailable). This is the hook for replacing guessed run lengths
@@ -158,6 +164,14 @@ public class RunLengthRecorder(IRunLengthStore store, ILogger<RunLengthRecorder>
             return null;
         var entries = (await store.Range(key!)).Select(Parse).Where(e => e != null).Select(e => e!.Value).ToList();
         return RunLengthStats.From(key!, entries, Window);
+    }
+
+    public async Task<List<RunLengthEntry>?> GetEntries(string key)
+    {
+        if (!ValidKey.IsMatch(key ?? ""))
+            return null;
+        // the store keeps the list newest first
+        return (await store.Range(key!)).Select(Parse).Where(e => e != null).Select(e => new RunLengthEntry(e!.Value.Item1, e.Value.Item2)).ToList();
     }
 
     public async Task<List<RunLengthStats>> GetAll()

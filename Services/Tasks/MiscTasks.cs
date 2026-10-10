@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Collections.Generic;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
@@ -7,7 +8,7 @@ public class ZealotsFdTask : MethodTask
 {
     protected override string MethodName => "Zealots (FD)";
     protected override HashSet<string> Locations => ["The End", "Dragon's Nest", "Void Sepulture"];
-    protected override HashSet<string> DetectionItems => ["SUMMONING_EYE", "ENDER_PEARL"];
+    protected override HashSet<string> DetectionItems => ["SUMMONING_EYE", "ENDER_PEARL", "ENCHANTED_ENDER_PEARL"]; // pearls get auto-compacted
     // A Null Sphere is a Voidgloom boss drop, see T4VoidgloomsTask - without the veto the pricey
     // pearls/eyes of the same period could outvalue it and keep the fight here.
     protected override Dictionary<string, HashSet<string>> ZoneExcludedItems =>
@@ -22,6 +23,37 @@ public class ZealotsFdTask : MethodTask
         new() { Name = "Magic Find", Description = "Increases Summoning Eye drop rate", EstimatedMultiplier = 1.2 },
         new() { Name = "Combat Level", Description = "Higher combat level increases damage", EstimatedMultiplier = 1.1 }
     ];
+}
+
+// Dragon loot is booked at the Dragon's Nest mainly; "The End" is listed so loot booked one zone later still counts.
+// Dragon fragments also drop in dungeons, which the End-only locations keep out.
+public class EnderDragonTask : MethodTask
+{
+    private static readonly string[] DragonTypes = ["OLD", "UNSTABLE", "YOUNG", "WISE", "STRONG", "PROTECTOR", "SUPERIOR", "HOLY"];
+    protected override string MethodName => "Ender Dragon";
+    protected override HashSet<string> Locations => ["Dragon's Nest", "The End"];
+    protected override HashSet<string> DetectionItems => [
+        "OLD_FRAGMENT", "UNSTABLE_FRAGMENT", "YOUNG_FRAGMENT", "WISE_FRAGMENT", "STRONG_FRAGMENT", "PROTECTOR_FRAGMENT",
+        "SUPERIOR_FRAGMENT", "HOLY_FRAGMENT", "DRAGON_HORN", "DRAGON_CLAW", "DRAGON_SCALE", "ASPECT_OF_THE_DRAGON",
+        "RITUAL_RESIDUE", "SHARD_DRACONIC",
+        .. DragonTypes.SelectMany(type => new[] { "HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS" }.Select(piece => $"{type}_DRAGON_{piece}"))
+    ];
+    // A period of only placed eyes (negative count, see CollectionListener.BookPlacedSummoningEyes) is the cost of a
+    // fight whose loot was booked elsewhere. The classifier lets a negative evidence count stand in for a detection
+    // item; positive eyes (Zealot drops) stay Zealots (FD)'s.
+    protected override HashSet<string> EvidenceItems => ["SUMMONING_EYE"];
+    // Zealots (FD) also lists the eyes, so a placed-eyes-only period ties with it on value
+    protected override int Priority => 1;
+    // Seeds, derived from 10 hours of production loot periods and divided by 4 because only periods holding loot
+    // were measured (fights without drops are missing). Real tracked data folds in later.
+    protected override List<MethodDrop> FormulaDrops => [
+        new("YOUNG_FRAGMENT", 12), new("OLD_FRAGMENT", 10), new("UNSTABLE_FRAGMENT", 9), new("PROTECTOR_FRAGMENT", 7),
+        new("STRONG_FRAGMENT", 6), new("SUPERIOR_FRAGMENT", 5), new("WISE_FRAGMENT", 4), new("SHARD_DRACONIC", 2.5)
+    ];
+    // about 6 fights an hour with 2 own eyes each
+    protected override List<MethodDrop> FormulaCosts => [new("SUMMONING_EYE", 12)];
+    protected override string Category => "Combat";
+    protected override string HowTo => "Place Summoning Eyes (from Zealots or the Bazaar) on the altar in the Dragon's Nest to summon the Ender Dragon and deal damage for loot quality. More own eyes placed means better drops. Formula-based estimate.";
 }
 
 // ── Mushroom Desert farming ──

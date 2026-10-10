@@ -210,10 +210,11 @@ public class TaskClassifierCoverageGapsTests
     }
 
     [Test]
-    public void YogAndBal_YogShardsAndCoalMiningStillWin()
+    public void YogAndBal_YogShardsStillWin_AndCoalAtMagmaFieldsIsNoCoalMining()
     {
         var prices = new Dictionary<string, double> { { "SHARD_BAL", 121159 }, { "YOGGIE", 1_000_000_000 }, { "COAL", 6 }, { "SHARD_YOG", 3000 } };
-        Classify("Magma Fields", new() { { "YOGGIE", 5 }, { "COAL", 300 } }, prices).Should().Be("Coal Mining");
+        // coal at Magma Fields is lava fishing junk (2026-10-10), it no longer outranks the Yoggie
+        Classify("Magma Fields", new() { { "YOGGIE", 5 }, { "COAL", 300 } }, prices).Should().Be("Yog and Bal");
         Classify("Khazad-dûm", new() { { "SHARD_BAL", 1 }, { "SHARD_YOG", 1 } }, prices).Should().Be("Yog (Hunting)");
     }
 

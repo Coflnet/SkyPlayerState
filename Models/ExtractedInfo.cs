@@ -388,6 +388,12 @@ public class ExtractedInfo
     /// <summary>When <see cref="PendingPurchaseDiscounts"/> was last added to; the whole set expires together.</summary>
     [Key(60)]
     public DateTime PendingPurchaseDiscountAt { get; set; }
+    /// <summary>
+    /// An inventory upload arrived while the player was in the Critter Safari. The game shows another (or an empty)
+    /// inventory there and the real one returns on exit, so the first upload after leaving is a swap, not loot.
+    /// </summary>
+    [Key(61)]
+    public bool SafariInventorySeen { get; set; }
 }
 
 /// <summary>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
 
@@ -79,7 +80,7 @@ public class ThystMiningTask : BaseMiningTask
 public class JasperMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Jasper Mining";
-    protected override HashSet<string> Locations => ["Crystal Hollows", "Fairy Grotto", "Glacite Mineshafts"];
+    protected override HashSet<string> Locations => ["Crystal Hollows", "Fairy Grotto"];
     protected override HashSet<string> DetectionItems => ["FINE_JASPER_GEM", "FLAWED_JASPER_GEM", "ROUGH_JASPER_GEM"];
     protected override List<MethodDrop> FormulaDrops => [new("FINE_JASPER_GEM", 180), new("FLAWED_JASPER_GEM", 360)];
     protected override string HowTo => "Equip a Gemstone Gauntlet and mine Jasper gemstone veins in the Crystal Hollows.";
@@ -123,7 +124,7 @@ public class SapphireMiningTask : BaseMiningTask
 public class PeridotMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Peridot Mining";
-    protected override HashSet<string> Locations => ["Glacite Tunnels", "Glacite Mineshafts"];
+    protected override HashSet<string> Locations => ["Glacite Tunnels", "Great Glacite Lake"];
     protected override HashSet<string> DetectionItems => ["FINE_PERIDOT_GEM", "FLAWED_PERIDOT_GEM", "ROUGH_PERIDOT_GEM"];
     protected override List<MethodDrop> FormulaDrops => [new("FINE_PERIDOT_GEM", 160), new("FLAWED_PERIDOT_GEM", 320)];
     protected override string HowTo => "Equip a Gemstone Gauntlet and mine Peridot gemstone veins in the Crystal Hollows.";
@@ -136,7 +137,7 @@ public class PeridotMiningTask : BaseMiningTask
 public class CoalMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Coal Mining";
-    protected override HashSet<string> Locations => ["Dwarven Mines", "Coal Mine", "Crystal Hollows", "Gold Mine"];
+    protected override HashSet<string> Locations => ["Dwarven Mines", "Coal Mine", "Gold Mine"]; // Crystal Hollows removed: coal there is lava fishing/powder mining junk
     protected override HashSet<string> DetectionItems => ["COAL", "ENCHANTED_COAL"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_COAL", 500), new("ENCHANTED_COAL_BLOCK", 30)];
     protected override string HowTo => "Mine coal ore blocks in the Dwarven Mines or Glacite Tunnels with a pickaxe.";
@@ -174,6 +175,16 @@ public class ObsidianMiningTask : BaseMiningTask
     protected override string MethodName => "Obsidian Mining";
     protected override HashSet<string> Locations => ["Obsidian Sanctuary", "Deep Caverns", "The End"];
     protected override HashSet<string> DetectionItems => ["OBSIDIAN", "ENCHANTED_OBSIDIAN"];
+    // Endermen drop the obsidian they hold and Obsidian Defenders drop it too (450 periods 2026-10-10), so at The
+    // End obsidian next to any enemy drop is grinding, which the pricier obsidian would otherwise outrank.
+    protected override Dictionary<string, HashSet<string>> ZoneExcludedItems => new()
+    {
+        ["The End"] =
+        [
+            "ENDER_PEARL", "ENCHANTED_ENDER_PEARL", "SUMMONING_EYE", "CRYSTAL_FRAGMENT", "MITE_GEL", "NULL_SPHERE",
+            "ENDER_GAUNTLET", "ENDER_BELT", "ENDER_NECKLACE", "ENDER_CLOAK"
+        ]
+    };
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_OBSIDIAN", 200)];
     protected override string HowTo => "Mine obsidian blocks in the Obsidian Sanctuary or The End with a pickaxe.";
     protected override double ActionsPerHour => 2000;
@@ -183,7 +194,7 @@ public class TungstenMiningTask : BaseMiningTask
     protected override string MethodName => "Tungsten Mining";
     // "Dwarven Base Camp" added: it's the entry hub of the Glacite Tunnels and the scoreboard still
     // shows it while players mine at the tunnel entrance.
-    protected override HashSet<string> Locations => ["Glacite Tunnels", "Glacite Mineshafts", "Dwarven Base Camp"];
+    protected override HashSet<string> Locations => ["Glacite Tunnels", "Great Glacite Lake", "Dwarven Base Camp"];
     protected override HashSet<string> DetectionItems => ["TUNGSTEN", "ENCHANTED_TUNGSTEN"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_TUNGSTEN", 200)];
     protected override string HowTo => "Mine tungsten ore in the Glacite Tunnels or Glacite Mountains with a pickaxe.";
@@ -193,7 +204,7 @@ public class UmberMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Umber Mining";
     // "Dwarven Base Camp" added - see TungstenMiningTask's comment.
-    protected override HashSet<string> Locations => ["Glacite Tunnels", "Glacite Mineshafts", "Dwarven Base Camp"];
+    protected override HashSet<string> Locations => ["Glacite Tunnels", "Great Glacite Lake", "Dwarven Base Camp"];
     protected override HashSet<string> DetectionItems => ["UMBER", "ENCHANTED_UMBER"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_UMBER", 200)];
     protected override string HowTo => "Mine umber ore in the Glacite Tunnels or Glacite Mountains with a pickaxe.";
@@ -336,7 +347,8 @@ public class ScathaMiningTask : BaseMiningTask
     protected override string MethodName => "Scatha Mining";
     // Scatha/Worm spawn only in the Crystal Hollows; they drop gemstones, not worm membrane.
     protected override HashSet<string> Locations => ["Crystal Hollows"];
-    protected override HashSet<string> DetectionItems => ["PET_SCATHA"];
+    // Worms drop membranes while tunnel mining, so they count even without the lucky pet.
+    protected override HashSet<string> DetectionItems => ["PET_SCATHA", "WORM_MEMBRANE"];
     protected override List<MethodDrop> FormulaDrops => [new("FINE_TOPAZ_GEM", 15), new("FINE_AMETHYST_GEM", 6), new("ROUGH_TOPAZ_GEM", 50), new("FINE_JADE_GEM", 3)];
     protected override string HowTo => "Mine in the Crystal Hollows to spawn and kill Scatha worms for rare drops.";
     protected override double ActionsPerHour => 1500;
@@ -452,7 +464,7 @@ public class GlaciteMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Glacite Mining";
     // "Dwarven Base Camp" added - see TungstenMiningTask's comment.
-    protected override HashSet<string> Locations => ["Glacite Tunnels", "Glacite Mineshafts", "Dwarven Base Camp"];
+    protected override HashSet<string> Locations => ["Glacite Tunnels", "Great Glacite Lake", "Dwarven Base Camp"];
     protected override HashSet<string> DetectionItems => ["GLACITE", "ENCHANTED_GLACITE"];
     protected override List<MethodDrop> FormulaDrops => [new("GLACITE", 4000), new("GOLD_INGOT", 800)];
     // Glacite needs Breaking Power 9 (block strength 6000) - same drill as Mithril Mining works.
@@ -471,6 +483,77 @@ public class GlaciteMiningTask : BaseMiningTask
         new() { Number = 4, Text = "Mine the Glacite ore veins. Keep an eye on the Cold hazard meter - it reaches 100 and kills you, so warm up at a fire or heat source regularly.", OnClick = WikiUrl },
         new() { Number = 5, Text = "You're doing it right when you collect: GLACITE, ENCHANTED_GLACITE. That's what we track for your coins/hour." },
         new() { Number = 6, Text = "Sell Glacite on the Bazaar." },
+        new() { Number = 7, Text = "Check /cofl task again to see your real coins/hour." },
+    ];
+}
+// Mineshafts open randomly while mining in the Glacite Tunnels. Their corpse loot (scrap, jewels, goblin eggs,
+// Ice Cold books, Shattered Locket) used to be booked into ordinary tunnel mining by whichever ore was mined
+// (production 2026-10-10: 150 corpse-only periods unclassified). The zone belongs to this task alone.
+public class GlaciteMineshaftTask : BaseMiningTask
+{
+    private static readonly string[] Gems = ["AQUAMARINE", "CITRINE", "ONYX", "PERIDOT"];
+    private static readonly string[] GemQualities = ["ROUGH", "FLAWED", "FINE", "FLAWLESS"];
+
+    /// <summary>Frozen corpse loot, also what a period at the Base Camp must hold to count as a shaft run.</summary>
+    private static readonly string[] CorpseLoot =
+    [
+        "GLACITE_JEWEL", "SUSPICIOUS_SCRAP", "GOBLIN_EGG", "GOBLIN_EGG_RED", "GOBLIN_EGG_YELLOW", "GOBLIN_EGG_GREEN",
+        "GOBLIN_EGG_BLUE", "BEJEWELED_HANDLE", "GLACITE_AMALGAMATION", "ENCHANTMENT_ICE_COLD_1",
+        "DWARVEN_OS_METALLIC_MINIS", "SHATTERED_PENDANT", "FROZEN_SCUTE"
+    ];
+
+    protected override string MethodName => "Glacite Mineshafts";
+    protected override HashSet<string> Locations => ["Glacite Mineshafts", "Dwarven Base Camp"];
+    // Beats Mithril Mining, which still matches the zone through the Dwarven Mines island (titanium-only shafts).
+    protected override int Priority => 1;
+    protected override HashSet<string> DetectionItems =>
+    [
+        .. CorpseLoot,
+        // forged from corpse keys/loot and also dropped by the corpses
+        "UMBER_KEY", "TUNGSTEN_KEY", "SKELETON_KEY", "REFINED_UMBER", "REFINED_TUNGSTEN", "REFINED_MITHRIL", "REFINED_TITANIUM",
+        "UMBER_PLATE", "TUNGSTEN_PLATE", "MITHRIL_PLATE",
+        // mined in a shaft
+        "GLACITE", "ENCHANTED_GLACITE", "TUNGSTEN", "ENCHANTED_TUNGSTEN", "UMBER", "ENCHANTED_UMBER", "MITHRIL_ORE",
+        "ENCHANTED_MITHRIL", "TITANIUM_ORE", "ENCHANTED_TITANIUM", "HARD_STONE", "ENCHANTED_HARD_STONE",
+        .. Gems.SelectMany(g => GemQualities.Select(q => $"{q}_{g}_GEM"))
+    ];
+    // Loot is often booked right after leaving the shaft, but keys/refined/plates are forged at the camp too and
+    // ore there is plain tunnel mining (Glacite/Tungsten/Umber Mining keep it).
+    protected override Dictionary<string, HashSet<string>> ZoneDetectionItems => new() { ["Dwarven Base Camp"] = [.. CorpseLoot] };
+    protected override Dictionary<string, HashSet<string>> ZoneExcludedItems => new()
+    {
+        ["Dwarven Base Camp"] =
+        [
+            "GLACITE", "ENCHANTED_GLACITE", "TUNGSTEN", "ENCHANTED_TUNGSTEN", "UMBER", "ENCHANTED_UMBER", "MITHRIL_ORE", "TITANIUM_ORE"
+        ]
+    };
+    // Measured per hour inside a shaft over 55 h from 130 players (2026-10-10).
+    protected override List<MethodDrop> FormulaDrops =>
+    [
+        new("UMBER", 12200), new("TUNGSTEN", 11200), new("HARD_STONE", 54700), new("TITANIUM_ORE", 1050),
+        new("ENCHANTED_UMBER", 280), new("ENCHANTED_GLACITE", 254), new("ENCHANTED_TUNGSTEN", 160),
+        new("SUSPICIOUS_SCRAP", 25), new("GLACITE_JEWEL", 16), new("GOBLIN_EGG_YELLOW", 8.3), new("REFINED_MINERAL", 1.7),
+        new("GLACITE_AMALGAMATION", 1.06), new("BEJEWELED_HANDLE", 1.04), new("REFINED_UMBER", 0.73), new("REFINED_TUNGSTEN", 0.62),
+        new("FLAWLESS_AQUAMARINE_GEM", 0.6), new("FLAWLESS_ONYX_GEM", 0.6), new("FLAWLESS_CITRINE_GEM", 0.58),
+        new("FLAWLESS_PERIDOT_GEM", 0.55), new("ENCHANTMENT_ICE_COLD_1", 0.49)
+    ];
+    // Opening a corpse consumes its key, so keys show as negative counts.
+    protected override List<MethodDrop> FormulaCosts => [new("UMBER_KEY", 1.24), new("TUNGSTEN_KEY", 1.27)];
+    // The pickaxe or drill is the player's choice; nothing here is required beyond the zone's own access.
+    protected override List<RequiredItem> RequiredItems => [];
+    protected override string HowTo =>
+        "Mine in the Glacite Tunnels until a Glacite Mineshaft opens (Heart of the Mountain tier VII). Loot the frozen "
+        + "corpses inside (Lapis needs no key, Umber/Tungsten/Vanguard corpses need an Umber/Tungsten/Skeleton Key) "
+        + "and mine the shaft's veins.";
+    protected override double ActionsPerHour => 3000;
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Level Heart of the Mountain to tier VII - the Glacite Tunnels, and with them the mineshafts, need it." },
+        new() { Number = 2, Text = GlaciteAccessNote },
+        new() { Number = 3, Text = "Keep mining ore in the Glacite Tunnels - a Glacite Mineshaft opens at random and you can enter it from there." },
+        new() { Number = 4, Text = "Loot the frozen corpses inside. Lapis corpses open without a key, Umber, Tungsten and Vanguard corpses need an Umber, Tungsten or Skeleton Key." },
+        new() { Number = 5, Text = "Mine the ore veins of the shaft on the way." },
+        new() { Number = 6, Text = "You're doing it right when you collect: Suspicious Scrap, Glacite Jewel, Goblin Eggs. That's what we track for your coins/hour." },
         new() { Number = 7, Text = "Check /cofl task again to see your real coins/hour." },
     ];
 }
@@ -531,7 +614,7 @@ public class TopazMiningTask : BaseMiningTask
 public class AquamarineMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Aquamarine Mining";
-    protected override HashSet<string> Locations => ["Glacite Tunnels", "Glacite Mineshafts", "Dwarven Base Camp"];
+    protected override HashSet<string> Locations => ["Glacite Tunnels", "Great Glacite Lake", "Dwarven Base Camp"];
     protected override HashSet<string> DetectionItems => ["FINE_AQUAMARINE_GEM", "FLAWED_AQUAMARINE_GEM", "ROUGH_AQUAMARINE_GEM"];
     protected override List<MethodDrop> FormulaDrops => [new("FLAWED_AQUAMARINE_GEM", 500), new("FINE_AQUAMARINE_GEM", 160)];
     protected override string HowTo => "Equip a Gemstone Gauntlet and mine Aquamarine gemstone veins in the Glacite Tunnels.";
@@ -542,7 +625,7 @@ public class AquamarineMiningTask : BaseMiningTask
 public class CitrineMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Citrine Mining";
-    protected override HashSet<string> Locations => ["Glacite Tunnels", "Glacite Mineshafts", "Dwarven Base Camp"];
+    protected override HashSet<string> Locations => ["Glacite Tunnels", "Great Glacite Lake", "Dwarven Base Camp"];
     protected override HashSet<string> DetectionItems => ["FINE_CITRINE_GEM", "FLAWED_CITRINE_GEM", "ROUGH_CITRINE_GEM"];
     protected override List<MethodDrop> FormulaDrops => [new("FLAWED_CITRINE_GEM", 320), new("FINE_CITRINE_GEM", 76)];
     protected override string HowTo => "Equip a Gemstone Gauntlet and mine Citrine gemstone veins in the Glacite Tunnels.";
@@ -553,7 +636,7 @@ public class CitrineMiningTask : BaseMiningTask
 public class OnyxMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Onyx Mining";
-    protected override HashSet<string> Locations => ["Glacite Tunnels", "Glacite Mineshafts", "Dwarven Base Camp"];
+    protected override HashSet<string> Locations => ["Glacite Tunnels", "Great Glacite Lake", "Dwarven Base Camp"];
     protected override HashSet<string> DetectionItems => ["FINE_ONYX_GEM", "FLAWED_ONYX_GEM", "ROUGH_ONYX_GEM"];
     protected override List<MethodDrop> FormulaDrops => [new("FINE_ONYX_GEM", 180)];
     protected override string HowTo => "Equip a Gemstone Gauntlet and mine Onyx gemstone veins in the Glacite Tunnels.";
@@ -568,7 +651,7 @@ public class OnyxMiningTask : BaseMiningTask
 public class FossilExcavationTask : BaseMiningTask
 {
     protected override string MethodName => "Fossil Excavation";
-    protected override HashSet<string> Locations => ["Fossil Research Center", "Dwarven Base Camp", "Glacite Tunnels"];
+    protected override HashSet<string> Locations => ["Fossil Research Center", "Dwarven Base Camp", "Glacite Tunnels", "Great Glacite Lake"];
     protected override HashSet<string> DetectionItems =>
     [
         "FOSSIL_THE_FISH", "CLUBBED_FOSSIL", "FOOTPRINT_FOSSIL", "TUSK_FOSSIL",

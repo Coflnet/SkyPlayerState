@@ -179,6 +179,44 @@ public class CollectionListenerProfitTests
         recorder.Verify(r => r.Record(It.IsAny<string>(), It.IsAny<TimeSpan>(), It.IsAny<RunLengthBounds>()), Moq.Times.Never);
     }
 
+    private static Tests.MockedUpdateArgs ChestViewArgs(Models.StateObject state, string title) => new()
+    {
+        currentState = state,
+        msg = new Models.UpdateMessage
+        {
+            Kind = Models.UpdateMessage.UpdateKind.INVENTORY, PlayerId = "p1",
+            Chest = new Models.ChestView
+            {
+                Name = title,
+                Items = [new() { ItemName = "Open Reward Chest", Description = "Contents\nSome Reward Item\n\nCost\n0 Coins\n\nClick to open!" }]
+            }
+        }
+    };
+
+    [Test]
+    public async Task KuudraChestViewInTheTierZone_CompletesTheStayWithoutTheChatLine()
+    {
+        // "KUUDRA DOWN!" never reached the service; the reward chest menu is the second completion signal
+        var (state, args, recorder) = RunLeaveHarness("Kuudra's Hollow (T5)", completed: false);
+
+        await new DungeonRewardListener().Process(ChestViewArgs(state, "Paid Chest"));
+        await new CollectionListener().Process(args);
+
+        recorder.Verify(r => r.Record("kuudra:T5", It.IsAny<TimeSpan>(), RunLengthBounds.Kuudra), Moq.Times.Once);
+    }
+
+    [Test]
+    public async Task KuudraChestViewAtCroesus_IsNoCompletion()
+    {
+        var (state, args, recorder) = RunLeaveHarness("Dungeon Hub", completed: false);
+
+        await new DungeonRewardListener().Process(ChestViewArgs(state, "Free Chest"));
+
+        state.ExtractedInfo.LastKuudraRunCompletedAt.Should().Be(default);
+        await new CollectionListener().Process(args);
+        recorder.Verify(r => r.Record(It.IsAny<string>(), It.IsAny<TimeSpan>(), It.IsAny<RunLengthBounds>()), Moq.Times.Never);
+    }
+
     private static Tests.MockedUpdateArgs ChatArgs(Models.StateObject state, Moq.Mock<IRunLengthRecorder> recorder, params string[] lines)
     {
         var args = new Tests.MockedUpdateArgs

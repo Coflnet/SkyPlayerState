@@ -248,6 +248,7 @@ internal static class TaskCatalog
         // discovered from unclassified production revenue 2026-09-27
         tasks.Add<MithrilMiningTask>();
         tasks.Add<GlaciteMiningTask>();
+        tasks.Add<GlaciteMineshaftTask>();
         tasks.Add<FlintMiningTask>();
         tasks.Add<FossilExcavationTask>();
         // pure ores, discovered from production periods 2026-10-02/03
@@ -344,6 +345,7 @@ internal static class TaskCatalog
 
         // Misc tasks
         tasks.Add<ZealotsFdTask>();
+        tasks.Add<EnderDragonTask>();
         tasks.Add<RedMushroomTask>();
         tasks.Add<BrownMushroomTask>();
         tasks.Add<MyceliumTask>();

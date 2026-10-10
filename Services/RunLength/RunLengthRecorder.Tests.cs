@@ -105,6 +105,33 @@ public class RunLengthRecorderTests
         store.Lists["b"].Should().HaveCount(1);
     }
 
+    [Test]
+    public async Task GetEntries_ReturnsRawEntriesNewestFirst_AndNullForInvalidKey()
+    {
+        var store = new MemoryStore();
+        var recorder = Create(store);
+        await recorder.Record("kuudra:T5", TimeSpan.FromSeconds(80), RunLengthBounds.Kuudra);
+        await recorder.Record("kuudra:T5", TimeSpan.FromSeconds(95), RunLengthBounds.Kuudra);
+
+        var entries = (await recorder.GetEntries("kuudra:T5"))!;
+
+        entries.Select(e => e.Seconds).Should().Equal(95, 80);
+        entries[0].At.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+        (await recorder.GetEntries("kuudra:T9"))!.Should().BeEmpty();
+        (await recorder.GetEntries("has space")).Should().BeNull();
+    }
+
+    [Test]
+    public async Task KuudraBounds_KeepRealDirectRequeueCyclesOf76To104Seconds()
+    {
+        var store = new MemoryStore();
+        foreach (var seconds in new[] { 76, 83, 90, 104 })
+            await Create(store).Record("kuudra:T5", TimeSpan.FromSeconds(seconds), RunLengthBounds.Kuudra);
+        await Create(store).Record("kuudra:T5", TimeSpan.FromSeconds(30), RunLengthBounds.Kuudra);
+
+        store.Lists["kuudra:T5"].Should().HaveCount(4, "30 s is a lobby hop, the measured cycles are real runs");
+    }
+
     [TestCase("")]
     [TestCase("has space")]
     [TestCase("a;b")]

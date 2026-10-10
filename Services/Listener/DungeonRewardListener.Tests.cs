@@ -567,6 +567,59 @@ public class DungeonChatTests
         state.ItemsCollectedRecently[PseudoItems.DUNGEON_RUN].Should().Be(1);
     }
 
+    private static StateObject FloorStay(TimeSpan since, TimeSpan? completedAgo)
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.CurrentLocation = "The Catacombs (M4)";
+        state.ExtractedInfo.CurrentLocationSince = DateTime.UtcNow - since;
+        if (completedAgo != null)
+            state.ExtractedInfo.LastDungeonRunCompletedAt = DateTime.UtcNow - completedAgo.Value;
+        return state;
+    }
+
+    [Test]
+    public async Task RepeatedHeader90sLaterInTheSameStay_IsNotCounted()
+    {
+        // production: a client mod repeats the header; the in-memory 60 s guard (per pod) missed it
+        var state = FloorStay(TimeSpan.FromMinutes(5), TimeSpan.FromSeconds(90));
+        state.ItemsCollectedRecently[PseudoItems.DUNGEON_RUN] = 1;
+        await new DungeonRewardListener().Process(Chat(state, "        Master Mode The Catacombs - Floor IV"));
+        state.ItemsCollectedRecently[PseudoItems.DUNGEON_RUN].Should().Be(1);
+    }
+
+    [Test]
+    public async Task HeaderThreeMinutesAfterTheLastOneInTheSameStay_IsCounted()
+    {
+        var state = FloorStay(TimeSpan.FromMinutes(8), TimeSpan.FromMinutes(3));
+        await new DungeonRewardListener().Process(Chat(state, "        Master Mode The Catacombs - Floor IV"));
+        state.ItemsCollectedRecently[PseudoItems.DUNGEON_RUN].Should().Be(1);
+    }
+
+    [Test]
+    public async Task HeaderInANewStay_IsCountedEvenWhenThePreviousCompletionWasRecent()
+    {
+        // directly requeued: the completion belongs to the stay before CurrentLocationSince
+        var state = FloorStay(TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(100));
+        await new DungeonRewardListener().Process(Chat(state, "        Master Mode The Catacombs - Floor IV"));
+        state.ItemsCollectedRecently[PseudoItems.DUNGEON_RUN].Should().Be(1);
+    }
+
+    [Test]
+    public async Task LateHeaderAfterDirectRequeue_StillCreditsThePreviousRun()
+    {
+        var state = FloorStay(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(100));
+        var completed = state.ExtractedInfo.LastDungeonRunCompletedAt;
+        RunLengthCredit.Remember(state.ExtractedInfo, "dungeon:M4", TimeSpan.FromMinutes(9), DateTime.UtcNow.AddSeconds(-10));
+        var recorder = new Moq.Mock<IRunLengthRecorder>();
+        var args = Chat(state, "        Master Mode The Catacombs - Floor IV");
+        args.AddService(recorder.Object);
+
+        await new DungeonRewardListener().Process(args);
+
+        recorder.Verify(r => r.Record("dungeon:M4", TimeSpan.FromMinutes(9), RunLengthBounds.Dungeon), Moq.Times.Once);
+        state.ExtractedInfo.LastDungeonRunCompletedAt.Should().Be(completed, "the new stay is not completed by the previous run's header");
+    }
+
     [TestCase("            Team Score: 305 (S+)")]
     [TestCase("            Team Score: 305 (S+) (NEW RECORD!)")]
     public async Task TeamScore_DoesNotThrow(string line)

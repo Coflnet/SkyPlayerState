@@ -429,7 +429,13 @@ public class BlazeSlayerTask : MethodTask
     // Must not steal from BurningsoulTask (SHARD_BURNINGSOUL, "Inferno Demonlord"): that task
     // requires its own shard, this one requires only the boss-exclusive Derelict Ashe, so a window
     // with only one of the two only ever matches the corresponding task.
-    protected override HashSet<string> DetectionItems => ["DERELICT_ASHE"];
+    // The RNG drops are exclusive to the boss as well: a kill that drops only one of them (3 High Class Archfiend
+    // Dice, ~99M, went unclassified or to Crimson Isle Mobs) is still a Blaze Slayer kill.
+    protected override HashSet<string> DetectionItems =>
+    [
+        "DERELICT_ASHE", "KELVIN_INVERTER", "SUBZERO_INVERTER", "MANA_DISINTEGRATOR", "SCORCHED_POWER_CRYSTAL", "ARCHFIEND_DICE",
+        "HIGH_CLASS_ARCHFIEND_DICE", "SCORCHED_BOOKS", "WILSON_ENGINEERING_PLANS", "ARROW_BUNDLE_MAGMA"
+    ];
     // Production medians (2026-09): 4 Derelict Ashe + 25 Blaze Rods per period, per hour below.
     protected override List<MethodDrop> FormulaDrops => [new("DERELICT_ASHE", 60), new("BLAZE_ROD", 400), new("BLAZE_ASHES", 20)];
     protected override double ActionsPerHour => 4; // bosses, not regular kills

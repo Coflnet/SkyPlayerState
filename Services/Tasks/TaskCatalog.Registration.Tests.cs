@@ -40,7 +40,7 @@ public class TaskCatalogRegistrationTests
         "CrimsonFishingHuntingTask", "CrimsonFishingTask", "CrimsonHotspotFishingTask", "CrimsonIsleTask",
         "CritterSafariTask", "CrystalHollowsPowderMiningTask",
         "DailyCrimsonQuestsTask", "DeepCavernsTask", "DiamondMiningTask", "DianaTask",
-        "DreadwingTask", "DrownedTask", "DwarvenMinesMiningTask", "ExperimentationTableTask",
+        "DreadwingTask", "DrownedTask", "DwarvenMinesMiningTask", "EnderDragonTask", "ExperimentationTableTask",
         "F1Task", "F2Task", "F3Task", "F4Task", "F5Task", "F6Task", "F7Task",
         "FigForagingTask", "FlamingSpiderHuntingTask", "FlamingWormFishingTask", "FlareHuntingTask", "FlintMiningTask", "ForgeClaimsTask", "ForgeTask",
         "GalateaDivingTask", "GalateaFishingHuntingTask", "GalateaFishingMethodTask", "GalateaFishingTask",
@@ -75,7 +75,7 @@ public class TaskCatalogRegistrationTests
         // production periods 2026-10-02/03
         "OakForagingTask", "BirchForagingTask", "SpruceForagingTask", "DarkOakForagingTask", "AcaciaForagingTask", "JungleForagingTask",
         "RubyMiningTask", "TopazMiningTask", "AquamarineMiningTask", "CitrineMiningTask", "OnyxMiningTask", "FossilExcavationTask",
-        "GoldMiningTask", "IronMiningTask", "LapisMiningTask", "EmeraldMiningTask",
+        "GlaciteMineshaftTask", "GoldMiningTask", "IronMiningTask", "LapisMiningTask", "EmeraldMiningTask",
         "DungBeetleHuntingTask", "HideonsunHuntingTask", "StridersurferTask", "TarantulaSlayerTask"
     ];
 

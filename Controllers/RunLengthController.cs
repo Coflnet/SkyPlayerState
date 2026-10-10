@@ -30,4 +30,14 @@ public class RunLengthController : ControllerBase
             return NotFound($"no run lengths recorded for '{key}'");
         return stats;
     }
+
+    /// <summary>The raw entries of one key (seconds and UTC time), newest first; 404 when nothing was recorded for it.</summary>
+    [HttpGet("{key}/entries")]
+    public async Task<ActionResult<List<RunLengthEntry>>> GetEntries(string key)
+    {
+        var entries = await recorder.GetEntries(key);
+        if (entries == null || entries.Count == 0)
+            return NotFound($"no run lengths recorded for '{key}'");
+        return entries;
+    }
 }
