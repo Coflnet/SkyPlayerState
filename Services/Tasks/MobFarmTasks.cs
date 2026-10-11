@@ -122,7 +122,9 @@ public class BladesoulTask : BaseGalateaMobTask
     protected override string MethodName => "Bladesoul";
     // Bladesoul is a respawning boss in the Stronghold (Crimson Isle); it drops no shard.
     protected override HashSet<string> Locations => ["Stronghold"];
-    protected override HashSet<string> DetectionItems => ["HALLOWED_SKULL"];
+    protected override HashSet<string> DetectionItems => ["HALLOWED_SKULL", "MAGMA_URCHIN"];
+    // Barbarian Duke X shares the Stronghold and the Magma Urchin; this boss is the one only listed there.
+    protected override int Priority => 1;
     protected override List<MethodDrop> FormulaDrops =>
     [
         new("HALLOWED_SKULL", 12), new("COAL", 300), new("ENCHANTED_COAL", 12),
@@ -434,7 +436,10 @@ public class BlazeSlayerTask : MethodTask
     protected override HashSet<string> DetectionItems =>
     [
         "DERELICT_ASHE", "KELVIN_INVERTER", "SUBZERO_INVERTER", "MANA_DISINTEGRATOR", "SCORCHED_POWER_CRYSTAL", "ARCHFIEND_DICE",
-        "HIGH_CLASS_ARCHFIEND_DICE", "SCORCHED_BOOKS", "WILSON_ENGINEERING_PLANS", "ARROW_BUNDLE_MAGMA"
+        "HIGH_CLASS_ARCHFIEND_DICE", "SCORCHED_BOOKS", "WILSON_ENGINEERING_PLANS", "ARROW_BUNDLE_MAGMA",
+        // the last three are boss drops seen inside Blaze Slayer periods in production 2026-10-11 (casing as booked); Smoldering
+        // comes from the tomb blazes killed for the quest
+        "ENCHANTMENT_SMOLDERING_1", "ENCHANTMENT_ULTIMATE_REITERATE_1", "CRUDE_GABAGOOL_DISTILLATE", "POTION_wisp_ice"
     ];
     // Production medians (2026-09): 4 Derelict Ashe + 25 Blaze Rods per period, per hour below.
     protected override List<MethodDrop> FormulaDrops => [new("DERELICT_ASHE", 60), new("BLAZE_ROD", 400), new("BLAZE_ASHES", 20)];

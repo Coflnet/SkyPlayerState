@@ -171,6 +171,39 @@ public class ShardCollectionTests
         Assert.That(parsed, Is.False);
     }
 
+    [TestCase("    Fossil Essence x40", 40)]
+    [TestCase("    Fossil Essence x1,200", 1200)]
+    [TestCase("    Fossil Essence", 1)]
+    [TestCase("    Fossil Essence x40  ", 40)]
+    public void ParsesFossilEssenceLine(string line, int expected)
+    {
+        Assert.That(CollectionListener.TryParseFossilEssence(line, out var count), Is.True);
+        Assert.That(count, Is.EqualTo(expected));
+    }
+
+    [TestCase("[Bazaar] Bought 1,000x Fossil Essence for 2,200,000 coins!")]
+    [TestCase("[MVP+] Someone: Fossil Essence x40")]
+    [TestCase("Fossil Essence x40")]
+    [TestCase("    Enchanted Umber x4")]
+    [TestCase("    Fossil Essence x40 extra")]
+    public void IgnoresNonEssenceLines(string line)
+    {
+        Assert.That(CollectionListener.TryParseFossilEssence(line, out var count), Is.False);
+        Assert.That(count, Is.EqualTo(0));
+    }
+
+    [Test]
+    public async Task ExcavationSummaryBooksOnlyTheEssence()
+    {
+        var args = ChatArgs("  EXCAVATION COMPLETE ", "    Fossil Essence x40", "    Enchanted Umber x4",
+            "    Tusk Fossil", "    Glacite Powder x2,500", new string('\u25AC', 64));
+
+        await new CollectionListener().Process(args);
+
+        Assert.That(args.currentState.ItemsCollectedRecently, Has.Count.EqualTo(1));
+        Assert.That(args.currentState.ItemsCollectedRecently["ESSENCE_FOSSIL"], Is.EqualTo(40));
+    }
+
     private static MockedUpdateArgs ChatArgs(params string[] lines) => new()
     {
         currentState = new StateObject(),

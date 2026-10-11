@@ -194,6 +194,38 @@ public class PestHuntingTask : BaseHuntingTask
     protected override string Category => "Garden";
 }
 
+/// <summary>
+/// Lunar Moths spawn only in Pest/Mouse/Vermin Traps baited with Moondew. Production 2026-10-11: 85 Sunset books in 18
+/// periods were unclassified and the spent Moondew sat in crop and pest tasks.
+/// </summary>
+public class LunarMothTrappingTask : BaseHuntingTask
+{
+    protected override string MethodName => "Lunar Moth Trapping";
+    protected override HashSet<string> Locations => ["Garden"];
+    protected override string Where => "The Garden";
+    protected override HashSet<string> DetectionItems => ["ENCHANTMENT_ULTIMATE_SUNSET_1", "SHARD_LUNAR_MOTH"];
+    // Spent bait is a negative count: it classifies a period whose loot was booked elsewhere. Crafted Moondew alone is not loot.
+    protected override HashSet<string> EvidenceItems => ["MOONDEW"];
+    protected override List<MethodDrop> FormulaCosts => [new("MOONDEW", 60)];
+    // Sunset I is 35% of 60 baits; the shards per moth are a rough seed.
+    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTMENT_ULTIMATE_SUNSET_1", 21), new("SHARD_LUNAR_MOTH", 60)];
+    protected override int Priority => 1;
+    protected override string Category => "Garden";
+    protected override string ActionUnit => "baits";
+    protected override List<RequiredItem> RequiredItems => [];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Lunar_Moth";
+    protected override string HowTo =>
+        "Bait Pest, Mouse or Vermin Traps in the Garden with Moondew; every bait spawns a Lunar Moth that drops Sunset I "
+        + "35% of the time. Lasso it for Lunar Moth shards.";
+    protected override List<TaskStep> Steps =>
+    [
+        new() { Number = 1, Text = "Place a Pest, Mouse or Vermin Trap in your Garden and bait it with Moondew." },
+        new() { Number = 2, Text = "Every bait spawns a Lunar Moth that drops Sunset I 35% of the time; lasso it for Lunar Moth shards.", OnClick = WikiUrl },
+        new() { Number = 3, Text = "You're doing it right when you collect: Sunset I books, Lunar Moth shards. That's what we track for your coins/hour." },
+        new() { Number = 4, Text = "Check /cofl task again to see your real coins/hour." },
+    ];
+}
+
 // ── New/corrected hunting tasks (2026-09 production log analysis) ──
 
 public class TikiHuntingTask : BaseHuntingTask
@@ -342,4 +374,28 @@ public class HideonsunHuntingTask : BaseHuntingTask
     protected override HashSet<string> DetectionItems => ["SHARD_HIDEONSUN"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_HIDEONSUN", 34)];
     protected override string HowTo => "Go to Torrhus Canyon or Torrhus Heights on Torrhus and hunt Hideonsuns for their shard.";
+}
+public class TorrhusCanyonHuntingTask : BaseHuntingTask
+{
+    protected override string MethodName => "Torrhus Canyon (Hunting)";
+    // Listed zone by zone: the island key "Torrhus" would also cover the Critter Safari, which has its own task.
+    protected override HashSet<string> Locations => ["Torrhus Canyon", "Torrhus Heights", "Pangolin Hideaway", "Spring Path", "Critter Safari Entrance"];
+    protected override string Where => "Torrhus Canyon";
+    protected override HashSet<string> DetectionItems =>
+        ["SHARD_BLUE_JAY", "SHARD_PANGOLIN", "SHARD_BUNBUN", "SHARD_MOUNTAIN_GOAT", "SHARD_TIMIL"];
+    // Foragers lasso these critters on the way: a few shards outvalue the logs or honeycomb of a short period and took
+    // 108 Helix Foraging and Honeycomb Gathering periods in the replay (2026-10-11). Only periods without another task
+    // are the hunt.
+    protected override bool Fallback => true;
+    // Seeds from the per-period medians (3 shards, Timil 15) of 13-42 unclassified periods each, 2026-10-11.
+    protected override List<MethodDrop> FormulaDrops =>
+    [
+        new("SHARD_BUNBUN", 25), new("SHARD_BLUE_JAY", 18), new("SHARD_PANGOLIN", 15), new("SHARD_MOUNTAIN_GOAT", 15), new("SHARD_TIMIL", 30)
+    ];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Torrhus_Canyon";
+    protected override string HowTo =>
+        "Go to Torrhus and lasso the critters: Blue Jay on the highest peaks of Torrhus Heights (stand still about 8 seconds "
+        + "first or it flies off), Pangolin in the Pangolin Hideaway (lasso only), Bunbun on land in Torrhus Canyon, Mountain "
+        + "Goat on the Spring Path. Bunbun and Mountain Goat can also be caught with a Hunting Trap, Timil with a Fishing Net "
+        + "or a trap placed underwater on the Spring Path.";
 }

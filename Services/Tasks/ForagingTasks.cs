@@ -34,7 +34,12 @@ public class HelixForagingTask : BaseForagingTask
         "Spring Shallows", "Spring Depths", "Ant's Cave", "Hotspot Haven", "Desert Temple"
     ];
     protected override string Where => "Torrhus Heights";
-    protected override HashSet<string> DetectionItems => ["HELIX_LOG", "ENCHANTED_HELIX_LOG"];
+    protected override HashSet<string> DetectionItems =>
+    [
+        "HELIX_LOG", "ENCHANTED_HELIX_LOG",
+        // Helix Tree Gifts critters (Puck drops Bottled Mischief); 48-71 periods of each shard were Helix periods 2026-10-11
+        "SHARD_GROUNDHOG", "SHARD_FIREFOX", "SHARD_PUCK", "SHARD_DRYBARK", "BOTTLED_MISCHIEF"
+    ];
     protected override List<MethodDrop> FormulaDrops =>
     [
         new("HELIX_LOG", 15000), new("ENCHANTED_HELIX_LOG", 300), new("HONEYCOMB", 400)
@@ -127,7 +132,12 @@ public class HoneycombGatheringTask : BaseForagingTask
     // Island key (Torrhus zones are Torrhus Canyon, Torrhus Heights, Miria's Hut, ... - see SkyblockZones).
     protected override HashSet<string> Locations => ["Torrhus"];
     protected override string Where => "Torrhus Canyon";
-    protected override HashSet<string> DetectionItems => ["HONEYCOMB", "ENCHANTED_HONEYCOMB"];
+    protected override HashSet<string> DetectionItems =>
+    [
+        "HONEYCOMB", "ENCHANTED_HONEYCOMB",
+        // Pollendart is lassoed at honeycomb-lathered trees: 52 of 77 periods with it were here 2026-10-11
+        "SHARD_POLLENDART"
+    ];
     // Production medians (2026-09) per 10-min period * 6: HONEYCOMB 81, ENCHANTED_HONEYCOMB 3.
     protected override List<MethodDrop> FormulaDrops => [new("HONEYCOMB", 486), new("ENCHANTED_HONEYCOMB", 18)];
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Torrhus_Canyon";

@@ -58,6 +58,26 @@ public class CollectionListenerInventoryTests
         await new CollectionListener().Process(args);
     }
 
+    [TestCase("RETIA_SUPREMA", 0, 4)]
+    [TestCase("RETIA_BASICA", 1, 5)]
+    [TestCase("RETIA_SUPREMA", 5, 2)]
+    public async Task HuntTrapDiffsAreNeverBooked(string trap, int before, int after)
+    {
+        var state = new StateObject();
+        List<Item> View(int trapCount, int coal)
+        {
+            var items = new List<Item> { StackableItem("COAL", coal) };
+            if (trapCount > 0)
+                items.Add(StackableItem(trap, trapCount));
+            return items;
+        }
+        await ProcessView(state, new ChestView { Name = "", Items = View(before, 1) });
+        await ProcessView(state, new ChestView { Name = "", Items = View(after, 3) });
+
+        state.ItemsCollectedRecently.Should().NotContainKey(trap);
+        state.ItemsCollectedRecently.GetValueOrDefault("COAL").Should().Be(2, "other items in the same diff are still booked");
+    }
+
     [Test]
     public async Task KnownUuidReappearingAtHigherCountIsNotCounted()
     {

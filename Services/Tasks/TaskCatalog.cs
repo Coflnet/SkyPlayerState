@@ -210,6 +210,7 @@ internal static class TaskCatalog
         tasks.Add<ZealotHuntingTask>();
         tasks.Add<BruiserHuntingTask>();
         tasks.Add<PestHuntingTask>();
+        tasks.Add<LunarMothTrappingTask>();
         // discovered from unclassified production revenue 2026-09-28
         tasks.Add<TikiHuntingTask>();
         tasks.Add<TreasureHoarderHuntingTask>();
@@ -219,6 +220,7 @@ internal static class TaskCatalog
         tasks.Add<BirriesHuntingTask>();
         tasks.Add<DungBeetleHuntingTask>();
         tasks.Add<HideonsunHuntingTask>();
+        tasks.Add<TorrhusCanyonHuntingTask>();
         tasks.Add<CritterSafariTask>();
 
         // Diana / Mythological event tasks
@@ -243,6 +245,7 @@ internal static class TaskCatalog
         tasks.Add<RedstoneMiningTask>();
         tasks.Add<CobblestoneMiningTask>();
         tasks.Add<ObsidianMiningTask>();
+        tasks.Add<EndStoneMiningTask>();
         tasks.Add<TungstenMiningTask>();
         tasks.Add<UmberMiningTask>();
         // discovered from unclassified production revenue 2026-09-27

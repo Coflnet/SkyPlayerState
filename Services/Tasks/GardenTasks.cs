@@ -40,7 +40,7 @@ internal static class PestEvidence
     public static readonly HashSet<string> Shards =
     [
         "SHARD_CRICKET", "SHARD_LOCUST", "SHARD_MOTH", "SHARD_KEELED_SLUG", "SHARD_RAT", "SHARD_MITE", "SHARD_TERMITE",
-        "SHARD_CROPEETLE", "SHARD_FLY", "SHARD_PRAYING_MANTIS", "SHARD_MOSQUITO", "SHARD_DRAGONFLY", "SHARD_LUNAR_MOTH",
+        "SHARD_CROPEETLE", "SHARD_FLY", "SHARD_PRAYING_MANTIS", "SHARD_MOSQUITO", "SHARD_DRAGONFLY",
         "SHARD_PEST", "SHARD_FIREFLY"
     ];
 
@@ -61,7 +61,10 @@ internal static class PestEvidence
         "BROWN_MUSHROOM", "BUILDER_BROWN_MUSHROOM", "ENCHANTED_BROWN_MUSHROOM",
         "RED_MUSHROOM", "BUILDER_RED_MUSHROOM", "ENCHANTED_RED_MUSHROOM",
         "INK_SACK:3", "ENCHANTED_COCOA", "DOUBLE_PLANT", "ENCHANTED_SUNFLOWER", "COMPACTED_SUNFLOWER",
-        "MOONFLOWER", "ENCHANTED_MOONFLOWER", "WILD_ROSE", "ENCHANTED_WILD_ROSE"
+        "MOONFLOWER", "ENCHANTED_MOONFLOWER", "WILD_ROSE", "ENCHANTED_WILD_ROSE",
+        // top compacted forms players with a personal compactor receive (2026-10-11)
+        "ENCHANTED_HAY_BALE", "TIGHTLY_TIED_HAY_BALE", "POLISHED_PUMPKIN", "MUTANT_NETHER_STALK",
+        "ENCHANTED_HUGE_MUSHROOM_1", "ENCHANTED_HUGE_MUSHROOM_2", "ENCHANTED_COOKIE", "COMPACTED_MOONFLOWER", "COMPACTED_WILD_ROSE"
     ];
 }
 
@@ -154,7 +157,9 @@ public class WheatFarmingTask : BaseGardenCropTask
     protected override string WikiPage => "Wheat";
     protected override string ToolTag => "THEORETICAL_HOE_WHEAT_1";
     protected override string ToolName => "Euclid's Wheat Hoe";
-    protected override HashSet<string> DetectionItems => ["WHEAT", "ENCHANTED_WHEAT", "SEEDS", "ENCHANTED_SEEDS", "ENCHANTED_HAY_BLOCK"];
+    // BOX_OF_SEEDS is left out although seeds compact into it: it is composter fuel that players buy and burn, and a
+    // burned box would classify as farming (89 periods with a negative count 2026-10-11).
+    protected override HashSet<string> DetectionItems => ["WHEAT", "ENCHANTED_WHEAT", "SEEDS", "ENCHANTED_SEEDS", "ENCHANTED_HAY_BLOCK", "ENCHANTED_HAY_BALE", "TIGHTLY_TIED_HAY_BALE"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_WHEAT", 1700), new("ENCHANTED_SEEDS", 2300)];
 }
 
@@ -184,7 +189,7 @@ public class PumpkinFarmingTask : BaseGardenCropTask
     protected override string WikiPage => "Pumpkin";
     protected override string ToolTag => "PUMPKIN_DICER";
     protected override string ToolName => "Pumpkin Dicer";
-    protected override HashSet<string> DetectionItems => ["PUMPKIN", "ENCHANTED_PUMPKIN"];
+    protected override HashSet<string> DetectionItems => ["PUMPKIN", "ENCHANTED_PUMPKIN", "POLISHED_PUMPKIN"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_PUMPKIN", 1200)];
 }
 
@@ -214,7 +219,7 @@ public class NetherWartFarmingTask : BaseGardenCropTask
     protected override string WikiPage => "Nether_Wart";
     protected override string ToolTag => "THEORETICAL_HOE_WARTS_1";
     protected override string ToolName => "Newton Nether Warts Hoe";
-    protected override HashSet<string> DetectionItems => ["NETHER_STALK", "ENCHANTED_NETHER_STALK"];
+    protected override HashSet<string> DetectionItems => ["NETHER_STALK", "ENCHANTED_NETHER_STALK", "MUTANT_NETHER_STALK"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_NETHER_STALK", 2900)];
 }
 
@@ -236,7 +241,7 @@ public class MushroomFarmingTask : BaseGardenCropTask
     protected override string ToolTag => "FUNGI_CUTTER";
     protected override string ToolName => "Fungi Cutter";
     protected override HashSet<string> DetectionItems =>
-        ["RED_MUSHROOM", "BROWN_MUSHROOM", "BUILDER_BROWN_MUSHROOM", "BUILDER_RED_MUSHROOM", "ENCHANTED_RED_MUSHROOM", "ENCHANTED_BROWN_MUSHROOM"];
+        ["RED_MUSHROOM", "BROWN_MUSHROOM", "BUILDER_BROWN_MUSHROOM", "BUILDER_RED_MUSHROOM", "ENCHANTED_RED_MUSHROOM", "ENCHANTED_BROWN_MUSHROOM", "ENCHANTED_HUGE_MUSHROOM_1", "ENCHANTED_HUGE_MUSHROOM_2"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_RED_MUSHROOM", 700), new("ENCHANTED_BROWN_MUSHROOM", 400)];
 }
 
@@ -246,7 +251,7 @@ public class CocoaBeansFarmingTask : BaseGardenCropTask
     protected override string WikiPage => "Cocoa_Beans";
     protected override string ToolTag => "COCO_CHOPPER";
     protected override string ToolName => "Cocoa Chopper";
-    protected override HashSet<string> DetectionItems => ["INK_SACK:3", "ENCHANTED_COCOA"];
+    protected override HashSet<string> DetectionItems => ["INK_SACK:3", "ENCHANTED_COCOA", "ENCHANTED_COOKIE"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_COCOA", 1900)];
 }
 
@@ -268,7 +273,7 @@ public class MoonflowerFarmingTask : BaseGardenCropTask
     // No dedicated farming tool for Moonflower.
     protected override string ToolTag => null;
     protected override string ToolName => null;
-    protected override HashSet<string> DetectionItems => ["MOONFLOWER", "ENCHANTED_MOONFLOWER"];
+    protected override HashSet<string> DetectionItems => ["MOONFLOWER", "ENCHANTED_MOONFLOWER", "COMPACTED_MOONFLOWER"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_MOONFLOWER", 3300)];
 }
 
@@ -279,7 +284,7 @@ public class WildRoseFarmingTask : BaseGardenCropTask
     // No dedicated farming tool for Wild Rose.
     protected override string ToolTag => null;
     protected override string ToolName => null;
-    protected override HashSet<string> DetectionItems => ["WILD_ROSE", "ENCHANTED_WILD_ROSE"];
+    protected override HashSet<string> DetectionItems => ["WILD_ROSE", "ENCHANTED_WILD_ROSE", "COMPACTED_WILD_ROSE"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_WILD_ROSE", 2300)];
 }
 

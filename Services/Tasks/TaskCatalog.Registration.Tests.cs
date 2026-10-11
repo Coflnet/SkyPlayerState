@@ -40,7 +40,7 @@ public class TaskCatalogRegistrationTests
         "CrimsonFishingHuntingTask", "CrimsonFishingTask", "CrimsonHotspotFishingTask", "CrimsonIsleTask",
         "CritterSafariTask", "CrystalHollowsPowderMiningTask",
         "DailyCrimsonQuestsTask", "DeepCavernsTask", "DiamondMiningTask", "DianaTask",
-        "DreadwingTask", "DrownedTask", "DwarvenMinesMiningTask", "EnderDragonTask", "ExperimentationTableTask",
+        "DreadwingTask", "DrownedTask", "DwarvenMinesMiningTask", "EndStoneMiningTask", "EnderDragonTask", "ExperimentationTableTask",
         "F1Task", "F2Task", "F3Task", "F4Task", "F5Task", "F6Task", "F7Task",
         "FigForagingTask", "FlamingSpiderHuntingTask", "FlamingWormFishingTask", "FlareHuntingTask", "FlintMiningTask", "ForgeClaimsTask", "ForgeTask",
         "GalateaDivingTask", "GalateaFishingHuntingTask", "GalateaFishingMethodTask", "GalateaFishingTask",
@@ -76,7 +76,7 @@ public class TaskCatalogRegistrationTests
         "OakForagingTask", "BirchForagingTask", "SpruceForagingTask", "DarkOakForagingTask", "AcaciaForagingTask", "JungleForagingTask",
         "RubyMiningTask", "TopazMiningTask", "AquamarineMiningTask", "CitrineMiningTask", "OnyxMiningTask", "FossilExcavationTask",
         "GlaciteMineshaftTask", "GoldMiningTask", "IronMiningTask", "LapisMiningTask", "EmeraldMiningTask",
-        "DungBeetleHuntingTask", "HideonsunHuntingTask", "StridersurferTask", "TarantulaSlayerTask"
+        "DungBeetleHuntingTask", "HideonsunHuntingTask", "TorrhusCanyonHuntingTask", "LunarMothTrappingTask", "StridersurferTask", "TarantulaSlayerTask"
     ];
 
     [Test]

@@ -275,12 +275,14 @@ public class MagmaCoreFishingTask : BaseFishingTask
     // Magma Core, they were unclassified, Coal Mining or Water Fishing), so any of its lava catches proves it there.
     protected override Dictionary<string, HashSet<string>> ZoneDetectionItems => new()
     {
-        ["Magma Fields"] =
-        [
-            "MAGMA_CORE", "BLAZE_ROD", "ENCHANTED_BLAZE_ROD", "ENCHANTED_BLAZE_POWDER", "CHUM", "SULPHUR_ORE", "NETHERRACK",
-            "CORRUPTED_FRAGMENT", "ETERNAL_FLAME_RING", "BLAZEN_SPHERE", "ENCHANTED_NETHER_STALK"
-        ]
+        ["Magma Fields"] = [.. MagmaFieldsLavaCatches]
     };
+    // Shared with Coal Mining, which must not take a lava fishing period at Magma Fields.
+    internal static readonly string[] MagmaFieldsLavaCatches =
+    [
+        "MAGMA_CORE", "BLAZE_ROD", "ENCHANTED_BLAZE_ROD", "ENCHANTED_BLAZE_POWDER", "CHUM", "SULPHUR_ORE", "NETHERRACK",
+        "CORRUPTED_FRAGMENT", "ETERNAL_FLAME_RING", "BLAZEN_SPHERE", "ENCHANTED_NETHER_STALK"
+    ];
     protected override bool ExcludeShardItems => true;
     // Junk rates measured over 165 h from 111 players (2026-10-10).
     protected override List<MethodDrop> FormulaDrops =>

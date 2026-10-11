@@ -62,6 +62,14 @@ public class CollectionListener : UpdateListener
                 var uploadedLine = chatBatch[i];
                 if (TryParseShardGain(uploadedLine, out var shardTag, out var shardCount, Logger))
                     TrackItem(args, shardTag, shardCount);
+                if (TryParseFossilEssence(uploadedLine, out var essenceCount))
+                {
+                    // essence goes to the essence storage, never through inventory or sacks
+                    TrackItem(args, "ESSENCE_FOSSIL", essenceCount);
+                    Logger.LogInformation("Fossil excavation paid {count} Fossil Essence to {playerId}", essenceCount, args.msg.PlayerId);
+                }
+                else if (char.IsWhiteSpace(uploadedLine.FirstOrDefault()) && uploadedLine.Contains("Fossil Essence"))
+                    Logger.LogInformation("Unparsed Fossil Essence line for {playerId}: {line}", args.msg.PlayerId, uploadedLine);
                 if (TryParseNpcShardTrade(history.Concat(chatBatch.Take(i)), uploadedLine,
                     out shardTag, out var paymentTag))
                 {
@@ -153,6 +161,24 @@ public class CollectionListener : UpdateListener
     /// any other sentence fragment leaking into an unmapped shard name in the future.
     /// </summary>
     private static readonly Regex SuspiciousShardNameFragment = new(@"\band\b|\d+x\b|\bx\d+\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex FossilEssenceLine = new(@"^\s+Fossil Essence(?: x(\d{1,3}(?:,\d{3})*|\d+))?\s*$", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Fossil Essence line of the excavation summary (indented, optional " x40"; unverified wording from a
+    /// 2026-07 mod). Requires leading whitespace so Bazaar lines and player messages never match.
+    /// </summary>
+    internal static bool TryParseFossilEssence(string uploadedLine, out int count)
+    {
+        count = 0;
+        var match = FossilEssenceLine.Match(StripFormatting(uploadedLine ?? string.Empty));
+        if (!match.Success)
+            return false;
+        count = 1;
+        if (match.Groups[1].Success)
+            return int.TryParse(match.Groups[1].Value.Replace(",", ""), out count) && count > 0;
+        return true;
+    }
 
     internal static bool TryParseShardGain(string uploadedLine, out string tag, out int count, ILogger logger = null)
     {
@@ -642,6 +668,10 @@ public class CollectionListener : UpdateListener
         }
         foreach (var (tag, currentItems) in currentInventory)
         {
+            // Huntraps are tools the player places and picks up hours later, not loot (production 2026-10-11:
+            // +5 RETIA_SUPREMA booked as 6.7M coins); also covers first-time gains
+            if (HuntTrapTags.Contains(tag))
+                continue;
             if (!mapOfItems.TryGetValue(tag, out var previousItems))
             {
                 // A tag new to the accessible inventory is a first-time drop (its full count, or only
@@ -766,6 +796,9 @@ public class CollectionListener : UpdateListener
                 .ToDictionary(g => g.Key, g => g.ToList());
         }
     }
+
+    private static readonly HashSet<string> HuntTrapTags = new()
+    { "RETIA_BASICA", "RETIA_FORTA", "RETIA_MELIORA", "RETIA_ROBUSTA", "RETIA_SUPREMA" };
 
     internal const string SummoningEyeTag = "SUMMONING_EYE";
     private const string DragonZone = "Dragon's Nest";

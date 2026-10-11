@@ -1709,4 +1709,262 @@ public class TaskClassifierTests
     [TestCase("Tewtil Tunnel")]
     public void LotusTrophyFrogs_AreLotusAtoll(string zone)
         => NameAt(zone, new() { { "COMMON_FROG_GOLD", 1 }, { "CAVE_FROG_SILVER", 1 } }).Should().Be("Lotus Atoll");
+
+    // ── 2026-10-11 production round ──
+
+    private static readonly Dictionary<string, double> Round2Prices = new()
+    {
+        { "HARD_STONE", 0.1 }, { "ENCHANTED_HARD_STONE", 505 }, { "GLOSSY_GEMSTONE", 2044000 }, { "UMBER", 80 }, { "TUNGSTEN", 76 },
+        { "GLACITE", 8 }, { "ENCHANTED_UMBER", 13300 }, { "ENCHANTED_TUNGSTEN", 12700 }, { "ENCHANTED_GLACITE", 1740 },
+        { "SUSPICIOUS_SCRAP", 121400 }, { "FINE_PERIDOT_GEM", 25000 }, { "ENCHANTED_ENDSTONE", 254 }, { "ENDER_STONE", 0.1 },
+        { "ENDER_PEARL", 7 }, { "ENCHANTED_ENDER_PEARL", 271 }, { "OBSIDIAN", 10 }, { "ENCHANTED_WHEAT", 938 },
+        { "ENCHANTED_NETHER_STALK", 620 }, { "MUTANT_NETHER_STALK", 101000 }, { "COMPACTED_MOONFLOWER", 102000 },
+        { "COMPACTED_WILD_ROSE", 100600 }, { "POLISHED_PUMPKIN", 246000 }, { "ENCHANTED_COOKIE", 75000 },
+        { "ENCHANTED_HUGE_MUSHROOM_1", 252000 }, { "ENCHANTED_HUGE_MUSHROOM_2", 252000 }, { "ENCHANTED_HAY_BALE", 150000 },
+        { "BOX_OF_SEEDS", 75000 }, { "ENCHANTED_PUMPKIN", 1100 }, { "SHARD_CRICKET", 43419 }, { "ENCHANTMENT_SMOLDERING_1", 4950000 },
+        { "SHARD_DRACONIC", 61000 }, { "SUMMONING_EYE", 1294000 },
+        { "COAL", 3.8 }, { "ENCHANTED_COAL", 1297 }, { "WORM_MEMBRANE", 40083 }, { "BLAZE_ROD", 6 }, { "NETHERRACK", 1 },
+        { "MAGMA_CORE", 16500 }, { "IRON_INGOT", 2 }, { "REDSTONE", 2 }, { "ESSENCE_FOSSIL", 2177 }, { "MOONDEW", 603700 },
+        { "ENCHANTMENT_ULTIMATE_SUNSET_1", 654957 }, { "SHARD_LUNAR_MOTH", 123532 }, { "ENCHANTED_MOONFLOWER", 637 },
+        { "HYPERCHARGE_GARDEN_CHIP", 23759 }, { "SHARD_BLUE_JAY", 26854 }, { "SHARD_PANGOLIN", 39927 }, { "SHARD_BUNBUN", 11511 },
+        { "SHARD_MOUNTAIN_GOAT", 21835 }, { "SHARD_TIMIL", 1533 }, { "SHARD_GROUNDHOG", 10393 }, { "SHARD_FIREFOX", 3357 },
+        { "SHARD_PUCK", 6249 }, { "SHARD_DRYBARK", 6212 }, { "SHARD_POLLENDART", 4111 }, { "SHARD_DUSTYBIT", 3262 },
+        { "SHARD_SEPIALOT", 30004 }, { "SHARD_TORRID", 164184 }, { "HELIX_LOG", 14 }, { "ENCHANTED_HELIX_LOG", 2200 },
+        { "HONEYCOMB", 300 }, { "BOTTLED_MISCHIEF", 2086165 }, { "MAGMA_URCHIN", 13000000 }, { "ROUGH_RUBY_GEM", 3 }
+    };
+
+    [Test]
+    public void FossilResearchCenter_SpentScrapWithByProducts_IsFossilExcavation()
+        => NameAtPriced("Fossil Research Center",
+            new() { { "SUSPICIOUS_SCRAP", -12 }, { "ENCHANTED_UMBER", 13 }, { "ENCHANTED_TUNGSTEN", 12 }, { "ENCHANTED_GLACITE", 12 } },
+            Round2Prices).Should().Be("Fossil Excavation");
+
+    [Test]
+    public void FossilResearchCenter_ByProductsWithoutScrap_IsFossilExcavation()
+        => NameAtPriced("Fossil Research Center", new() { { "ENCHANTED_UMBER", 20 }, { "FINE_PERIDOT_GEM", 3 } }, Round2Prices)
+            .Should().Be("Fossil Excavation");
+
+    [Test]
+    public void DwarvenBaseCamp_OnlySpentScrap_IsFossilExcavation_ButGainedScrapStaysMineshaft()
+    {
+        NameAtPriced("Dwarven Base Camp", new() { { "SUSPICIOUS_SCRAP", -1 } }, Round2Prices).Should().Be("Fossil Excavation");
+        NameAtPriced("Dwarven Base Camp", new() { { "SUSPICIOUS_SCRAP", 1 }, { "GLACITE_JEWEL", 2 } }, Round2Prices).Should().Be("Glacite Mineshafts");
+    }
+
+    [Test]
+    public void GlaciteTunnels_UmberWithScrap_StaysUmberMining()
+        => NameAtPriced("Glacite Tunnels", new() { { "UMBER", 1500 }, { "SUSPICIOUS_SCRAP", 1 } }, Round2Prices).Should().Be("Umber Mining");
+
+    [Test]
+    public void FossilExcavation_SpentScrapSurvivesFolding()
+    {
+        var items = new Dictionary<string, int> { { "SUSPICIOUS_SCRAP", -12 }, { "ENCHANTED_UMBER", 13 } };
+        TaskPeriodFolder.FilterOwnedItems(items, new FossilExcavationTask()).Should().Contain("SUSPICIOUS_SCRAP", -12);
+    }
+
+    [Test]
+    public void GlaciteTunnels_HardStoneOnly_IsGlaciteMineshafts()
+    {
+        NameAtPriced("Glacite Tunnels", new() { { "HARD_STONE", 546 } }, Round2Prices).Should().Be("Glacite Mineshafts");
+        NameAtPriced("Great Glacite Lake", new() { { "HARD_STONE", 434 }, { "GLOSSY_GEMSTONE", 1 } }, Round2Prices).Should().Be("Glacite Mineshafts");
+    }
+
+    [Test]
+    public void GlaciteTunnels_OrePeriodsStayWithTheirOreTask()
+    {
+        NameAtPriced("Glacite Tunnels", new() { { "UMBER", 1649 }, { "HARD_STONE", 500 }, { "GLOSSY_GEMSTONE", 1 } }, Round2Prices).Should().Be("Umber Mining");
+        NameAtPriced("Great Glacite Lake", new() { { "HARD_STONE", 403 }, { "GLACITE", 2113 }, { "ENCHANTED_GLACITE", 1 } }, Round2Prices).Should().Be("Glacite Mining");
+        NameAtPriced("Glacite Tunnels", new() { { "TUNGSTEN", 1848 }, { "HARD_STONE", 1118 } }, Round2Prices).Should().Be("Tungsten Mining");
+    }
+
+    [Test]
+    public void GlossyGemstone_DoesNotTurnAGemPeriodIntoPowderMining()
+    {
+        var gems = new Dictionary<string, int> { { "FLAWED_RUBY_GEM", 90 }, { "FINE_RUBY_GEM", 30 } };
+        NameAtPriced("Crystal Hollows", new(gems), Round2Prices).Should().Be("Ruby Mining");
+        NameAtPriced("Crystal Hollows", new(gems) { { "GLOSSY_GEMSTONE", 1 } }, Round2Prices).Should().Be("Ruby Mining");
+    }
+
+    [Test]
+    public void MagmaFields_CoalRoute_IsCoalMining()
+        => NameAtPriced("Magma Fields", new()
+        {
+            { "HARD_STONE", 372809 }, { "ENCHANTED_HARD_STONE", 1481 }, { "ENCHANTED_COAL", 5297 }, { "COAL", 464807 },
+            { "IRON_INGOT", 5580 }, { "REDSTONE", 29803 }
+        }, Round2Prices).Should().Be("Coal Mining");
+
+    [Test]
+    public void MagmaFields_HardStoneWithAFewCoal_StaysPowderMining()
+        => NameAtPriced("Magma Fields", new() { { "HARD_STONE", 5000 }, { "ENCHANTED_HARD_STONE", 20 }, { "COAL", 40 } }, Round2Prices)
+            .Should().Be("Crystal Hollows Powder Mining");
+
+    [Test]
+    public void MagmaFields_LavaCatchesWithCoal_StayMagmaCoreFishing()
+    {
+        NameAtPriced("Magma Fields", new() { { "BLAZE_ROD", 310 }, { "NETHERRACK", 31 }, { "COAL", 20 }, { "MAGMA_CORE", 11 } }, Round2Prices)
+            .Should().Be("Magma Core Fishing");
+        NameAtPriced("Magma Fields", new() { { "COAL", 52 }, { "NETHERRACK", 141 } }, Round2Prices).Should().Be("Magma Core Fishing");
+    }
+
+    [Test]
+    public void MagmaFields_WormMembraneKeepsScathaMining()
+        => NameAtPriced("Magma Fields", new() { { "WORM_MEMBRANE", 2 }, { "HARD_STONE", 250000 }, { "ENCHANTED_COAL", 300 } }, Round2Prices)
+            .Should().Be("Scatha Mining");
+
+    [Test]
+    public void FossilResearchCenter_FossilEssence_IsFossilExcavation()
+    {
+        NameAtPriced("Fossil Research Center", new() { { "ESSENCE_FOSSIL", 60 }, { "SUSPICIOUS_SCRAP", -1 } }, Round2Prices).Should().Be("Fossil Excavation");
+        NameAtPriced("Fossil Research Center", new() { { "ESSENCE_FOSSIL", 60 } }, Round2Prices).Should().Be("Fossil Excavation");
+    }
+
+    [Test]
+    public void LunarMoth_SunsetBookOrSpentMoondew_IsLunarMothTrapping()
+    {
+        NameAt("The Garden", new() { { "ENCHANTMENT_ULTIMATE_SUNSET_1", 4 } }).Should().Be("Lunar Moth Trapping");
+        NameAt("The Garden", new() { { "MOONDEW", -48 }, { "SHARD_LUNAR_MOTH", 3 } }).Should().Be("Lunar Moth Trapping");
+        NameAtPriced("The Garden", new() { { "MOONDEW", -48 }, { "INK_SACK:3", 2000 } }, Round2Prices.Concat(new Dictionary<string, double> { { "INK_SACK:3", 1 } }).ToDictionary(k => k.Key, k => k.Value))
+            .Should().Be("Lunar Moth Trapping");
+    }
+
+    [Test]
+    public void LunarMoth_SpentMoondewSurvivesFolding()
+    {
+        var items = new Dictionary<string, int> { { "MOONDEW", -48 }, { "SHARD_LUNAR_MOTH", 3 } };
+        TaskPeriodFolder.FilterOwnedItems(items, new LunarMothTrappingTask()).Should().Contain("MOONDEW", -48);
+    }
+
+    [Test]
+    public void LunarMoth_CraftedMoondewAlone_IsNotLunarMothTrapping()
+        => NameAt("Plot - 4", new() { { "MOONDEW", 64 } }).Should().NotBe("Lunar Moth Trapping");
+
+    [Test]
+    public void LunarMoth_PricedAgainstMoonflowerFarming()
+    {
+        NameAtPriced("The Garden", new() { { "ENCHANTED_MOONFLOWER", 3000 }, { "ENCHANTMENT_ULTIMATE_SUNSET_1", 1 } }, Round2Prices).Should().Be("Moonflower Farming");
+        NameAtPriced("The Garden", new() { { "ENCHANTED_MOONFLOWER", 200 }, { "ENCHANTMENT_ULTIMATE_SUNSET_1", 3 }, { "SHARD_LUNAR_MOTH", 3 } }, Round2Prices)
+            .Should().Be("Lunar Moth Trapping");
+    }
+
+    [Test]
+    public void HyperchargeChip_IsNotVisitorLoot()
+        // visitors do hand it out, but at the Garden it is mostly bought on the Bazaar to level chips: listed, it turned
+        // 13 pure purchase periods into Garden Visitors (2026-10-11)
+        => NameAt("The Garden", new() { { "HYPERCHARGE_GARDEN_CHIP", 1 } }).Should().NotBe("Garden Visitors");
+
+    [Test]
+    [TestCase("SHARD_GROUNDHOG")]
+    [TestCase("SHARD_FIREFOX")]
+    [TestCase("SHARD_PUCK")]
+    [TestCase("SHARD_DRYBARK")]
+    public void TreeGiftCritterShards_AreHelixForaging(string shard)
+        => NameAt("Torrhus Canyon", new() { { shard, 3 } }).Should().Be("Helix Foraging");
+
+    [Test]
+    public void Pollendart_IsHoneycombGathering_AndHoneycombOutvaluesGroundhogs()
+    {
+        NameAt("Torrhus Canyon", new() { { "SHARD_POLLENDART", 4 } }).Should().Be("Honeycomb Gathering");
+        NameAtPriced("Torrhus Canyon", new() { { "HONEYCOMB", 400 }, { "SHARD_GROUNDHOG", 2 } }, Round2Prices).Should().Be("Honeycomb Gathering");
+    }
+
+    [Test]
+    [TestCase("Torrhus Heights", "SHARD_BLUE_JAY", 3)]
+    [TestCase("Pangolin Hideaway", "SHARD_PANGOLIN", 3)]
+    [TestCase("Critter Safari Entrance", "SHARD_BUNBUN", 4)]
+    [TestCase("Spring Path", "SHARD_MOUNTAIN_GOAT", 3)]
+    [TestCase("Spring Path", "SHARD_TIMIL", 15)]
+    public void TorrhusCritterShards_AreTorrhusCanyonHunting(string zone, string shard, int count)
+        => NameAt(zone, new() { { shard, count } }).Should().Be("Torrhus Canyon (Hunting)");
+
+    [Test]
+    public void TorrhusCanyonHunting_LogsOutvalueShards_AndTheSafariIsNotIncluded()
+    {
+        NameAtPriced("Torrhus Canyon", new() { { "ENCHANTED_HELIX_LOG", 150 }, { "SHARD_PANGOLIN", 3 } }, Round2Prices).Should().Be("Helix Foraging");
+        NameAt("Critter Safari", new() { { "SHARD_BUNBUN", 4 } }).Should().NotBe("Torrhus Canyon (Hunting)");
+        // a forager's few critter shards outvalue the raw logs or honeycomb of a short period: the hunt is only the fallback
+        NameAtPriced("Torrhus Canyon", new() { { "HELIX_LOG", 1000 }, { "SHARD_PANGOLIN", 3 } }, Round2Prices).Should().Be("Helix Foraging");
+        NameAtPriced("Torrhus Canyon", new() { { "HONEYCOMB", 40 }, { "SHARD_BUNBUN", 4 } }, Round2Prices).Should().Be("Honeycomb Gathering");
+    }
+
+    [Test]
+    public void TorrhusSprings_OtherSpringCreaturesAndVeilshroom()
+    {
+        NameAt("Torrhus Springs", new() { { "SHARD_DUSTYBIT", 3 }, { "RUBY_VEILSHROOM", 20 } }).Should().Be("Torrhus Springs (Hunting)");
+        NameAt("Spring Depths", new() { { "RUBY_VEILSHROOM", 25 } }).Should().Be("Torrhus Springs (Hunting)");
+    }
+
+    [Test]
+    public void MagmaUrchin_AtTheStronghold_IsBladesoul()
+        => NameAt("Stronghold", new() { { "MAGMA_URCHIN", 1 } }).Should().Be("Bladesoul");
+
+    [Test]
+    [TestCase("COMPACTED_MOONFLOWER", "Moonflower Farming")]
+    [TestCase("COMPACTED_WILD_ROSE", "Wild Rose Farming")]
+    [TestCase("MUTANT_NETHER_STALK", "Nether Wart Farming")]
+    [TestCase("POLISHED_PUMPKIN", "Pumpkin Farming")]
+    [TestCase("ENCHANTED_COOKIE", "Cocoa Beans Farming")]
+    [TestCase("ENCHANTED_HUGE_MUSHROOM_1", "Mushroom Farming")]
+    [TestCase("ENCHANTED_HUGE_MUSHROOM_2", "Mushroom Farming")]
+    [TestCase("ENCHANTED_HAY_BALE", "Wheat Farming")]
+    [TestCase("TIGHTLY_TIED_HAY_BALE", "Wheat Farming")]
+    public void CompactedCropForms_AreTheirCropTask(string tag, string expected)
+    {
+        NameAt("Plot - 3", new() { { tag, 3 } }).Should().Be(expected);
+        PestEvidenceCrops().Should().Contain(tag);
+    }
+
+    private static HashSet<string> PestEvidenceCrops() => PestEvidence.Crops;
+
+    [Test]
+    public void BurnedBoxOfSeeds_IsNotWheatFarming()
+    {
+        // composter fuel: -130 boxes next to a garden chip were booked as Wheat Farming once the box detected it
+        NameAtPriced("The Garden", new() { { "BOX_OF_SEEDS", -130 }, { "HYPERCHARGE_GARDEN_CHIP", 1 } }, Round2Prices).Should().NotBe("Wheat Farming");
+        NameAt("Plot - 3", new() { { "BOX_OF_SEEDS", 3 } }).Should().NotBe("Wheat Farming");
+        PestEvidence.Crops.Should().NotContain("BOX_OF_SEEDS");
+    }
+
+    [Test]
+    public void CompactedCropWithOtherCropOrPestShard_KeepsTheCompactedCrop()
+    {
+        NameAtPriced("The Garden", new() { { "MUTANT_NETHER_STALK", 2 }, { "ENCHANTED_PUMPKIN", 30 } }, Round2Prices).Should().Be("Nether Wart Farming");
+        NameAtPriced("Plot - 2", new() { { "COMPACTED_MOONFLOWER", 2 }, { "SHARD_CRICKET", 1 } }, Round2Prices).Should().Be("Moonflower Farming");
+    }
+
+    [Test]
+    public void DragonsNestEndStone_IsEndStoneMining()
+    {
+        NameAt("Dragon's Nest", new() { { "ENCHANTED_ENDSTONE", 3444 } }).Should().Be("End Stone Mining");
+        NameAt("Dragon's Nest", new() { { "ENCHANTED_ENDSTONE", 6232 }, { "ENDER_STONE", 40320 } }).Should().Be("End Stone Mining");
+        NameAtPriced("Dragon's Nest", new() { { "ENCHANTED_ENDSTONE", 2900 }, { "OBSIDIAN", 40 } }, Round2Prices).Should().Be("End Stone Mining");
+    }
+
+    [Test]
+    public void EndStoneNextToOtherEndActivity_KeepsTheOtherTask()
+    {
+        NameAtPriced("Zealot Bruiser Hideout", new() { { "ENDER_PEARL", 150 }, { "ENCHANTED_ENDER_PEARL", 12 }, { "ENCHANTED_ENDSTONE", 2 } }, Round2Prices)
+            .Should().Be("Zealots (FD)");
+        NameAtPriced("Dragon's Nest", new() { { "SHARD_DRACONIC", 2 }, { "SUMMONING_EYE", -4 }, { "ENCHANTED_ENDSTONE", 20 } }, Round2Prices)
+            .Should().Be("Ender Dragon");
+    }
+
+    [Test]
+    public void FewEnchantedEndStoneNextToEnemyDrops_StaysZealots()
+    {
+        // production 2026-10-11: one Enchanted End Stone (254 coins) outvalued 33 pearls and took the period
+        NameAtPriced("Void Sepulture", new() { { "ENDER_PEARL", 33 }, { "ENCHANTED_ENDSTONE", 1 } }, Round2Prices).Should().Be("Zealots (FD)");
+        NameAtPriced("The End", new() { { "MITE_GEL", 29 }, { "ENCHANTED_ENDSTONE", 36 }, { "ENDER_PEARL", 3 }, { "ENCHANTED_ENDER_PEARL", 1 } }, Round2Prices)
+            .Should().Be("Zealots (FD)");
+        NameAtPriced("Dragon's Nest", new() { { "ENCHANTED_ENDSTONE", 10 }, { "CRYSTAL_FRAGMENT", 2 }, { "ENCHANTED_ENDER_PEARL", 3 } }, Round2Prices)
+            .Should().Be("Zealots (FD)");
+    }
+
+    [Test]
+    public void BlazeSlayerRareBossDrops_AreBlazeSlayer()
+    {
+        NameAtPriced("Crimson Isle", new() { { "ENCHANTMENT_SMOLDERING_1", 1 }, { "BLAZE_ROD", 3 } }, Round2Prices).Should().Be("Blaze Slayer");
+        NameAt("Crimson Isle", new() { { "ENCHANTMENT_ULTIMATE_REITERATE_1", 1 } }).Should().Be("Blaze Slayer");
+        NameAt("Crimson Isle", new() { { "CRUDE_GABAGOOL_DISTILLATE", 1 } }).Should().Be("Blaze Slayer");
+        NameAt("Crimson Isle", new() { { "POTION_wisp_ice", 1 } }).Should().Be("Blaze Slayer");
+    }
 }

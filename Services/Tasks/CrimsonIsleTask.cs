@@ -68,7 +68,7 @@ public class MageOutlawTask : MethodTask
     protected override string Category => "Mob Farming";
     protected override string ActionUnit => "kills";
     protected override HashSet<string> Locations => ["Courtyard"];
-    protected override HashSet<string> DetectionItems => ["SPELL_POWDER", "ENCHANTED_GLOWSTONE_DUST", "GLOWSTONE_DUST"];
+    protected override HashSet<string> DetectionItems => ["SPELL_POWDER", "ENCHANTED_GLOWSTONE_DUST", "GLOWSTONE_DUST", "MAGMA_URCHIN"];
     // 30 Glowstone Dust/kill * ~15 kills/h (2 min respawn) = 450/h; 1 Spell Powder/kill * 15 = 15/h.
     protected override List<MethodDrop> FormulaDrops => [new("GLOWSTONE_DUST", 450), new("SPELL_POWDER", 15)];
     protected override double ActionsPerHour => 15;

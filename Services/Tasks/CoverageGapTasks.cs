@@ -123,7 +123,11 @@ public class TorrhusSpringsHuntingTask : BaseHuntingTask
 {
     protected override string MethodName => "Torrhus Springs (Hunting)";
     protected override HashSet<string> Locations => ["Spring Shallows", "Spring Depths", "Torrhus Springs", "Spring Path"];
-    protected override HashSet<string> DetectionItems => ["SHARD_SOLAR", "SHARD_EMBER", "SHARD_WATER_SNAKE"];
+    protected override HashSet<string> DetectionItems =>
+    [
+        "SHARD_SOLAR", "SHARD_EMBER", "SHARD_WATER_SNAKE", "SHARD_DUSTYBIT", "SHARD_SEPIALOT", "SHARD_TORRID", "SHARD_GOLDOLOT",
+        "SHARD_SPRAWL", "SHARD_BRINELING", "SHARD_HAGGARD", "RUBY_VEILSHROOM"
+    ];
     protected override bool Fallback => true;
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Torrhus_Springs";
     protected override string HowTo => "Go to the hot springs on Torrhus (Spring Shallows and Spring Depths) and hunt Solars, Embers and Water Snakes for their shards.";

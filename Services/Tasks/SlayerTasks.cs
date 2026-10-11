@@ -258,7 +258,7 @@ public class BarbarianDukeXTask : MethodTask
 {
     protected override string MethodName => "Barbarian Duke X";
     protected override HashSet<string> Locations => ["The Dukedom", "Stronghold", "Dragontail", "Mage Outpost"];
-    protected override HashSet<string> DetectionItems => ["SHARD_BARBARIAN_DUKE_X"];
+    protected override HashSet<string> DetectionItems => ["SHARD_BARBARIAN_DUKE_X", "MAGMA_URCHIN"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_BARBARIAN_DUKE_X", 20)];
     protected override string Category => "Slayer";
     protected override string ActionUnit => "kills";

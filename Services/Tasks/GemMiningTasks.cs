@@ -137,10 +137,19 @@ public class PeridotMiningTask : BaseMiningTask
 public class CoalMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Coal Mining";
-    protected override HashSet<string> Locations => ["Dwarven Mines", "Coal Mine", "Gold Mine"]; // Crystal Hollows removed: coal there is lava fishing/powder mining junk
+    // Crystal Hollows is left out: coal there is lava fishing/powder mining junk. Only the Magma Fields route is back.
+    protected override HashSet<string> Locations => ["Dwarven Mines", "Coal Mine", "Gold Mine", "Magma Fields"];
     protected override HashSet<string> DetectionItems => ["COAL", "ENCHANTED_COAL"];
+    // Lava fishing junk (coal included) stays with Magma Core Fishing, worm membranes with Scatha tunnel mining and Yog
+    // kills (coal lands in those periods too) with Yog and Bal.
+    protected override Dictionary<string, HashSet<string>> ZoneExcludedItems => new()
+    {
+        ["Magma Fields"] = [.. MagmaCoreFishingTask.MagmaFieldsLavaCatches, "WORM_MEMBRANE", "YOGGIE", "SHARD_BAL", "PET_BAL"]
+    };
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_COAL", 500), new("ENCHANTED_COAL_BLOCK", 30)];
-    protected override string HowTo => "Mine coal ore blocks in the Dwarven Mines or Glacite Tunnels with a pickaxe.";
+    protected override string HowTo =>
+        "Mine coal ore blocks in the Dwarven Mines or Glacite Tunnels with a pickaxe. In the Crystal Hollows' Magma Fields "
+        + "a long route of instamined coal and hard stone, with the Enchanted Coal sold on the Bazaar, works too.";
     protected override double ActionsPerHour => 4000;
 }
 public class DiamondMiningTask : BaseMiningTask
@@ -179,15 +188,38 @@ public class ObsidianMiningTask : BaseMiningTask
     // End obsidian next to any enemy drop is grinding, which the pricier obsidian would otherwise outrank.
     protected override Dictionary<string, HashSet<string>> ZoneExcludedItems => new()
     {
-        ["The End"] =
-        [
-            "ENDER_PEARL", "ENCHANTED_ENDER_PEARL", "SUMMONING_EYE", "CRYSTAL_FRAGMENT", "MITE_GEL", "NULL_SPHERE",
-            "ENDER_GAUNTLET", "ENDER_BELT", "ENDER_NECKLACE", "ENDER_CLOAK"
-        ]
+        ["The End"] = [.. EndEnemyDrops]
     };
+    /// <summary>What the enemies of The End drop; a period holding any of them is grinding, not mining.</summary>
+    internal static readonly string[] EndEnemyDrops =
+    [
+        "ENDER_PEARL", "ENCHANTED_ENDER_PEARL", "SUMMONING_EYE", "CRYSTAL_FRAGMENT", "MITE_GEL", "NULL_SPHERE",
+        "ENDER_GAUNTLET", "ENDER_BELT", "ENDER_NECKLACE", "ENDER_CLOAK"
+    ];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_OBSIDIAN", 200)];
     protected override string HowTo => "Mine obsidian blocks in the Obsidian Sanctuary or The End with a pickaxe.";
     protected override double ActionsPerHour => 2000;
+}
+public class EndStoneMiningTask : BaseMiningTask
+{
+    protected override string MethodName => "End Stone Mining";
+    // island, covers the Dragon's Nest where 7 players mined it (27 periods, 2026-10-11)
+    protected override HashSet<string> Locations => ["The End"];
+    // production tags; there is no ENCHANTED_END_STONE
+    protected override HashSet<string> DetectionItems => ["ENCHANTED_ENDSTONE"];
+    // Zealot and Enderman periods hold a few raw end stone too (production 2026-10-10), so it only adds value next to the
+    // compacted form instead of detecting the task alone (unpriced, such a period would tie and sort by name).
+    protected override HashSet<string> EvidenceItems => ["ENDER_STONE"];
+    // Grinding periods hold a few Enchanted End Stone too (next to Mite Gel and Endstone Roses), which outvalue the pearls
+    // of a short period (46 Zealot periods with 1-56 of it 2026-10-11): next to any enemy drop it is not mining.
+    protected override Dictionary<string, HashSet<string>> ZoneExcludedItems => new() { ["The End"] = [.. ObsidianMiningTask.EndEnemyDrops] };
+    // median ~2,270 Enchanted End Stone per period through a personal compactor
+    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_ENDSTONE", 9000)];
+    // end stone breaks instantly with any decent pickaxe, no gauntlet involved
+    protected override List<RequiredItem> RequiredItems => [];
+    protected override string HowTo => "Mine End Stone around the Dragon's Nest in The End; a personal compactor turns it into Enchanted End Stone.";
+    protected override double ActionsPerHour => 4000;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/End_Stone";
 }
 public class TungstenMiningTask : BaseMiningTask
 {
@@ -503,7 +535,9 @@ public class GlaciteMineshaftTask : BaseMiningTask
     ];
 
     protected override string MethodName => "Glacite Mineshafts";
-    protected override HashSet<string> Locations => ["Glacite Mineshafts", "Dwarven Base Camp"];
+    // The tunnels are listed for hard-stone-only periods: 310 such periods 2026-10-11, 44 of their 49 players were
+    // hunting shafts in the same hours.
+    protected override HashSet<string> Locations => ["Glacite Mineshafts", "Dwarven Base Camp", "Glacite Tunnels", "Great Glacite Lake"];
     // Beats Mithril Mining, which still matches the zone through the Dwarven Mines island (titanium-only shafts).
     protected override int Priority => 1;
     protected override HashSet<string> DetectionItems =>
@@ -515,17 +549,35 @@ public class GlaciteMineshaftTask : BaseMiningTask
         // mined in a shaft
         "GLACITE", "ENCHANTED_GLACITE", "TUNGSTEN", "ENCHANTED_TUNGSTEN", "UMBER", "ENCHANTED_UMBER", "MITHRIL_ORE",
         "ENCHANTED_MITHRIL", "TITANIUM_ORE", "ENCHANTED_TITANIUM", "HARD_STONE", "ENCHANTED_HARD_STONE",
+        // the item text ties it to gemstones during Mayor Cole's term; in production it mostly shows up in periods without
+        // any gem, next to hard stone (2026-10-11)
+        "GLOSSY_GEMSTONE",
         .. Gems.SelectMany(g => GemQualities.Select(q => $"{q}_{g}_GEM"))
     ];
     // Loot is often booked right after leaving the shaft, but keys/refined/plates are forged at the camp too and
-    // ore there is plain tunnel mining (Glacite/Tungsten/Umber Mining keep it).
-    protected override Dictionary<string, HashSet<string>> ZoneDetectionItems => new() { ["Dwarven Base Camp"] = [.. CorpseLoot] };
+    // ore there is plain tunnel mining (Glacite/Tungsten/Umber Mining keep it). In the tunnels only hard stone (and the
+    // glossy gemstone it rarely drops) counts as the shaft hunt; a period with any tunnel ore or gem stays with its ore task.
+    private static readonly string[] TunnelOwned =
+    [
+        "GLACITE", "ENCHANTED_GLACITE", "TUNGSTEN", "ENCHANTED_TUNGSTEN", "UMBER", "ENCHANTED_UMBER", "MITHRIL_ORE",
+        "ENCHANTED_MITHRIL", "TITANIUM_ORE", "ENCHANTED_TITANIUM",
+        .. Gems.SelectMany(g => GemQualities.Select(q => $"{q}_{g}_GEM"))
+    ];
+    private static readonly string[] TunnelHardStone = ["HARD_STONE", "ENCHANTED_HARD_STONE", "GLOSSY_GEMSTONE"];
+    protected override Dictionary<string, HashSet<string>> ZoneDetectionItems => new()
+    {
+        ["Dwarven Base Camp"] = [.. CorpseLoot],
+        ["Glacite Tunnels"] = [.. TunnelHardStone],
+        ["Great Glacite Lake"] = [.. TunnelHardStone]
+    };
     protected override Dictionary<string, HashSet<string>> ZoneExcludedItems => new()
     {
         ["Dwarven Base Camp"] =
         [
             "GLACITE", "ENCHANTED_GLACITE", "TUNGSTEN", "ENCHANTED_TUNGSTEN", "UMBER", "ENCHANTED_UMBER", "MITHRIL_ORE", "TITANIUM_ORE"
-        ]
+        ],
+        ["Glacite Tunnels"] = [.. TunnelOwned],
+        ["Great Glacite Lake"] = [.. TunnelOwned]
     };
     // Measured per hour inside a shaft over 55 h from 130 players (2026-10-10).
     protected override List<MethodDrop> FormulaDrops =>
@@ -542,7 +594,8 @@ public class GlaciteMineshaftTask : BaseMiningTask
     // The pickaxe or drill is the player's choice; nothing here is required beyond the zone's own access.
     protected override List<RequiredItem> RequiredItems => [];
     protected override string HowTo =>
-        "Mine in the Glacite Tunnels until a Glacite Mineshaft opens (Heart of the Mountain tier VII). Loot the frozen "
+        "Mine in the Glacite Tunnels until a Glacite Mineshaft opens (Heart of the Mountain tier VII); gemstones fill the "
+        + "shaft counter fastest and hard stone not at all. Loot the frozen "
         + "corpses inside (Lapis needs no key, Umber/Tungsten/Vanguard corpses need an Umber/Tungsten/Skeleton Key) "
         + "and mine the shaft's veins.";
     protected override double ActionsPerHour => 3000;
@@ -655,20 +708,42 @@ public class FossilExcavationTask : BaseMiningTask
     protected override HashSet<string> DetectionItems =>
     [
         "FOSSIL_THE_FISH", "CLUBBED_FOSSIL", "FOOTPRINT_FOSSIL", "TUSK_FOSSIL",
-        "WEBBED_FOSSIL", "SPINE_FOSSIL", "UGLY_FOSSIL", "CLAW_FOSSIL"
+        "WEBBED_FOSSIL", "SPINE_FOSSIL", "UGLY_FOSSIL", "CLAW_FOSSIL",
+        // credited from the excavation summary in chat, it never passes the inventory
+        "ESSENCE_FOSSIL"
     ];
-    // Production medians (2026-10-02/03) per hour: each fossil ~12 at the research center.
+    // The excavator pays out mostly ore and gems, so at the research center any of them proves the excavation too
+    // (20 of 47 periods there had spent scrap but no fossil, 2026-10-11). Elsewhere only the fossils do.
+    protected override Dictionary<string, HashSet<string>> ZoneDetectionItems => new()
+    {
+        ["Fossil Research Center"] =
+        [
+            .. DetectionItems, "ENCHANTED_UMBER", "ENCHANTED_TUNGSTEN", "ENCHANTED_GLACITE", "FINE_PERIDOT_GEM",
+            "FINE_AQUAMARINE_GEM", "FINE_ONYX_GEM", "FINE_CITRINE_GEM", "ENCHANTMENT_PALEONTOLOGIST_1"
+        ]
+    };
+    // Spent scrap is a negative count: it classifies a period whose loot was booked elsewhere and survives folding as a cost.
+    protected override HashSet<string> EvidenceItems => ["SUSPICIOUS_SCRAP"];
+    // A Dwarven Base Camp period that only holds spent scrap ties with Glacite Mineshafts (Priority 1, scrap is corpse
+    // loot there) on value and must go to the excavation.
+    protected override int Priority => 2;
+    // Per scrap spent over 47 periods / 1,234 scraps (2026-10-11), times 120 scraps an hour. CLAW_FOSSIL was not seen, so it
+    // gets the Footprint rate.
     protected override List<MethodDrop> FormulaDrops =>
     [
-        new("FOSSIL_THE_FISH", 12), new("CLUBBED_FOSSIL", 12), new("FOOTPRINT_FOSSIL", 12),
-        new("TUSK_FOSSIL", 12), new("WEBBED_FOSSIL", 12), new("SPINE_FOSSIL", 12), new("UGLY_FOSSIL", 12), new("CLAW_FOSSIL", 12)
+        new("ESSENCE_FOSSIL", 2520), new("ENCHANTED_UMBER", 126), new("ENCHANTED_GLACITE", 122), new("ENCHANTED_TUNGSTEN", 122), new("GLACITE", 84),
+        new("FINE_PERIDOT_GEM", 13.7), new("FINE_AQUAMARINE_GEM", 12.6), new("FINE_ONYX_GEM", 12.5), new("FINE_CITRINE_GEM", 9.1),
+        new("ENCHANTMENT_PALEONTOLOGIST_1", 2.5), new("FOSSIL_THE_FISH", 1.3), new("UGLY_FOSSIL", 0.7), new("SPINE_FOSSIL", 0.6),
+        new("TUSK_FOSSIL", 0.5), new("WEBBED_FOSSIL", 0.4), new("CLUBBED_FOSSIL", 0.2), new("FOOTPRINT_FOSSIL", 0.2), new("CLAW_FOSSIL", 0.2)
     ];
+    protected override List<MethodDrop> FormulaCosts => [new("SUSPICIOUS_SCRAP", 120)];
     // no gauntlet needed: the excavator is an NPC machine
     protected override List<RequiredItem> RequiredItems => [];
     protected override string HowTo =>
         "Bring Suspicious Scrap (found while mining in the Glacite Mineshafts) to the Fossil Research Center "
-        + "in the Dwarven Base Camp and excavate it for fossils.";
-    protected override double ActionsPerHour => 96;
+        + "in the Dwarven Base Camp and excavate it for fossils; the main payout is Fossil Essence, which sells on the "
+        + "Bazaar, and Peridot gems in the chisel raise it.";
+    protected override double ActionsPerHour => 120;
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Fossil_Research_Center";
 }
 
