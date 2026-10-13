@@ -149,4 +149,60 @@ public class TabListUpdateTests
 
         args.currentState.ExtractedInfo.CurrentIslandAt.Should().BeOnOrAfter(before).And.BeOnOrBefore(after);
     }
+
+    [Test]
+    public async Task Process_SetsBoosterCookieFromFooter_AndKeepsFooterOutOfLastTab()
+    {
+        var args = new MockedUpdateArgs
+        {
+            currentState = new StateObject(),
+            msg = new UpdateMessage
+            {
+                Kind = UpdateMessage.UpdateKind.Tab,
+                Tab = new[] { "Area: Hub", "§header:Welcome", "§footer:Cookie Buff\n1d 2h 3m\n\nUpgrades" }
+            }
+        };
+
+        await new TabListUpdate().Process(args);
+
+        args.currentState.ExtractedInfo.BoosterCookieExpires.Should().BeCloseTo(DateTime.UtcNow + new TimeSpan(1, 2, 3, 0), TimeSpan.FromSeconds(5));
+        args.currentState.ExtractedInfo.CurrentIsland.Should().Be("Hub");
+        args.currentState.LastTab.Should().BeEquivalentTo(new[] { "Area: Hub" });
+    }
+
+    [Test]
+    public async Task Process_InactiveFooterSetsPastTime()
+    {
+        var args = new MockedUpdateArgs
+        {
+            currentState = new StateObject(),
+            msg = new UpdateMessage
+            {
+                Kind = UpdateMessage.UpdateKind.Tab,
+                Tab = new[] { "§footer:Cookie Buff\nNot active! Obtain booster cookies from the community shop in the hub." }
+            }
+        };
+
+        await new TabListUpdate().Process(args);
+
+        var expires = args.currentState.ExtractedInfo.BoosterCookieExpires;
+        expires.Should().NotBe(default(DateTime));
+        expires.Should().BeBefore(DateTime.UtcNow);
+    }
+
+    [Test]
+    public async Task Process_WithoutFooterLeavesBoosterCookieUntouched()
+    {
+        var existing = DateTime.UtcNow.AddHours(5);
+        var args = new MockedUpdateArgs
+        {
+            currentState = new StateObject(),
+            msg = new UpdateMessage { Kind = UpdateMessage.UpdateKind.Tab, Tab = new[] { "Area: Hub" } }
+        };
+        args.currentState.ExtractedInfo.BoosterCookieExpires = existing;
+
+        await new TabListUpdate().Process(args);
+
+        args.currentState.ExtractedInfo.BoosterCookieExpires.Should().Be(existing);
+    }
 }

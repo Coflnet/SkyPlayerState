@@ -15,13 +15,19 @@ public class TabListUpdate : UpdateListener
     // ("Torrhus Canyon", "Moonglade Marsh") instead of "Galatea" - see SkyblockZones.NormalizeTabArea.
     private static readonly Regex AreaRegex = new(@"Area:\s*(.+)$", RegexOptions.Compiled);
 
+    public const string HeaderPrefix = "§header:";
+    public const string FooterPrefix = "§footer:";
+
     /// <inheritdoc/>
     public override Task Process(UpdateArgs args)
     {
         if (args.msg.Tab != null)
         {
-            args.currentState.LastTab = args.msg.Tab;
-            var island = ExtractIsland(args.msg.Tab);
+            // header/footer entries are multi-line blobs, keep them out of the player-name based tab logic
+            var tabEntries = args.msg.Tab.Where(t => t == null || (!t.StartsWith(HeaderPrefix) && !t.StartsWith(FooterPrefix))).ToArray();
+            args.currentState.LastTab = tabEntries;
+            ApplyFooter(args.msg.Tab, args.currentState.ExtractedInfo);
+            var island = ExtractIsland(tabEntries);
             if (island != null)
             {
                 args.currentState.ExtractedInfo.CurrentIsland = Tasks.SkyblockZones.NormalizeTabArea(island);
@@ -34,6 +40,23 @@ public class TabListUpdate : UpdateListener
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Sets <see cref="Models.ExtractedInfo.BoosterCookieExpires"/> from the footer's Cookie Buff section.
+    /// Inactive cookies are stored as a past timestamp (now - 1 day) so "known expired" differs from
+    /// the unknown default value.
+    /// </summary>
+    internal static void ApplyFooter(IEnumerable<string> tab, Models.ExtractedInfo info)
+    {
+        foreach (var entry in tab)
+        {
+            if (entry == null || !entry.StartsWith(FooterPrefix))
+                continue;
+            if (!CookieBuffParser.TryParse(entry.Substring(FooterPrefix.Length), out var active, out var remaining))
+                continue;
+            info.BoosterCookieExpires = active ? DateTime.UtcNow + remaining : DateTime.UtcNow.AddDays(-1);
+        }
     }
 
     /// <summary>
