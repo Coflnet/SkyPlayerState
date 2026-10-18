@@ -61,6 +61,9 @@ public class TradeDetect : UpdateListener
             return;
         }
         ParseTradeWindow(tradeView, out var spent, out var received);
+        var completedLines = GetLatestTradeCompletedLines(args.msg.ChatBatch);
+        AddCoinsMissingFromWindow(completedLines, " - ", spent);
+        AddCoinsMissingFromWindow(completedLines, " + ", received);
         foreach (var item in spent)
         {
             Logger.LogDebug("sent {itemName}", item.ItemName);
@@ -236,6 +239,43 @@ public class TradeDetect : UpdateListener
             return item.ItemName != null && (
                 item.ItemName.Contains("Deal timer!") || item.ItemName.Contains("Deal!") || item.ItemName.Contains("Deal accepted!") || item.ItemName == "§eNew deal");
         }
+    }
+
+    /// <summary>
+    /// The trade window snapshot can predate the last offer change (e.g. the other player adding coins
+    /// right before both confirmed), while the "Trade completed" chat lists the final coins.
+    /// Adds a coin item from the chat line when the window side has none.
+    /// </summary>
+    internal static void AddCoinsMissingFromWindow(List<string> completedLines, string prefix, List<Item> side)
+    {
+        if (side.Any(parser.IsCoins))
+            return;
+        var coinLine = completedLines
+            .LastOrDefault(line => line.StartsWith(prefix, StringComparison.Ordinal) && line.EndsWith(" coins", StringComparison.Ordinal));
+        if (coinLine == null)
+            return;
+        var amount = coinLine[prefix.Length..^" coins".Length].Trim();
+        var coinItem = new Item()
+        {
+            ItemName = $"§6{amount} coins",
+            Description = $"§6Total Coins Offered:\n§7{amount}",
+            Count = 1
+        };
+        if (parser.GetCoinAmount(coinItem) > 0)
+            side.Add(coinItem);
+    }
+
+    /// <summary>
+    /// The trailing " + "/" - " lines of the batch, i.e. the trade that triggered this store, so coins of
+    /// an earlier trade in the same batch are never attached to it.
+    /// </summary>
+    private static List<string> GetLatestTradeCompletedLines(IEnumerable<string>? chatBatch)
+    {
+        return (chatBatch ?? Enumerable.Empty<string>())
+            .Select(StripMinecraftFormatting)
+            .Reverse()
+            .TakeWhile(line => line.StartsWith(" + ", StringComparison.Ordinal) || line.StartsWith(" - ", StringComparison.Ordinal))
+            .ToList();
     }
 
     private static void StoreUuidtoItemMapping(ITransactionService service, List<Item> spent, List<Item> received)

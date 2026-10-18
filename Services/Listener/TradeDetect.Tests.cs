@@ -52,6 +52,37 @@ public class TradeDetectTests
         )), Times.Once);
     }
 
+    [TestCase("""["Trade completed with VakarisRu!"," + 110M coins"," - 13x Raw Beef"]""", 1, TestName = "AddsReceivedCoinsFromChatWhenSnapshotPredatesOffer")]
+    [TestCase("""["Trade completed with VakarisRu!"," + 110M coins"," - 1x Ancient Maxor's Boots","Trade completed with VakarisRu!"," - 13x Raw Beef"]""", 0, TestName = "IgnoresCoinsOfEarlierTradeInSameChatBatch")]
+    public async Task ReconcilesReceivedCoinsWithLatestTradeCompletedChat(string chatBatch, int expectedCoinReceives)
+    {
+        var service = new TradeDetect(NullLogger<TradeDetect>.Instance);
+        var inventory = JsonConvert.DeserializeObject<UpdateMessage>(Inventory)!.Chest!;
+        // last snapshot was taken before the other player put their coins in
+        inventory.Items[5] = new Models.Item() { Count = 0 };
+        var args = GetUpdateArgs("""{"Kind":1,"ReceivedAt":"2023-11-19T12:34:39.5832977Z","Chest":null,"ChatBatch":""" + chatBatch + ""","PlayerId":"Ekwav","SessionId":"KXZ2q2ifkCBlthrFrcdUzg=="}""");
+        var transactionService = new Mock<ITransactionService>();
+        var nameService = new Mock<IPlayerNameApi>();
+        var tradeService = new Mock<ITradeService>();
+        var itemDetails = new ItemDetails(null);
+        nameService.Setup(s => s.PlayerNameUuidNameGetAsync(It.IsAny<string>(), 0, default)).ReturnsAsync(Guid.Empty.ToString());
+        args.AddService(transactionService.Object);
+        args.AddService(nameService.Object);
+        args.AddService(tradeService.Object);
+        args.AddService(itemDetails);
+        args.currentState.RecentViews.Enqueue(inventory);
+        itemDetails.TagLookup["RAW_BEEF"] = Random.Shared.Next(10, 10000);
+
+        await service.Process(args);
+
+        transactionService.Verify(t => t.AddTransactions(It.Is<IEnumerable<Transaction>>(t =>
+            t.Count(c => c.ItemId == TradeDetect.IdForCoins && c.Amount == 1_100_000_000
+                && c.Type == (Transaction.TransactionType.TRADE | Transaction.TransactionType.RECEIVE)) == expectedCoinReceives)), Times.Once);
+        tradeService.Verify(s => s.ProduceTrade(It.Is<TradeModel>(trade =>
+            trade.Received.Count == expectedCoinReceives
+            && trade.Received.All(r => r.ItemName == "§6110M coins" && r.Description!.Contains("Total Coins Offered:")))), Times.Once);
+    }
+
     [Test]
     public async Task ExpandsTradePartnerNameFromTabList()
     {
