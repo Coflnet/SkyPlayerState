@@ -1967,4 +1967,17 @@ public class TaskClassifierTests
         NameAt("Crimson Isle", new() { { "CRUDE_GABAGOOL_DISTILLATE", 1 } }).Should().Be("Blaze Slayer");
         NameAt("Crimson Isle", new() { { "POTION_wisp_ice", 1 } }).Should().Be("Blaze Slayer");
     }
+
+    // ── 2026-10-20 production round ──
+
+    [Test]
+    public void JudgementCoreAtTheHideoutIsAVoidgloomFightNotZealots()
+        => NameAt("Zealot Bruiser Hideout", new() { { "JUDGEMENT_CORE", 1 }, { "ENDER_PEARL", 94 }, { "ROUGH_AMETHYST_GEM", 1216 } })
+            .Should().StartWith("T4 Voidglooms");
+
+    [TestCase("NULL_ATOM")]
+    [TestCase("TRANSMISSION_TUNER")]
+    [TestCase("ETHERWARP_MERGER")]
+    public void VoidgloomBossDropNextToPearlsIsTheSlayer(string drop)
+        => NameAt("Void Sepulture", new() { { drop, 1 }, { "ENDER_PEARL", 30 } }).Should().StartWith("T4 Voidglooms");
 }

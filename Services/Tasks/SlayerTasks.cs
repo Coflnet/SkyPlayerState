@@ -279,12 +279,23 @@ public class T4VoidgloomsTask : MethodTask
     protected override LateRewardSpec LateReward => SlayerBossDrops.NullSphere;
     protected override string MethodName => "T4 Voidglooms";
     protected override HashSet<string> Locations => ["Dragon's Nest", "Void Sepulture", "Zealot Bruiser Hideout"];
-    protected override HashSet<string> DetectionItems => ["NULL_SPHERE", "SUMMONING_EYE"];
+    protected override HashSet<string> DetectionItems => ["NULL_SPHERE", "SUMMONING_EYE", .. BossDrops];
     // Zealots (and Bruisers) farmed at the Hideout drop Summoning Eyes too (production 2026-10-03: 211
-    // periods there were Voidgloom fights misread as Zealots (FD)), so only the Null Sphere - a
-    // boss-only drop - proves the slayer fight in that zone.
+    // periods there were Voidgloom fights misread as Zealots (FD)), so only boss-only drops prove the
+    // slayer fight in that zone.
     protected override Dictionary<string, HashSet<string>> ZoneDetectionItems =>
-        new() { ["Zealot Bruiser Hideout"] = ["NULL_SPHERE"] };
+        new() { ["Zealot Bruiser Hideout"] = ["NULL_SPHERE", .. BossDrops] };
+
+    /// <summary>
+    /// Voidgloom Seraph drops that only the boss gives (production 2026-10-20: all of them only in The End,
+    /// ~120 periods with them went to Zealots (FD), e.g. a 150M Judgement Core next to 94 Ender Pearls at
+    /// the Hideout). RAW_SOULFLOW is left out: it mostly comes from minions.
+    /// </summary>
+    internal static readonly string[] BossDrops =
+    [
+        "JUDGEMENT_CORE", "NULL_ATOM", "TRANSMISSION_TUNER", "POCKET_ESPRESSO_MACHINE", "HANDY_BLOOD_CHALICE",
+        "SINFUL_DICE", "EXCEEDINGLY_RARE_ENDER_ARTIFACT_UPGRADER", "ETHERWARP_MERGER"
+    ];
     protected override List<MethodDrop> FormulaDrops => [new("NULL_SPHERE", 15), new("SUMMONING_EYE", 2)];
     protected override string Category => "Slayer";
     protected override string HowTo => "Go to The End and spawn T4 Voidgloom Seraphs. Use Terminator or Juju bow for high DPS. Requires Combat 24+ and Enderman Slayer 7.";
@@ -419,7 +430,7 @@ public class T4VoidgloomsFdTask : MethodTask
     protected override LateRewardSpec LateReward => SlayerBossDrops.NullSphere;
     protected override string MethodName => "T4 Voidglooms (FD)";
     protected override HashSet<string> Locations => ["Dragon's Nest", "Void Sepulture"];
-    protected override HashSet<string> DetectionItems => ["NULL_SPHERE", "SUMMONING_EYE"];
+    protected override HashSet<string> DetectionItems => ["NULL_SPHERE", "SUMMONING_EYE", .. T4VoidgloomsTask.BossDrops];
     protected override List<MethodDrop> FormulaDrops => [new("NULL_SPHERE", 20), new("SUMMONING_EYE", 3)];
     protected override string Category => "Slayer";
     protected override string HowTo => "Go to The End and spawn T4 Voidgloom Seraphs (formula drop estimate). Uses estimated rates for players without tracked data.";
