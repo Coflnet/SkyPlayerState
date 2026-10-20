@@ -455,7 +455,7 @@ public class TaskClassifierTests
     public void CatacombsFloor7NormalMode_ClassifiesToF7()
     {
         // Normal-mode Floor 7 now has its own task (F1Task..F7Task, DungeonTasks.cs) distinct from
-        // Master Mode M7/M7 Kismet - previously this zone had no matching task at all.
+        // Master Mode M7 - previously this zone had no matching task at all.
         var items = new Dictionary<string, int> { { "ESSENCE_WITHER", 10 } };
         var result = Classifier.Classify("The Catacombs (F7)", items, 10);
         result.Should().NotBeNull();
@@ -486,12 +486,12 @@ public class TaskClassifierTests
     }
 
     [Test]
-    public void M7ZoneWithKismetFeatherConsumed_ClassifiesToM7Kismet()
+    public void M7ZoneWithKismetFeatherConsumed_ClassifiesToM7()
     {
         var items = new Dictionary<string, int> { { "ESSENCE_WITHER", 40 }, { "KISMET_FEATHER", -2 } };
         var result = Classifier.Classify("The Catacombs (M7)", items, 10);
         result.Should().NotBeNull();
-        result!.TaskName.Should().Be("M7 (Kismet)");
+        result!.TaskName.Should().Be("M7");
     }
 
     /// <summary>
@@ -517,14 +517,30 @@ public class TaskClassifierTests
     }
 
     [Test]
-    public void BazaarPurchase_DoesNotStealKismetM7ChestClaim()
+    public void BazaarPurchase_DoesNotStealM7ChestClaimWithKismet()
     {
         var items = new Dictionary<string, int>
         {
             { "BAZAAR_PURCHASE", 8_588_970 }, { "DUNGEON_CHEST_COST", -500_000 }, { "ENCHANTED_BOOK", 10 },
             { "ESSENCE_UNDEAD", 90 }, { "ESSENCE_WITHER", 70 }, { "KISMET_FEATHER", -5 }
         };
-        Classifier.Classify("The Catacombs (M7)", items, 5, prices: new() { { "KISMET_FEATHER", 2_000_000 } })!.TaskName.Should().Be("M7 (Kismet)");
+        Classifier.Classify("The Catacombs (M7)", items, 5, prices: new() { { "KISMET_FEATHER", 2_000_000 } })!.TaskName.Should().Be("M7");
+    }
+
+    [Test]
+    public void M7ZoneWithOnlyAConsumedKismetAndChestCost_ClassifiesToM7()
+    {
+        var items = new Dictionary<string, int> { { "KISMET_FEATHER", -1 }, { "DUNGEON_CHEST_COST", -2_000_000 } };
+        Classifier.Classify("The Catacombs (M7)", items, 5)!.TaskName.Should().Be("M7");
+        Classifier.Classify("The Catacombs (M7)", new Dictionary<string, int> { { "KISMET_FEATHER", -1 } }, 5)!.TaskName.Should().Be("M7");
+    }
+
+    [Test]
+    public void KismetFeatherOnOtherFloors_ClassifiesToThatFloor()
+    {
+        var items = new Dictionary<string, int> { { "KISMET_FEATHER", -1 }, { "ESSENCE_WITHER", 80 } };
+        Classifier.Classify("The Catacombs (M5)", items, 5)!.TaskName.Should().Be("M5");
+        Classifier.Classify("The Catacombs (F7)", items, 5)!.TaskName.Should().Be("F7");
     }
 
     [Test]

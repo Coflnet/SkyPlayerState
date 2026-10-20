@@ -251,15 +251,15 @@ public class TaskRequirementTests
     }
 
     [Test]
-    public void M7Kismet_CostsOneFeatherPerRun_AndDoublesTheHandleRate()
+    public void M7_KismetFeatherIsAnObservedCost_WithoutAFormulaRate()
     {
-        var plain = new M7Task();
-        var kismet = new M7KismetTask();
+        var m7 = new M7Task();
 
-        kismet.FormulaCostsForTest.Single(c => c.ItemTag == "KISMET_FEATHER").RatePerHour.Should().Be(M7Task.RunsPerHour);
+        m7.ObservedCostItemsForTest.Should().Contain("KISMET_FEATHER");
+        m7.FormulaCostsForTest.Should().BeEmpty("a reroll is the player's choice, so there is no rate to charge");
         M7Task.RunsPerHour.Should().Be(7);
-        var plainHandle = plain.FormulaDropsForTest.Single(d => d.ItemTag == "NECRON_HANDLE").RatePerHour;
-        kismet.FormulaDropsForTest.Single(d => d.ItemTag == "NECRON_HANDLE").RatePerHour.Should().Be(2 * plainHandle);
+        var counts = new Dictionary<string, double> { ["ESSENCE_WITHER"] = 600, ["KISMET_FEATHER"] = 3 };
+        m7.ScaledFormulaCost(counts, 1, _ => 10_000_000).Should().Be(0);
     }
 
     // ── Kuudra ──

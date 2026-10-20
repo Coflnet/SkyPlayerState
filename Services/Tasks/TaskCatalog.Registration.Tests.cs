@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using AwesomeAssertions;
@@ -52,7 +53,7 @@ public class TaskCatalogRegistrationTests
         "JunglePowderMiningTask", "KadaKnightHuntingTask", "KatTask", "KuudraT1Task", "KuudraT2Task",
         "KuudraT3Task", "KuudraT4Task", "KuudraT5Task", "KuudraChestClaimsTask", "HeavyPearlsTask", "GardenVisitorsTask", "RiftActivityTask", "UnknownLocationTask", "LotusAtollTask", "LumisquidTask",
         "M1Task", "M2Task", "M3Task", "M4Task", "M5Task",
-        "M6Task", "M7KismetTask", "M7Task", "MageOutlawTask", "MagmaCoreFishingTask", "MangroveForagingTask", "MatchoTask", "MelonFarmingTask", "MithrilDepositsPowderMiningTask",
+        "M6Task", "M7Task", "MageOutlawTask", "MagmaCoreFishingTask", "MangroveForagingTask", "MatchoTask", "MelonFarmingTask", "MithrilDepositsPowderMiningTask",
         "MinerZombieHuntingTask", "MinionCollectionTask", "MithrilMiningTask", "MochibearkTask", "MoonflowerFarmingTask", "MossybitTask", "MudwormHuntingTask", "MushroomFarmingTask", "MyceliumTask", "NetherWartFarmingTask", "NucleusMiningTask", "OasisFishingTask",
         "ObsidianDefenderHuntingTask", "ObsidianMiningTask", "PeridotMiningTask", "PestHuntingTask", "PestTask",
         "PolarvoidBookTask", "PotatoFarmingTask", "PrecursorCityPowderMiningTask", "PrivateIslandActivityTask", "PumpkinFarmingTask", "RainSlimeHuntingTask", "ReaperScytheTask",
@@ -87,6 +88,14 @@ public class TaskCatalogRegistrationTests
         registeredNames.Should().BeEquivalentTo(expected,
             "the registered task set must stay identical to what SkyModCommands used to register "
             + "from its own (now deleted) duplicate copy");
+    }
+
+    [Test]
+    public void TaskCatalog_NoLongerContainsTheM7KismetVariant()
+    {
+        var catalog = TaskCatalog.Create();
+        catalog.Keys.Should().NotContain(k => k.Contains("Kismet", StringComparison.OrdinalIgnoreCase));
+        catalog.Values.Select(t => t.Name).Should().NotContain("M7 (Kismet)").And.Contain("M7");
     }
 
     /// <summary>

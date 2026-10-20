@@ -64,6 +64,14 @@ public abstract class MethodTask : ProfitTask
     /// </summary>
     protected virtual HashSet<string> EvidenceItems => [];
     /// <summary>
+    /// Real item tags whose NEGATIVE count (the item was consumed) is a real cost of this task when
+    /// observed, although there is no formula rate for them (e.g. KISMET_FEATHER on a Catacombs floor:
+    /// rerolling the end chest is the player's choice). Kept by <see cref="TaskPeriodFolder.FilterOwnedItems"/>
+    /// and shown in the personal view's costs like <see cref="FormulaCosts"/> tags, but never part of
+    /// <see cref="ScaledFormulaCost"/> or the formula baseline, since they have no rate.
+    /// </summary>
+    protected virtual HashSet<string> ObservedCostItems => [];
+    /// <summary>
     /// When true, periods with any SHARD_ item are excluded.
     /// Used for non-hunting fishing variants.
     /// </summary>
@@ -286,6 +294,14 @@ public abstract class MethodTask : ProfitTask
     /// Public accessor for tests to check if this task has formula costs
     /// </summary>
     public List<MethodDrop> FormulaCostsForTest => FormulaCosts;
+    public HashSet<string> ObservedCostItemsForTest => ObservedCostItems;
+
+    /// <summary>
+    /// Real item tags whose negative count is a cost of this task: the <see cref="FormulaCosts"/> tags
+    /// (with a rate) plus the <see cref="ObservedCostItems"/> (without one).
+    /// </summary>
+    internal HashSet<string> KeepableCostTags()
+        => new(FormulaCosts.Select(c => c.ItemTag).Concat(ObservedCostItems), StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Tie break priority when multiple tasks match the same location and items,
@@ -563,11 +579,11 @@ public abstract class MethodTask : ProfitTask
         // DUNGEON_CHEST_COST) are real economic activity, shown as a cost line below instead of a
         // drop. This applies even to a real task's own period (e.g. a farmer who also bought seeds),
         // not just the hidden accounting tasks that key off these tags themselves. A negative count
-        // of a REAL item tag this task declares in its own FormulaCosts (e.g. KISMET_FEATHER for
-        // "M7 (Kismet)" - see TaskPeriodFolder.SubtractExternalItems, which is what lets such a
-        // negative count reach here at all) is the same kind of cost and must render the same way,
+        // of a REAL item tag this task declares in its own FormulaCosts or ObservedCostItems (e.g.
+        // KISMET_FEATHER on a Catacombs floor - see TaskPeriodFolder.SubtractExternalItems, which is
+        // what lets such a negative count reach here at all) is the same kind of cost and must render the same way,
         // never as a negative-rate "drop".
-        var formulaCostTags = new HashSet<string>(FormulaCosts.Select(c => c.ItemTag), StringComparer.OrdinalIgnoreCase);
+        var formulaCostTags = KeepableCostTags();
         var items = allItems.Where(i => !PseudoItems.IsPseudo(i.Key) && i.Value > 0).OrderByDescending(i => i.Value);
         var costItems = allItems.Where(i => PseudoItems.IsCost(i.Key) || (i.Value < 0 && formulaCostTags.Contains(i.Key))).ToList();
 
@@ -593,7 +609,7 @@ public abstract class MethodTask : ProfitTask
 
         // COST pseudo tags (count already negative coins, coin value 1/unit - see PseudoItems) render
         // as a cost line, matching the FormulaCosts display convention elsewhere. A negative count of
-        // a REAL item this task declares in FormulaCosts (e.g. KISMET_FEATHER) is a count of items,
+        // a REAL item this task declares in FormulaCosts/ObservedCostItems (e.g. KISMET_FEATHER) is a count of items,
         // not coins, so its contribution needs the real market price instead of the pseudo-tag's
         // fixed 1/unit (ContributionPerHour ends up negative either way - no separate "-" prefix
         // needed by consumers).

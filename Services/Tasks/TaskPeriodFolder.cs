@@ -275,7 +275,7 @@ public class TaskPeriodFolder
     /// players' items does not inflate the estimate. A plain positive-count filter would also drop
     /// every real COST (a negative count - see PseudoItems.IsCost, e.g. DUNGEON_CHEST_COST, and a
     /// negative count of a tag the classified <paramref name="methodTask"/> declares in its own
-    /// FormulaCosts, e.g. KISMET_FEATHER for "M7 (Kismet)") before it ever reaches the aggregates/
+    /// FormulaCosts, e.g. KISMET_FEATHER, an observed cost of every Catacombs floor) before it ever reaches the aggregates/
     /// player stats - those must survive so they reduce the folded coin value like any other real
     /// economic activity (see Fold's isRare guard and MethodTask.ComputeFromPlayerData's Costs split
     /// for how the rest of the pipeline keeps them out of the rare-drop pool and user-facing Drops).
@@ -325,13 +325,12 @@ public class TaskPeriodFolder
     /// reaches the aggregates/player stats - keep (a) any <see cref="PseudoItems.IsCost"/> tag
     /// regardless of sign (already negative by construction) and (b) a negative count of a real item
     /// tag <paramref name="methodTask"/> declares in its own <see cref="MethodTask.FormulaCostsForTest"/>
-    /// (e.g. KISMET_FEATHER for "M7 (Kismet)"). Any other negative count (not a declared cost) is
+    /// or <see cref="MethodTask.ObservedCostItemsForTest"/> (e.g. KISMET_FEATHER on a Catacombs floor). Any other negative count (not a declared cost) is
     /// dropped, same as before this change.
     /// </summary>
     internal static Dictionary<string, int> FilterOwnedItems(Dictionary<string, int> itemsCollected, MethodTask methodTask)
     {
-        var formulaCostTags = new HashSet<string>(
-            methodTask?.FormulaCostsForTest.Select(c => c.ItemTag) ?? [], StringComparer.OrdinalIgnoreCase);
+        var formulaCostTags = methodTask?.KeepableCostTags() ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         // purchase evidence (coins spent) is accounting of the purchase task, not an item the activity earned
         var dropPurchases = methodTask != null && !methodTask.GetDetectionSignature().IsPurchaseSink;
         return new Dictionary<string, int>(itemsCollected

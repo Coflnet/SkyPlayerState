@@ -40,7 +40,7 @@ public class TaskPeriodFolderTests
     {
         var items = new Dictionary<string, int> { { PseudoItems.BAZAAR_PURCHASE, 9_269_101 }, { "MANGROVE_LOG", 93 } };
 
-        TaskPeriodFolder.FilterOwnedItems(items, new M7KismetTask()).Should().NotContainKey(PseudoItems.BAZAAR_PURCHASE)
+        TaskPeriodFolder.FilterOwnedItems(items, new M7Task()).Should().NotContainKey(PseudoItems.BAZAAR_PURCHASE)
             .And.ContainKey("MANGROVE_LOG");
         TaskPeriodFolder.FilterOwnedItems(items, new BazaarPurchaseTask()).Should().ContainKey(PseudoItems.BAZAAR_PURCHASE);
     }
@@ -59,14 +59,32 @@ public class TaskPeriodFolderTests
     [Test]
     public void FilterOwnedItems_KeepsNegativeFormulaCostTagOfTheClassifiedTask()
     {
-        var items = new Dictionary<string, int> { { "KISMET_FEATHER", -2 }, { "ESSENCE_WITHER", 600 } };
-        var task = new M7KismetTask();
+        var items = new Dictionary<string, int> { { "SUSPICIOUS_SCRAP", -2 }, { "ESSENCE_FOSSIL", 600 } };
+        var task = new FossilExcavationTask();
 
         var owned = TaskPeriodFolder.FilterOwnedItems(items, task);
 
-        owned.Should().ContainKey("KISMET_FEATHER").WhoseValue.Should().Be(-2,
-            "M7KismetTask declares KISMET_FEATHER in FormulaCosts, so its negative count is a real cost, not noise");
-        owned.Should().ContainKey("ESSENCE_WITHER").WhoseValue.Should().Be(600);
+        owned.Should().ContainKey("SUSPICIOUS_SCRAP").WhoseValue.Should().Be(-2,
+            "FossilExcavationTask declares SUSPICIOUS_SCRAP in FormulaCosts, so its negative count is a real cost, not noise");
+        owned.Should().ContainKey("ESSENCE_FOSSIL").WhoseValue.Should().Be(600);
+    }
+
+    [Test]
+    public void FilterOwnedItems_KeepsNegativeObservedCostItemOfACatacombsFloor_AndDropsOtherNegatives()
+    {
+        var items = new Dictionary<string, int>
+        {
+            { "KISMET_FEATHER", -2 }, { "ENDER_PEARL", -3 }, { "ESSENCE_WITHER", 600 }
+        };
+
+        foreach (MethodTask task in new MethodTask[] { new M7Task(), new F3Task(), new M4Task() })
+        {
+            var owned = TaskPeriodFolder.FilterOwnedItems(items, task);
+
+            owned.Should().ContainKey("KISMET_FEATHER").WhoseValue.Should().Be(-2, task.Name);
+            owned.Should().NotContainKey("ENDER_PEARL", task.Name);
+            owned.Should().ContainKey("ESSENCE_WITHER");
+        }
     }
 
     [Test]
@@ -87,10 +105,10 @@ public class TaskPeriodFolderTests
     [Test]
     public void FilterOwnedItems_NegativeCountOfATagNotInThisTasksOwnFormulaCosts_IsDropped()
     {
-        // KISMET_FEATHER only counts as a declared cost for the task that actually declares it -
+        // KISMET_FEATHER only counts as a declared cost for the tasks that actually declare it (Catacombs floors) -
         // the same negative count under a different (unrelated) classified task is just dropped.
         var items = new Dictionary<string, int> { { "KISMET_FEATHER", -2 }, { "ESSENCE_WITHER", 300 } };
-        var task = new M4Task(); // does not declare KISMET_FEATHER as a FormulaCost
+        var task = new MangroveForagingTask(); // does not declare KISMET_FEATHER as a cost
 
         var owned = TaskPeriodFolder.FilterOwnedItems(items, task);
 

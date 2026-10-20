@@ -75,6 +75,9 @@ public abstract class BaseDungeonTask : MethodTask
     // "-6000000x DUNGEON_CHEST_COST" is that floor, and its cost must not lose to e.g. a /bz
     // purchase bucket) but are not mandatory - see MethodTask.EvidenceItems.
     protected override HashSet<string> EvidenceItems => [PseudoItems.DUNGEON_CHEST_COST, PseudoItems.DUNGEON_RUN];
+    // rerolling the end chest with a Kismet Feather is the player's choice on any floor: a consumed feather is
+    // a real cost of the run, but has no formula rate
+    protected override HashSet<string> ObservedCostItems => ["KISMET_FEATHER"];
     protected override List<DropEffect> Effects =>
     [
         new() { Name = "Dungeon Class Level", Description = "Higher class level increases damage and survivability", EstimatedMultiplier = 1.2 },
@@ -284,8 +287,8 @@ public class M7Task : BaseDungeonTask
 {
     /// <summary>
     /// M7 runs per hour: a party finder M7 takes about 6 minutes plus about 2 minutes between runs, so 7 an hour.
-    /// An inference from forum reports, not a measured value. FormulaDrops of both M7 tasks are per hour, so
-    /// anything that is per run (the Kismet) is multiplied by this.
+    /// An inference from forum reports, not a measured value. FormulaDrops are per hour, so
+    /// anything that is per run is multiplied by this.
     /// </summary>
     // TODO once data exists: replace with 3600 / median seconds of run-length key "dungeon:M7" (IRunLengthRecorder.GetMedian, GET /RunLength/dungeon:M7).
     public const double RunsPerHour = 7;
@@ -295,7 +298,7 @@ public class M7Task : BaseDungeonTask
     protected override HashSet<string> Locations => ["The Catacombs (M7)"];
     protected override double ActionsPerHour => RunsPerHour;
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 600), new("NECRON_HANDLE", HandlePerHour)];
-    protected override string HowTo => "Queue for Master Mode Floor 7. Requires Catacombs level 36+. Boss is Necron with multiple phases. Handle drop is rare (~1/20).";
+    protected override string HowTo => "Queue for Master Mode Floor 7. Requires Catacombs level 36+. Boss is Necron with multiple phases. Handle drop is rare (~1/20). Kismet Feathers used to reroll the end chest count as a cost.";
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "HYPERION", Reason = "Recommended mage weapon for M7 (standard from M4 up, not enforced by the game)" },
         new() { ItemTag = "TERMINATOR", Reason = "Recommended archer/berserk/tank weapon for M7 (standard from M4 up, needs Enderman Slayer 7 to use)" }
@@ -310,33 +313,5 @@ public class M7Task : BaseDungeonTask
         new() { Number = 5, Text = "You're doing it right when you collect: Wither Essence, and rarely a Necron's Handle (about 1 in 20 runs).", OnClick = WikiUrl },
         new() { Number = 6, Text = "Sell the Wither Essence, and the Handle if you get one, on the Bazaar/Auction House." },
         new() { Number = 7, Text = "Check /cofl task again to see your real coins/hour." },
-    ];
-}
-public class M7KismetTask : BaseDungeonTask
-{
-    protected override string MethodName => "M7 (Kismet)";
-    protected override HashSet<string> Locations => ["The Catacombs (M7)"];
-    protected override HashSet<string> DetectionItems => ["KISMET_FEATHER"];
-    protected override double ActionsPerHour => M7Task.RunsPerHour;
-    // a Kismet rerolls the end chest once, so the chance doubles to twice the plain M7 rate
-    protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 600), new("NECRON_HANDLE", 2 * M7Task.HandlePerHour)];
-    // one Kismet per run, and the drops and costs here are per hour
-    protected override List<MethodDrop> FormulaCosts => [new("KISMET_FEATHER", M7Task.RunsPerHour)];
-    protected override string HowTo => "Queue for Master Mode Floor 7 with Kismet Feathers for double chest reroll. Doubles the handle chance but costs a Kismet per run.";
-    protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "KISMET_FEATHER", Reason = "Rerolls dungeon chest for better drops (one per run)" },
-        new() { ItemTag = "HYPERION", Reason = "Recommended mage weapon for M7 (standard from M4 up, not enforced by the game)" }
-    ];
-    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Necron";
-    protected override List<TaskStep> Steps =>
-    [
-        new() { Number = 1, Text = "Get your gear ready: a Hyperion (mage) or Terminator (archer) is best for M7.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Kismet_Feather" },
-        new() { Number = 2, Text = "Buy some Kismet Feathers - each one lets you reroll your dungeon chest once for a better item." },
-        new() { Number = 3, Text = "Type /warp dungeon_hub to get close.", OnClick = "/warp dungeon_hub" },
-        new() { Number = 4, Text = "Queue for Master Mode Floor 7 (needs Catacombs level 36+), with a good party of 5.", OnClick = WhereWikiUrl },
-        new() { Number = 5, Text = "Clear the dungeon and beat Necron, then use your Kismet Feathers to reroll the end chest." },
-        new() { Number = 6, Text = "You're doing it right when you collect: Wither Essence, and Necron's Handle more often than plain M7.", OnClick = WikiUrl },
-        new() { Number = 7, Text = "Sell the Wither Essence, and the Handle if you get one, on the Bazaar/Auction House." },
-        new() { Number = 8, Text = "Check /cofl task again to see your real coins/hour." },
     ];
 }

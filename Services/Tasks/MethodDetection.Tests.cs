@@ -553,19 +553,19 @@ public class MethodDetectionTests
     // ── Dungeon tasks ──
 
     [Test]
-    public async Task M7KismetDetection()
+    public async Task M7WithKismetDetection()
     {
-        // M7KismetTask now lists the floor-specific zone only (see DungeonTasks.cs) - the bare
+        // M7Task lists the floor-specific zone only (see DungeonTasks.cs) - the bare
         // "The Catacombs" island name never occurs on the real scoreboard.
         var period = MakePeriod("The Catacombs (M7)", 10_000_000, new()
         {
             { "KISMET_FEATHER", 3 },
             { "ENCHANTED_DIAMOND", 20 }
         }, 15);
-        var task = new M7KismetTask();
+        var task = new M7Task();
         var result = await task.Execute(MakeParams(period));
         result.ProfitPerHour.Should().BeGreaterThan(0);
-        result.Name.Should().Be("M7 (Kismet)");
+        result.Name.Should().Be("M7");
     }
 
     // ── Galatea diving vs Galatea mob disambiguation ──

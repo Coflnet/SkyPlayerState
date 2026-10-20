@@ -325,7 +325,6 @@ internal static class TaskCatalog
         tasks.Add<M5Task>();
         tasks.Add<M6Task>();
         tasks.Add<M7Task>();
-        tasks.Add<M7KismetTask>();
 
         // Garden tasks
         tasks.Add<PestTask>();

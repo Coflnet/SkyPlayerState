@@ -235,19 +235,19 @@ public class TaskEstimationTests
     }
 
     /// <summary>
-    /// Sessions keep negative counts, so an observed KISMET_FEATHER cost is already in the item value:
+    /// Sessions keep negative counts, so an observed SUSPICIOUS_SCRAP cost is already in the item value:
     /// the formula estimate of the same cost must not be subtracted again.
     /// </summary>
     [Test]
     public void AggregateRate_CountsAnObservedFormulaCostOnce()
     {
-        var task = new M7KismetTask();
-        var prices = new Dictionary<string, double> { ["ESSENCE_WITHER"] = 1_000, ["KISMET_FEATHER"] = 10_000_000 };
+        var task = new FossilExcavationTask();
+        var prices = new Dictionary<string, double> { ["ESSENCE_FOSSIL"] = 1_000, ["SUSPICIOUS_SCRAP"] = 10_000_000 };
         const double hours = 2;
         var agg = new BucketAggregate
         {
             WSeconds = hours * 3600,
-            ItemCounts = new() { ["ESSENCE_WITHER"] = 1200, ["KISMET_FEATHER"] = -10 },
+            ItemCounts = new() { ["ESSENCE_FOSSIL"] = 1200, ["SUSPICIOUS_SCRAP"] = -10 },
         };
 
         var rate = RateFromAggregate(agg, prices, task);
@@ -260,10 +260,10 @@ public class TaskEstimationTests
     [Test]
     public void AggregateRate_StillAppliesTheFormulaCost_WhenTheCostWasNotObserved()
     {
-        var task = new M7KismetTask();
-        var prices = new Dictionary<string, double> { ["ESSENCE_WITHER"] = 1_000, ["KISMET_FEATHER"] = 10_000_000 };
+        var task = new FossilExcavationTask();
+        var prices = new Dictionary<string, double> { ["ESSENCE_FOSSIL"] = 1_000, ["SUSPICIOUS_SCRAP"] = 10_000_000 };
         const double hours = 2;
-        var agg = new BucketAggregate { WSeconds = hours * 3600, ItemCounts = new() { ["ESSENCE_WITHER"] = 1200 } };
+        var agg = new BucketAggregate { WSeconds = hours * 3600, ItemCounts = new() { ["ESSENCE_FOSSIL"] = 1200 } };
 
         var cost = task.ScaledFormulaCost(agg.ItemCounts, hours, t => prices.GetValueOrDefault(t));
 
