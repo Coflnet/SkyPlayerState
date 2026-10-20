@@ -1300,6 +1300,107 @@ public class CollectionListenerInventoryTests
         state.ItemsCollectedRecently.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Production 2026-10-20: items withdrawn from the "Toy Box" were booked as loot (a fresh-uuid
+    /// INFERNAL_AURORA_HELMET 24 times in 2 minutes, 340B coins in 48 h).
+    /// </summary>
+    [Test]
+    public async Task UuidItemWithdrawnFromTheToyBoxIsNotBooked()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("ENDER_PEARL", 16)), Now);
+        await ProcessView(state, View("Toy Box", new(), StackableItem("ENDER_PEARL", 16)), Now);
+
+        await ProcessView(state, View("Toy Box", new(), StackableItem("ENDER_PEARL", 16), GearItem("INFERNAL_AURORA_HELMET", Guid.NewGuid().ToString())), Now);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    /// <summary>Production 2026-10-20: salvaging owned armor at the Dungeon Blacksmith booked its output as loot.</summary>
+    [Test]
+    public async Task SalvageOutputIsNotBooked()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("ENDER_PEARL", 16)), Now);
+        await ProcessView(state, View("Salvage Items", new(), StackableItem("ENDER_PEARL", 16)), Now);
+
+        await ProcessView(state, View("Salvage Items", new(), StackableItem("ENDER_PEARL", 16), StackableItem("KUUDRA_TEETH", 400), StackableItem("HEAVY_PEARL", 110)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    /// <summary>Production 2026-10-20: redeemed items (+FRESHLY_MINTED_COINS, -STOCK_OF_STONKS) booked as loot (78B in 48 h).</summary>
+    [Test]
+    public async Task StockRedemptionIsNotBookedAsLootOrLoss()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("STOCK_OF_STONKS", 50)), Now);
+        await ProcessView(state, View("Liz's Stock Redemption", new(), StackableItem("STOCK_OF_STONKS", 50)), Now);
+
+        await ProcessView(state, View("Liz's Stock Redemption", new(), StackableItem("FRESHLY_MINTED_COINS", 3)), Now);
+        await ProcessView(state, View("", new(), StackableItem("FRESHLY_MINTED_COINS", 3)), Now);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    private static async Task ProcessScoreboard(StateObject state, params string[] lines)
+    {
+        var args = new MockedUpdateArgs
+        {
+            currentState = state,
+            msg = new UpdateMessage { Kind = UpdateMessage.UpdateKind.Scoreboard, PlayerId = "p1", Scoreboard = lines }
+        };
+        await new CollectionListener().Process(args);
+    }
+
+    [TestCase("alpha.hypixel.net", true)]
+    [TestCase("§ealpha.hypixel.NET", true)]
+    [TestCase("www.hypixel.net", false)]
+    public async Task ScoreboardFooterSetsTheAlphaFlag(string footer, bool expected)
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.OnAlphaNetwork = !expected;
+
+        await ProcessScoreboard(state, "[SKYBLOCK]", footer);
+
+        state.ExtractedInfo.OnAlphaNetwork.Should().Be(expected);
+    }
+
+    [Test]
+    public async Task ScoreboardWithoutFooterKeepsTheAlphaFlag()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.OnAlphaNetwork = true;
+
+        await ProcessScoreboard(state, "[SKYBLOCK]", "Purse: 5");
+
+        state.ExtractedInfo.OnAlphaNetwork.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task GainsOnTheAlphaNetworkAreNotBooked_ButAfterSwitchingBackTheyAre()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64)), Now);
+        state.ItemsCollectedRecently["ENDER_PEARL"] = 3;
+        await ProcessScoreboard(state, "[SKYBLOCK]", "alpha.hypixel.net");
+        state.ItemsCollectedRecently.Should().BeEmpty("switching to alpha clears the pending items");
+
+        var uuid = Guid.NewGuid().ToString();
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 128), GearItem("HYPERION", uuid)), Now);
+        state.ItemsCollectedRecently.Should().BeEmpty();
+        state.KnownItemUuids.Should().BeNullOrEmpty("free alpha items must not evict real ones from the bounded known set");
+
+        await ProcessScoreboard(state, "[SKYBLOCK]", "www.hypixel.net");
+        // the main profile holds other amounts than the alpha copy: the first main view is only a baseline
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 500), GearItem("HYPERION", uuid)), Now);
+        state.ItemsCollectedRecently.Should().BeEmpty();
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 564), GearItem("HYPERION", uuid)), Now);
+
+        state.ItemsCollectedRecently.GetValueOrDefault("ENCHANTED_COBBLESTONE").Should().Be(64, "only the gain after switching back counts");
+        state.ItemsCollectedRecently.Should().NotContainKey("HYPERION", "the first main view is the baseline");
+    }
+
     [Test]
     public async Task GemPutIntoGearInTheGemstoneGrinderIsNotALoss()
     {

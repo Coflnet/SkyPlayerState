@@ -141,8 +141,14 @@ public abstract class MethodTask : ProfitTask
         if (reference == null)
             return 0;
         var scale = (itemCounts[reference.ItemTag] / hours) / reference.RatePerHour;
-        return FormulaCosts.Sum(c => priceOf(c.ItemTag) * c.RatePerHour) * scale * hours;
+        // a cost tag observed with a negative count is already inside the caller's item value: charging
+        // its formula estimate on top would subtract the same cost twice
+        return FormulaCosts.Where(c => !IsObservedCost(itemCounts, c.ItemTag))
+            .Sum(c => priceOf(c.ItemTag) * c.RatePerHour) * scale * hours;
     }
+
+    private static bool IsObservedCost(Dictionary<string, double> itemCounts, string tag)
+        => itemCounts.TryGetValue(tag, out var count) && count < 0;
 
     protected override string WarpCommand => null;
     /// <summary>
@@ -909,6 +915,8 @@ public abstract class MethodTask : ProfitTask
         var scale = reference == null ? 0 : itemRatesPerHour[reference.ItemTag] / reference.RatePerHour;
         foreach (var cost in FormulaCosts)
         {
+            if (IsObservedCost(itemRatesPerHour, cost.ItemTag))
+                continue; // the observed negative drop already shows this cost
             var price = PriceOf(cost.ItemTag);
             if (price <= 0) continue;
             var rate = cost.RatePerHour * scale;

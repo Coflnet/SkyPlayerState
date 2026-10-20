@@ -277,6 +277,8 @@ public class ExtractedInfo
         LastKuudraTier = extractedInfo.LastKuudraTier;
         LastKuudraTierAt = extractedInfo.LastKuudraTierAt;
         KuudraPendingRunSeconds = extractedInfo.KuudraPendingRunSeconds;
+        OnAlphaNetwork = extractedInfo.OnAlphaNetwork;
+        OnAlphaNetworkSeenAt = extractedInfo.OnAlphaNetworkSeenAt;
         LastLateRewardTask = extractedInfo.LastLateRewardTask;
         LastLateRewardTaskAt = extractedInfo.LastLateRewardTaskAt;
         LastLateRewardTaskLocation = extractedInfo.LastLateRewardTaskLocation;
@@ -394,6 +396,16 @@ public class ExtractedInfo
     /// </summary>
     [Key(61)]
     public bool SafariInventorySeen { get; set; }
+    /// <summary>
+    /// The player is on the Hypixel alpha network (scoreboard footer "alpha.hypixel.net"), where Featured Update
+    /// Items are created for free: nothing done there may count as profit. Set from every scoreboard that shows
+    /// either footer, unchanged by scoreboards showing neither.
+    /// </summary>
+    [Key(62)]
+    public bool OnAlphaNetwork { get; set; }
+    /// <summary>When a scoreboard last showed the alpha footer.</summary>
+    [Key(63)]
+    public DateTime OnAlphaNetworkSeenAt { get; set; }
 }
 
 /// <summary>

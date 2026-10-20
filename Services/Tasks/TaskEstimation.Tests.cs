@@ -234,6 +234,43 @@ public class TaskEstimationTests
         net.Should().BeLessThan(gross, "the 16 Fine gems per mixture must be charged against the community rate too");
     }
 
+    /// <summary>
+    /// Sessions keep negative counts, so an observed KISMET_FEATHER cost is already in the item value:
+    /// the formula estimate of the same cost must not be subtracted again.
+    /// </summary>
+    [Test]
+    public void AggregateRate_CountsAnObservedFormulaCostOnce()
+    {
+        var task = new M7KismetTask();
+        var prices = new Dictionary<string, double> { ["ESSENCE_WITHER"] = 1_000, ["KISMET_FEATHER"] = 10_000_000 };
+        const double hours = 2;
+        var agg = new BucketAggregate
+        {
+            WSeconds = hours * 3600,
+            ItemCounts = new() { ["ESSENCE_WITHER"] = 1200, ["KISMET_FEATHER"] = -10 },
+        };
+
+        var rate = RateFromAggregate(agg, prices, task);
+
+        var expected = (1200 * 1_000.0 - 10 * 10_000_000.0) / hours;
+        rate.Should().BeApproximately(expected, 1e-6);
+        task.ScaledFormulaCost(agg.ItemCounts, hours, t => prices.GetValueOrDefault(t)).Should().Be(0);
+    }
+
+    [Test]
+    public void AggregateRate_StillAppliesTheFormulaCost_WhenTheCostWasNotObserved()
+    {
+        var task = new M7KismetTask();
+        var prices = new Dictionary<string, double> { ["ESSENCE_WITHER"] = 1_000, ["KISMET_FEATHER"] = 10_000_000 };
+        const double hours = 2;
+        var agg = new BucketAggregate { WSeconds = hours * 3600, ItemCounts = new() { ["ESSENCE_WITHER"] = 1200 } };
+
+        var cost = task.ScaledFormulaCost(agg.ItemCounts, hours, t => prices.GetValueOrDefault(t));
+
+        cost.Should().BeGreaterThan(0);
+        RateFromAggregate(agg, prices, task).Should().BeApproximately((1200 * 1_000.0 - cost) / hours, 1e-6);
+    }
+
     [Test]
     public void PlayerStatRate_NetsIngredientCost_ForFormulaCostsTask()
     {

@@ -129,4 +129,64 @@ public class TaskSessionServiceTests
         flush.Should().BeNull();
         info.CurrentSession.Should().BeNull();
     }
+
+    [Test]
+    public void NegativeCountsSurviveTheSessionAndTheFlush()
+    {
+        var info = new ExtractedInfo();
+        var t0 = new DateTime(2026, 10, 20, 12, 00, 00, DateTimeKind.Utc);
+        var items = new Dictionary<string, int> { ["DUNGEON_CHEST_COST"] = -100_000_000, ["NECRON_HANDLE"] = 1 };
+
+        Service.Accumulate(info, Player, Fragment("The Catacombs (M7)", items, t0, t0.AddMinutes(1)), null, null, t0.AddMinutes(1));
+        var flush = Service.Accumulate(info, Player, Fragment("The Catacombs (M7)", null, t0.AddMinutes(1), t0.AddMinutes(7)), null, null, t0.AddMinutes(7));
+
+        flush.Should().NotBeNull();
+        flush!.ItemsCollected.Should().Contain("DUNGEON_CHEST_COST", -100_000_000);
+        flush.ItemsCollected.Should().Contain("NECRON_HANDLE", 1);
+    }
+
+    [Test]
+    public void TagThatNetsToZeroDisappears()
+    {
+        var (_, locA, _, items) = MultiLocationTask();
+        var tag = items.Keys.First();
+        var info = new ExtractedInfo();
+        var t0 = new DateTime(2026, 10, 20, 12, 00, 00, DateTimeKind.Utc);
+
+        Service.Accumulate(info, Player, Fragment(locA, new() { [tag] = 5, ["KISMET_FEATHER"] = 2 }, t0, t0.AddMinutes(1)), null, null, t0.AddMinutes(1));
+        Service.Accumulate(info, Player, Fragment(locA, new() { ["KISMET_FEATHER"] = -2, ["NECRON_HANDLE"] = 1 }, t0.AddMinutes(1), t0.AddMinutes(2)), null, null, t0.AddMinutes(2));
+
+        info.CurrentSession!.Items.Should().NotContainKey("KISMET_FEATHER");
+        info.CurrentSession.Items.Should().ContainKey(tag);
+    }
+
+    [Test]
+    public void AddedNegativeEntry_DoesNotChangeClassification()
+    {
+        var (task, locA, _, items) = MultiLocationTask();
+        var t0 = new DateTime(2026, 10, 20, 12, 00, 00, DateTimeKind.Utc);
+        var plain = new ExtractedInfo();
+        var withCost = new ExtractedInfo();
+        var costItems = new Dictionary<string, int>(items) { ["DUNGEON_CHEST_COST"] = -100_000_000 };
+
+        Service.Accumulate(plain, Player, Fragment(locA, items, t0, t0.AddMinutes(10)), null, null, t0.AddMinutes(10));
+        Service.Accumulate(withCost, Player, Fragment(locA, costItems, t0, t0.AddMinutes(10)), null, null, t0.AddMinutes(10));
+
+        withCost.CurrentSession!.DetectedTask.Should().Be(plain.CurrentSession!.DetectedTask).And.Be(task);
+        withCost.CurrentSession.Items.Should().Contain("DUNGEON_CHEST_COST", -100_000_000);
+    }
+
+    [Test]
+    public void Cap_KeepsLargestByAbsoluteCount()
+    {
+        var info = new ExtractedInfo();
+        var t0 = new DateTime(2026, 10, 20, 12, 00, 00, DateTimeKind.Utc);
+        var items = Enumerable.Range(0, TaskSessionService.MaxDistinctItems + 10).ToDictionary(i => "ITEM_" + i, i => i + 1);
+        items["DUNGEON_CHEST_COST"] = -100_000_000;
+
+        Service.Accumulate(info, Player, Fragment("Hub", items, t0, t0.AddMinutes(1)), null, null, t0.AddMinutes(1));
+
+        info.CurrentSession!.Items.Should().HaveCount(TaskSessionService.MaxDistinctItems);
+        info.CurrentSession.Items.Should().ContainKey("DUNGEON_CHEST_COST");
+    }
 }

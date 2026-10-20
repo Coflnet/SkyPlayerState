@@ -15,6 +15,10 @@ public class StorageListener : UpdateListener
         {
             return;
         }
+        // the alpha network copies the profile and creates items for free: its storage must neither overwrite the
+        // saved main storage nor fill the bounded known-uuid set with items that never exist on the main network
+        if (args.currentState.ExtractedInfo.OnAlphaNetwork)
+            return;
         var chestView = args.msg.Chest;
         // Every storage container view the service sees contributes its items' uuids to the
         // player's known-item set (see CollectionListener.RegisterKnownItemUuids/HandleInventory's

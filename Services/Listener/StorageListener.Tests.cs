@@ -1,5 +1,8 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using AwesomeAssertions;
 using Coflnet.Sky.PlayerState.Models;
+using Coflnet.Sky.PlayerState.Tests;
 using NUnit.Framework;
 
 namespace Coflnet.Sky.PlayerState.Services;
@@ -40,5 +43,29 @@ public class StorageListenerTests
         itemsToStore.Should().Be(27);
         itemsToStore.Should().BeGreaterThan(22, "the Huntaxe at index 22 must not be trimmed away");
         itemsToStore.Should().BeGreaterThanOrEqualTo(3 * 9, "the Hunting Toolkit's top 3 rows must survive");
+    }
+
+    /// <summary>The alpha network copies the profile and creates items for free: its storage pages are not saved.</summary>
+    [Test]
+    public async Task StorageOnTheAlphaNetworkIsNotSavedNorRegistered()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.OnAlphaNetwork = true;
+        var items = new List<Item>();
+        for (var i = 0; i < 63; i++)
+            items.Add(new Item());
+        items[0] = new Item { Tag = "HYPERION", ItemName = "Hyperion", Count = 1,
+            ExtraAttributes = new Dictionary<string, object> { { "uuid", System.Guid.NewGuid().ToString() } } };
+        // no StorageService registered: reaching SaveStorageItem would throw
+        var args = new MockedUpdateArgs
+        {
+            currentState = state,
+            msg = new UpdateMessage { Kind = UpdateMessage.UpdateKind.INVENTORY, PlayerId = "p1",
+                Chest = new ChestView { Name = "Ender Chest (1/9)", Items = items } }
+        };
+
+        await new StorageListener().Process(args);
+
+        state.KnownItemUuids.Should().BeNullOrEmpty();
     }
 }

@@ -74,9 +74,10 @@ public class TaskSessionService
 
         // tentatively merge and see whether the fragment shifts the classification
         var tentative = Merge(session.Items, fragment.ItemsCollected);
+        var tentativePositive = PositiveOnly(tentative);
         var startTime = session.StartTime == default ? fragment.StartTime : session.StartTime;
         var minutes = (fragment.EndTime - startTime).TotalMinutes;
-        var newTask = classifier.Classify(fragment.Location, tentative, minutes, claimedTask, prices,
+        var newTask = classifier.Classify(fragment.Location, tentativePositive, minutes, claimedTask, prices,
             info.CurrentIsland, info.CurrentIslandAt, info.CurrentLocationSince, info.CurrentLocationSeenAt)?.TaskName;
 
         if (session.DetectedTask != null && newTask != null && newTask != session.DetectedTask)
@@ -108,6 +109,8 @@ public class TaskSessionService
         string currentIsland, DateTime currentIslandAt, DateTime currentLocationSince, DateTime currentLocationSeenAt)
     {
         var items = Cap(Merge(new Dictionary<string, int>(), fragment.ItemsCollected));
+        // the classifier only ever sees gains: costs (negative counts) ride along for the folder
+        var positiveItems = PositiveOnly(items);
         var minutes = (fragment.EndTime - fragment.StartTime).TotalMinutes;
         return new TaskSession
         {
@@ -116,7 +119,7 @@ public class TaskSessionService
             Location = fragment.Location,
             Server = fragment.Server,
             Items = items,
-            DetectedTask = classifier.Classify(fragment.Location, items, minutes, claimedTask, prices,
+            DetectedTask = classifier.Classify(fragment.Location, positiveItems, minutes, claimedTask, prices,
                 currentIsland, currentIslandAt, currentLocationSince, currentLocationSeenAt)?.TaskName
         };
     }
@@ -132,23 +135,34 @@ public class TaskSessionService
         DetectedTask = session.DetectedTask
     };
 
+    /// <summary>
+    /// Net-sums the fragment into a copy of the session items. Negative counts (real costs such as
+    /// DUNGEON_CHEST_COST, KISMET_FEATHER, keys) are kept: <see cref="TaskPeriodFolder"/> decides per task
+    /// which of them count. Tags whose net becomes 0 are dropped.
+    /// </summary>
     private static Dictionary<string, int> Merge(Dictionary<string, int> into, Dictionary<string, int> from)
     {
         var result = new Dictionary<string, int>(into);
         foreach (var (tag, count) in from)
         {
-            if (count <= 0)
+            if (count == 0)
                 continue;
             ItemCountMath.Add(result, tag, count);
+            if (result[tag] == 0)
+                result.Remove(tag);
         }
         return result;
     }
 
+    private static Dictionary<string, int> PositiveOnly(Dictionary<string, int> items)
+        => items.Any(e => e.Value <= 0) ? items.Where(e => e.Value > 0).ToDictionary(e => e.Key, e => e.Value) : items;
+
+    /// <summary>Keeps the entries with the largest absolute count, so huge negative costs are not cut.</summary>
     private static Dictionary<string, int> Cap(Dictionary<string, int> items)
     {
         if (items.Count <= MaxDistinctItems)
             return items;
-        return items.OrderByDescending(e => e.Value).Take(MaxDistinctItems)
+        return items.OrderByDescending(e => Math.Abs((long)e.Value)).Take(MaxDistinctItems)
             .ToDictionary(e => e.Key, e => e.Value);
     }
 }

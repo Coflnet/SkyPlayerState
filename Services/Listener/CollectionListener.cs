@@ -40,6 +40,16 @@ public class CollectionListener : UpdateListener
             await HandleScoreboard(args);
             return;
         }
+        if (args.currentState.ExtractedInfo.OnAlphaNetwork)
+        {
+            // alpha network items are free: book nothing. Their uuids are not registered either: the alpha inventory
+            // is a copy of the main one (those uuids are known already) and free Toy Box items would only evict real
+            // ones from the bounded known set. The first main view after switching back is a fresh baseline.
+            if (args.msg.Kind == Models.UpdateMessage.UpdateKind.Tab
+                && ParseMithrilPowderFromTab(args.msg.Tab) is { } powder && powder >= 0)
+                args.currentState.ExtractedInfo.MithrilPowder = powder;
+            return;
+        }
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.INVENTORY)
         {
             var collectedBefore = new Dictionary<string, int>(args.currentState.ItemsCollectedRecently);
@@ -1121,8 +1131,13 @@ public class CollectionListener : UpdateListener
     /// Box, the Gemstone Grinder (gems move between the player's gear and the inventory; production
     /// 2026-10-03: 683M coins of removed gems booked as loot in 11 hours) and the "Storage" overview
     /// (the backpack opened from it is not always uploaded; production 2026-10-03: +150x SHARD_FUNGLOOM
-    /// and +160x GRIFFIN_FEATHER between "Storage" and the next storage page). First-time counting is
-    /// skipped around them.
+    /// and +160x GRIFFIN_FEATHER between "Storage" and the next storage page), the "Toy Box" (production
+    /// 2026-10-20: 54 players in 48 h withdrew items from it, 340B coins booked as loot, e.g. one uuid
+    /// INFERNAL_AURORA_HELMET 24 times in 2 minutes) and "Salvage Items" (the Dungeon Blacksmith turns an
+    /// owned armor piece into KUUDRA_TEETH/HEAVY_PEARL, a conversion and not loot, while the armor itself
+    /// leaves without a negative entry) and "Liz's Stock Redemption" (a shop where Stock of Stonks is exchanged for
+    /// items; production 2026-10-20: 114 players, 78B coins of redeemed items booked as loot in 48 h).
+    /// First-time counting is skipped around them.
     /// </summary>
     private static bool IsSwapView(Models.ChestView view)
     {
@@ -1130,7 +1145,7 @@ public class CollectionListener : UpdateListener
         if (name == null)
             return false;
         return name.StartsWith("You    ") || name.Contains("Sack") || name.Contains("Shop") || name.Contains("Trades")
-            || name.Contains("Hunting Box") || name.Contains("Fusion Box") || name is "Gemstone Grinder" or "Storage";
+            || name.Contains("Hunting Box") || name.Contains("Fusion Box") || name is "Gemstone Grinder" or "Storage" or "Toy Box" or "Salvage Items" or "Liz's Stock Redemption";
     }
 
     /// <summary>
@@ -1215,8 +1230,50 @@ public class CollectionListener : UpdateListener
         }
     }
 
+    internal const string AlphaFooter = "alpha.hypixel.net";
+    internal const string MainFooter = "www.hypixel.net";
+
+    /// <summary>True when the scoreboard shows the alpha network footer, false for the main one, null when neither.</summary>
+    internal static bool? DetectAlphaNetwork(IEnumerable<string>? scoreboard)
+    {
+        if (scoreboard == null)
+            return null;
+        var lines = scoreboard.Where(l => l != null).Select(StripFormatting).ToList();
+        if (lines.Any(l => l.Contains(AlphaFooter, StringComparison.OrdinalIgnoreCase)))
+            return true;
+        if (lines.Any(l => l.Contains(MainFooter, StringComparison.OrdinalIgnoreCase)))
+            return false;
+        return null;
+    }
+
+    private void UpdateAlphaNetwork(UpdateArgs args)
+    {
+        var info = args.currentState.ExtractedInfo;
+        var onAlpha = DetectAlphaNetwork(args.msg.Scoreboard);
+        if (onAlpha == null)
+            return;
+        if (onAlpha.Value)
+            info.OnAlphaNetworkSeenAt = DateTime.UtcNow;
+        if (onAlpha.Value == info.OnAlphaNetwork)
+            return;
+        info.OnAlphaNetwork = onAlpha.Value;
+        if (onAlpha.Value)
+        {
+            args.currentState.ItemsCollectedRecently.Clear();
+            Logger.LogInformation("Player {playerId} is on the alpha network, profit tracking paused", args.currentState.PlayerId);
+        }
+        else
+        {
+            // the main profile differs from the alpha copy: the first main view must be a fresh baseline, not a diff
+            // against the last alpha view
+            args.currentState.RecentViews.Clear();
+            Logger.LogInformation("Player {playerId} is back on the main network, profit tracking resumed", args.currentState.PlayerId);
+        }
+    }
+
     private async Task HandleScoreboard(UpdateArgs args)
     {
+        UpdateAlphaNetwork(args);
         // 07/14/15
         var currentDate = DateTime.UtcNow.ToString("MM/dd/yy");
         var yesterdayDate = DateTime.UtcNow.AddDays(-1).ToString("MM/dd/yy");
@@ -1584,9 +1641,36 @@ public class CollectionListener : UpdateListener
         return end < info.LastLocationChange ? info.LastLocationChange : end;
     }
 
+    /// <summary>
+    /// True when a stored period is a dungeon/Kuudra chest claim made after (or beside) the run that unlocked
+    /// it: raw location is the claim spot (Dungeon Hub / Forgotten Skull), it resolved to a Catacombs floor or
+    /// Kuudra tier zone, it was classified, carries no pending Kuudra run time (<paramref name="claimShift"/>),
+    /// and no session of the same task is running to take it (then it is merged and counts with the run's time).
+    /// Such a claim is folded as a late reward: value for the floor/tier task, none of its own seconds.
+    /// </summary>
+    internal static bool IsLateClaim(string rawLocation, string resolvedLocation, string detectedTask,
+        TimeSpan claimShift, Models.TaskSession currentSession)
+    {
+        if (detectedTask == null || claimShift != TimeSpan.Zero || string.IsNullOrEmpty(rawLocation) || string.IsNullOrEmpty(resolvedLocation))
+            return false;
+        if (!Tasks.KuudraRewardAttribution.IsClaimLocation(rawLocation))
+            return false;
+        if (!Tasks.DungeonRewardAttribution.IsFloorZone(resolvedLocation) && !Tasks.KuudraRewardAttribution.IsTierZone(resolvedLocation))
+            return false;
+        return currentSession == null || currentSession.DetectedTask != detectedTask;
+    }
+
     private async Task StoreLocationProfit(UpdateArgs args, string previousLocation)
     {
         var now = DateTime.UtcNow;
+        if (args.currentState.ExtractedInfo.OnAlphaNetwork)
+        {
+            // alpha network: nothing counts, treat the flush like an empty one
+            args.currentState.ItemsCollectedRecently.Clear();
+            args.currentState.ExtractedInfo.LastLocationChange = now;
+            args.currentState.ExtractedInfo.PeriodSplitPending = false;
+            return;
+        }
         var periodEnd = PeriodEnd(args.currentState.ExtractedInfo, now);
         var profit = 0L;
         var collected = args.currentState.ItemsCollectedRecently;
@@ -1631,6 +1715,7 @@ public class CollectionListener : UpdateListener
         Dictionary<string, double> cleanPrices = null;
         string lateRewardTask = null;
         TrackedProfitService.Period lateRewardPeriod = null;
+        TrackedProfitService.Period lateClaimPeriod = null;
         if (collected.Count > 0)
         {
             cleanPrices = await GetCleanPrices(args);
@@ -1649,6 +1734,8 @@ public class CollectionListener : UpdateListener
             ClassifyPeriod(args, period, cleanPrices);
             lateRewardTask = AttributeLateReward(args, period);
             lateRewardPeriod = lateRewardTask == null ? null : period;
+            if (IsLateClaim(previousLocation, resolvedLocation, period.DetectedTask, claimShift, info.CurrentSession))
+                lateClaimPeriod = period;
             await args.GetService<TrackedProfitService>().AddPeriod(period);
             try
             {
@@ -1663,7 +1750,7 @@ public class CollectionListener : UpdateListener
             Logger.LogInformation("Profit summary for {playerId} at {location}: {profit} coins from {items}", args.currentState.PlayerId, resolvedLocation, profit, string.Join(", ", collected.Select(c => $"{c.Value}x {c.Key}")));
         }
         // fold task attribution per session (spanning locations), not per location fragment
-        await AccumulateSession(args, resolvedLocation, collected, cleanPrices, now, periodEnd, lateRewardPeriod);
+        await AccumulateSession(args, resolvedLocation, collected, cleanPrices, now, periodEnd, lateRewardPeriod, lateClaimPeriod);
         args.currentState.ItemsCollectedRecently.Clear();
         args.currentState.ExtractedInfo.LastLocationChange = now;
         args.currentState.ExtractedInfo.PeriodSplitPending = false;
@@ -1678,7 +1765,7 @@ public class CollectionListener : UpdateListener
     /// </summary>
     private async Task AccumulateSession(UpdateArgs args, string previousLocation,
         Dictionary<string, int> collected, Dictionary<string, double> cleanPrices, DateTime now, DateTime periodEnd,
-        TrackedProfitService.Period lateRewardPeriod = null)
+        TrackedProfitService.Period lateRewardPeriod = null, TrackedProfitService.Period lateClaimPeriod = null)
     {
         try
         {
@@ -1689,6 +1776,16 @@ public class CollectionListener : UpdateListener
             if (state.McInfo.Uuid == default)
                 return;
             var playerUuid = state.McInfo.Uuid.ToString("N");
+            if (lateClaimPeriod != null)
+            {
+                // a dungeon/Kuudra chest claimed after the run's own session ended (or while another task runs):
+                // its value belongs to the floor/tier task, the claim's few seconds must not count and the
+                // running session of another task stays untouched
+                Logger.LogInformation("Credited late dungeon claim of {playerId} to {task} without claim time", state.PlayerId, lateClaimPeriod.DetectedTask);
+                PeriodClassifiedCounter.WithLabels(lateClaimPeriod.DetectedTask).Inc();
+                await args.GetService<Tasks.TaskPeriodFolder>().FoldLateReward(lateClaimPeriod, state, cleanPrices ?? await GetCleanPrices(args));
+                return;
+            }
             if (lateRewardPeriod != null && state.ExtractedInfo.CurrentSession == null)
             {
                 // a reward-only hand-in (Galatea coupons) after the work that earned it, whose session already

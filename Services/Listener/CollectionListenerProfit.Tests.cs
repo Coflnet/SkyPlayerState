@@ -368,4 +368,69 @@ public class CollectionListenerProfitTests
     {
         RunLengthKeys.ForKuudraZone(zone).Should().Be(expected);
     }
+
+    private static Models.TaskSession Session(string task) => new() { DetectedTask = task };
+
+    [Test]
+    public void LateClaim_CroesusClaimWithoutSession_IsLate()
+        => CollectionListener.IsLateClaim("Dungeon Hub", "The Catacombs (M7)", "M7", TimeSpan.Zero, null).Should().BeTrue();
+
+    [Test]
+    public void LateClaim_SessionOfTheSameTask_KeepsTheNormalPath()
+        => CollectionListener.IsLateClaim("Dungeon Hub", "The Catacombs (M7)", "M7", TimeSpan.Zero, Session("M7")).Should().BeFalse();
+
+    [Test]
+    public void LateClaim_SessionOfAnotherTask_IsLate()
+        => CollectionListener.IsLateClaim("Dungeon Hub", "The Catacombs (M7)", "M7", TimeSpan.Zero, Session("Mining")).Should().BeTrue();
+
+    [Test]
+    public void LateClaim_SessionWithoutTask_IsLate()
+        => CollectionListener.IsLateClaim("Dungeon Hub", "The Catacombs (M7)", "M7", TimeSpan.Zero, Session(null)).Should().BeTrue();
+
+    [Test]
+    public void LateClaim_KuudraClaimAtForgottenSkull_IsLate()
+        => CollectionListener.IsLateClaim("Forgotten Skull", "Kuudra's Hollow (T5)", "Kuudra T5", TimeSpan.Zero, null).Should().BeTrue();
+
+    [Test]
+    public void LateClaim_KuudraClaimCarryingRunTime_KeepsTheNormalPath()
+        => CollectionListener.IsLateClaim("Dungeon Hub", "Kuudra's Hollow (T5)", "Kuudra T5", TimeSpan.FromMinutes(5), null).Should().BeFalse();
+
+    [Test]
+    public void LateClaim_RawLocationAlreadyTheFloor_IsNoClaim()
+        => CollectionListener.IsLateClaim("The Catacombs (M7)", "The Catacombs (M7)", "M7", TimeSpan.Zero, null).Should().BeFalse();
+
+    [Test]
+    public void LateClaim_Unclassified_IsNoClaim()
+        => CollectionListener.IsLateClaim("Dungeon Hub", "The Catacombs (M7)", null, TimeSpan.Zero, null).Should().BeFalse();
+
+    [Test]
+    public void LateClaim_HubActivityNotResolvedToAFloor_IsNoClaim()
+        => CollectionListener.IsLateClaim("Dungeon Hub", "Dungeon Hub", "Some Task", TimeSpan.Zero, null).Should().BeFalse();
+
+    [Test]
+    public async Task FlushOnTheAlphaNetwork_StoresNoPeriodAndClearsTheItems()
+    {
+        var state = new Models.StateObject();
+        state.ExtractedInfo.OnAlphaNetwork = true;
+        state.ExtractedInfo.CurrentLocation = "Wizard Tower";
+        state.ExtractedInfo.LastLocationChange = DateTime.UtcNow.AddMinutes(-3);
+        state.ExtractedInfo.CurrentLocationSeenAt = DateTime.UtcNow.AddSeconds(-5);
+        state.ItemsCollectedRecently["ENCHANTED_POTATO"] = 100;
+        var args = new Tests.MockedUpdateArgs
+        {
+            currentState = state,
+            msg = new Models.UpdateMessage
+            {
+                Kind = Models.UpdateMessage.UpdateKind.Scoreboard,
+                // no TrackedProfitService is registered: reaching AddPeriod would throw
+                Scoreboard = new[] { "[SKYBLOCK]", $" {ScoreboardParser.AreaGlyphPrivateUse} Forgotten Skull", "alpha.hypixel.net" }
+            }
+        };
+
+        await new CollectionListener().Process(args);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+        state.ExtractedInfo.LastLocationChange.Should().BeAfter(DateTime.UtcNow.AddMinutes(-1));
+        state.ExtractedInfo.CurrentSession.Should().BeNull();
+    }
 }
