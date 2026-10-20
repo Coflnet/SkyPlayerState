@@ -23,10 +23,13 @@ public class KuudraListener : UpdateListener
     {
         if (args.msg.Chest?.Name != "Paid Chest")
             return;
-        var type = args.msg.Chest.Items[31].Description?.Split('\n').Last()
+        var type = (args.msg.Chest.Items.Count > 31 ? args.msg.Chest.Items[31].Description?.Split('\n').Last() : null)
             ?? args.msg.Chest.Items.FirstOrDefault(i => i.ItemName?.Contains("Kuudra Key") ?? false)?.ItemName;
         var items = args.msg.Chest.Items.Take(30).Where(i => i.Tag != null).ToList();
-        var essence = args.msg.Chest.Items.Take(30).FirstOrDefault(i => i.ItemName.Contains("Essence"));
+        var essence = args.msg.Chest.Items.Take(30).FirstOrDefault(i => i.ItemName?.Contains("Essence") ?? false);
+        // snapshot was captured before Hypixel filled the chest
+        if (items.Count == 0 && essence == null)
+            return;
         if (essence != null)
         {
             essence.Tag = GetTag(essence);

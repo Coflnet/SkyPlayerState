@@ -22,7 +22,7 @@ public class SniperService
         this.logger = logger;
     }
 
-    public async Task<List<Sniper.Client.Model.PriceEstimate>> GetPrices(IEnumerable<Models.Item> items)
+    public virtual async Task<List<Sniper.Client.Model.PriceEstimate>> GetPrices(IEnumerable<Models.Item> items)
     {
         // materialize: a lazy Select would surface conversion exceptions inside MessagePack serialization
         return await GetPrices(items.Select(ToAuctionRepresent).ToList());
