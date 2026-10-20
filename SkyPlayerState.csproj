@@ -24,17 +24,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Coflnet.Sky.Api.Client" Version="0.7.8" />
+    <PackageReference Include="Coflnet.Sky.Api.Client" Version="0.8.0" />
     <PackageReference Include="Coflnet.Sky.Settings.Client" Version="0.3.0" />
-    <PackageReference Include="Coflnet.Sky.Sniper.Client" Version="0.13.1" />
+    <PackageReference Include="Coflnet.Sky.Sniper.Client" Version="0.14.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="10.0.12" />
-    <PackageReference Include="Coflnet.Sky.Bazaar.Client" Version="0.10.0" />
+    <PackageReference Include="Coflnet.Sky.Bazaar.Client" Version="0.11.0" />
     <PackageReference Include="Coflnet.Sky.Crafts.Client" Version="0.14.0" />
-    <PackageReference Include="Coflnet.Sky.Mayor.Client" Version="0.4.1" />
-    <PackageReference Include="Coflnet.Sky.EventBroker.Client" Version="0.5.5" />
+    <PackageReference Include="Coflnet.Sky.Mayor.Client" Version="0.5.0" />
+    <PackageReference Include="Coflnet.Sky.EventBroker.Client" Version="0.6.0" />
     <PackageReference Include="EFCore.Cassandra" Version="2.0.5" />
     <PackageReference Include="Coflnet.Sky.PlayerName.Client" Version="0.2.4" />
-    <PackageReference Include="Coflnet.Sky.Proxy.Client" Version="1.0.0" />
+    <PackageReference Include="Coflnet.Sky.Proxy.Client" Version="1.2.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="RestSharp" Version="112.1.0" />
     <PackageReference Include="StackExchange.Redis" Version="2.13.17" />

@@ -132,7 +132,7 @@ public class Startup
         services.AddSingleton<Crafts.Client.Api.ICraftsApi>(sp => new Crafts.Client.Api.CraftsApi(Configuration["CRAFTS_BASE_URL"]));
         services.AddSingleton<Tasks.ItemUpgradeService>();
         services.AddSingleton<Crafts.Client.Api.IForgeApi>(sp => new Crafts.Client.Api.ForgeApi(Configuration["CRAFTS_BASE_URL"]));
-        services.AddSingleton<Mayor.Client.Api.IMayorApiApi>(sp => new Mayor.Client.Api.MayorApiApi(Configuration["MAYOR_BASE_URL"]));
+        services.AddSingleton<Mayor.Client.Api.IMayorApi>(sp => new Mayor.Client.Api.MayorApi(Configuration["MAYOR_BASE_URL"]));
         services.AddSingleton<Tasks.ProfileForgeClient>();
         services.AddSingleton<Tasks.ProfileSnapshotService>();
         services.AddSingleton<Tasks.ForgeFlipService>();

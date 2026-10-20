@@ -11,13 +11,13 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 /// </summary>
 public class CurrentMayorService
 {
-    private readonly Mayor.Client.Api.IMayorApiApi mayorApi;
+    private readonly Mayor.Client.Api.IMayorApi mayorApi;
     private readonly ILogger<CurrentMayorService> logger;
     private readonly SemaphoreSlim refreshLock = new(1, 1);
     private string currentMayor;
     private DateTime lastUpdate = DateTime.MinValue;
 
-    public CurrentMayorService(Mayor.Client.Api.IMayorApiApi mayorApi, ILogger<CurrentMayorService> logger)
+    public CurrentMayorService(Mayor.Client.Api.IMayorApi mayorApi, ILogger<CurrentMayorService> logger)
     {
         this.mayorApi = mayorApi;
         this.logger = logger;
