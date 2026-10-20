@@ -65,6 +65,7 @@ public class BazaarProfitTests
         args.AddService<ITransactionService>(_transactionService.Object);
         args.AddService<IBazaarProfitTracker>(_profitTracker.Object);
         args.AddService<IOrderBookApi>(_orderBookApi.Object);
+        args.AddService(new Mock<BazaarOrderSync>(new System.Net.Http.HttpClient()).Object);
         args.AddService<IScheduleApi>(_scheduleApi.Object);
         args.AddService<ILogger<BazaarOrderListener>>(NullLogger<BazaarOrderListener>.Instance);
         
@@ -647,6 +648,7 @@ public class BazaarOrderFlipRaceConditionTests
         args.AddService<ITransactionService>(_transactionService.Object);
         args.AddService<IBazaarProfitTracker>(_profitTracker.Object);
         args.AddService<IOrderBookApi>(_orderBookApi.Object);
+        args.AddService(new Mock<BazaarOrderSync>(new System.Net.Http.HttpClient()).Object);
         args.AddService<IScheduleApi>(_scheduleApi.Object);
         args.AddService<ILogger<BazaarOrderListener>>(NullLogger<BazaarOrderListener>.Instance);
         

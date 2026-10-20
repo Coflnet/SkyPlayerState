@@ -58,6 +58,8 @@ public class StateObject
     public List<Profile> Profiles = new();
     [Key(8)]
     public List<Offer> BazaarOffers = new();
+    [Key(17)]
+    public List<Offer> ClosedBazaarOffers = new();
     [Key(14)]
     public DateTime BazaarUpdatedAt;
     [Key(15)]
@@ -132,6 +134,8 @@ public class StateObject
             Profiles = new List<Profile>(other.Profiles);
         if (other.BazaarOffers != null)
             BazaarOffers = new List<Offer>(other.BazaarOffers);
+        if (other.ClosedBazaarOffers != null)
+            ClosedBazaarOffers = new List<Offer>(other.ClosedBazaarOffers);
         if(other.ExtractedInfo != null)
             ExtractedInfo = new ExtractedInfo(other.ExtractedInfo);
         if (other.LastTab != null)

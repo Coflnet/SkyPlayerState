@@ -27,6 +27,22 @@ public class BazaarListener : UpdateListener
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, string, int), (long, DateTime)> 
         _vanishingOrders = new();
 
+    /// <summary>Keep a vanished order's identity so a later claim can still confirm its cumulative withdrawal.</summary>
+    internal static void RetainClosedOrder(StateObject state, Offer order, DateTime now)
+    {
+        state.ClosedBazaarOffers ??= new();
+        state.ClosedBazaarOffers.RemoveAll(o => o.ClosedAt < now.AddDays(-7));
+        order.ClosedAt ??= now;
+        order.IsExpired = true;
+        if (!state.ClosedBazaarOffers.Any(o => o.Created == order.Created && o.IsSell == order.IsSell && o.ItemName == order.ItemName))
+            state.ClosedBazaarOffers.Add(order);
+        // flippers close hundreds of orders a week; late claims only need the most recent ones
+        if (state.ClosedBazaarOffers.Count > MaxClosedOrders)
+            state.ClosedBazaarOffers = state.ClosedBazaarOffers.OrderByDescending(o => o.ClosedAt).Take(MaxClosedOrders).ToList();
+    }
+
+    internal const int MaxClosedOrders = 100;
+
     public override async Task Process(UpdateArgs args)
     {
         if (args.currentState.Settings?.DisableBazaarTracking ?? false)
@@ -112,6 +128,8 @@ public class BazaarListener : UpdateListener
         // Track vanishing buy orders before replacing state
         TrackVanishingOrders(args, offers);
 
+        foreach (var closed in args.currentState.BazaarOffers.Where(o => o != null && !matched.Contains(o)))
+            RetainClosedOrder(args.currentState, closed, args.msg.ReceivedAt);
         args.currentState.BazaarOffers = offers;
         args.currentState.BazaarUpdatedAt = args.msg.ReceivedAt;
         args.currentState.BazaarObservedAt = args.msg.ReceivedAt;

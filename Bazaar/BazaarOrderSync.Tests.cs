@@ -103,6 +103,39 @@ public class BazaarOrderSyncTests
     }
 
     [Test]
+    public async Task ClosedOrdersRemainInPersonalSnapshotsWithTheirExactIdentityAndCumulativeClaims()
+    {
+        using var backend = new Backend(false);
+        using var client = new HttpClient(backend) { BaseAddress = new Uri("http://bazaar/") };
+        var now = DateTime.UtcNow;
+        var args = new MockedUpdateArgs { currentState = new(), msg = new() { UserId = "1", ReceivedAt = now } };
+        args.currentState.McInfo.Name = "Ekwav";
+        args.AddService<ILogger<BazaarOrderSync>>(NullLogger<BazaarOrderSync>.Instance);
+        var closed = new Offer { ItemName = "Coal", ItemTag = "COAL", Amount = 64,
+            FilledAmount = 64, ClaimedAmount = 64, Created = now.AddDays(-9), IsSell = true };
+        BazaarListener.RetainClosedOrder(args.currentState, closed, now);
+        await new BazaarOrderSync(client).Observe(args);
+        var sent = JObject.Parse(backend.Requests.Single().Body)["orders"][0];
+        Assert.That((int)sent["claimed"], Is.EqualTo(64));
+        Assert.That((bool)sent["isExpired"], Is.True);
+        Assert.That((DateTime)sent["timestamp"], Is.EqualTo(closed.Created));
+        args.msg.ReceivedAt = now.AddDays(8);
+        await new BazaarOrderSync(client).Observe(args);
+        Assert.That(JObject.Parse(backend.Requests.Last().Body)["orders"], Is.Empty);
+    }
+
+    [Test]
+    public void ClosedOrderRetentionKeepsOnlyTheMostRecentOrders()
+    {
+        var state = new Models.StateObject();
+        var now = DateTime.UtcNow;
+        for (var i = 0; i < BazaarListener.MaxClosedOrders + 20; i++)
+            BazaarListener.RetainClosedOrder(state, new Offer { ItemName = "Coal", Created = now.AddMinutes(-i - 1) }, now.AddSeconds(i));
+        Assert.That(state.ClosedBazaarOffers.Count, Is.EqualTo(BazaarListener.MaxClosedOrders));
+        Assert.That(state.ClosedBazaarOffers.Min(o => o.ClosedAt), Is.EqualTo(now.AddSeconds(20)));
+    }
+
+    [Test]
     public async Task NewPlayerStateCanStillRegisterOrdersOnAnOlderBazaar()
     {
         using var backend = new Backend(legacy: true);

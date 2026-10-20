@@ -27,6 +27,8 @@ public class Offer
     // Withdrawals observed in lore that may still arrive in a later chat upload.
     [Key(10)]
     public long PendingObservedClaims { get; set; }
+    [Key(11)]
+    public DateTime? ClosedAt { get; set; }
     [Key(6)]
     public List<Fill> Customers { get; set; } = new();
 }

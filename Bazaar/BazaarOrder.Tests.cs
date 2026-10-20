@@ -734,6 +734,71 @@ public class BazaarOrderTests
             t.ItemId == TradeDetect.IdForCoins && t.Amount == 819)), Times.Once);
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task FinalClaimAfterMenuDisappearancePostsCumulativeEvidenceBeforeDeletion(bool sell)
+    {
+        var created = DateTime.UtcNow.AddMinutes(-1);
+        var order = new Offer { ItemName = "Coal", ItemTag = "COAL", Amount = 64, FilledAmount = 64,
+            PricePerUnit = 2.1, IsSell = sell, Created = created };
+        currentState.BazaarOffers.Add(order);
+        var args = CreateArgs(sell ? "[Bazaar] Claimed 134.4 coins from selling 64x Coal at 2.1 each!"
+            : "[Bazaar] Claimed 64x Coal worth 134.4 coins bought for 2.1 each!");
+        var claimTime = args.msg.ReceivedAt;
+        var closedAt = claimTime.AddSeconds(1);
+        args.msg.ReceivedAt = closedAt;
+        args.msg.Chest = new() { Name = "Your Bazaar Orders", Items = new() };
+        args.AddService<ILogger<BazaarListener>>(NullLogger<BazaarListener>.Instance);
+        await new BazaarListener().Process(args);
+        Assert.That(currentState.BazaarOffers, Is.Empty);
+        Assert.That(currentState.ClosedBazaarOffers.Single().ClaimedAmount, Is.Null);
+        args.msg.ReceivedAt = claimTime; // The claim upload arrived after the newer empty menu.
+        var calls = new List<string>();
+        var sync = new Mock<BazaarOrderSync>(new System.Net.Http.HttpClient());
+        sync.Setup(s => s.Claim(args, order)).Callback(() => {
+            Assert.That(order.ClaimedAmount, Is.EqualTo(64));
+            Assert.That(order.IsExpired, Is.True);
+            calls.Add("claim");
+        }).Returns(Task.CompletedTask);
+        args.AddService(sync.Object);
+        orderBookApi.Setup(a => a.RemoveOrderAsync("COAL", "5", created, 0, default))
+            .Callback(() => calls.Add("delete")).Returns(Task.CompletedTask);
+        await listener.Process(args);
+        Assert.That(calls, Is.EqualTo(new[] { "claim", "delete" }));
+        Assert.That(currentState.ClosedBazaarOffers.Single().ClaimedAmount, Is.EqualTo(64));
+        await listener.Process(args); // Replayed final chat cannot withdraw the same order again.
+        Assert.That(calls.Count, Is.EqualTo(2));
+    }
+
+    [Test]
+    public async Task AmbiguousMissingPartialChatDoesNotInventAFinalClaim()
+    {
+        var order = new Offer { ItemName = "Coal", ItemTag = "COAL", Amount = 64, FilledAmount = 32,
+            ClaimedAmount = 16, PendingObservedClaims = 16, PricePerUnit = 2.1, Created = DateTime.UtcNow.AddMinutes(-1) };
+        var args = CreateArgs("[Bazaar] Claimed 16x Coal worth 33.6 coins bought for 2.1 each!");
+        BazaarListener.RetainClosedOrder(currentState, order, args.msg.ReceivedAt);
+        await listener.Process(args);
+        // The string cannot distinguish a delayed first claim from an equally sized final claim.
+        // Retain the known cumulative quantity rather than falsely completing the order.
+        Assert.That(order.ClaimedAmount, Is.EqualTo(16));
+        orderBookApi.Verify(a => a.RemoveOrderAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(), 0, default), Times.Never);
+    }
+
+    [Test]
+    public async Task CancelledOrderAtTheSamePriceDoesNotBlockTheRelistedOrdersClaim()
+    {
+        var cancelled = new Offer { ItemName = "Coal", ItemTag = "COAL", Amount = 64, PricePerUnit = 2.1,
+            Created = DateTime.UtcNow.AddMinutes(-5) };
+        var relisted = new Offer { ItemName = "Coal", ItemTag = "COAL", Amount = 64, FilledAmount = 64,
+            PricePerUnit = 2.1, Created = DateTime.UtcNow.AddMinutes(-2) };
+        var args = CreateArgs("[Bazaar] Claimed 64x Coal worth 134.4 coins bought for 2.1 each!");
+        BazaarListener.RetainClosedOrder(currentState, cancelled, args.msg.ReceivedAt.AddMinutes(-3));
+        currentState.BazaarOffers.Add(relisted);
+        await listener.Process(args);
+        Assert.That(relisted.ClaimedAmount, Is.EqualTo(64));
+        Assert.That(cancelled.ClaimedAmount, Is.Null);
+    }
+
     private MockedUpdateArgs CreateArgs(params string[] msgs)
     {
         var args = new MockedUpdateArgs()
@@ -772,6 +837,7 @@ public class BazaarOrderTests
         args.AddService<IItemsApi>(itemsApi.Object);
         args.AddService<ITransactionService>(transactionService.Object);
         args.AddService(orderBookApi.Object);
+        args.AddService(new Mock<BazaarOrderSync>(new System.Net.Http.HttpClient()).Object);
         args.AddService<ILogger<BazaarOrderListener>>(NullLogger<BazaarOrderListener>.Instance);
         args.AddService<ILogger<BazaarOrderSync>>(NullLogger<BazaarOrderSync>.Instance);
         args.AddService(scheduleApi.Object);

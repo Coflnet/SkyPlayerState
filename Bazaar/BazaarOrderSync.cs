@@ -75,12 +75,13 @@ public class BazaarOrderSync(HttpClient client)
     {
         public bool IsExpired { get; set; }
         public int? Claimed { get; set; }
+        public DateTime? ClosedAt { get; set; }
     }
 
     private static ObservedOrder ToOrder(UpdateArgs args, Offer order) => new() {
         ItemId = order.ItemTag, Amount = (int)order.Amount, Filled = (int)order.FilledAmount,
         PricePerUnit = order.PricePerUnit, IsSell = order.IsSell, Timestamp = order.Created,
-        IsExpired = order.IsExpired, Claimed = (int?)order.ClaimedAmount,
+        IsExpired = order.IsExpired, Claimed = (int?)order.ClaimedAmount, ClosedAt = order.ClosedAt,
         UserId = args.msg.UserId, PlayerName = args.currentState.McInfo.Name
     };
 
@@ -111,7 +112,9 @@ public class BazaarOrderSync(HttpClient client)
     {
         var logger = args.GetService<ILogger<BazaarOrderSync>>();
         // Chat-created orders may not have received an item tag from a menu yet.
-        var offers = args.currentState.BazaarOffers.Where(o => o != null).ToList();
+        var offers = args.currentState.BazaarOffers.Concat(args.currentState.ClosedBazaarOffers ?? new())
+            .Where(o => o != null && (!o.ClosedAt.HasValue || o.ClosedAt >= args.msg.ReceivedAt.AddDays(-7)))
+            .DistinctBy(o => (o.Created, o.IsSell, o.ItemName)).ToList();
         foreach (var offer in offers.Where(o => string.IsNullOrWhiteSpace(o.ItemTag)))
             offer.ItemTag = await BazaarOrderListener.GetTagForName(args, offer.ItemName);
         // An item name the search still can't resolve (see GetTagForName) must never be posted with

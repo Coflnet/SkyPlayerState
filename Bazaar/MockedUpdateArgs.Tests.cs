@@ -15,6 +15,6 @@ public class MockedUpdateArgs : UpdateArgs
 
         public void AddService<T>(T service)
         {
-            services.Add(typeof(T), service);
+            services[typeof(T)] = service;
         }
     }

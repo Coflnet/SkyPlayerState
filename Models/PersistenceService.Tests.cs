@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Coflnet.Sky.PlayerState.Bazaar;
 using Coflnet.Sky.PlayerState.Services;
@@ -57,6 +58,20 @@ public class PersistenceServiceTests
         Assert.That(stored.BazaarOffers[0].ClaimedAmount, Is.EqualTo(512));
         Assert.That(stored.BazaarOffers[0].PendingObservedClaims, Is.EqualTo(256));
         Assert.That(stored.BazaarOffers[0].FilledAmount, Is.EqualTo(1024));
+    }
+
+    [Test]
+    public void ClosedBazaarIdentitiesSurvivePersistenceAndOldStatesDefaultToEmpty()
+    {
+        var time = DateTime.UtcNow;
+        var state = new StateObject { ClosedBazaarOffers = new() { new() {
+            ItemTag = "COAL", Amount = 64, FilledAmount = 64, ClaimedAmount = 64,
+            Created = time.AddDays(-8), ClosedAt = time, IsExpired = true } } };
+        var restored = new Inventory(new StateObject(state)).GetStateObject();
+        Assert.That(restored.ClosedBazaarOffers.Single().ClosedAt, Is.EqualTo(time));
+        Assert.That(restored.ClosedBazaarOffers.Single().ClaimedAmount, Is.EqualTo(64));
+        var legacy = new Inventory { Serialized = MessagePackSerializer.Serialize(new StateObjectBeforeKnownItemUuids(), Options) }.GetStateObject();
+        Assert.That(legacy.ClosedBazaarOffers, Is.Empty);
     }
 
     [Test]

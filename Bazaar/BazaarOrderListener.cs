@@ -633,11 +633,20 @@ public class BazaarOrderListener : UpdateListener
 
     private static Offer FindClaim(UpdateArgs args, string name, int amount, bool sell, double price)
     {
-        var candidates = args.currentState.BazaarOffers.Where(o => o != null && o.IsSell == sell
-            && o.ItemName == name && o.PricePerUnit == price
-            && o.Amount - (o.ClaimedAmount ?? 0) + o.PendingObservedClaims >= amount).Take(2).ToList();
-        return candidates.Count == 1 ? candidates[0] : null;
+        // A live order wins: a cancelled or unclaimed closed order with the same price must not make relisted orders ambiguous.
+        var live = ClaimCandidates(args.currentState.BazaarOffers, name, amount, sell, price).Take(2).ToList();
+        if (live.Count > 0)
+            return live.Count == 1 ? live[0] : null;
+        var closed = ClaimCandidates(args.currentState.ClosedBazaarOffers ?? new(), name, amount, sell, price)
+            .Where(o => o.ClosedAt >= args.msg.ReceivedAt.AddDays(-7)
+                && !(o.ClaimedAmount > 0 && o.ClaimedAmount >= o.FilledAmount && o.PendingObservedClaims == 0))
+            .Take(2).ToList();
+        return closed.Count == 1 ? closed[0] : null;
     }
+
+    private static IEnumerable<Offer> ClaimCandidates(IEnumerable<Offer> offers, string name, int amount, bool sell, double price)
+        => offers.Where(o => o != null && o.IsSell == sell && o.ItemName == name && o.PricePerUnit == price
+            && o.Amount - (o.ClaimedAmount ?? 0) + o.PendingObservedClaims >= amount);
 
     private static async Task ApplyClaim(UpdateArgs args, Offer order, int amount)
     {
@@ -648,7 +657,7 @@ public class BazaarOrderListener : UpdateListener
                 "Reconciled Bazaar claim for {UserId}/{ItemTag}: {Observed}/{ClaimAmount} already observed in menu, claimed total {Claimed}",
                 args.msg.UserId, order.ItemTag, observed, amount, order.ClaimedAmount);
         // Older chat is covered by the latest menu, but must still consume its credit.
-        if (args.msg.ReceivedAt < args.currentState.BazaarObservedAt)
+        if (args.msg.ReceivedAt < args.currentState.BazaarObservedAt && !order.ClosedAt.HasValue)
             return;
         amount -= (int)observed;
         if (amount == 0)
@@ -657,8 +666,12 @@ public class BazaarOrderListener : UpdateListener
         order.FilledAmount = Math.Max(order.FilledAmount, order.ClaimedAmount.Value);
         args.currentState.BazaarUpdatedAt = args.msg.ReceivedAt > args.currentState.BazaarUpdatedAt
                 ? args.msg.ReceivedAt : args.currentState.BazaarUpdatedAt;
-        if (order.ClaimedAmount >= order.Amount)
+        if (order.ClaimedAmount >= order.Amount || order.ClosedAt.HasValue && order.ClaimedAmount >= order.FilledAmount)
         {
+            BazaarListener.RetainClosedOrder(args.currentState, order, args.msg.ReceivedAt);
+            // Post the final cumulative quantity before deleting the live order. A missing order is not claim evidence.
+            if (!string.IsNullOrEmpty(args.msg.UserId))
+                await args.GetService<BazaarOrderSync>().Claim(args, order);
             args.currentState.BazaarOffers.Remove(order);
             await RemoveOrderFromBook(args, order);
         }
@@ -677,6 +690,7 @@ public class BazaarOrderListener : UpdateListener
             return;
         try
         {
+            BazaarListener.RetainClosedOrder(args.currentState, order, args.msg.ReceivedAt);
             var tag = order.ItemTag ?? await GetTagForName(args, order.ItemName);
             if (string.IsNullOrWhiteSpace(tag))
             {
