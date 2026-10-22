@@ -49,6 +49,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
     private IPersistenceService persistenceService;
     private ActivitySource activitySource;
     private long nextStateCleanupTicks;
+    private readonly ConcurrentDictionary<int, DateTime> revokedAt = new();
 
     private ConcurrentDictionary<UpdateMessage.UpdateKind, List<UpdateListener>> Handlers = new();
 
@@ -160,6 +161,9 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         await TestCassandraConnection();
         var batchSizePerPartition = config.GetValue("STATE_UPDATE_BATCH_SIZE_PER_PARTITION", 120);
 
+        var stallMinutes = config.GetValue("STATE_UPDATE_PARTITION_STALL_MINUTES", 10.0);
+        if (stallMinutes <= 0)
+            stallMinutes = 10;
         logger.LogInformation("Consuming up to {batchSize} updates per partition batch", batchSizePerPartition);
         await Kafka.KafkaConsumer.ConsumePartitionedParallelBatch<UpdateMessage>(consumerConfig, new string[] { config["TOPICS:STATE_UPDATE"] }, async (partition, batch) =>
         {
@@ -182,16 +186,15 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
             // after this returns) once every message has actually been processed.
             // Per-message failures are retried inside Update and dropped there after 3 attempts,
             // so a single failing/poison message no longer stalls or backs off the whole pipeline.
-            await Task.WhenAll(updates
-                .GroupBy(update => string.IsNullOrWhiteSpace(update.PlayerId) ? StateObject.AnonymousId : update.PlayerId)
-                .Select(async playerUpdates =>
+            var batchStarted = DateTime.UtcNow;
+            await ProcessGrouped(updates, async update =>
             {
-                foreach (var update in playerUpdates)
-                {
-                    await Update(update);
-                    consumeCount.Inc();
-                }
-            }));
+                await Update(update);
+                consumeCount.Inc();
+            }, batchSizePerPartition);
+            // a batch finishing after its partition was revoked/lost must not resurrect the series
+            if (revokedAt.TryGetValue(partition.Partition.Value, out var revoked) && revoked >= batchStarted)
+                return;
             partitionLastCompleted.WithLabels(partition.Partition.Value.ToString())
                 .Set(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
             KeepStateCountInCheck();
@@ -200,11 +203,12 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
             {
                 foreach (var partition in partitions)
                 {
+                    revokedAt[partition.Partition.Value] = DateTime.UtcNow;
                     consumerLagSeconds.RemoveLabelled(partition.Partition.Value.ToString());
                     partitionLastCompleted.RemoveLabelled(partition.Partition.Value.ToString());
                 }
             },
-            partitionStallTimeout: TimeSpan.FromMinutes(3));
+            partitionStallTimeout: TimeSpan.FromMinutes(stallMinutes));
         var retrieved = new UpdateMessage();
     }
 
@@ -312,6 +316,40 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
 
     }
 
+    /// <summary>
+    /// Key of the shared in-memory state an update works on. Real players use their id. Anonymous
+    /// updates (no uuid) used to share one state (and its lock) which serialized unrelated sessions;
+    /// they are now separated per <see cref="UpdateMessage.UserId"/>. Anonymous states are never persisted.
+    /// </summary>
+    public static string StateKey(UpdateMessage msg)
+    {
+        if (!StateObject.IsAnonymous(msg.PlayerId))
+            return msg.PlayerId;
+        return string.IsNullOrWhiteSpace(msg.UserId) ? StateObject.AnonymousId : StateObject.AnonymousId + ":" + msg.UserId;
+    }
+
+    /// <summary>
+    /// Runs updates serially per <see cref="StateKey"/> (keeps per player ordering) while different
+    /// keys run concurrently, at most <paramref name="maxParallelGroups"/> at a time.
+    /// </summary>
+    public static Task ProcessGrouped(IEnumerable<UpdateMessage> updates, Func<UpdateMessage, Task> process, int maxParallelGroups = 120)
+    {
+        var limiter = new SemaphoreSlim(maxParallelGroups);
+        return Task.WhenAll(updates.GroupBy(StateKey).Select(async group =>
+        {
+            await limiter.WaitAsync();
+            try
+            {
+                foreach (var update in group)
+                    await process(update);
+            }
+            finally
+            {
+                limiter.Release();
+            }
+        }));
+    }
+
     private async Task<bool> Update(UpdateMessage msg, int attempt = 0)
     {
         // null OR empty/whitespace: no identifiable player on the message. Funnel both into the
@@ -323,7 +361,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
             // dump for debug
             logger.LogInformation("Received update for Ekwav {0}", JsonConvert.SerializeObject(msg));
         }
-        var state = States.GetOrAdd(msg.PlayerId, (p) => new StateObject() { });
+        var state = States.GetOrAdd(StateKey(msg), (p) => new StateObject() { });
         using var args = new UpdateArgs()
         {
             currentState = state,
