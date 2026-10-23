@@ -12,36 +12,28 @@ namespace Coflnet.Sky.PlayerState.Services;
 
 public class ItemIdAssignUpdate : UpdateListener
 {
-    private const int ItemIdCacheLimit = 50_000;
     private ItemCompare comparer = new();
-    private readonly ConcurrentDictionary<Item, long> itemIdCache = new(new ItemCompare());
-    private readonly ConcurrentQueue<Item> itemIdCacheInsertionOrder = new();
+    private readonly ItemIdCache itemIdCache;
     private static readonly Prometheus.Counter itemIdSearchCount = Prometheus.Metrics.CreateCounter(
         "sky_playerstate_itemid_search_total",
         "Total number of item-id database searches performed.");
-    private static readonly Prometheus.Counter itemIdCacheHitCount = Prometheus.Metrics.CreateCounter(
-        "sky_playerstate_itemid_cache_hit_total",
-        "Total number of item IDs resolved from the process-local cache.");
-    private static readonly Prometheus.Gauge itemIdCacheSize = Prometheus.Metrics.CreateGauge(
-        "sky_playerstate_itemid_cache_size",
-        "Number of item identities held in the process-local cache.");
+
+    public ItemIdAssignUpdate() : this(new ItemIdCache())
+    {
+    }
+
+    public ItemIdAssignUpdate(ItemIdCache itemIdCache)
+    {
+        this.itemIdCache = itemIdCache;
+    }
 
     public override async Task Process(UpdateArgs args)
     {
         var service = args.GetService<IItemsService>();
         var collection = args.msg.Chest.Items;
-        
-        // Normalize items: convert JObjects to Dictionaries so they can be compared with stored items
-        // This is necessary because Kafka deserialization creates JObject instances for nested structures,
-        // while Cassandra retrieval converts them to Dictionaries
-        foreach (var item in collection)
-        {
-            NormalizeItem(item);
-        }
-        
         var chestName = args.msg.Chest.Name;
-        var toSearchFor = collection.Where(i => CanGetAnIdByStoring(i, chestName)).ToHashSet();
-        var foundCached = toSearchFor.Where(TryAssignCachedId).ToList();
+        var toSearchFor = ItemsToLookUp(args.msg.Chest).ToHashSet();
+        var foundCached = toSearchFor.Where(itemIdCache.TryAssignCachedId).ToList();
         var unresolved = toSearchFor.Where(item => item.Id == null).ToList();
         var localPresent = unresolved.Count == 0
             ? new Dictionary<Item, Item>(comparer)
@@ -53,7 +45,7 @@ public class ItemIdAssignUpdate : UpdateListener
         var toSearchInDb = unresolved.Except(foundLocal, (IEqualityComparer<Item?>)comparer).ToList();
         itemIdSearchCount.Inc(toSearchInDb.Count);
         var itemsWithIds = toSearchInDb.Count > 0 ? await service.FindOrCreate(toSearchInDb!) : new List<Item>();
-        Cache(itemsWithIds);
+        itemIdCache.Cache(itemsWithIds);
 
         Activity.Current?.AddTag("to search", toSearchFor.Count.ToString());
         Activity.Current?.AddTag("found local", foundLocal.Count.ToString());
@@ -64,27 +56,19 @@ public class ItemIdAssignUpdate : UpdateListener
         args.msg.Chest.Items = Join(collection, itemsWithIds.Concat(foundLocal).Concat(foundCached)!).ToList();
     }
 
-    private bool TryAssignCachedId(Item item)
+    /// <summary>
+    /// Normalizes the items of the chest and returns the ones that can get an id by storing them.
+    /// </summary>
+    internal static IEnumerable<Item> ItemsToLookUp(ChestView chest)
     {
-        if (!itemIdCache.TryGetValue(item, out var id))
-            return false;
-        item.Id = id;
-        itemIdCacheHitCount.Inc();
-        return true;
-    }
-
-    private void Cache(IEnumerable<Item> items)
-    {
-        foreach (var item in items.Where(item => item.Id != null))
+        // Normalize items: convert JObjects to Dictionaries so they can be compared with stored items
+        // This is necessary because Kafka deserialization creates JObject instances for nested structures,
+        // while Cassandra retrieval converts them to Dictionaries
+        foreach (var item in chest.Items)
         {
-            // Display data is not part of ItemCompare identity; avoid retaining large lore strings.
-            var cacheKey = new Item(item) { ItemName = null, Description = null, Count = null };
-            if (itemIdCache.TryAdd(cacheKey, item.Id!.Value))
-                itemIdCacheInsertionOrder.Enqueue(cacheKey);
+            NormalizeItem(item);
         }
-        while (itemIdCache.Count > ItemIdCacheLimit && itemIdCacheInsertionOrder.TryDequeue(out var oldest))
-            itemIdCache.TryRemove(oldest, out _);
-        itemIdCacheSize.Set(itemIdCache.Count);
+        return chest.Items.Where(i => CanGetAnIdByStoring(i, chest.Name));
     }
 
     private static void NormalizeItem(Item item)

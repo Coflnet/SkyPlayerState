@@ -81,6 +81,7 @@ public class Startup
 
         services.Configure<MongoSettings>(Configuration.GetSection("Mongo"));
         services.AddSingleton<IItemsService, ItemsService>();
+        services.AddSingleton<ItemIdCache>();
         services.AddSingleton<Services.CoinParser>();
         services.AddSingleton<ITradeService, TradeService>();
         services.AddSingleton<Kafka.KafkaCreator>();

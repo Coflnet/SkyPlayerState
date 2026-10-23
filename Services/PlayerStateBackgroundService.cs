@@ -43,6 +43,18 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         "Unix timestamp of the last fully processed partition batch.",
         new Prometheus.GaugeConfiguration { LabelNames = new[] { "partition" } });
     private static readonly Prometheus.Counter optionalHandlerFailedCount = Prometheus.Metrics.CreateCounter("sky_playerstate_optional_handler_failed", "How many times an optional handler threw and was skipped (state still saved), by handler.", new Prometheus.CounterConfiguration { LabelNames = new[] { "handler" } });
+    private static readonly Prometheus.Histogram chainSeconds = Prometheus.Metrics.CreateHistogram(
+        "sky_playerstate_batch_chain_seconds",
+        "Wall time of each per-player update chain within a partition batch.",
+        new Prometheus.HistogramConfiguration { Buckets = Prometheus.Histogram.ExponentialBuckets(0.01, 2, 12) });
+    private static readonly Prometheus.Histogram chainUpdates = Prometheus.Metrics.CreateHistogram(
+        "sky_playerstate_batch_chain_updates",
+        "Number of updates in each per-player update chain within a partition batch.",
+        new Prometheus.HistogramConfiguration { Buckets = Prometheus.Histogram.ExponentialBuckets(1, 2, 8) });
+    private static readonly Prometheus.Gauge slowestChainSeconds = Prometheus.Metrics.CreateGauge(
+        "sky_playerstate_batch_slowest_chain_seconds",
+        "Duration of the slowest per-player update chain in the last batch of the partition.",
+        new Prometheus.GaugeConfiguration { LabelNames = new[] { "partition" } });
     private static readonly TimeSpan staleUpdateThreshold = TimeSpan.FromMinutes(15);
 
     public ConcurrentDictionary<string, StateObject> States = new();
@@ -51,11 +63,14 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
     private long nextStateCleanupTicks;
     private readonly ConcurrentDictionary<int, DateTime> revokedAt = new();
 
+    private readonly ItemIdCache itemIdCache;
+
     private ConcurrentDictionary<UpdateMessage.UpdateKind, List<UpdateListener>> Handlers = new();
 
     public PlayerStateBackgroundService(
-        IServiceScopeFactory scopeFactory, IConfiguration config, ILogger<PlayerStateBackgroundService> logger, IPersistenceService persistenceService, ActivitySource activitySource, ILoggerFactory loggerFactory)
+        IServiceScopeFactory scopeFactory, IConfiguration config, ILogger<PlayerStateBackgroundService> logger, IPersistenceService persistenceService, ActivitySource activitySource, ILoggerFactory loggerFactory, ItemIdCache? itemIdCache = null)
     {
+        this.itemIdCache = itemIdCache ?? new ItemIdCache();
         this.scopeFactory = scopeFactory;
         this.config = config;
         this.logger = logger;
@@ -78,7 +93,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         AddHandler<TaskClaimListener>(UpdateMessage.UpdateKind.TaskClaim);
 
 
-        AddHandler<ItemIdAssignUpdate>(UpdateMessage.UpdateKind.INVENTORY);
+        AddHandler(new ItemIdAssignUpdate(this.itemIdCache), UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<InventoryChangeUpdate>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<AhBrowserListener>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<BazaarListener>(UpdateMessage.UpdateKind.INVENTORY);
@@ -129,6 +144,11 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
             else
                 handler = (T)ActivatorUtilities.CreateInstance(sp, typeof(T));
         }
+        AddHandler(handler, kinds);
+    }
+
+    private void AddHandler<T>(T handler, UpdateMessage.UpdateKind kinds) where T : UpdateListener
+    {
         handler.SetLogger(loggerFactory.CreateLogger(typeof(T)));
         foreach (var item in Enum.GetValues<UpdateMessage.UpdateKind>())
         {
@@ -164,6 +184,9 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         var stallMinutes = config.GetValue("STATE_UPDATE_PARTITION_STALL_MINUTES", 10.0);
         if (stallMinutes <= 0)
             stallMinutes = 10;
+        var slowChainSeconds = config.GetValue("PLAYER_STATE_SLOW_CHAIN_SECONDS", 5.0);
+        if (slowChainSeconds <= 0)
+            slowChainSeconds = 5;
         logger.LogInformation("Consuming up to {batchSize} updates per partition batch", batchSizePerPartition);
         await Kafka.KafkaConsumer.ConsumePartitionedParallelBatch<UpdateMessage>(consumerConfig, new string[] { config["TOPICS:STATE_UPDATE"] }, async (partition, batch) =>
         {
@@ -187,11 +210,13 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
             // Per-message failures are retried inside Update and dropped there after 3 attempts,
             // so a single failing/poison message no longer stalls or backs off the whole pipeline.
             var batchStarted = DateTime.UtcNow;
-            await ProcessGrouped(updates, async update =>
+            await PrefetchItemIds(updates);
+            var chains = await ProcessGrouped(updates, async update =>
             {
                 await Update(update);
                 consumeCount.Inc();
             }, batchSizePerPartition);
+            ReportChains(chains, partition.Partition.Value, updates.Count, slowChainSeconds, logger, GetPlayerName);
             // a batch finishing after its partition was revoked/lost must not resurrect the series
             if (revokedAt.TryGetValue(partition.Partition.Value, out var revoked) && revoked >= batchStarted)
                 return;
@@ -206,6 +231,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
                     revokedAt[partition.Partition.Value] = DateTime.UtcNow;
                     consumerLagSeconds.RemoveLabelled(partition.Partition.Value.ToString());
                     partitionLastCompleted.RemoveLabelled(partition.Partition.Value.ToString());
+                    slowestChainSeconds.RemoveLabelled(partition.Partition.Value.ToString());
                 }
             },
             partitionStallTimeout: TimeSpan.FromMinutes(stallMinutes));
@@ -329,25 +355,78 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
     }
 
     /// <summary>
+    /// Wall time of one per-player chain of a batch.
+    /// </summary>
+    public record ChainResult(string StateKey, int Updates, TimeSpan Elapsed);
+
+    /// <summary>
     /// Runs updates serially per <see cref="StateKey"/> (keeps per player ordering) while different
     /// keys run concurrently, at most <paramref name="maxParallelGroups"/> at a time.
+    /// Returns how long each chain took (excluding the wait for a free slot).
     /// </summary>
-    public static Task ProcessGrouped(IEnumerable<UpdateMessage> updates, Func<UpdateMessage, Task> process, int maxParallelGroups = 120)
+    public static async Task<IReadOnlyList<ChainResult>> ProcessGrouped(IEnumerable<UpdateMessage> updates, Func<UpdateMessage, Task> process, int maxParallelGroups = 120)
     {
         var limiter = new SemaphoreSlim(maxParallelGroups);
-        return Task.WhenAll(updates.GroupBy(StateKey).Select(async group =>
+        return await Task.WhenAll(updates.GroupBy(StateKey).Select(async group =>
         {
             await limiter.WaitAsync();
+            var watch = Stopwatch.StartNew();
+            var count = 0;
             try
             {
                 foreach (var update in group)
+                {
                     await process(update);
+                    count++;
+                }
             }
             finally
             {
                 limiter.Release();
             }
+            return new ChainResult(group.Key, count, watch.Elapsed);
         }));
+    }
+
+    /// <summary>
+    /// Records chain metrics of a batch and warns about the slowest chain when it exceeds the threshold.
+    /// Only aggregate histograms and a per partition gauge are exported, the player is only in the log.
+    /// </summary>
+    internal static void ReportChains(IReadOnlyList<ChainResult> chains, int partition, int batchSize,
+        double slowThresholdSeconds, ILogger logger, Func<string, string?> getPlayerName)
+    {
+        if (chains.Count == 0)
+            return;
+        foreach (var chain in chains)
+        {
+            chainSeconds.Observe(chain.Elapsed.TotalSeconds);
+            chainUpdates.Observe(chain.Updates);
+        }
+        var slowest = chains.MaxBy(c => c.Elapsed)!;
+        slowestChainSeconds.WithLabels(partition.ToString()).Set(slowest.Elapsed.TotalSeconds);
+        if (slowest.Elapsed.TotalSeconds > slowThresholdSeconds)
+            logger.LogWarning("Slow player chain {StateKey} {PlayerName} updates {Updates} took {ElapsedMs} ms partition {Partition} batch {BatchSize}",
+                slowest.StateKey, getPlayerName(slowest.StateKey), slowest.Updates, (long)slowest.Elapsed.TotalMilliseconds, partition, batchSize);
+    }
+
+    private string? GetPlayerName(string stateKey)
+        => States.TryGetValue(stateKey, out var state) ? state.McInfo?.Name : null;
+
+    /// <summary>
+    /// Resolves the item ids of the whole batch up front so the serial per player processing
+    /// hits the cache instead of doing a database round trip per message.
+    /// </summary>
+    private async Task PrefetchItemIds(IEnumerable<UpdateMessage> updates)
+    {
+        try
+        {
+            await ExecuteInScope(sp => itemIdCache.Prefetch(updates, sp.GetRequiredService<IItemsService>(),
+                key => States.TryGetValue(key, out var state) && !string.IsNullOrEmpty(state.PlayerId) ? state : null, logger));
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning(e, "Item id prefetch could not run, falling back to per message lookups");
+        }
     }
 
     private async Task<bool> Update(UpdateMessage msg, int attempt = 0)
