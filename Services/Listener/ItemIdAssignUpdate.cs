@@ -12,7 +12,7 @@ namespace Coflnet.Sky.PlayerState.Services;
 
 public class ItemIdAssignUpdate : UpdateListener
 {
-    private const int ItemIdCacheLimit = 20_000;
+    private const int ItemIdCacheLimit = 50_000;
     private ItemCompare comparer = new();
     private readonly ConcurrentDictionary<Item, long> itemIdCache = new(new ItemCompare());
     private readonly ConcurrentQueue<Item> itemIdCacheInsertionOrder = new();
