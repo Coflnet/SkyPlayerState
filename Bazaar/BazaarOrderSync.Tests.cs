@@ -20,12 +20,143 @@ public class BazaarOrderSyncTests
     private class Backend(bool legacy) : HttpMessageHandler
     {
         public List<(string Path, string Body)> Requests = new();
+        public HttpStatusCode? Failure;
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Requests.Add((request.RequestUri.AbsolutePath, await request.Content.ReadAsStringAsync(cancellationToken)));
+            if (Failure.HasValue)
+                return new HttpResponseMessage(Failure.Value);
             return new HttpResponseMessage(legacy && request.RequestUri.AbsolutePath == "/OrderBook/player"
                 ? HttpStatusCode.NotFound : HttpStatusCode.NoContent);
         }
+    }
+
+    [SetUp]
+    public void ResetSyncCache() => BazaarOrderSync.ResetSyncCache();
+
+    private static MockedUpdateArgs ViewArgs(DateTime now, params Offer[] open)
+    {
+        var args = new MockedUpdateArgs { currentState = new(), msg = new() { UserId = "1", ReceivedAt = now } };
+        args.currentState.McInfo.Name = "Ekwav";
+        args.currentState.BazaarOffers = open.ToList();
+        args.AddService<ILogger<BazaarOrderSync>>(NullLogger<BazaarOrderSync>.Instance);
+        return args;
+    }
+
+    private static Offer Open(string tag, DateTime created, int filled = 0) => new() {
+        ItemName = tag, ItemTag = tag, Amount = 64, FilledAmount = filled, IsSell = false, Created = created, PricePerUnit = 5 };
+
+    [Test]
+    public async Task IdenticalConsecutiveViewsSkipThePost()
+    {
+        using var backend = new Backend(false);
+        using var client = new HttpClient(backend) { BaseAddress = new Uri("http://bazaar/") };
+        var now = DateTime.UtcNow;
+        var args = ViewArgs(now, Open("COAL", now.AddHours(-1)));
+        var sync = new BazaarOrderSync(client);
+        var skipped = BazaarOrderSync.OrderSyncs.WithLabels("skipped").Value;
+        await sync.Observe(args);
+        args.msg.ReceivedAt = now.AddSeconds(30);
+        await sync.Observe(args);
+        args.msg.ReceivedAt = now.AddSeconds(60);
+        await sync.Observe(args);
+        Assert.That(backend.Requests, Has.Count.EqualTo(1));
+        Assert.That(BazaarOrderSync.OrderSyncs.WithLabels("skipped").Value, Is.EqualTo(skipped + 2));
+    }
+
+    [Test]
+    public async Task ChangedOpenOrdersAreSent()
+    {
+        using var backend = new Backend(false);
+        using var client = new HttpClient(backend) { BaseAddress = new Uri("http://bazaar/") };
+        var now = DateTime.UtcNow;
+        var coal = Open("COAL", now.AddHours(-1));
+        var args = ViewArgs(now, coal);
+        var sync = new BazaarOrderSync(client);
+        await sync.Observe(args);
+        args.msg.ReceivedAt = now.AddSeconds(10);
+        args.currentState.BazaarOffers = new() { Open("COAL", coal.Created, filled: 10) };
+        await sync.Observe(args); // filled
+        args.msg.ReceivedAt = now.AddSeconds(20);
+        args.currentState.BazaarOffers.Add(Open("WHEAT", now.AddSeconds(-5)));
+        await sync.Observe(args); // new
+        args.msg.ReceivedAt = now.AddSeconds(30);
+        args.currentState.BazaarOffers = new() { Open("WHEAT", args.currentState.BazaarOffers[1].Created) };
+        await sync.Observe(args); // coal vanished
+        Assert.That(backend.Requests, Has.Count.EqualTo(4));
+    }
+
+    [Test]
+    public async Task ClaimedAndNewlyClosedOrdersAreSentButOnlyAsDelta()
+    {
+        using var backend = new Backend(false);
+        using var client = new HttpClient(backend) { BaseAddress = new Uri("http://bazaar/") };
+        var now = DateTime.UtcNow;
+        var oldClosed = new Offer { ItemName = "Coal", ItemTag = "COAL", Amount = 64, FilledAmount = 64, ClaimedAmount = 64, Created = now.AddDays(-2), PricePerUnit = 2 };
+        var args = ViewArgs(now, Open("WHEAT", now.AddHours(-2)));
+        BazaarListener.RetainClosedOrder(args.currentState, oldClosed, now.AddDays(-1));
+        var sync = new BazaarOrderSync(client);
+        await sync.Observe(args);
+        Assert.That(JObject.Parse(backend.Requests[0].Body)["orders"], Has.Count.EqualTo(2));
+
+        // an open order closes: it is sent once, the old closed order is not repeated
+        args.msg.ReceivedAt = now.AddMinutes(1);
+        var wheat = args.currentState.BazaarOffers[0];
+        args.currentState.BazaarOffers = new() { Open("IRON", now.AddMinutes(-1)) };
+        BazaarListener.RetainClosedOrder(args.currentState, wheat, args.msg.ReceivedAt);
+        await sync.Observe(args);
+        var delta = JObject.Parse(backend.Requests[1].Body)["orders"];
+        Assert.That(delta.Select(o => (string)o["itemId"]), Is.EquivalentTo(new[] { "IRON", "WHEAT" }));
+
+        // unchanged afterwards
+        args.msg.ReceivedAt = now.AddMinutes(2);
+        await sync.Observe(args);
+        Assert.That(backend.Requests, Has.Count.EqualTo(2));
+
+        // a late claim on a closed order is sent
+        wheat.ClaimedAmount = 10;
+        args.msg.ReceivedAt = now.AddMinutes(3);
+        await sync.Observe(args);
+        Assert.That(JObject.Parse(backend.Requests[2].Body)["orders"].Select(o => (string)o["itemId"]), Is.EquivalentTo(new[] { "IRON", "WHEAT" }));
+    }
+
+    [Test]
+    public async Task UnchangedViewIsResentInFullAfterTheInterval()
+    {
+        using var backend = new Backend(false);
+        using var client = new HttpClient(backend) { BaseAddress = new Uri("http://bazaar/") };
+        var now = DateTime.UtcNow;
+        var args = ViewArgs(now, Open("COAL", now.AddHours(-1)));
+        var closed = new Offer { ItemName = "Wheat", ItemTag = "WHEAT", Amount = 64, FilledAmount = 64, ClaimedAmount = 64, Created = now.AddDays(-2) };
+        BazaarListener.RetainClosedOrder(args.currentState, closed, now.AddDays(-1));
+        var sync = new BazaarOrderSync(client);
+        await sync.Observe(args);
+        args.msg.ReceivedAt = now.Add(BazaarOrderSync.FullResendInterval).AddSeconds(-1);
+        await sync.Observe(args);
+        Assert.That(backend.Requests, Has.Count.EqualTo(1));
+        args.msg.ReceivedAt = now.Add(BazaarOrderSync.FullResendInterval);
+        await sync.Observe(args);
+        Assert.That(backend.Requests, Has.Count.EqualTo(2));
+        Assert.That(JObject.Parse(backend.Requests[1].Body)["orders"], Has.Count.EqualTo(2));
+    }
+
+    [Test]
+    public async Task FailedPostDoesNotRecordTheFingerprintSoTheNextViewRetries()
+    {
+        using var backend = new Backend(false) { Failure = HttpStatusCode.BadRequest };
+        using var client = new HttpClient(backend) { BaseAddress = new Uri("http://bazaar/") };
+        var now = DateTime.UtcNow;
+        var args = ViewArgs(now, Open("COAL", now.AddHours(-1)));
+        var sync = new BazaarOrderSync(client);
+        var failed = BazaarOrderSync.OrderSyncs.WithLabels("failed").Value;
+        Assert.ThrowsAsync<HttpRequestException>(() => sync.Observe(args));
+        Assert.That(BazaarOrderSync.OrderSyncs.WithLabels("failed").Value, Is.EqualTo(failed + 1));
+        backend.Failure = null;
+        args.msg.ReceivedAt = now.AddSeconds(5);
+        await sync.Observe(args);
+        args.msg.ReceivedAt = now.AddSeconds(10);
+        await sync.Observe(args);
+        Assert.That(backend.Requests, Has.Count.EqualTo(2));
     }
 
     [Test]

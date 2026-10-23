@@ -1,7 +1,11 @@
 using System.Diagnostics;
 using Prometheus;
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -19,6 +23,13 @@ public class BazaarOrderSync(HttpClient client)
     internal const string SourceName = "Coflnet.Sky.UserState.Bazaar";
     internal static readonly ActivitySource Traces = new(SourceName);
     internal static readonly Counter Syncs = Metrics.CreateCounter("sky_userstate_bazaar_sync_total", "Order synchronization attempts", new CounterConfiguration { LabelNames = new[] { "operation", "result" } });
+    internal static readonly Counter OrderSyncs = Metrics.CreateCounter("sky_playerstate_bazaar_order_sync_total", "Personal order book observations by outcome (sent, skipped, failed)", new CounterConfiguration { LabelNames = new[] { "result" } });
+    /// <summary>Unchanged views are not re-posted until this interval passed, so the server can repair drift.</summary>
+    internal static readonly TimeSpan FullResendInterval = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan CacheRetention = TimeSpan.FromHours(1);
+    private const int CacheSweepThreshold = 5000;
+    private static readonly ConcurrentDictionary<string, SyncedView> lastSynced = new();
+    private static long lastSweepTicks;
     private static readonly Gauge Waiting = Metrics.CreateGauge("sky_userstate_bazaar_retry_waits", "Order observations currently waiting ten seconds to retry");
 
     internal static async Task Retry(Func<Task> send, ILogger logger, CancellationToken cancellationToken = default,
@@ -70,6 +81,30 @@ public class BazaarOrderSync(HttpClient client)
         TaskCanceledException => true,
         _ => false
     };
+
+    /// <summary>What the server last accepted for a player: hashes of open and closed orders plus when the full set was last sent.</summary>
+    private sealed record SyncedView(HashSet<long> Open, HashSet<long> Closed, DateTime FullSentAt);
+
+    internal static void ResetSyncCache() => lastSynced.Clear();
+
+    private static long Fingerprint(ObservedOrder o)
+    {
+        var text = string.Join('|', o.ItemId, o.Timestamp.Ticks, o.IsSell, o.Amount, o.Filled, o.PricePerUnit,
+            o.IsExpired, o.Claimed, o.ClosedAt?.Ticks, o.PlayerName);
+        return BitConverter.ToInt64(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
+    }
+
+    private static void SweepCache(DateTime now)
+    {
+        if (lastSynced.Count < CacheSweepThreshold)
+            return;
+        var tick = Environment.TickCount64;
+        if (tick - Interlocked.Read(ref lastSweepTicks) < 300_000)
+            return;
+        Interlocked.Exchange(ref lastSweepTicks, tick);
+        foreach (var entry in lastSynced.Where(e => now - e.Value.FullSentAt > CacheRetention).ToList())
+            lastSynced.TryRemove(entry.Key, out _);
+    }
 
     private sealed class ObservedOrder : OrderEntry
     {
@@ -127,12 +162,33 @@ public class BazaarOrderSync(HttpClient client)
         var resolvedOffers = unresolved.Count == 0 ? offers : offers.Except(unresolved).ToList();
         // Capture the observation once so a retry cannot change its identity or timestamp.
         var orders = resolvedOffers.Select(o => ToOrder(args, o)).ToList();
+        // The server only removes open orders missing from a view; closed orders merely update what it
+        // already stores, so an unchanged closed order never needs to be posted again until the full re-send.
+        var syncKey = $"{args.msg.UserId}:{args.currentState.McInfo.Name}";
+        var open = new HashSet<long>();
+        var closed = new HashSet<long>();
+        var fingerprints = orders.Select(o => (Order: o, Hash: Fingerprint(o))).ToList();
+        foreach (var (order, hash) in fingerprints)
+            (order.ClosedAt.HasValue ? closed : open).Add(hash);
+        var receivedAt = args.msg.ReceivedAt;
+        lastSynced.TryGetValue(syncKey, out var previous);
+        var full = previous == null || receivedAt - previous.FullSentAt >= FullResendInterval;
+        if (!full && previous.Open.SetEquals(open) && closed.IsSubsetOf(previous.Closed))
+        {
+            OrderSyncs.WithLabels("skipped").Inc();
+            logger.LogDebug("Skipping unchanged personal Bazaar view for {UserId}: {OrderCount} orders", args.msg.UserId, orders.Count);
+            return;
+        }
+        if (!full)
+            orders = fingerprints.Where(f => !f.Order.ClosedAt.HasValue || !previous.Closed.Contains(f.Hash)).Select(f => f.Order).ToList();
         var observation = new {
             args.msg.UserId, PlayerName = args.currentState.McInfo.Name,
             Timestamp = args.msg.ReceivedAt, Orders = orders
         };
         logger.LogDebug("Synchronizing personal Bazaar view for {UserId}/{PlayerName}: {OrderCount} orders at {ObservedAt:o}",
             args.msg.UserId, observation.PlayerName, orders.Count, observation.Timestamp);
+        try
+        {
         await Retry(async () => {
             using var response = await client.PostAsJsonAsync("OrderBook/player", observation);
             if (response.StatusCode == HttpStatusCode.NotFound)
@@ -148,5 +204,14 @@ public class BazaarOrderSync(HttpClient client)
             }
             response.EnsureSuccessStatusCode();
         }, logger, operation: "observe", userId: args.msg.UserId);
+        }
+        catch
+        {
+            OrderSyncs.WithLabels("failed").Inc();
+            throw; // nothing is recorded, so the next view sends again
+        }
+        OrderSyncs.WithLabels("sent").Inc();
+        lastSynced[syncKey] = new SyncedView(open, closed, full ? receivedAt : previous.FullSentAt);
+        SweepCache(receivedAt);
     }
 }
