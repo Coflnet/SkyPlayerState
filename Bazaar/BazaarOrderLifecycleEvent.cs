@@ -33,7 +33,11 @@ public class BazaarOrderLifecycleEvent
     public const string StateClosed = "Closed";
 
     [Key(0)] public int SchemaVersion { get; set; } = 1;
-    /// <summary>Lowercase sha256 hex of user, player, tag, side, created ticks, revision, observed ticks and source.</summary>
+    /// <summary>
+    /// Lowercase sha256 hex of user, player, tag, side, created ticks, revision, observed ticks, source and state.
+    /// State is part of the recipe (added after the first release) so that e.g. the Claimed and Closed events of one
+    /// full claim, which share revision, observation time and source, get distinct ids. The consumer mirrors keys only, not this recipe.
+    /// </summary>
     [Key(1)] public string EventId { get; set; }
     [Key(2)] public Guid PlayerUuid { get; set; }
     [Key(3)] public string UserId { get; set; }
@@ -55,9 +59,9 @@ public class BazaarOrderLifecycleEvent
     /// <summary>Fingerprint of the order contents, see <see cref="BazaarOrderSync.Revision"/>.</summary>
     [Key(18)] public long Revision { get; set; }
 
-    public static string ComputeEventId(string userId, Guid playerUuid, string itemTag, bool isSell, DateTime created, long revision, DateTime observedAt, string source)
+    public static string ComputeEventId(string userId, Guid playerUuid, string itemTag, bool isSell, DateTime created, long revision, DateTime observedAt, string source, string state)
     {
-        var text = $"{userId}|{playerUuid}|{itemTag}|{isSell}|{created.Ticks}|{revision}|{observedAt.Ticks}|{source}";
+        var text = $"{userId}|{playerUuid}|{itemTag}|{isSell}|{created.Ticks}|{revision}|{observedAt.Ticks}|{source}|{state}";
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
     }
 
@@ -79,7 +83,7 @@ public class BazaarOrderLifecycleEvent
         var revision = BazaarOrderSync.Revision(args, offer, tag, closedAt);
         return new BazaarOrderLifecycleEvent
         {
-            EventId = ComputeEventId(args.msg.UserId, uuid, tag, offer.IsSell, offer.Created, revision, observedAt, source),
+            EventId = ComputeEventId(args.msg.UserId, uuid, tag, offer.IsSell, offer.Created, revision, observedAt, source, state),
             PlayerUuid = uuid,
             UserId = args.msg.UserId,
             ItemTag = tag,

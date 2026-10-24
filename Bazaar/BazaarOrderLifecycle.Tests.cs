@@ -34,19 +34,22 @@ public class BazaarOrderLifecycleTests
 
     private class Backend : HttpMessageHandler
     {
+        public bool Fail;
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            => Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
+            => Task.FromResult(new HttpResponseMessage(Fail ? HttpStatusCode.BadRequest : HttpStatusCode.NoContent));
     }
 
     private static readonly Guid Player = Guid.Parse("11111111-2222-3333-4444-555555555555");
     private FakeProducer producer = null!;
     private StateObject state = null!;
     private BazaarOrderListener listener = new();
+    private BazaarOrderSync realSync = null;
 
     [SetUp]
     public void Setup()
     {
         BazaarOrderSync.ResetSyncCache();
+        realSync = null;
         producer = new FakeProducer();
         state = new();
         state.McInfo.Uuid = Player;
@@ -63,7 +66,7 @@ public class BazaarOrderLifecycleTests
         args.AddService(new Mock<ITransactionService>().Object);
         args.AddService(new Mock<IOrderBookApi>().Object);
         args.AddService(new Mock<IScheduleApi>().Object);
-        args.AddService(new Mock<BazaarOrderSync>(new HttpClient()).Object);
+        args.AddService(realSync ?? new Mock<BazaarOrderSync>(new HttpClient()).Object);
         args.AddService<ILogger<BazaarOrderListener>>(NullLogger<BazaarOrderListener>.Instance);
         args.AddService<ILogger<BazaarOrderSync>>(NullLogger<BazaarOrderSync>.Instance);
         if (withProducer)
@@ -135,31 +138,103 @@ public class BazaarOrderLifecycleTests
         return (new BazaarOrderSync(client), client);
     }
 
-    [Test]
-    public async Task Observe_EmitsOnlyChangedOrdersUnlessFullResend()
+    private BazaarOrderSync UseRealSync(bool fail = false)
     {
-        var (sync, client) = NewSync();
-        using var _ = client;
+        var client = new HttpClient(new Backend { Fail = fail }) { BaseAddress = new Uri("http://bazaar/") };
+        return realSync = new BazaarOrderSync(client);
+    }
+
+    private static Models.Item MenuItem(string name, long filled, long amount = 64) => new() {
+        ItemName = "§aBUY " + name,
+        Description = $"§7Order amount: §a{amount}§7x\n§7Price per unit: §6{5} coins\n§7Filled: §6{filled}§7/§6{amount}\n"
+            + (filled > 0 ? $"§8- §a{filled}§7x §fOther §8now\n" : "")
+    };
+
+    private async Task ProcessMenu(DateTime at, params Models.Item[] items)
+    {
+        var args = Args("1", at);
+        args.AddService<ILogger<BazaarListener>>(NullLogger<BazaarListener>.Instance);
+        args.msg.Chest = new() { Name = "Your Bazaar Orders", Items = items.ToList() };
+        await new BazaarListener().Process(args);
+    }
+
+    [Test]
+    public async Task Claim_EmitsExactlyOnePartialClaimedEvent()
+    {
+        var sync = UseRealSync();
+        var at = DateTime.UtcNow;
+        state.BazaarOffers.Add(Coal(at.AddMinutes(-1), amount: 1024, filled: 1024));
+        state.BazaarOffers[0].PricePerUnit = 7.1;
+        await listener.Process(Args("5", at, true, "[Bazaar] Claimed 512x Coal worth 3,635.2 coins bought for 7.1 each!"));
+        producer.Events.Select(e => (e.Source, e.State)).Should().Equal(("chat-claim", "Claimed"));
+    }
+
+    [Test]
+    public async Task FullClaim_ClaimedAndClosedHaveDistinctEventIds()
+    {
+        UseRealSync();
+        var at = DateTime.UtcNow;
+        state.BazaarOffers.Add(Coal(at.AddMinutes(-1), amount: 1024, filled: 1024));
+        state.BazaarOffers[0].PricePerUnit = 7.1;
+        await listener.Process(Args("5", at, true, "[Bazaar] Claimed 1,024x Coal worth 7,270.4 coins bought for 7.1 each!"));
+        producer.Events.Select(e => (e.Source, e.State)).Should().Equal(("chat-claim", "Closed"));
+        producer.Events.Select(e => e.EventId).Should().OnlyHaveUniqueItems();
+        var offer = Coal(at.AddHours(-1));
+        var args = Args("1", at);
+        BazaarOrderLifecycleEvent.TryCreate(args, offer, "chat-claim", "Claimed")!.EventId
+            .Should().NotBe(BazaarOrderLifecycleEvent.TryCreate(args, offer, "chat-claim", "Closed")!.EventId);
+    }
+
+    [Test]
+    public async Task MenuChange_EmitsSingleGuiViewEvent()
+    {
+        UseRealSync();
+        var at = DateTime.UtcNow;
+        await ProcessMenu(at, MenuItem("Coal", 0));
+        producer.Events.Select(e => (e.Source, e.State)).Should().Equal(("gui-view", "Open"));
+
+        producer.Events.Clear();
+        await ProcessMenu(at.AddSeconds(30), MenuItem("Coal", 10));
+        var e = producer.Events.Should().ContainSingle().Subject;
+        e.Source.Should().Be("gui-view");
+        e.FilledAmount.Should().Be(10);
+    }
+
+    [Test]
+    public async Task Observe_EmitsOnlyFullResendHeartbeats()
+    {
+        var sync = UseRealSync();
         var now = DateTime.UtcNow;
         var a = Coal(now.AddHours(-2));
         var b = Coal(now.AddHours(-1), sell: true);
         state.BazaarOffers = new() { a, b };
         var args = Args("1", now);
         await sync.Observe(args);
-        producer.Events.Should().HaveCount(2).And.OnlyContain(e => e.Source == "gui-view" && e.State == "Open");
+        producer.Events.Should().BeEmpty();
 
-        producer.Events.Clear();
         args.msg.ReceivedAt = now.AddSeconds(30);
         state.BazaarOffers = new() { a, Coal(b.Created, sell: true, filled: 10) };
         await sync.Observe(args);
-        var changed = producer.Events.Should().ContainSingle().Subject;
-        changed.IsSell.Should().BeTrue();
-        changed.FilledAmount.Should().Be(10);
+        producer.Events.Should().BeEmpty();
 
-        producer.Events.Clear();
         args.msg.ReceivedAt = now.Add(BazaarOrderSync.FullResendInterval).AddMinutes(1);
         await sync.Observe(args);
         producer.Events.Should().HaveCount(2).And.OnlyContain(e => e.Source == "gui-full-resend");
+    }
+
+    [Test]
+    public async Task Observe_HeartbeatEmittedEvenWhenPostFails()
+    {
+        var sync = UseRealSync();
+        var now = DateTime.UtcNow;
+        state.BazaarOffers = new() { Coal(now.AddHours(-2)) };
+        var args = Args("1", now);
+        await sync.Observe(args);
+        var failing = UseRealSync(fail: true);
+        args.msg.ReceivedAt = now.Add(BazaarOrderSync.FullResendInterval).AddMinutes(1);
+        var act = async () => await failing.Observe(args);
+        await act.Should().ThrowAsync<Exception>();
+        producer.Events.Should().ContainSingle().Which.Source.Should().Be("gui-full-resend");
     }
 
     [Test]

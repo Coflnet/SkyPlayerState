@@ -150,11 +150,17 @@ public class BazaarOrderSync(HttpClient client)
             response.EnsureSuccessStatusCode();
         }, args.GetService<ILogger<BazaarOrderSync>>(), operation: "claim", userId: args.msg.UserId,
             itemTag: order.ItemTag, created: order.Created);
-        BazaarOrderLifecycle.Emit(args, order, BazaarOrderLifecycleEvent.SourceChatClaim, BazaarOrderLifecycleEvent.StateClaimed);
+        // Claim lifecycle events are emitted by BazaarOrderListener.ApplyClaim (single emission point).
     }
 
-    private static void EmitLifecycle(UpdateArgs args, List<ObservedOrder> sent, Dictionary<ObservedOrder, Offer> offerOf, SyncedView previous, bool full)
+    /// <summary>
+    /// Emits the gui-full-resend heartbeat for orders that are unchanged but re-posted as part of a full resend.
+    /// Per-order change events (gui-view) come from the BazaarListener menu merge, not from here.
+    /// </summary>
+    private static void EmitHeartbeats(UpdateArgs args, List<ObservedOrder> sent, Dictionary<ObservedOrder, Offer> offerOf, SyncedView previous, bool full)
     {
+        if (!full || previous == null)
+            return;
         try
         {
             var producer = BazaarOrderLifecycle.Resolve(args);
@@ -165,15 +171,13 @@ public class BazaarOrderSync(HttpClient client)
                 if (!offerOf.TryGetValue(order, out var offer))
                     continue;
                 var hash = Fingerprint(order);
-                var unchanged = previous != null && (previous.Open.Contains(hash) || previous.Closed.Contains(hash));
-                if (unchanged && !full)
-                    continue; // only re-posted as part of an otherwise changed view
-                var source = unchanged ? BazaarOrderLifecycleEvent.SourceGuiFullResend : BazaarOrderLifecycleEvent.SourceGuiView;
+                if (!previous.Open.Contains(hash) && !previous.Closed.Contains(hash))
+                    continue;
                 var state = order.ClosedAt.HasValue ? BazaarOrderLifecycleEvent.StateClosed
                     : order.IsExpired ? BazaarOrderLifecycleEvent.StateExpired
                     : order.Filled >= order.Amount ? BazaarOrderLifecycleEvent.StateFilled
                     : BazaarOrderLifecycleEvent.StateOpen;
-                BazaarOrderLifecycle.Emit(args, offer, source, state);
+                BazaarOrderLifecycle.Emit(args, offer, BazaarOrderLifecycleEvent.SourceGuiFullResend, state);
             }
         }
         catch (Exception e)
@@ -227,6 +231,8 @@ public class BazaarOrderSync(HttpClient client)
         };
         logger.LogDebug("Synchronizing personal Bazaar view for {UserId}/{PlayerName}: {OrderCount} orders at {ObservedAt:o}",
             args.msg.UserId, observation.PlayerName, orders.Count, observation.Timestamp);
+        // independent of the POST outcome so an outage of the order book service does not drop heartbeats
+        EmitHeartbeats(args, orders, offerOf, previous, full);
         try
         {
         await Retry(async () => {
@@ -251,7 +257,6 @@ public class BazaarOrderSync(HttpClient client)
             throw; // nothing is recorded, so the next view sends again
         }
         OrderSyncs.WithLabels("sent").Inc();
-        EmitLifecycle(args, orders, offerOf, previous, full);
         lastSynced[syncKey] = new SyncedView(open, closed, full ? receivedAt : previous.FullSentAt);
         SweepCache(receivedAt);
     }

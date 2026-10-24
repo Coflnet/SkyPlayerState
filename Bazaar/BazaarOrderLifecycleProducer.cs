@@ -20,8 +20,22 @@ public class BazaarOrderLifecycleProducer : IBazaarOrderLifecycleProducer
     {
         this.logger = logger;
         topic = configuration["TOPICS:BAZAAR_ORDER_LIFECYCLE"] ?? throw new ValidationException("No TOPICS:BAZAAR_ORDER_LIFECYCLE defined");
-        kafkaCreator.CreateTopicIfNotExist(topic, 1).Wait();
+        // Fire and forget: a down Kafka must not block resolving the producer (and with it the state update).
+        // Produce proceeds regardless; broker auto-create or the delivery report surfaces real problems.
+        _ = CreateTopic(kafkaCreator);
         producer = kafkaCreator.BuildProducer<string, BazaarOrderLifecycleEvent>();
+    }
+
+    private async System.Threading.Tasks.Task CreateTopic(Kafka.KafkaCreator kafkaCreator)
+    {
+        try
+        {
+            await kafkaCreator.CreateTopicIfNotExist(topic, 1);
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning(e, "Could not create bazaar order lifecycle topic {Topic}", topic);
+        }
     }
 
     public void Emit(UpdateArgs args, Offer offer, string source, string state, string itemTagOverride = null)

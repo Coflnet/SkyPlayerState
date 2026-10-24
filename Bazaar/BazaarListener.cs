@@ -111,6 +111,8 @@ public class BazaarListener : UpdateListener
                 else
                 {
                     offer.Created = args.msg.ReceivedAt.AddMilliseconds(offers.Count);
+                    // first seen in a menu without a prior chat registration
+                    lifecycle.Add((offer, offer.IsExpired ? BazaarOrderLifecycleEvent.StateExpired : BazaarOrderLifecycleEvent.StateOpen));
                 }
                 if (!string.IsNullOrEmpty(args.msg.UserId) && string.IsNullOrWhiteSpace(offer.ItemTag))
                     offer.ItemTag = await BazaarOrderListener.GetTagForName(args, offer.ItemName);
