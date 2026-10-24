@@ -122,6 +122,7 @@ public class Startup
         services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(Configuration["REDIS_HOST"]));
         services.AddSingleton<BazaarSignalPublisher>();
         services.AddSingleton<Bazaar.BazaarFlipExportProducer>();
+        services.AddSingleton<Bazaar.IBazaarOrderLifecycleProducer, Bazaar.BazaarOrderLifecycleProducer>();
 
         services.AddSingleton<IItemsApi>(context => new ItemsApi(Configuration["ITEMS_BASE_URL"]));
         services.AddSingleton<IAuctionsApi>(context => new AuctionsApi(Configuration["API_BASE_URL"]));

@@ -58,6 +58,7 @@ public class BazaarListener : UpdateListener
         var offers = new List<Offer>();
         var matched = new HashSet<Offer>();
         var complete = true;
+        var lifecycle = new List<(Offer Offer, string State)>();
         // only the first 5 rows (x9) are potential orders (to include bazaar upgrade)
         var bazaarItems = args.msg.Chest.Items.Take(45);
         var orderLookup = args.currentState.BazaarOffers.Where(o => o != null).ToLookup(OrderKey, o => o);
@@ -85,6 +86,10 @@ public class BazaarListener : UpdateListener
                         (o.Customers.FirstOrDefault()?.PlayerName == offer.Customers.FirstOrDefault()?.PlayerName ? 10 : 0) - Math.Abs(o.Customers.Count - offer.Customers.Count))
                         .First();
                     matched.Add(existing);
+                    if (offer.FilledAmount > existing.FilledAmount)
+                        lifecycle.Add((offer, BazaarOrderLifecycleEvent.StateOpen));
+                    if (offer.IsExpired && !existing.IsExpired)
+                        lifecycle.Add((offer, BazaarOrderLifecycleEvent.StateExpired));
                     offer.Created = existing.Created;
                     offer.ClaimedAmount ??= existing.ClaimedAmount;
                     offer.PendingObservedClaims = existing.PendingObservedClaims;
@@ -129,7 +134,14 @@ public class BazaarListener : UpdateListener
         TrackVanishingOrders(args, offers);
 
         foreach (var closed in args.currentState.BazaarOffers.Where(o => o != null && !matched.Contains(o)))
+        {
+            var wasClosed = closed.ClosedAt.HasValue;
             RetainClosedOrder(args.currentState, closed, args.msg.ReceivedAt);
+            if (!wasClosed)
+                lifecycle.Add((closed, BazaarOrderLifecycleEvent.StateClosed));
+        }
+        foreach (var (changed, lifecycleState) in lifecycle)
+            BazaarOrderLifecycle.Emit(args, changed, BazaarOrderLifecycleEvent.SourceGuiView, lifecycleState);
         args.currentState.BazaarOffers = offers;
         args.currentState.BazaarUpdatedAt = args.msg.ReceivedAt;
         args.currentState.BazaarObservedAt = args.msg.ReceivedAt;

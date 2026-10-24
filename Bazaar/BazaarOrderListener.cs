@@ -162,6 +162,7 @@ public class BazaarOrderListener : UpdateListener
                 ? args.msg.ReceivedAt : args.currentState.BazaarUpdatedAt;
             if (args.msg.UserId == null)
                 return;
+            await BazaarOrderLifecycle.EmitResolved(args, order, BazaarOrderLifecycleEvent.SourceChatSetup, BazaarOrderLifecycleEvent.StateOpen);
             await RegisterUserEvents(args, side, amount, itemName, price, order);
 
             return;
@@ -189,6 +190,7 @@ public class BazaarOrderListener : UpdateListener
             order.FilledAmount = order.Amount;
             args.currentState.BazaarUpdatedAt = args.msg.ReceivedAt > args.currentState.BazaarUpdatedAt
                 ? args.msg.ReceivedAt : args.currentState.BazaarUpdatedAt;
+            await BazaarOrderLifecycle.EmitResolved(args, order, BazaarOrderLifecycleEvent.SourceChatFilled, BazaarOrderLifecycleEvent.StateFilled);
             await ProduceFillEvent(args, itemName, order, remove: false);
             return;
         }
@@ -203,6 +205,7 @@ public class BazaarOrderListener : UpdateListener
                 {
                     args.currentState.BazaarOffers.Remove(buyOrder);
                     await RemoveOrderFromBook(args, buyOrder);
+                    await BazaarOrderLifecycle.EmitResolved(args, buyOrder, BazaarOrderLifecycleEvent.SourceChatCancelled, BazaarOrderLifecycleEvent.StateCancelled);
                 }
                 await AddCoinTransaction(args, Transaction.TransactionType.BazaarBuy | Transaction.TransactionType.Move, price);
                 return;
@@ -220,6 +223,7 @@ public class BazaarOrderListener : UpdateListener
                 args.currentState.BazaarOffers.Remove(order);
                 
                 await RemoveOrderFromBook(args, order);
+                await BazaarOrderLifecycle.EmitResolved(args, order, BazaarOrderLifecycleEvent.SourceChatCancelled, BazaarOrderLifecycleEvent.StateCancelled);
             }
             else
                 args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No order found for {item} {amount} to cancel {offers}", itemName, amount, JsonConvert.SerializeObject(args.currentState.BazaarOffers));
@@ -347,6 +351,7 @@ public class BazaarOrderListener : UpdateListener
                     args.currentState.BazaarOffers.Add(sellOrder);
 
                     await AddOrderToOrderBook(args, itemName, amount, sellPrice, true);
+                    await BazaarOrderLifecycle.EmitResolved(args, sellOrder, BazaarOrderLifecycleEvent.SourceFlipDetected, BazaarOrderLifecycleEvent.StateOpen);
 
                     args.GetService<ILogger<BazaarOrderListener>>()
                         .LogInformation("Processed flipped order for {user}: {amount}x {item} bought at {buyPrice} for expected profit {expectedProfit}, created sell order at {sellPrice}",
@@ -463,6 +468,7 @@ public class BazaarOrderListener : UpdateListener
                         args.currentState.BazaarOffers.Add(sellOrder);
 
                         await AddOrderToOrderBook(args, itemName, amount, totalSellPriceInTenths, true);
+                        await BazaarOrderLifecycle.EmitResolved(args, sellOrder, BazaarOrderLifecycleEvent.SourceFlipDetected, BazaarOrderLifecycleEvent.StateOpen);
                         
                         args.GetService<ILogger<BazaarOrderListener>>()
                             .LogInformation("Recovered and processed flipped order for {user}: {amount}x {item} bought at {buyPrice} coins for expected profit {expectedProfit} coins",
@@ -674,9 +680,14 @@ public class BazaarOrderListener : UpdateListener
                 await args.GetService<BazaarOrderSync>().Claim(args, order);
             args.currentState.BazaarOffers.Remove(order);
             await RemoveOrderFromBook(args, order);
+            await BazaarOrderLifecycle.EmitResolved(args, order, BazaarOrderLifecycleEvent.SourceChatClaim, BazaarOrderLifecycleEvent.StateClosed);
         }
-        else if (!string.IsNullOrEmpty(args.msg.UserId))
-            await args.GetService<BazaarOrderSync>().Claim(args, order);
+        else
+        {
+            if (!string.IsNullOrEmpty(args.msg.UserId))
+                await args.GetService<BazaarOrderSync>().Claim(args, order);
+            await BazaarOrderLifecycle.EmitResolved(args, order, BazaarOrderLifecycleEvent.SourceChatClaim, BazaarOrderLifecycleEvent.StateClaimed);
+        }
         args.GetService<ILogger<BazaarOrderListener>>().LogDebug(
             "Applied Bazaar claim for {UserId}/{ItemTag}: claimed {Claimed}/{Amount}, filled {Filled}, expired {Expired}",
             args.msg.UserId, order.ItemTag, order.ClaimedAmount, order.Amount, order.FilledAmount, order.IsExpired);

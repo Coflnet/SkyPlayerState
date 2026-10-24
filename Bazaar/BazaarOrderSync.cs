@@ -87,7 +87,7 @@ public class BazaarOrderSync(HttpClient client)
 
     internal static void ResetSyncCache() => lastSynced.Clear();
 
-    private static long Fingerprint(ObservedOrder o)
+    internal static long Fingerprint(ObservedOrder o)
     {
         var text = string.Join('|', o.ItemId, o.Timestamp.Ticks, o.IsSell, o.Amount, o.Filled, o.PricePerUnit,
             o.IsExpired, o.Claimed, o.ClosedAt?.Ticks, o.PlayerName);
@@ -106,19 +106,28 @@ public class BazaarOrderSync(HttpClient client)
             lastSynced.TryRemove(entry.Key, out _);
     }
 
-    private sealed class ObservedOrder : OrderEntry
+    internal sealed class ObservedOrder : OrderEntry
     {
         public bool IsExpired { get; set; }
         public int? Claimed { get; set; }
         public DateTime? ClosedAt { get; set; }
     }
 
-    private static ObservedOrder ToOrder(UpdateArgs args, Offer order) => new() {
+    internal static ObservedOrder ToOrder(UpdateArgs args, Offer order) => new() {
         ItemId = order.ItemTag, Amount = (int)order.Amount, Filled = (int)order.FilledAmount,
         PricePerUnit = order.PricePerUnit, IsSell = order.IsSell, Timestamp = order.Created,
         IsExpired = order.IsExpired, Claimed = (int?)order.ClaimedAmount, ClosedAt = order.ClosedAt,
         UserId = args.msg.UserId, PlayerName = args.currentState.McInfo.Name
     };
+
+    /// <summary>The fingerprint the order book sync uses for change detection, optionally with another tag / close time.</summary>
+    internal static long Revision(UpdateArgs args, Offer order, string itemTag, DateTime? closedAt)
+    {
+        var observed = ToOrder(args, order);
+        observed.ItemId = itemTag;
+        observed.ClosedAt = closedAt;
+        return Fingerprint(observed);
+    }
 
     public virtual async Task Claim(UpdateArgs args, Offer order)
     {
@@ -141,6 +150,36 @@ public class BazaarOrderSync(HttpClient client)
             response.EnsureSuccessStatusCode();
         }, args.GetService<ILogger<BazaarOrderSync>>(), operation: "claim", userId: args.msg.UserId,
             itemTag: order.ItemTag, created: order.Created);
+        BazaarOrderLifecycle.Emit(args, order, BazaarOrderLifecycleEvent.SourceChatClaim, BazaarOrderLifecycleEvent.StateClaimed);
+    }
+
+    private static void EmitLifecycle(UpdateArgs args, List<ObservedOrder> sent, Dictionary<ObservedOrder, Offer> offerOf, SyncedView previous, bool full)
+    {
+        try
+        {
+            var producer = BazaarOrderLifecycle.Resolve(args);
+            if (producer == null)
+                return;
+            foreach (var order in sent)
+            {
+                if (!offerOf.TryGetValue(order, out var offer))
+                    continue;
+                var hash = Fingerprint(order);
+                var unchanged = previous != null && (previous.Open.Contains(hash) || previous.Closed.Contains(hash));
+                if (unchanged && !full)
+                    continue; // only re-posted as part of an otherwise changed view
+                var source = unchanged ? BazaarOrderLifecycleEvent.SourceGuiFullResend : BazaarOrderLifecycleEvent.SourceGuiView;
+                var state = order.ClosedAt.HasValue ? BazaarOrderLifecycleEvent.StateClosed
+                    : order.IsExpired ? BazaarOrderLifecycleEvent.StateExpired
+                    : order.Filled >= order.Amount ? BazaarOrderLifecycleEvent.StateFilled
+                    : BazaarOrderLifecycleEvent.StateOpen;
+                BazaarOrderLifecycle.Emit(args, offer, source, state);
+            }
+        }
+        catch (Exception e)
+        {
+            args.GetService<ILogger<BazaarOrderSync>>().LogWarning(e, "Could not emit bazaar order lifecycle events");
+        }
     }
 
     public virtual async Task Observe(UpdateArgs args)
@@ -168,6 +207,7 @@ public class BazaarOrderSync(HttpClient client)
         var open = new HashSet<long>();
         var closed = new HashSet<long>();
         var fingerprints = orders.Select(o => (Order: o, Hash: Fingerprint(o))).ToList();
+        var offerOf = resolvedOffers.Zip(orders).ToDictionary(p => p.Second, p => p.First);
         foreach (var (order, hash) in fingerprints)
             (order.ClosedAt.HasValue ? closed : open).Add(hash);
         var receivedAt = args.msg.ReceivedAt;
@@ -211,6 +251,7 @@ public class BazaarOrderSync(HttpClient client)
             throw; // nothing is recorded, so the next view sends again
         }
         OrderSyncs.WithLabels("sent").Inc();
+        EmitLifecycle(args, orders, offerOf, previous, full);
         lastSynced[syncKey] = new SyncedView(open, closed, full ? receivedAt : previous.FullSentAt);
         SweepCache(receivedAt);
     }
