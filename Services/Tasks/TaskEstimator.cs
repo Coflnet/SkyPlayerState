@@ -34,6 +34,10 @@ public class TaskEstimator
     private const double SaturationFloor = 0.75;
     private const double PriceDriftClampLow = 0.25;
     private const double PriceDriftClampHigh = 4;
+    // best spot candidacy: enough distinct players, enough decayed time, and a real share of the task's time
+    internal const int BestZoneMinPlayers = 3;
+    internal const double BestZoneMinSeconds = 20 * 60;
+    internal const double BestZoneMinShare = 0.10;
     private static readonly TimeSpan OptionalReadTimeout = TimeSpan.FromSeconds(1);
 
     public TaskEstimator(TaskRegistry registry, TaskAggregateService aggregates, StatScoreService statScore,
@@ -55,6 +59,7 @@ public class TaskEstimator
     {
         using var span = TaskTelemetry.Source.StartActivity("task-estimate-all");
         var snapshot = aggregates.GetSnapshot();
+        var zoneSnapshot = aggregates.GetZoneSnapshot();
         var coinValuesTask = RefreshCoinValues(cancellationToken);
         var countsTask = LoadOptional(activityService.GetCounts(), new(), "task activity counts", cancellationToken);
         var deltasTask = LoadOptional(activityService.GetChange20m(), new(), "task activity changes", cancellationToken);
@@ -75,7 +80,7 @@ public class TaskEstimator
             {
                 var taskName = GetTaskName(task);
                 results.Add(await EstimateOne(task, taskName, state, prices, snapshot, counts, deltas,
-                    playerStats.GetValueOrDefault(taskName)));
+                    playerStats.GetValueOrDefault(taskName), zoneSnapshot.GetValueOrDefault(taskName)));
             }
             catch (Exception e)
             {
@@ -147,7 +152,8 @@ public class TaskEstimator
 
     private async Task<TaskEstimate> EstimateOne(MethodTask task, string name, StateObject state,
         Dictionary<string, double> prices, Dictionary<(string, byte), BucketAggregate> snapshot,
-        Dictionary<string, int> counts, Dictionary<string, int> deltas, TaskPlayerStatRow personal)
+        Dictionary<string, int> counts, Dictionary<string, int> deltas, TaskPlayerStatRow personal,
+        Dictionary<string, ZoneAggregate> zones = null)
     {
         using var span = TaskTelemetry.Source.StartActivity("task-estimate");
         var signature = task.GetDetectionSignature();
@@ -221,6 +227,12 @@ public class TaskEstimator
 
         var (dropCounts, dropSeconds) = DropSource(p > 0.5 && personal != null, personal, bucketAgg);
 
+        var bestZones = RankBestZones(zones);
+        var bestZone = bestZones.FirstOrDefault();
+        var steps = task.StepsForTest;
+        if (bestZones.Count > 0)
+            steps = WithBestSpotStep(steps, bestZones);
+
         return new TaskEstimate
         {
             TaskName = name,
@@ -241,8 +253,62 @@ public class TaskEstimator
             Island = task.IslandForTest,
             WhereWikiUrl = task.WhereWikiUrlForTest,
             Warp = task.EffectiveWarpCommandForTest,
-            Steps = task.StepsForTest
+            Steps = steps,
+            BestZones = bestZones.Select(z => new BestZoneEntry { Zone = z.Zone, CoinsPerHour = z.CoinsPerHour, Players = z.Players }).ToList(),
+            BestZone = bestZone?.Zone,
+            BestZoneCoinsPerHour = bestZone?.CoinsPerHour ?? 0,
+            BestZonePlayers = bestZone?.Players ?? 0
         };
+    }
+
+    internal record BestZoneResult(string Zone, double CoinsPerHour, int Players);
+
+    internal const int BestZoneMaxShown = 3;
+
+    /// <summary>
+    /// The zones with at least <see cref="BestZoneMinPlayers"/> distinct players, <see cref="BestZoneMinSeconds"/> of
+    /// decayed time and <see cref="BestZoneMinShare"/> of the task's total tracked zone time and a positive rate,
+    /// best coins/hour first, at most <see cref="BestZoneMaxShown"/>. Empty when none qualifies.
+    /// </summary>
+    internal static List<BestZoneResult> RankBestZones(Dictionary<string, ZoneAggregate> zones)
+    {
+        var result = new List<BestZoneResult>();
+        if (zones == null || zones.Count == 0)
+            return result;
+        var total = zones.Values.Sum(z => z.WSeconds);
+        if (total <= 0)
+            return result;
+        foreach (var z in zones.Values)
+        {
+            if (z.Contributors.Count < BestZoneMinPlayers || z.WSeconds < BestZoneMinSeconds
+                || z.WSeconds / total < BestZoneMinShare)
+                continue;
+            var rate = z.Value / (z.WSeconds / 3600.0);
+            if (rate > 0)
+                result.Add(new BestZoneResult(z.Zone, rate, z.Contributors.Count));
+        }
+        return result.OrderByDescending(r => r.CoinsPerHour).ThenBy(r => r.Zone, StringComparer.Ordinal).Take(BestZoneMaxShown).ToList();
+    }
+
+    /// <summary>The single best zone, null when none qualifies.</summary>
+    internal static BestZoneResult PickBestZone(Dictionary<string, ZoneAggregate> zones) => RankBestZones(zones).FirstOrDefault();
+
+    /// <summary>
+    /// Copy of <paramref name="steps"/> with the best spot hint inserted before the closing "Check /cofl task again"
+    /// step (appended when there is none) and everything renumbered. The task's own step objects are not touched.
+    /// </summary>
+    internal static List<TaskStep> WithBestSpotStep(List<TaskStep> steps, IReadOnlyList<BestZoneResult> zones)
+    {
+        string Spot(BestZoneResult z) => $"{z.Zone} ~{SimpleTaskFormatProvider.FormatPriceShort(z.CoinsPerHour)}/h ({z.Players} players)";
+        var text = zones.Count == 1
+            ? $"Best spot seen: {Spot(zones[0])}."
+            : $"Best spots seen: {string.Join(", ", zones.Select(Spot))}.";
+        var result = (steps ?? new()).Select(s => new TaskStep { Number = s.Number, Text = s.Text, OnClick = s.OnClick }).ToList();
+        var closing = result.FindLastIndex(s => s.Text != null && s.Text.StartsWith("Check /cofl task again", StringComparison.Ordinal));
+        result.Insert(closing >= 0 ? closing : result.Count, new TaskStep { Text = text });
+        for (var i = 0; i < result.Count; i++)
+            result[i].Number = i + 1;
+        return result;
     }
 
     /// <summary>Counts and the hours basis they belong to: personal counts use the personal row's seconds.</summary>
@@ -325,17 +391,25 @@ public class TaskEstimator
     /// only place community/stat-bucket data ever gets charged for the ingredients it consumed.
     /// </summary>
     internal static double RateFromAggregate(MethodTask task, BucketAggregate agg, Dictionary<string, double> prices)
+        => RateParts(task, agg, prices).Rate;
+
+    /// <summary>The components <see cref="RateFromAggregate"/> sums, exposed for the read-only aggregate endpoint.</summary>
+    internal record AggregateRateParts(double Rate, double LiveItemValue, double FormulaCost, double DriftScale,
+        double ScaledResidualCoins, double ScaledRareCoins);
+
+    internal static AggregateRateParts RateParts(MethodTask task, BucketAggregate agg, Dictionary<string, double> prices)
     {
         if (agg == null || agg.WSeconds <= 0)
-            return 0;
+            return new AggregateRateParts(0, 0, 0, 1, 0, 0);
         var hours = agg.WSeconds / 3600.0;
         double liveItemValue = agg.ItemCounts.Sum(e => (prices?.GetValueOrDefault(e.Key) ?? 0) * e.Value);
         var cost = task?.ScaledFormulaCost(agg.ItemCounts, hours, tag => prices?.GetValueOrDefault(tag) ?? 0) ?? 0;
         var driftScale = agg.RefItemValue > 0 && liveItemValue > 0
             ? Math.Clamp(liveItemValue / agg.RefItemValue, PriceDriftClampLow, PriceDriftClampHigh)
             : 1;
-        var pools = (agg.ResidualCoins + agg.RareCoins) * driftScale;
-        return (liveItemValue - cost + pools) / hours;
+        var residual = agg.ResidualCoins * driftScale;
+        var rare = agg.RareCoins * driftScale;
+        return new AggregateRateParts((liveItemValue - cost + residual + rare) / hours, liveItemValue, cost, driftScale, residual, rare);
     }
 
     /// <summary>

@@ -33,7 +33,7 @@ public class HelixForagingTask : BaseForagingTask
         "Torrhus Canyon", "Miria's Hut", "Pangolin Hideaway", "Torrhus Heights", "Spring Path", "Torrhus Springs",
         "Spring Shallows", "Spring Depths", "Ant's Cave", "Hotspot Haven", "Desert Temple"
     ];
-    protected override string Where => "Torrhus Heights";
+    protected override string Where => "Torrhus Canyon";
     protected override HashSet<string> DetectionItems =>
     [
         "HELIX_LOG", "ENCHANTED_HELIX_LOG",
@@ -48,12 +48,12 @@ public class HelixForagingTask : BaseForagingTask
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Helix_Log";
     protected override string HowTo =>
         "Warp to Torrhus (needs Foraging XII and Heart of the Forest tier 4), then cut Helix Trees in "
-        + "Torrhus Heights - the beige logs first, then the red ones. Collect Helix Logs and sell them on the Bazaar.";
+        + "Torrhus Canyon or Torrhus Heights - the beige logs first, then the red ones. Collect Helix Logs and sell them on the Bazaar.";
     protected override List<TaskStep> Steps =>
     [
         new() { Number = 1, Text = "Level Foraging to XII and Heart of the Forest to tier 4 - both are needed to warp to Torrhus." },
         new() { Number = 2, Text = "Type /warp torrhus to get close.", OnClick = "/warp torrhus" },
-        new() { Number = 3, Text = "Go to Torrhus Heights and look for Helix Trees.", OnClick = WhereWikiUrl },
+        new() { Number = 3, Text = "Go to Torrhus Canyon (or Torrhus Heights) and look for Helix Trees.", OnClick = WhereWikiUrl },
         new() { Number = 4, Text = "Cut the beige logs first, then the red logs, to fell the whole tree.", OnClick = WikiUrl },
         new() { Number = 5, Text = "You're doing it right when you start collecting: HELIX_LOG, ENCHANTED_HELIX_LOG. That's what we track for your coins/hour." },
         new() { Number = 6, Text = "Sell your Helix Logs on the Bazaar." },
@@ -77,12 +77,12 @@ public class FigForagingTask : BaseForagingTask
     protected override double ActionsPerHour => 20000;
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Fig_Log";
     protected override string HowTo =>
-        "Type /warp galatea, then find Fig Trees around Tangleburg or the Reaches on Moonglade Marsh. "
+        "Type /warp galatea, then find Fig Trees on the Evergreen Plateau, the Reaches or Moonglade Marsh. "
         + "Cut the trunk first, then the branches, to fell the whole tree.";
     protected override List<TaskStep> Steps =>
     [
         new() { Number = 1, Text = "Type /warp galatea to get close.", OnClick = "/warp galatea" },
-        new() { Number = 2, Text = "Look for Fig Trees around Tangleburg or the Reaches on Moonglade Marsh.", OnClick = WhereWikiUrl },
+        new() { Number = 2, Text = "Look for Fig Trees on the Evergreen Plateau, the Reaches or Moonglade Marsh.", OnClick = WhereWikiUrl },
         new() { Number = 3, Text = "Cut the trunk first, then the branches, to fell the whole tree.", OnClick = WikiUrl },
         new() { Number = 4, Text = "You're doing it right when you start collecting: FIG_LOG, ENCHANTED_FIG_LOG. That's what we track for your coins/hour." },
         new() { Number = 5, Text = "Sell your Fig Logs on the Bazaar." },

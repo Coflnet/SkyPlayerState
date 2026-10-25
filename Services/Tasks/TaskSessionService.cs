@@ -30,10 +30,52 @@ public class TaskSessionService
     public const int MaxDistinctItems = 40;
 
     private readonly TaskClassifier classifier;
+    private readonly CoinValueRegistry coinValues;
 
-    public TaskSessionService(TaskClassifier classifier)
+    /// <param name="coinValues">values the per-zone coins (powder overrides); without it only prices and pseudo tags count</param>
+    public TaskSessionService(TaskClassifier classifier, CoinValueRegistry coinValues = null)
     {
         this.classifier = classifier;
+        this.coinValues = coinValues;
+    }
+
+    /// <summary>
+    /// Key a fragment's location is accounted under in the per zone "best spot" data: the canonical zone
+    /// (pest count suffix etc. stripped). Garden plots ("Plot - N", free text names) collapse to "The Garden":
+    /// a plot is part of the Garden and the individual plot names carry no information a player can act on.
+    /// </summary>
+    internal static string ZoneKey(string location)
+    {
+        var zone = SkyblockZones.Canonical(location);
+        if (string.IsNullOrWhiteSpace(zone))
+            return null;
+        return zone == "Plot" ? "The Garden" : zone;
+    }
+
+    private double ValueOf(Dictionary<string, int> items, Dictionary<string, double> prices)
+    {
+        double total = 0;
+        foreach (var (tag, count) in items)
+        {
+            var unit = coinValues != null ? coinValues.Value(tag, prices)
+                : PseudoItems.TryGetCoinValue(tag, out var pseudo) ? pseudo
+                : prices?.GetValueOrDefault(tag) ?? 0;
+            total += unit * count;
+        }
+        return total;
+    }
+
+    /// <summary>Adds the fragment's duration and coin value (costs negative) to its zone on <paramref name="session"/>.</summary>
+    private void AddZone(TaskSession session, Period fragment, Dictionary<string, double> prices)
+    {
+        var zone = ZoneKey(fragment.Location);
+        if (zone == null)
+            return;
+        session.ZoneSeconds ??= new();
+        session.ZoneValue ??= new();
+        var seconds = Math.Max(0, (fragment.EndTime - fragment.StartTime).TotalSeconds);
+        session.ZoneSeconds[zone] = session.ZoneSeconds.GetValueOrDefault(zone) + seconds;
+        session.ZoneValue[zone] = session.ZoneValue.GetValueOrDefault(zone) + ValueOf(fragment.ItemsCollected, prices);
     }
 
     /// <summary>
@@ -80,7 +122,8 @@ public class TaskSessionService
         var newTask = classifier.Classify(fragment.Location, tentativePositive, minutes, claimedTask, prices,
             info.CurrentIsland, info.CurrentIslandAt, info.CurrentLocationSince, info.CurrentLocationSeenAt)?.TaskName;
 
-        if (session.DetectedTask != null && newTask != null && newTask != session.DetectedTask)
+        var differentTask = session.DetectedTask != null && newTask != null && newTask != session.DetectedTask;
+        if (differentTask || CarriesForeignPurchase(session, fragment) || LeftIsland(session, fragment, newTask))
         {
             // the fragment belongs to a different task -> flush the pre-merge session,
             // begin a fresh session from this fragment.
@@ -96,6 +139,7 @@ public class TaskSessionService
         session.Location = fragment.Location;
         session.Server = fragment.Server;
         session.DetectedTask = newTask ?? session.DetectedTask;
+        AddZone(session, fragment, prices);
 
         if ((now - session.StartTime).TotalMinutes >= MaxSessionMinutes)
         {
@@ -105,6 +149,35 @@ public class TaskSessionService
         return null;
     }
 
+    /// <summary>
+    /// A fragment with purchase evidence (BAZAAR_PURCHASE/AUCTION_PURCHASE) is a shopping trip: the bought
+    /// item is not loot of the session's activity, so it only merges into a purchase sink.
+    /// </summary>
+    private bool CarriesForeignPurchase(TaskSession session, Period fragment)
+        => fragment.ItemsCollected.Any(e => e.Value != 0 && PseudoItems.IsPurchase(e.Key))
+            && !classifier.IsPurchaseSink(session.DetectedTask);
+
+    /// <summary>
+    /// A fragment from another island that the classifier cannot name (null classification) would otherwise
+    /// be absorbed by whatever session is running. Only applies when both islands are known and differ.
+    /// </summary>
+    private static bool LeftIsland(TaskSession session, Period fragment, string newTask)
+    {
+        if (newTask != null)
+            return false;
+        var from = IslandOfZone(session.Location);
+        var to = IslandOfZone(fragment.Location);
+        return from != null && to != null && from != to;
+    }
+
+    /// <summary>
+    /// <see cref="SkyblockZones.IslandOf"/> with the private island resolved: its scoreboard zone "Your Island"
+    /// is deliberately ambiguous in the static map, but unlike the other ambiguous zones it only ever means the
+    /// private island, so it is safe to treat as its own island here. Other ambiguous/unknown zones stay null (no split).
+    /// </summary>
+    internal static string IslandOfZone(string zone)
+        => SkyblockZones.Canonical(zone) == "Your Island" ? "Private Island" : SkyblockZones.IslandOf(zone);
+
     private TaskSession StartSession(Period fragment, string claimedTask, Dictionary<string, double> prices,
         string currentIsland, DateTime currentIslandAt, DateTime currentLocationSince, DateTime currentLocationSeenAt)
     {
@@ -112,7 +185,7 @@ public class TaskSessionService
         // the classifier only ever sees gains: costs (negative counts) ride along for the folder
         var positiveItems = PositiveOnly(items);
         var minutes = (fragment.EndTime - fragment.StartTime).TotalMinutes;
-        return new TaskSession
+        var started = new TaskSession
         {
             StartTime = fragment.StartTime,
             LastItemTime = fragment.EndTime,
@@ -122,6 +195,8 @@ public class TaskSessionService
             DetectedTask = classifier.Classify(fragment.Location, positiveItems, minutes, claimedTask, prices,
                 currentIsland, currentIslandAt, currentLocationSince, currentLocationSeenAt)?.TaskName
         };
+        AddZone(started, fragment, prices);
+        return started;
     }
 
     private static Period BuildPeriod(TaskSession session, string playerUuid) => new()
@@ -132,7 +207,9 @@ public class TaskSessionService
         StartTime = session.StartTime,
         EndTime = session.LastItemTime,
         ItemsCollected = new Dictionary<string, int>(session.Items),
-        DetectedTask = session.DetectedTask
+        DetectedTask = session.DetectedTask,
+        ZoneSeconds = session.ZoneSeconds == null ? new() : new(session.ZoneSeconds),
+        ZoneValue = session.ZoneValue == null ? new() : new(session.ZoneValue)
     };
 
     /// <summary>

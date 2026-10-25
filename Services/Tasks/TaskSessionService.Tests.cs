@@ -189,4 +189,87 @@ public class TaskSessionServiceTests
         info.CurrentSession!.Items.Should().HaveCount(TaskSessionService.MaxDistinctItems);
         info.CurrentSession.Items.Should().ContainKey("DUNGEON_CHEST_COST");
     }
+
+    private static readonly DateTime T0 = new(2026, 07, 15, 12, 00, 00, DateTimeKind.Utc);
+    private static Dictionary<string, int> DianaItems() => new() { ["GRIFFIN_FEATHER"] = 6 };
+
+    private static ExtractedInfo DianaSession()
+    {
+        var info = new ExtractedInfo();
+        Service.Accumulate(info, Player, Fragment("Ruins", DianaItems(), T0, T0.AddMinutes(4)), null, null, T0.AddMinutes(4));
+        info.CurrentSession!.DetectedTask.Should().Be("Diana", "fixture precondition");
+        return info;
+    }
+
+    [Test]
+    public void PurchaseFragment_DoesNotMergeIntoNonSinkSession()
+    {
+        var info = DianaSession();
+        var bought = new Dictionary<string, int> { [PseudoItems.AUCTION_PURCHASE] = 1, ["HYPERION"] = 1 };
+
+        var flush = Service.Accumulate(info, Player, Fragment("Auction House", bought, T0.AddMinutes(4), T0.AddMinutes(5)),
+            null, null, T0.AddMinutes(5));
+
+        flush.Should().NotBeNull();
+        flush!.DetectedTask.Should().Be("Diana");
+        flush.ItemsCollected.Should().NotContainKey("HYPERION");
+        info.CurrentSession!.Items.Should().ContainKey("HYPERION");
+        info.CurrentSession.Items.Should().NotContainKey("GRIFFIN_FEATHER");
+    }
+
+    [Test]
+    public void FragmentFromOtherIsland_WithNullClassification_FlushesTheSession()
+    {
+        var info = DianaSession();
+        var junk = new Dictionary<string, int> { ["SOME_UNCLASSIFIED_THING"] = 2 };
+
+        var flush = Service.Accumulate(info, Player, Fragment("Your Island", junk, T0.AddMinutes(4), T0.AddMinutes(5)),
+            null, null, T0.AddMinutes(5));
+
+        flush.Should().NotBeNull();
+        flush!.DetectedTask.Should().Be("Diana");
+        flush.ItemsCollected.Should().NotContainKey("SOME_UNCLASSIFIED_THING");
+        info.CurrentSession!.Items.Should().ContainKey("SOME_UNCLASSIFIED_THING");
+    }
+
+    [Test]
+    public void FragmentFromUnknownZone_StillMerges()
+    {
+        var info = DianaSession();
+        var junk = new Dictionary<string, int> { ["SOME_UNCLASSIFIED_THING"] = 2 };
+
+        var flush = Service.Accumulate(info, Player, Fragment("Some Zone Nobody Mapped", junk, T0.AddMinutes(4), T0.AddMinutes(5)),
+            null, null, T0.AddMinutes(5));
+
+        flush.Should().BeNull();
+        info.CurrentSession!.Items.Should().ContainKey("GRIFFIN_FEATHER").And.ContainKey("SOME_UNCLASSIFIED_THING");
+    }
+
+    [Test]
+    public void DianaAcrossHubZones_StillMergesIntoOneSession()
+    {
+        var info = DianaSession();
+
+        var f2 = Service.Accumulate(info, Player, Fragment("Forest", DianaItems(), T0.AddMinutes(4), T0.AddMinutes(6)), null, null, T0.AddMinutes(6));
+        var f3 = Service.Accumulate(info, Player, Fragment("Graveyard", DianaItems(), T0.AddMinutes(6), T0.AddMinutes(8)), null, null, T0.AddMinutes(8));
+
+        f2.Should().BeNull();
+        f3.Should().BeNull();
+        info.CurrentSession!.DetectedTask.Should().Be("Diana");
+        info.CurrentSession.Items["GRIFFIN_FEATHER"].Should().Be(18);
+    }
+
+    [Test]
+    public void PurchaseFragment_MergesIntoPurchaseSinkSession()
+    {
+        var sink = Registry.MethodTasks.Select(t => t.GetDetectionSignature()).First(sig => sig.IsPurchaseSink);
+        var info = new ExtractedInfo();
+        var bought = new Dictionary<string, int> { [PseudoItems.BAZAAR_PURCHASE] = 1, ["ENCHANTED_COAL"] = 64 };
+        Service.Accumulate(info, Player, Fragment("Bazaar Alley", bought, T0, T0.AddMinutes(4)), null, null, T0.AddMinutes(4));
+        info.CurrentSession!.DetectedTask.Should().Be(sink.MethodName);
+
+        var flush = Service.Accumulate(info, Player, Fragment("Bazaar Alley", bought, T0.AddMinutes(4), T0.AddMinutes(5)), null, null, T0.AddMinutes(5));
+
+        flush.Should().BeNull();
+    }
 }

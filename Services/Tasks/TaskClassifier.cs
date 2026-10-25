@@ -24,10 +24,13 @@ public class TaskClassifier
 
     private readonly List<DetectionSignature> signatures;
     private readonly Dictionary<string, List<string>> derivedByPrimary;
+    private readonly HashSet<string> purchaseSinks;
 
     public TaskClassifier(TaskRegistry registry)
     {
         var allSignatures = registry.MethodTasks.Select(t => t.GetDetectionSignature()).ToList();
+        purchaseSinks = allSignatures.Where(s => s.IsPurchaseSink).Select(s => s.MethodName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         signatures = allSignatures
             // derived tasks (e.g. "Sludge Mining (Gem Mixture)") share their primary's detection
             // and never compete for classification themselves - see GetDerivedTaskNames.
@@ -41,6 +44,9 @@ public class TaskClassifier
             .GroupBy(s => s.DerivedFrom, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.Select(s => s.MethodName).ToList(), StringComparer.OrdinalIgnoreCase);
     }
+
+    /// <summary>True when <paramref name="taskName"/> is a task that legitimately owns purchase evidence (see <see cref="DetectionSignature.IsPurchaseSink"/>).</summary>
+    public bool IsPurchaseSink(string taskName) => taskName != null && purchaseSinks.Contains(taskName);
 
     /// <summary>
     /// Task names that share/derive their detection from <paramref name="primaryTaskName"/> (see

@@ -24,11 +24,15 @@ public class TrackedProfitService
             .Define(new Map<Period>()
                 .PartitionKey(t => t.PlayerUuid)
                 .ClusteringKey(t => t.Location)
+                .Column(t => t.ZoneSeconds, c => c.Ignore())
+                .Column(t => t.ZoneValue, c => c.Ignore())
             );
         var historyMapping = new MappingConfiguration()
             .Define(new Map<Period>()
                 .PartitionKey(t => t.PlayerUuid)
                 .ClusteringKey(t => t.EndTime, SortOrder.Descending)
+                .Column(t => t.ZoneSeconds, c => c.Ignore())
+                .Column(t => t.ZoneValue, c => c.Ignore())
             );
         
         var TABLE_NAME_HISTORY = "historyPeriods2";
@@ -130,5 +134,13 @@ public class TrackedProfitService
         /// Task the classifier attributed this period to, null when the signal was too weak.
         /// </summary>
         public string DetectedTask { get; set; }
+        /// <summary>
+        /// Per canonical zone seconds / coin value of a flushed task session (see <see cref="Tasks.TaskSessionService"/>).
+        /// In-memory only, ignored by the cassandra mappings: it feeds the zone aggregate when the period is folded.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public Dictionary<string, double> ZoneSeconds { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public Dictionary<string, double> ZoneValue { get; set; }
     }
 }

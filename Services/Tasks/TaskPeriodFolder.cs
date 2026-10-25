@@ -28,6 +28,7 @@ public class TaskPeriodFolder
     private const double RareAppearanceRatio = 0.05;
     private const double WinsorFactor = 4;
     private const double WinsorMinBucketHours = 2;
+    private const double AfkFactor = 0.05;
 
     public TaskPeriodFolder(TaskAggregateService aggregates, StatScoreService statScore, TaskRegistry registry,
         CoinValueRegistry coinValues, ITransactionService transactions, ILogger<TaskPeriodFolder> logger)
@@ -69,9 +70,10 @@ public class TaskPeriodFolder
     private async Task FoldCore(Period period, StateObject state, Dictionary<string, double> prices, bool lateReward)
     {
         using var span = TaskTelemetry.Source.StartActivity("task-period-fold");
+        var task = period.DetectedTask;
+        double metricMinutes = 0;
         try
         {
-            var task = period.DetectedTask;
             span?.SetTag("task", task);
             span?.SetTag("player", period.PlayerUuid);
             if (task == null)
@@ -81,15 +83,18 @@ public class TaskPeriodFolder
             {
                 // island trackers (Galatea fishing/diving) read the period list directly, there is no aggregate to fold into
                 span?.SetTag("dropped", "not_a_method_task");
+                FoldMetrics.Record(task, FoldMetrics.NotAMethodTask, 0, 0);
                 return;
             }
             // one folded session/period = one unit of the task's minimum duration (claim tasks)
             var minutes = lateReward ? 0 : (methodTask?.EffectiveDuration(period) ?? period.EndTime - period.StartTime).TotalMinutes;
+            metricMinutes = minutes;
             span?.SetTag("minutes", minutes);
             span?.SetTag("late_reward", lateReward);
             if (!lateReward && minutes < 2)
             {
                 span?.SetTag("dropped", "too_short");
+                await RecordWithoutOwned(task, FoldMetrics.TooShort, minutes * 60, period, methodTask, prices);
                 return;
             }
             var factors = methodTask?.StatFactors ?? [];
@@ -101,6 +106,7 @@ public class TaskPeriodFolder
             if (owned.Count == 0)
             {
                 span?.SetTag("dropped", "no_owned_items");
+                await RecordWithoutOwned(task, FoldMetrics.NoOwnedItems, minutes * 60, period, methodTask, prices);
                 return;
             }
 
@@ -115,6 +121,7 @@ public class TaskPeriodFolder
             // winsorize the common coin rate against the current bucket estimate
             var hours = minutes / 60.0;
             double commonValue = commonCounts.Sum(c => coinValues.Value(c.Key, prices) * c.Value);
+            var winsorScale = 1.0;
             if (!lateReward && bucketAgg != null && bucketAgg.WSeconds / 3600.0 >= WinsorMinBucketHours)
             {
                 var bucketRate = EstimateBucketRate(methodTask, bucketAgg, prices);
@@ -122,21 +129,26 @@ public class TaskPeriodFolder
                 if (cap > 0 && commonValue > cap)
                 {
                     var scale = cap / commonValue;
+                    winsorScale = scale;
                     foreach (var key in commonCounts.Keys.ToList())
                         commonCounts[key] *= scale;
                     span?.SetTag("winsorized_from", commonValue);
                     span?.SetTag("winsorized_to", cap);
+                    FoldMetrics.Winsorized(task);
                 }
             }
 
-            // AFK contamination: coin rate far below the community rate for the task
+            // AFK contamination: coin rate far below the community rate for the task. Compared on the common
+            // rate only (item value minus cost, no rare EV pools): a rare-heavy task whose pool is inflated
+            // would otherwise drop every normal session as AFK and keep only the lucky ones.
             if (!lateReward && bucketAgg != null && bucketAgg.WSeconds / 3600.0 >= WinsorMinBucketHours)
             {
-                var bucketRate = EstimateBucketRate(methodTask, bucketAgg, prices);
-                var thisRate = (commonValue + rareCoins) / hours;
-                if (bucketRate > 0 && thisRate < 0.05 * bucketRate)
+                var bucketRate = EstimateCommonBucketRate(methodTask, bucketAgg, prices);
+                var thisRate = commonValue / hours;
+                if (bucketRate > 0 && thisRate < AfkFactor * bucketRate)
                 {
                     span?.SetTag("dropped", "afk");
+                    FoldMetrics.Record(task, FoldMetrics.Afk, minutes * 60, itemValue);
                     return;
                 }
             }
@@ -153,11 +165,38 @@ public class TaskPeriodFolder
             await UpdatePlayerStat(period.PlayerUuid, task, seconds, commonCounts, residual, rareCoins, itemValue, minutes, prices);
 
             if (!lateReward)
+                AddZoneShares(task, period, weight, winsorScale);
+
+            FoldMetrics.Record(task, lateReward ? FoldMetrics.LateReward : FoldMetrics.Folded, seconds, itemValue);
+
+            if (!lateReward)
                 await FoldDerivedTasks(task, commonCounts, hours, minutes, seconds, weight, period.PlayerUuid, state, prices, span);
         }
         catch (Exception e)
         {
+            if (task != null)
+                FoldMetrics.Record(task, FoldMetrics.Error, metricMinutes * 60, 0);
             logger.LogError(e, "failed to fold period for task {task}", period.DetectedTask);
+        }
+    }
+
+    /// <summary>
+    /// Adds the session's per zone time and coin value to the "best spot" aggregate. Only reached for a
+    /// period the estimate itself folded (not too short, not AFK, not a late reward which has no time), with
+    /// the same ramp weight and the winsor scale of the common pool, so the zone data stays consistent with it.
+    /// </summary>
+    private void AddZoneShares(string task, Period period, double weight, double winsorScale)
+    {
+        if (period.ZoneSeconds == null || weight <= 0)
+            return;
+        foreach (var (zone, zoneSeconds) in period.ZoneSeconds)
+        {
+            if (zoneSeconds <= 0)
+                continue;
+            var zoneValue = period.ZoneValue?.GetValueOrDefault(zone) ?? 0;
+            // winsorizing only caps positive value; a negative (cost) share is never scaled
+            aggregates.AddZoneContribution(task, zone, period.PlayerUuid, zoneSeconds * weight,
+                (zoneValue > 0 ? zoneValue * winsorScale : zoneValue) * weight);
         }
     }
 
@@ -268,6 +307,36 @@ public class TaskPeriodFolder
         double itemValue = agg.ItemCounts.Sum(e => (prices?.GetValueOrDefault(e.Key) ?? 0) * e.Value);
         var cost = task?.ScaledFormulaCost(agg.ItemCounts, hours, tag => prices?.GetValueOrDefault(tag) ?? 0) ?? 0;
         return (itemValue - cost + agg.ResidualCoins + agg.RareCoins) / hours;
+    }
+
+    /// <summary>
+    /// Common-only bucket rate for the AFK check: live item value minus formula cost per hour, without the
+    /// residual/rare EV pools (a session that did not hit the rare drop is not AFK because the pool is big).
+    /// </summary>
+    internal static double EstimateCommonBucketRate(MethodTask task, BucketAggregate agg, Dictionary<string, double> prices)
+    {
+        if (agg == null || agg.WSeconds <= 0)
+            return 0;
+        var hours = agg.WSeconds / 3600.0;
+        double itemValue = agg.ItemCounts.Sum(e => (prices?.GetValueOrDefault(e.Key) ?? 0) * e.Value);
+        var cost = task?.ScaledFormulaCost(agg.ItemCounts, hours, tag => prices?.GetValueOrDefault(tag) ?? 0) ?? 0;
+        return (itemValue - cost) / hours;
+    }
+
+    /// <summary>Records a dropped outcome for which the owned items were not (or not yet) computed, valuing the filtered raw items.</summary>
+    private async Task RecordWithoutOwned(string task, string outcome, double seconds, Period period, MethodTask methodTask, Dictionary<string, double> prices)
+    {
+        double value = 0;
+        try
+        {
+            await coinValues.EnsureFresh();
+            value = FilterOwnedItems(period.ItemsCollected ?? new(), methodTask).Sum(e => coinValues.Value(e.Key, prices) * e.Value);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "failed to value dropped period for {task}", task);
+        }
+        FoldMetrics.Record(task, outcome, seconds, value);
     }
 
     /// <summary>
@@ -399,4 +468,53 @@ public static class TaskTelemetry
 {
     public const string SourceName = "sky-player-state";
     public static readonly ActivitySource Source = new(SourceName);
+}
+
+/// <summary>
+/// Prometheus counters for what <see cref="TaskPeriodFolder"/> did with every classified period, so dropped
+/// time can be seen without traces. Prometheus counters cannot decrease, so the coin value (which is negative
+/// for cost-heavy periods) is split into a positive counter and a separate counter of the absolute negative value.
+/// </summary>
+public static class FoldMetrics
+{
+    public const string Folded = "folded";
+    public const string LateReward = "late_reward";
+    public const string TooShort = "too_short";
+    public const string Afk = "afk";
+    public const string NoOwnedItems = "no_owned_items";
+    public const string NotAMethodTask = "not_a_method_task";
+    public const string Error = "error";
+
+    private static readonly string[] Labels = ["task", "outcome"];
+    private static readonly Prometheus.Counter Count = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_task_fold_total", "Classified periods by fold outcome", Labels);
+    private static readonly Prometheus.Counter Seconds = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_task_fold_seconds_total", "Session seconds (unweighted) by fold outcome", Labels);
+    private static readonly Prometheus.Counter Value = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_task_fold_value_total", "Positive owned item coin value by fold outcome", Labels);
+    private static readonly Prometheus.Counter NegativeValue = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_task_fold_value_negative_total", "Absolute value of negative owned item coin value (costs) by fold outcome", Labels);
+    private static readonly Prometheus.Counter WinsorizedCount = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_task_fold_winsorized_total", "Folded periods whose common value was capped by winsorizing", ["task"]);
+
+    public static void Record(string task, string outcome, double seconds, double value)
+    {
+        Count.WithLabels(task, outcome).Inc();
+        if (seconds > 0 && double.IsFinite(seconds))
+            Seconds.WithLabels(task, outcome).Inc(seconds);
+        if (!double.IsFinite(value))
+            return;
+        if (value > 0)
+            Value.WithLabels(task, outcome).Inc(value);
+        else if (value < 0)
+            NegativeValue.WithLabels(task, outcome).Inc(-value);
+    }
+
+    public static void Winsorized(string task) => WinsorizedCount.WithLabels(task).Inc();
+
+    internal static double CountOf(string task, string outcome) => Count.WithLabels(task, outcome).Value;
+    internal static double SecondsOf(string task, string outcome) => Seconds.WithLabels(task, outcome).Value;
+    internal static double ValueOf(string task, string outcome) => Value.WithLabels(task, outcome).Value;
+    internal static double NegativeValueOf(string task, string outcome) => NegativeValue.WithLabels(task, outcome).Value;
+    internal static double WinsorizedOf(string task) => WinsorizedCount.WithLabels(task).Value;
 }

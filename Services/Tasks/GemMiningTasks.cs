@@ -7,12 +7,19 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 // ── Base Mining Task ──
 public abstract class BaseMiningTask : MethodTask
 {
+    internal static readonly List<StatFactor> EndBlockMiningFactors =
+    [
+        new("stat:Mining Speed", 0.45, 4000),
+        new("stat:Mining Spread", 0.35, 400),
+        new("hotm:tier", 0.20, 10)
+    ];
     public override List<StatFactor> StatFactors =>
     [
-        new("hotm:tier", 0.35, 10),
-        new("skill:Mining", 0.30, 60),
-        new("gear:GAUNTLET", 0.25, 6),
-        new("attr:Mining Speed", 0.10, 10)
+        new("hotm:tier", 0.30, 10),
+        new("skill:Mining", 0.25, 60),
+        new("gear:GAUNTLET", 0.20, 6),
+        new("stat:Mining Speed", 0.15, 4000),
+        new("stat:Mining Spread", 0.10, 400)
     ];
     protected override string Category => "Mining";
     protected override string ActionUnit => "mines";
@@ -147,9 +154,10 @@ public class CoalMiningTask : BaseMiningTask
         ["Magma Fields"] = [.. MagmaCoreFishingTask.MagmaFieldsLavaCatches, "WORM_MEMBRANE", "YOGGIE", "SHARD_BAL", "PET_BAL"]
     };
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_COAL", 500), new("ENCHANTED_COAL_BLOCK", 30)];
+    protected override string Where => "Magma Fields";
     protected override string HowTo =>
-        "Mine coal ore blocks in the Dwarven Mines or Glacite Tunnels with a pickaxe. In the Crystal Hollows' Magma Fields "
-        + "a long route of instamined coal and hard stone, with the Enchanted Coal sold on the Bazaar, works too.";
+        "Mine coal in the Magma Fields in the Crystal Hollows, on a long route of instamined coal and hard stone, "
+        + "and sell the Enchanted Coal on the Bazaar. Coal ore in the Dwarven Mines or Glacite Tunnels works too.";
     protected override double ActionsPerHour => 4000;
 }
 public class DiamondMiningTask : BaseMiningTask
@@ -158,7 +166,8 @@ public class DiamondMiningTask : BaseMiningTask
     protected override HashSet<string> Locations => ["Dwarven Mines", "Deep Caverns", "Diamond Reserve"];
     protected override HashSet<string> DetectionItems => ["DIAMOND", "ENCHANTED_DIAMOND"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_DIAMOND", 300), new("ENCHANTED_DIAMOND_BLOCK", 15)];
-    protected override string HowTo => "Mine diamond ore blocks in the Deep Caverns or Diamond Reserve with a pickaxe.";
+    protected override string Where => "Royal Mines";
+    protected override string HowTo => "Mine diamond ore in the Royal Mines of the Dwarven Mines, or in the Diamond Reserve in the Deep Caverns, with a pickaxe.";
     protected override double ActionsPerHour => 3500;
 }
 public class RedstoneMiningTask : BaseMiningTask
@@ -182,6 +191,10 @@ public class CobblestoneMiningTask : BaseMiningTask
 public class ObsidianMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Obsidian Mining";
+    // Block mining in The End: production showed two tiers (25-60k vs 200-350 Enchanted Obsidian/h) split by drill speed
+    // and Mining Spread (several blocks per swing), so those two dominate. The Max values are first guesses, tune them
+    // once ExtractedInfo.PlayerStats data exists.
+    public override List<StatFactor> StatFactors => EndBlockMiningFactors;
     protected override HashSet<string> Locations => ["Obsidian Sanctuary", "Deep Caverns", "The End"];
     protected override HashSet<string> DetectionItems => ["OBSIDIAN", "ENCHANTED_OBSIDIAN"];
     // Endermen drop the obsidian they hold and Obsidian Defenders drop it too (450 periods 2026-10-10), so at The
@@ -197,12 +210,20 @@ public class ObsidianMiningTask : BaseMiningTask
         "ENDER_GAUNTLET", "ENDER_BELT", "ENDER_NECKLACE", "ENDER_CLOAK"
     ];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_OBSIDIAN", 200)];
-    protected override string HowTo => "Mine obsidian blocks in the Obsidian Sanctuary or The End with a pickaxe.";
+    // production (2026-10): obsidian is mined in The End (Dragon's Nest), essentially none in the Obsidian Sanctuary
+    protected override string Where => "The End";
+    protected override string HowTo =>
+        "Mine obsidian on The End island, for example around the Dragon's Nest, with a fast drill with high mining speed. "
+        + "Obsidian needs Breaking Power 4, and Enchanted Obsidian takes 160 obsidian.";
     protected override double ActionsPerHour => 2000;
 }
 public class EndStoneMiningTask : BaseMiningTask
 {
     protected override string MethodName => "End Stone Mining";
+    // Block mining in The End: production showed two tiers (25-60k vs 200-350 Enchanted Obsidian/h) split by drill speed
+    // and Mining Spread (several blocks per swing), so those two dominate. The Max values are first guesses, tune them
+    // once ExtractedInfo.PlayerStats data exists.
+    public override List<StatFactor> StatFactors => EndBlockMiningFactors;
     // island, covers the Dragon's Nest where 7 players mined it (27 periods, 2026-10-11)
     protected override HashSet<string> Locations => ["The End"];
     // production tags; there is no ENCHANTED_END_STONE
@@ -229,7 +250,9 @@ public class TungstenMiningTask : BaseMiningTask
     protected override HashSet<string> Locations => ["Glacite Tunnels", "Great Glacite Lake", "Dwarven Base Camp"];
     protected override HashSet<string> DetectionItems => ["TUNGSTEN", "ENCHANTED_TUNGSTEN"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_TUNGSTEN", 200)];
-    protected override string HowTo => "Mine tungsten ore in the Glacite Tunnels or Glacite Mountains with a pickaxe.";
+    protected override string HowTo =>
+        "Mine tungsten ore in the Glacite Tunnels with a pickaxe. "
+        + "It also occurs inside Glacite Mineshafts, which open from the tunnels and are tracked as their own task.";
     protected override double ActionsPerHour => 2500;
 }
 public class UmberMiningTask : BaseMiningTask
@@ -239,7 +262,9 @@ public class UmberMiningTask : BaseMiningTask
     protected override HashSet<string> Locations => ["Glacite Tunnels", "Great Glacite Lake", "Dwarven Base Camp"];
     protected override HashSet<string> DetectionItems => ["UMBER", "ENCHANTED_UMBER"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_UMBER", 200)];
-    protected override string HowTo => "Mine umber ore in the Glacite Tunnels or Glacite Mountains with a pickaxe.";
+    protected override string HowTo =>
+        "Mine umber ore in the Glacite Tunnels with a pickaxe. "
+        + "It also occurs inside Glacite Mineshafts, which open from the tunnels and are tracked as their own task.";
     protected override double ActionsPerHour => 2500;
 }
 
@@ -504,7 +529,8 @@ public class GlaciteMiningTask : BaseMiningTask
         [new() { ItemTag = "TITANIUM_DRILL_1", Name = "Titanium Drill DR-X555", Reason = "Breaking Power 9 drill - Glacite has 6000 block strength" }];
     protected override string HowTo =>
         "Mine Glacite in the Glacite Tunnels, which need Heart of the Mountain tier VII (Secret Railroad "
-        + "Pass) to enter. Watch the Cold hazard - it reaches 100 and kills you, so warm up regularly.";
+        + "Pass) to enter. Glacite Mineshafts, which open from the tunnels, hold Glacite too and are tracked as their own task. "
+        + "Watch the Cold hazard - it reaches 100 and kills you, so warm up regularly.";
     protected override double ActionsPerHour => 3000;
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Glacite";
     protected override List<TaskStep> Steps =>
@@ -512,7 +538,7 @@ public class GlaciteMiningTask : BaseMiningTask
         new() { Number = 1, Text = "Level Heart of the Mountain to tier VII and get the Secret Railroad Pass - both are needed to enter the Glacite Tunnels." },
         new() { Number = 2, Text = "Get a Titanium Drill DR-X555 (Breaking Power 9 drill - Glacite has 6000 block strength)." },
         new() { Number = 3, Text = GlaciteAccessNote },
-        new() { Number = 4, Text = "Mine the Glacite ore veins. Keep an eye on the Cold hazard meter - it reaches 100 and kills you, so warm up at a fire or heat source regularly.", OnClick = WikiUrl },
+        new() { Number = 4, Text = "Mine the Glacite ore veins in the Glacite Tunnels (Glacite Mineshafts, which open from the tunnels, hold Glacite too). Keep an eye on the Cold hazard meter - it reaches 100 and kills you, so warm up at a fire or heat source regularly.", OnClick = WikiUrl },
         new() { Number = 5, Text = "You're doing it right when you collect: GLACITE, ENCHANTED_GLACITE. That's what we track for your coins/hour." },
         new() { Number = 6, Text = "Sell Glacite on the Bazaar." },
         new() { Number = 7, Text = "Check /cofl task again to see your real coins/hour." },
@@ -621,7 +647,7 @@ public class FlintMiningTask : BaseMiningTask
     // Early-game grind - no HotM tier or Gemstone Gauntlet involved, just skill and speed.
     public override List<StatFactor> StatFactors =>
     [
-        new("skill:Mining", 0.7, 60), new("attr:Mining Speed", 0.3, 10)
+        new("skill:Mining", 0.7, 60), new("stat:Mining Speed", 0.3, 4000)
     ];
     protected override string HowTo =>
         "Craft a Flint Shovel (10 Flint + 2 Sticks, needs Flint Collection II) and dig up Gravel blocks in "
@@ -754,7 +780,11 @@ public class GoldMiningTask : BaseMiningTask
     protected override HashSet<string> Locations => ["Gold Mine", "Gunpowder Mines", "Royal Mines", "Mines of Divan"];
     protected override HashSet<string> DetectionItems => ["GOLD_INGOT", "GOLD_ORE", "ENCHANTED_GOLD", "ENCHANTED_GOLD_BLOCK"];
     protected override List<MethodDrop> FormulaDrops => [new("GOLD_INGOT", 800)];
-    protected override string HowTo => "Mine gold ore in the Gold Mine, Gunpowder Mines or Royal Mines with a pickaxe.";
+    // Mines of Divan (Crystal Hollows) is where the gold is actually mined; the Gold Mine and the others stay detected.
+    protected override string Where => "Mines of Divan";
+    protected override string HowTo =>
+        "Mine gold ore in the Mines of Divan in the Crystal Hollows with a pickaxe. "
+        + "The Gold Mine, Gunpowder Mines and Royal Mines work too.";
     protected override double ActionsPerHour => 800;
 }
 public class IronMiningTask : BaseMiningTask

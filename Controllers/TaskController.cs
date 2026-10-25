@@ -157,6 +157,51 @@ public class TaskController : ControllerBase
                 StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Read-only dump of every stat bucket aggregate of one task with the rate and its parts, for
+    /// diagnosing inflated or deflated community estimates. 404 for an unknown task.
+    /// </summary>
+    [HttpGet("aggregate/{taskName}")]
+    public async Task<ActionResult<List<TaskAggregateInfo>>> GetAggregate(string taskName, CancellationToken cancellationToken)
+    {
+        var task = registry.GetByName(taskName) as MethodTask;
+        if (task == null)
+            return NotFound($"No task named '{taskName}' is registered.");
+        var priceLookup = await prices.GetPrices(cancellationToken);
+        return BuildAggregateInfo(task, aggregates.GetSnapshot(), priceLookup);
+    }
+
+    internal static List<TaskAggregateInfo> BuildAggregateInfo(MethodTask task,
+        Dictionary<(string task, byte bucket), BucketAggregate> snapshot, Dictionary<string, double> priceLookup)
+    {
+        var name = task.GetDetectionSignature().MethodName;
+        return snapshot.Where(e => string.Equals(e.Key.task, name, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(e => e.Key.bucket)
+            .Select(e =>
+            {
+                var agg = e.Value;
+                var parts = TaskEstimator.RateParts(task, agg, priceLookup);
+                return new TaskAggregateInfo
+                {
+                    Bucket = e.Key.bucket,
+                    WSeconds = agg.WSeconds,
+                    Hours = agg.WSeconds / 3600.0,
+                    WPeriods = agg.WPeriods,
+                    RareCoins = agg.RareCoins,
+                    ResidualCoins = agg.ResidualCoins,
+                    RefItemValue = agg.RefItemValue,
+                    ItemCounts = new Dictionary<string, double>(agg.ItemCounts),
+                    Contributors = agg.ContributorCount,
+                    CoinsPerHour = parts.Rate,
+                    LiveItemValue = parts.LiveItemValue,
+                    FormulaCost = parts.FormulaCost,
+                    DriftScale = parts.DriftScale,
+                    ScaledResidualCoins = parts.ScaledResidualCoins,
+                    ScaledRareCoins = parts.ScaledRareCoins
+                };
+            }).ToList();
+    }
+
+    /// <summary>
     /// The task the player is currently detected or claimed to be doing.
     /// </summary>
     [HttpGet("{playerId}/current")]
@@ -202,4 +247,26 @@ public class MethodMetadata
 {
     public string Name { get; set; }
     public string Description { get; set; }
+}
+
+public class TaskAggregateInfo
+{
+    public byte Bucket { get; set; }
+    public double WSeconds { get; set; }
+    public double Hours { get; set; }
+    public double WPeriods { get; set; }
+    public double RareCoins { get; set; }
+    public double ResidualCoins { get; set; }
+    public double RefItemValue { get; set; }
+    public Dictionary<string, double> ItemCounts { get; set; }
+    public int Contributors { get; set; }
+    /// <summary>TaskEstimator.RateFromAggregate for this bucket.</summary>
+    public double CoinsPerHour { get; set; }
+    public double LiveItemValue { get; set; }
+    public double FormulaCost { get; set; }
+    public double DriftScale { get; set; }
+    /// <summary>Residual pool after drift scaling.</summary>
+    public double ScaledResidualCoins { get; set; }
+    /// <summary>Rare EV pool after drift scaling.</summary>
+    public double ScaledRareCoins { get; set; }
 }

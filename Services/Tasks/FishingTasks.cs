@@ -122,6 +122,8 @@ public class WinterFishingTask : BaseFishingTask
 {
     protected override string MethodName => "Winter Fishing";
     protected override HashSet<string> Locations => ["Jerry's Workshop", "Jerry Pond", "Hot Springs"];
+    protected override string Where => "Hot Springs";
+    protected override string HowTo => "Fish in the Hot Springs or at Jerry Pond on Jerry's Workshop island.";
     protected override HashSet<string> DetectionItems => FishingEvidence.Water;
     protected override bool ExcludeShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 220), new("ICE", 100)];
@@ -172,6 +174,8 @@ public class CrimsonFishingTask : BaseFishingTask
         ["Blazing Volcano", "Burning Desert", "Mystic Marsh", "Magma Chamber", "Stronghold", "Crimson Fields", "Dragontail", "Crimson Isle"];
     // Lava fishing evidence (2026-09 finding: 810 periods matched here, 445 of them with no fish at
     // all - spiders, Mage Outlaw, magma cubes from unrelated Crimson Isle activity).
+    protected override string Where => "Stronghold";
+    protected override string HowTo => "Fish in the lava on the Crimson Isle, most often around the Stronghold. Blazing Volcano, Crimson Fields and Dragontail work too.";
     protected override HashSet<string> DetectionItems => FishingEvidence.Lava;
     protected override bool ExcludeShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("MAGMA_FISH", 150)];
@@ -205,6 +209,8 @@ public class GalateaFishingMethodTask : BaseFishingTask
 {
     protected override string MethodName => "Galatea Fishing";
     protected override HashSet<string> Locations => ["Driptoad Delve", "Murkwater Depths", "Murkwater Shallows", "Squid Cave", "Reefguard Pass"];
+    protected override string Where => "Murkwater Depths";
+    protected override string HowTo => "Fish in the Murkwater Depths or Murkwater Shallows on Galatea.";
     protected override bool ExcludeShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("SEA_LUMIES", 150), new("RAW_FISH", 180)];
 }
@@ -262,6 +268,8 @@ public class WaterFishingTask : BaseFishingTask
     // Water evidence (2026-09 finding: 288 periods matched here, only ~10 with any fish - it was
     // swallowing Hub Auction House/Bazaar Alley purchases, zombie slayer at Crypts/Graveyard, and
     // farming at Farm).
+    protected override string Where => "Village";
+    protected override string HowTo => "Fish in the water of the Hub, most often at the Village, or in the Spider's Den.";
     protected override HashSet<string> DetectionItems => FishingEvidence.Water;
     protected override bool ExcludeShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 200)];
@@ -388,6 +396,8 @@ public class CrimsonFishingHuntingTask : BaseFishingTask
     // Same Locations as CrimsonFishingTask - see its own comment for the data-derived zones.
     protected override HashSet<string> Locations =>
         ["Blazing Volcano", "Burning Desert", "Mystic Marsh", "Magma Chamber", "Stronghold", "Crimson Fields", "Dragontail", "Crimson Isle"];
+    protected override string Where => "Stronghold";
+    protected override string HowTo => "Fish in the lava on the Crimson Isle, most often around the Stronghold. Blazing Volcano, Crimson Fields and Dragontail work too.";
     protected override HashSet<string> DetectionItems => FishingEvidence.Lava;
     protected override bool RequireShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("MAGMA_FISH", 150)];

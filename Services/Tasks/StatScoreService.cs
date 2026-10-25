@@ -145,6 +145,8 @@ public class StatScoreService
                     return skills != null && skills.TryGetValue(name, out var level) ? level : null;
                 case "attr":
                     return info?.AttributeLevel != null && info.AttributeLevel.TryGetValue(name, out var attr) ? attr : null;
+                case "stat":
+                    return info?.PlayerStats != null && info.PlayerStats.TryGetValue(name, out var stat) && stat > 0 ? stat : null;
                 case "hotm":
                     return info?.HeartOfTheMountain?.Tier is > 0 and var hotm ? hotm : null;
                 case "hotf":

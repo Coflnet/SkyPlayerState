@@ -279,6 +279,8 @@ public class T4VoidgloomsTask : MethodTask
     protected override LateRewardSpec LateReward => SlayerBossDrops.NullSphere;
     protected override string MethodName => "T4 Voidglooms";
     protected override HashSet<string> Locations => ["Dragon's Nest", "Void Sepulture", "Zealot Bruiser Hideout"];
+    // production (2026-10): 72% of the fight time is in the Void Sepulture
+    protected override string Where => "Void Sepulture";
     protected override HashSet<string> DetectionItems => ["NULL_SPHERE", "SUMMONING_EYE", .. BossDrops];
     // Zealots (and Bruisers) farmed at the Hideout drop Summoning Eyes too (production 2026-10-03: 211
     // periods there were Voidgloom fights misread as Zealots (FD)), so only boss-only drops prove the
@@ -298,7 +300,7 @@ public class T4VoidgloomsTask : MethodTask
     ];
     protected override List<MethodDrop> FormulaDrops => [new("NULL_SPHERE", 15), new("SUMMONING_EYE", 2)];
     protected override string Category => "Slayer";
-    protected override string HowTo => "Go to The End and spawn T4 Voidgloom Seraphs. Use Terminator or Juju bow for high DPS. Requires Combat 24+ and Enderman Slayer 7.";
+    protected override string HowTo => "Go to The End and spawn T4 Voidgloom Seraphs, most often in the Void Sepulture; the Zealot Bruiser Hideout and Dragon's Nest work too. Use Terminator or Juju bow for high DPS. Requires Combat 24+ and Enderman Slayer 7.";
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "TERMINATOR", Reason = "High DPS weapon for Voidgloom kills" },
         new() { ItemTag = "VOID_SWORD", Reason = "Alternative weapon for Voidgloom kills" }
@@ -356,8 +358,8 @@ public class SvenSlayerTask : MethodTask
     protected override List<MethodDrop> FormulaDrops => [new("WOLF_TOOTH", 1542), new("HAMSTER_WHEEL", 72)];
     protected override string Category => "Slayer";
     protected override string HowTo =>
-        "Buy a Maddox Batphone, start a Wolf Slayer quest, then kill wolves in the Howling Cave complex "
-        + "(behind the Dark Thicket in The Park) until Sven Packmaster spawns. He is immune to ability "
+        "Buy a Maddox Batphone, start a Wolf Slayer quest, then kill wolves at the Ruins in the Hub or in the Soul Cave, "
+        + "Spirit Cave and Howling Cave complex (behind the Dark Thicket in The Park) until Sven Packmaster spawns. He is immune to ability "
         + "and ranged damage (melee only) and deals true damage - bring high health/defense gear.";
     // no RequiredItems: no specific weapon is verified for this slayer, a generic one would mislead
     protected override List<DropEffect> Effects => [
@@ -385,7 +387,7 @@ public class TarantulaSlayerCrimsonIsleTask : MethodTask
     protected override string Category => "Slayer";
     protected override string HowTo =>
         "Buy a Maddox Batphone, start a Spider Slayer quest, then kill Flaming Spiders [Lv80] in the "
-        + "Burning Desert on the Crimson Isle to spawn Tarantula Broodfather quickly (they also drop "
+        + "Burning Desert or around Dragontail on the Crimson Isle to spawn Tarantula Broodfather quickly (they also drop "
         + "Burning Eye, 20% chance). Kill the boss for Tarantula Web.";
     // no RequiredItems: no specific weapon is verified for this slayer, a generic one would mislead
     protected override List<DropEffect> Effects => [

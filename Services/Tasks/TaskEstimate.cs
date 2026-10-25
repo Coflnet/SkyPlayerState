@@ -40,6 +40,14 @@ public class TaskEstimate
     public string Warp { get; set; }
     /// <summary>Ordered, followable steps a total beginner can click through - see MethodTask.Steps.</summary>
     public List<TaskStep> Steps { get; set; } = new();
+    /// <summary>Up to 3 best zones by coins/hour (same thresholds as <see cref="BestZone"/>), best first, empty when none qualifies.</summary>
+    public List<BestZoneEntry> BestZones { get; set; } = new();
+    /// <summary>Zone where the highest coins/hour was observed across several players, null when no zone qualifies - see TaskEstimator.PickBestZone.</summary>
+    public string BestZone { get; set; }
+    /// <summary>Observed coins per hour in <see cref="BestZone"/>, 0 when none.</summary>
+    public double BestZoneCoinsPerHour { get; set; }
+    /// <summary>Distinct players the <see cref="BestZone"/> rate was observed from, 0 when none.</summary>
+    public int BestZonePlayers { get; set; }
 }
 
 public class TaskDropRate
@@ -48,4 +56,12 @@ public class TaskDropRate
     public double RatePerHour { get; set; }
     public double PriceEach { get; set; }
     public double ContributionPerHour { get; set; }
+}
+
+/// <summary>A zone with the coins/hour observed there and the distinct players it came from.</summary>
+public class BestZoneEntry
+{
+    public string Zone { get; set; }
+    public double CoinsPerHour { get; set; }
+    public int Players { get; set; }
 }

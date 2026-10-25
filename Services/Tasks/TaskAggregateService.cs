@@ -32,6 +32,15 @@ public class BucketAggregate
     public int ContributorCount => Contributors.Count;
 }
 
+/// <summary>Merged, decayed view of how much time and coin value one task accumulated in one zone.</summary>
+public class ZoneAggregate
+{
+    public string Zone;
+    public double WSeconds;
+    public double Value;
+    public HashSet<string> Contributors = new();
+}
+
 /// <summary>
 /// Per (task, bucket) additive aggregate of coin-equivalent collection data,
 /// shared across instances through cassandra. Each instance writes only its own
@@ -42,6 +51,7 @@ public class TaskAggregateService
 {
     private Table<TaskBucketAggregateRow> table;
     private Table<TaskPlayerStatRow> playerTable;
+    private Table<TaskZoneAggregateRow> zoneTable;
     private readonly ISession session;
     private readonly ILogger<TaskAggregateService> logger;
     private readonly string instanceId = Environment.MachineName;
@@ -53,10 +63,12 @@ public class TaskAggregateService
 
     // pending deltas accumulated in memory, flushed to cassandra periodically
     private readonly ConcurrentDictionary<(string task, byte bucket), PendingDelta> pending = new();
+    private readonly ConcurrentDictionary<(string task, string zone), PendingZoneDelta> pendingZones = new();
     private readonly SemaphoreSlim flushLock = new(1, 1);
 
     // merged read snapshot, rebuilt only in the background (never on the request path)
     private Dictionary<(string task, byte bucket), BucketAggregate> snapshot = new();
+    private Dictionary<string, Dictionary<string, ZoneAggregate>> zoneSnapshot = new();
     private DateTime snapshotAt = DateTime.MinValue;
     private readonly SemaphoreSlim mergeLock = new(1, 1);
     private int warmupKicked;
@@ -74,6 +86,41 @@ public class TaskAggregateService
         public readonly HashSet<string> Players = new();
         public readonly List<string> TraceIds = new();
         public readonly object gate = new();
+    }
+
+    private class PendingZoneDelta
+    {
+        public double WSeconds, Value, Periods;
+        public readonly HashSet<string> Players = new();
+        public readonly object gate = new();
+    }
+
+    /// <summary>
+    /// Add one folded period's share in one zone to the "best spot" aggregate. Only called for periods
+    /// the estimate itself folded, with the same ramp weight applied to <paramref name="wSeconds"/>/<paramref name="value"/>.
+    /// </summary>
+    public void AddZoneContribution(string task, string zone, string playerUuid, double wSeconds, double value)
+    {
+        if (task == null || string.IsNullOrEmpty(zone))
+            return;
+        var delta = pendingZones.GetOrAdd((task, zone), _ => new PendingZoneDelta());
+        lock (delta.gate)
+        {
+            delta.WSeconds += wSeconds;
+            delta.Value += value;
+            delta.Periods += 1;
+            if (playerUuid != null)
+                delta.Players.Add(playerUuid);
+        }
+    }
+
+    /// <summary>The not yet flushed (seconds, value, players) of one task and zone, for tests.</summary>
+    internal (double wSeconds, double value, int players) PendingZoneForTest(string task, string zone)
+    {
+        if (!pendingZones.TryGetValue((task, zone), out var delta))
+            return (0, 0, 0);
+        lock (delta.gate)
+            return (delta.WSeconds, delta.Value, delta.Players.Count);
     }
 
     /// <summary>
@@ -122,10 +169,24 @@ public class TaskAggregateService
     /// </summary>
     public async Task Flush()
     {
-        if (pending.IsEmpty)
+        if (pending.IsEmpty && pendingZones.IsEmpty)
             return;
         await flushLock.WaitAsync();
         try
+        {
+            if (!pending.IsEmpty)
+                await FlushBuckets();
+            if (!pendingZones.IsEmpty)
+                await FlushZones();
+        }
+        finally
+        {
+            flushLock.Release();
+        }
+    }
+
+    private async Task FlushBuckets()
+    {
         {
             if (table == null)
                 await Setup();
@@ -185,11 +246,68 @@ public class TaskAggregateService
                 }
             }
         }
-        finally
+    }
+
+    /// <summary>Same single writer day-row pattern as the bucket rows, for the per (task, zone) "best spot" data.</summary>
+    private async Task FlushZones()
+    {
+        try
         {
-            flushLock.Release();
+            if (zoneTable == null)
+                await SetupZones();
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "failed to set up the task zone aggregate table");
+            return; // keep the pending deltas, retried next flush
+        }
+        var dayBucket = DateTime.UtcNow.Date;
+        foreach (var key in pendingZones.Keys.ToList())
+        {
+            if (!pendingZones.TryRemove(key, out var delta))
+                continue;
+            TaskZoneAggregateRow row;
+            lock (delta.gate)
+            {
+                row = new TaskZoneAggregateRow
+                {
+                    DayBucket = dayBucket,
+                    TaskName = key.task,
+                    Zone = key.zone,
+                    InstanceId = instanceId,
+                    WSeconds = delta.WSeconds,
+                    Value = delta.Value,
+                    Periods = delta.Periods,
+                    Players = new HashSet<string>(delta.Players)
+                };
+            }
+            try
+            {
+                var existing = (await zoneTable!.Where(r =>
+                    r.DayBucket == dayBucket && r.TaskName == key.task && r.Zone == key.zone && r.InstanceId == instanceId)
+                    .ExecuteAsync()).FirstOrDefault();
+                if (existing != null)
+                {
+                    row.WSeconds += existing.WSeconds;
+                    row.Value += existing.Value;
+                    row.Periods += existing.Periods;
+                    if (existing.Players != null)
+                        row.Players.UnionWith(existing.Players);
+                }
+                await zoneTable!.Insert(row).SetTTL(TTL_SECONDS).ExecuteAsync();
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "failed to flush zone aggregate {task}/{zone}", key.task, key.zone);
+            }
         }
     }
+
+    /// <summary>Replaces the zone read snapshot, for tests.</summary>
+    internal void SetZoneSnapshotForTest(Dictionary<string, Dictionary<string, ZoneAggregate>> s) => zoneSnapshot = s;
+
+    /// <summary>Last merged per task, per zone view; never touches cassandra (see <see cref="GetSnapshot"/>).</summary>
+    public Dictionary<string, Dictionary<string, ZoneAggregate>> GetZoneSnapshot() => zoneSnapshot;
 
     /// <summary>
     /// Keeps every negative entry (costs, bounded by the declared cost tags) plus the
@@ -268,6 +386,7 @@ public class TaskAggregateService
             }
             snapshot = merged;
             snapshotAt = DateTime.UtcNow;
+            await RefreshZoneSnapshot();
             var elapsed = DateTime.UtcNow - startedAt;
             if (elapsed > TimeSpan.FromSeconds(10))
                 logger.LogWarning("task aggregate merge took {seconds:0.0}s for {keys} task/bucket keys - check task_bucket_aggregates partition size (instanceId churn)", elapsed.TotalSeconds, merged.Count);
@@ -279,6 +398,42 @@ public class TaskAggregateService
         finally
         {
             mergeLock.Release();
+        }
+    }
+
+    /// <summary>Merge-reads the zone rows of the last 8 days with the same 7 day half life decay. A failure keeps the previous zone snapshot.</summary>
+    private async Task RefreshZoneSnapshot()
+    {
+        try
+        {
+            if (zoneTable == null)
+                await SetupZones();
+            var merged = new Dictionary<string, Dictionary<string, ZoneAggregate>>();
+            var now = DateTime.UtcNow.Date;
+            for (int dayOffset = 0; dayOffset < 8; dayOffset++)
+            {
+                var day = now.AddDays(-dayOffset);
+                var weight = Math.Pow(0.5, dayOffset / DecayHalfLifeDays);
+                var rows = (await zoneTable!.Where(r => r.DayBucket == day).SetPageSize(MergePageSize).ExecuteAsync()).ToList();
+                foreach (var row in rows)
+                {
+                    if (TaskDataResets.IsBeforeReset(row.TaskName, row.DayBucket))
+                        continue;
+                    if (!merged.TryGetValue(row.TaskName, out var zones))
+                        merged[row.TaskName] = zones = new();
+                    if (!zones.TryGetValue(row.Zone, out var agg))
+                        zones[row.Zone] = agg = new ZoneAggregate { Zone = row.Zone };
+                    agg.WSeconds += row.WSeconds * weight;
+                    agg.Value += row.Value * weight;
+                    if (row.Players != null)
+                        agg.Contributors.UnionWith(row.Players);
+                }
+            }
+            zoneSnapshot = merged;
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "failed to merge task zone aggregates");
         }
     }
 
@@ -317,6 +472,19 @@ public class TaskAggregateService
         await playerTable!.Where(r => r.PlayerUuid == playerUuid).Delete().ExecuteAsync();
     }
 
+    private async Task SetupZones()
+    {
+        var zoneMapping = new MappingConfiguration().Define(new Map<TaskZoneAggregateRow>()
+            .TableName("task_zone_aggregates")
+            .PartitionKey(r => r.DayBucket)
+            .ClusteringKey(r => r.TaskName)
+            .ClusteringKey(r => r.Zone)
+            .ClusteringKey(r => r.InstanceId));
+        var created = new Table<TaskZoneAggregateRow>(session, zoneMapping);
+        await created.CreateIfNotExistsAsync();
+        zoneTable = created;
+    }
+
     private async Task Setup()
     {
         var mapping = new MappingConfiguration().Define(new Map<TaskBucketAggregateRow>()
@@ -352,6 +520,19 @@ public class TaskBucketAggregateRow
     public Dictionary<string, double> ItemCounts { get; set; } = new();
     public HashSet<string> Players { get; set; } = new();
     public List<string> LastFoldTraceIds { get; set; } = new();
+}
+
+/// <summary>One instance's contribution to a (day, task, zone) of the "best spot" data.</summary>
+public class TaskZoneAggregateRow
+{
+    public DateTime DayBucket { get; set; }
+    public string TaskName { get; set; }
+    public string Zone { get; set; }
+    public string InstanceId { get; set; }
+    public double WSeconds { get; set; }
+    public double Value { get; set; }
+    public double Periods { get; set; }
+    public HashSet<string> Players { get; set; } = new();
 }
 
 public class TaskPlayerStatRow

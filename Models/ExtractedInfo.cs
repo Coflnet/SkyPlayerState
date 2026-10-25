@@ -306,6 +306,9 @@ public class ExtractedInfo
         PendingPurchaseDiscounts = extractedInfo.PendingPurchaseDiscounts == null ? new() : new Dictionary<string, int>(extractedInfo.PendingPurchaseDiscounts);
         PendingPurchaseDiscountAt = extractedInfo.PendingPurchaseDiscountAt;
         WornGearTags = extractedInfo.WornGearTags == null ? new() : new List<string>(extractedInfo.WornGearTags);
+        PlayerStats = extractedInfo.PlayerStats == null ? new() : new Dictionary<string, double>(extractedInfo.PlayerStats);
+        PlayerStatsAt = extractedInfo.PlayerStatsAt;
+        PlayerStatSetAt = extractedInfo.PlayerStatSetAt == null ? new() : new Dictionary<string, DateTime>(extractedInfo.PlayerStatSetAt);
     }
 
     /// <summary>
@@ -406,6 +409,22 @@ public class ExtractedInfo
     /// <summary>When a scoreboard last showed the alpha footer.</summary>
     [Key(63)]
     public DateTime OnAlphaNetworkSeenAt { get; set; }
+    /// <summary>
+    /// Player stats from the "Stats &amp; Equipment" menu (Mining Speed, Mining Spread, Combat Wisdom, ...), see
+    /// <see cref="Services.PlayerStatsListener"/>. Per stat the highest value seen (stats depend on the held tool and
+    /// temporary buffs), replaced once the stored value is older than 14 days.
+    /// </summary>
+    [Key(64)]
+    public Dictionary<string, double> PlayerStats { get; set; } = new();
+    /// <summary>When the stats menu was last read.</summary>
+    [Key(65)]
+    public DateTime PlayerStatsAt { get; set; }
+    /// <summary>
+    /// When each stat of <see cref="PlayerStats"/> was last raised or replaced. Per stat on purpose: a single timestamp
+    /// refreshed on every read would keep a stale buffed peak alive forever as long as the menu is opened.
+    /// </summary>
+    [Key(66)]
+    public Dictionary<string, DateTime> PlayerStatSetAt { get; set; } = new();
 }
 
 /// <summary>
@@ -447,6 +466,10 @@ public class TaskSession
     [Key(4)] public string? Location { get; set; }
     /// <summary>Items accumulated across every location the session spanned.</summary>
     [Key(5)] public Dictionary<string, int> Items { get; set; } = new();
+    /// <summary>Seconds of item-collecting fragments per canonical zone, for the "best spot" aggregate.</summary>
+    [Key(6)] public Dictionary<string, double> ZoneSeconds { get; set; } = new();
+    /// <summary>Coin value (costs negative) of the items collected per canonical zone.</summary>
+    [Key(7)] public Dictionary<string, double> ZoneValue { get; set; } = new();
 
     public TaskSession() { }
     public TaskSession(TaskSession other)
@@ -457,6 +480,8 @@ public class TaskSession
         Server = other.Server;
         Location = other.Location;
         Items = other.Items == null ? new() : new(other.Items);
+        ZoneSeconds = other.ZoneSeconds == null ? new() : new(other.ZoneSeconds);
+        ZoneValue = other.ZoneValue == null ? new() : new(other.ZoneValue);
     }
 }
 

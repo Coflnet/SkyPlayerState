@@ -70,9 +70,10 @@ public class ShellwiseTask : BaseGalateaMobTask
 {
     protected override string MethodName => "Shellwise";
     protected override HashSet<string> Locations => ["Reefguard Pass", "Murkwater Depths", "South Reaches"];
+    protected override string Where => "Murkwater Depths";
     protected override HashSet<string> DetectionItems => ["SHARD_SHELLWISE"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_SHELLWISE", 270)];
-    protected override string HowTo => "Go to Reefguard Pass or South Reaches on Galatea and kill Shellwise mobs.";
+    protected override string HowTo => "Go to the Murkwater Depths on Galatea and kill Shellwise mobs. Reefguard Pass and South Reaches work too.";
 }
 public class MatchoTask : BaseGalateaMobTask
 {
@@ -136,9 +137,10 @@ public class JoydiveTask : BaseGalateaMobTask
 {
     protected override string MethodName => "Joydive";
     protected override HashSet<string> Locations => ["Murkwater Shallows", "Murkwater Depths"];
+    protected override string Where => "Murkwater Depths";
     protected override HashSet<string> DetectionItems => ["SHARD_JOYDIVE"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_JOYDIVE", 280)];
-    protected override string HowTo => "Go to Tranquil Pass or Verdant Summit on Galatea and kill Joydive mobs.";
+    protected override string HowTo => "Go to the Murkwater Depths on Galatea and kill Joydive mobs. The Murkwater Shallows work too.";
 }
 public class DrownedTask : BaseGalateaMobTask
 {
@@ -160,7 +162,7 @@ public class CoralotTask : BaseGalateaMobTask
     protected override string Where => "Murkwater Loch";
     protected override HashSet<string> DetectionItems => ["SHARD_CORALOT"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_CORALOT", 260)];
-    protected override string HowTo => "Go to the reef areas on Galatea and kill Coralot mobs.";
+    protected override string HowTo => "Go to the Murkwater Depths or Murkwater Loch on Galatea and kill Coralot mobs.";
 }
 public class BambuleafTask : BaseGalateaMobTask
 {
@@ -226,10 +228,10 @@ public class MochibearkTask : BaseGalateaMobTask
     protected override string MethodName => "Mochibear";
     // Island key - see CoralotTask's comment.
     protected override HashSet<string> Locations => ["Moonglade"];
-    protected override string Where => "North Wetlands";
+    protected override string Where => "Tranquility Sanctum";
     protected override HashSet<string> DetectionItems => ["SHARD_MOCHIBEAR"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_MOCHIBEAR", 250)];
-    protected override string HowTo => "Go to the Wetlands or Evergreen Plateau on Galatea and kill Mochibear mobs.";
+    protected override string HowTo => "Go to the Tranquility Sanctum on Galatea and kill Mochibear mobs. The Wetlands and Evergreen Plateau work too.";
 }
 public class MossybitTask : BaseGalateaMobTask
 {
@@ -255,7 +257,8 @@ public class VoraciousSpiderTask : MethodTask
     protected override Dictionary<string, HashSet<string>> ZoneExcludedItems =>
         Locations.ToDictionary(zone => zone, _ => new HashSet<string> { "TARANTULA_WEB" });
     protected override List<MethodDrop> FormulaDrops => [new("STRING", 4000), new("SPIDER_EYE", 300)];
-    protected override string HowTo => "Go to the Spider's Den and kill Voracious Spiders. They drop String and Spider Eyes.";
+    protected override string Where => "Arachne's Burrow";
+    protected override string HowTo => "Go to Arachne's Burrow or Arachne's Sanctuary in the Spider's Den and kill Voracious Spiders. They drop String and Spider Eyes.";
     protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "Weapon" }];
     protected override List<DropEffect> Effects => [
         new() { Name = "Magic Find", Description = "Increases rare drop chance", EstimatedMultiplier = 1.2 },
@@ -448,7 +451,7 @@ public class BlazeSlayerTask : MethodTask
     // No RequiredItems - the weapon choice is covered in the Steps below instead.
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Inferno_Demonlord";
     protected override string HowTo =>
-        "Buy a Maddox Batphone, start a Blaze Slayer quest, and kill Blazes in the Smoldering Tomb for Combat "
+        "Buy a Maddox Batphone, start a Blaze Slayer quest, and kill Blazes in the Smoldering Tomb or The Wasteland for Combat "
         + "XP until the Inferno Demonlord boss spawns. Kill the boss - it's the only source of Derelict Ashe. "
         + "Sell Derelict Ashe and Blaze Rods on the Bazaar.";
     protected override List<TaskStep> Steps =>
@@ -456,7 +459,7 @@ public class BlazeSlayerTask : MethodTask
         new() { Number = 1, Text = "The first time, buy a Maddox Batphone from Maddox (at the Hub Tavern) so you can start Slayer quests from anywhere, including the Crimson Isle.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Maddox_Batphone" },
         new() { Number = 2, Text = "Type /warp isle to get close.", OnClick = "/warp isle" },
         new() { Number = 3, Text = "Talk to Maddox (or use your Batphone) and start a Blaze Slayer quest.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Maddox" },
-        new() { Number = 4, Text = "Go to the Smoldering Tomb and kill regular Blazes there - that's the recommended spot for Blaze Slayer Combat XP.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Smoldering_Tomb" },
+        new() { Number = 4, Text = "Go to the Smoldering Tomb (or The Wasteland) and kill regular Blazes there - that's where most players get their Blaze Slayer Combat XP.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Smoldering_Tomb" },
         new() { Number = 5, Text = "Bring a Juju Shortbow or Terminator and Fire Resistance - Blazes and the boss hit hard with fire damage." },
         new() { Number = 6, Text = "Once you've killed enough Blazes, the Inferno Demonlord boss spawns - kill it to finish the quest.", OnClick = WikiUrl },
         new() { Number = 7, Text = "You're doing it right when you start collecting: DERELICT_ASHE, BLAZE_ROD, BLAZE_ASHES. That's what we track for your coins/hour." },

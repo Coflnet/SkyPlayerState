@@ -15,7 +15,7 @@ public class ZealotsFdTask : MethodTask
         new() { ["Zealot Bruiser Hideout"] = ["NULL_SPHERE"] };
     protected override List<MethodDrop> FormulaDrops => [new("SUMMONING_EYE", 4), new("ENDER_PEARL", 300)];
     protected override string Category => "Combat";
-    protected override string HowTo => "Go to The End and grind Zealots for Summoning Eyes. Kill Zealots rapidly; Special Zealots have a guaranteed eye drop. Formula-based estimate.";
+    protected override string HowTo => "Go to The End and grind Zealots for Summoning Eyes, mostly in the Dragon's Nest and the Zealot Bruiser Hideout. Kill Zealots rapidly; Special Zealots have a guaranteed eye drop. Formula-based estimate.";
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "One-shot zealots for fast farming" }
     ];
@@ -64,7 +64,8 @@ public class RedMushroomTask : MethodTask
     protected override HashSet<string> DetectionItems => ["RED_MUSHROOM", "ENCHANTED_RED_MUSHROOM"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_RED_MUSHROOM", 300)];
     protected override string Category => "Farming";
-    protected override string HowTo => "Go to the Mushroom Desert and farm Red Mushrooms. Break mushroom blocks in the Glowing Mushroom Cave for fast collection.";
+    protected override string Where => "Glowing Mushroom Cave";
+    protected override string HowTo => "Go to the Glowing Mushroom Cave in the Mushroom Desert and break mushroom blocks for fast collection. Mushroom Gorge and the Mushroom Desert work too.";
     protected override List<DropEffect> Effects => [
         new() { Name = "Farming Fortune", Description = "Increases mushroom drop amount", EstimatedMultiplier = 1.3 },
         new() { Name = "Farming Speed", Description = "Break blocks faster for more per hour", EstimatedMultiplier = 1.2 }
