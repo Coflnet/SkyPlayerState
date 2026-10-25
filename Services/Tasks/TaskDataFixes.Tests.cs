@@ -22,6 +22,21 @@ public class TaskDataResetsTests
         TaskDataResets.IsBeforeReset("Fig Foraging", cutoff.AddDays(-30)).Should().BeFalse();
         TaskDataResets.IsBeforeReset(null, cutoff.AddDays(-30)).Should().BeFalse();
     }
+
+    [Test]
+    public void Diana_IsReset_AndItsFormulaMatchesTheObservedEventRate()
+    {
+        TaskDataResets.IsBeforeReset("Diana", new DateTime(2026, 10, 24, 0, 0, 0, DateTimeKind.Utc)).Should().BeTrue();
+        // event 2026-10-21..24: ~26M/h over 603 session hours; the aggregate showed 143M/h
+        var prices = new Dictionary<string, double>
+        {
+            ["ANCIENT_CLAW"] = 158.9, ["ENCHANTED_ANCIENT_CLAW"] = 30567, ["GRIFFIN_FEATHER"] = 116553, ["ENCHANTED_GOLD"] = 465,
+            ["HILT_OF_REVELATIONS"] = 166600, ["ENCHANTMENT_ULTIMATE_CHIMERA_1"] = 21960041, ["MINOS_RELIC"] = 16170000,
+            ["CROCHET_TIGER_PLUSHIE"] = 490000, ["WASHED_UP_SOUVENIR"] = 362600, ["DWARF_TURTLE_SHELMET"] = 390040,
+            ["ANTIQUE_REMEDIES"] = 411600, ["CRETAN_URN"] = 195020, ["DAEDALUS_STICK"] = 500000, ["SHARD_KING_MINOS"] = 3340
+        };
+        TaskEstimator.FormulaRate(new DianaTask(), prices).Should().BeInRange(20e6, 32e6);
+    }
 }
 
 public class TaskCountTruncationTests

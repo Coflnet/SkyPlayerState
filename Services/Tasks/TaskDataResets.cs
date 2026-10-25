@@ -12,7 +12,9 @@ public static class TaskDataResets
 {
     private static readonly Dictionary<string, DateTime> Cutoffs = new(StringComparer.OrdinalIgnoreCase)
     {
-        { "Fossil Excavation", new DateTime(2026, 10, 26, 0, 0, 0, DateTimeKind.Utc) }
+        { "Fossil Excavation", new DateTime(2026, 10, 26, 0, 0, 0, DateTimeKind.Utc) },
+        // the old AFK check (rare pool in the bucket rate) dropped normal sessions and kept the lucky ones: 96% rare value
+        { "Diana", new DateTime(2026, 10, 26, 0, 0, 0, DateTimeKind.Utc) }
     };
 
     public static bool IsBeforeReset(string task, DateTime at)

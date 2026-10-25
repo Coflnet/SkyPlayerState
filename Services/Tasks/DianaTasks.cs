@@ -37,9 +37,13 @@ public class DianaTask : BaseDianaTask
         "ANCIENT_CLAW", "ENCHANTED_ANCIENT_CLAW", "HILT_OF_REVELATIONS",
         // burrow mob shards (Harpy/Sphinx: 31% of the Harpy periods at Ruins/Graveyard/Mountain were unclassified)
         "SHARD_MINOS_HUNTER", "SHARD_CRETAN_BULL", "SHARD_HARPY", "SHARD_MINOTAUR", "SHARD_SPHINX", "SHARD_KING_MINOS"];
+    // Observed per hour over 603 session hours of the 2026-10-21..24 event (300 players, ~26M/h); the Chimera book is
+    // about half of the value.
     protected override List<MethodDrop> FormulaDrops => [
-        new("ANCIENT_CLAW", 3000), new("GRIFFIN_FEATHER", 40), new("ENCHANTED_GOLD", 40), new("DAEDALUS_STICK", 3),
-        new("MINOS_RELIC", 0.02), new("SHARD_KING_MINOS", 1)];
+        new("ANCIENT_CLAW", 2800), new("ENCHANTED_ANCIENT_CLAW", 33), new("GRIFFIN_FEATHER", 50), new("ENCHANTED_GOLD", 2100),
+        new("HILT_OF_REVELATIONS", 5.4), new("ENCHANTMENT_ULTIMATE_CHIMERA_1", 0.58), new("MINOS_RELIC", 0.05),
+        new("CROCHET_TIGER_PLUSHIE", 1), new("WASHED_UP_SOUVENIR", 1.1), new("DWARF_TURTLE_SHELMET", 0.95),
+        new("ANTIQUE_REMEDIES", 0.88), new("CRETAN_URN", 1), new("DAEDALUS_STICK", 0.3), new("SHARD_KING_MINOS", 1)];
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Mythological_Ritual";
     protected override string HowTo =>
         "During the Mythological Ritual mayor event, use the spade to locate a burrow in the Hub, dig it and follow the chain "
