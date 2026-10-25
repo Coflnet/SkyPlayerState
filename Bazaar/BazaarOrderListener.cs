@@ -964,6 +964,16 @@ public class BazaarOrderListener : UpdateListener
                     args.GetService<ILogger<BazaarOrderListener>>().LogWarning(exportError,
                         "Failed to export bazaar flip to Kafka for {item}", flip.ItemTag);
                 }
+                try
+                {
+                    // pseudonymised per-item copy for cross-player research (queue only, never throws)
+                    args.GetService<History.IBazaarOrderHistoryWriter>().EnqueueFlip(flip);
+                }
+                catch (Exception historyError)
+                {
+                    args.GetService<ILogger<BazaarOrderListener>>().LogWarning(historyError,
+                        "Failed to queue bazaar flip history for {item}", flip.ItemTag);
+                }
             } else
             {
                 args.GetService<ILogger<BazaarOrderListener>>().LogInformation(

@@ -71,21 +71,49 @@ internal static class BazaarOrderLifecycle
     {
         try { Resolve(args)?.Emit(args, offer, source, state, itemTagOverride); }
         catch { /* never affect the caller */ }
+        RecordHistory(args, offer, source, state, itemTagOverride);
     }
 
     /// <summary>Emits, resolving a missing item tag from the name first (without touching the offer).</summary>
     internal static async System.Threading.Tasks.Task EmitResolved(UpdateArgs args, Offer offer, string source, string state)
     {
+        string tag = null;
         try
         {
             var producer = Resolve(args);
-            if (producer == null)
+            // nothing to emit to: keep the old early return and skip the tag lookup
+            if (producer == null && !HistoryEnabled(args))
                 return;
-            var tag = offer.ItemTag;
+            tag = offer.ItemTag;
             if (string.IsNullOrWhiteSpace(tag) && !string.IsNullOrEmpty(args.msg.UserId))
                 tag = await BazaarOrderListener.GetTagForName(args, offer.ItemName);
-            producer.Emit(args, offer, source, state, tag);
+            producer?.Emit(args, offer, source, state, tag);
         }
         catch { /* never affect the caller */ }
+        RecordHistory(args, offer, source, state, tag);
+    }
+
+    private static bool HistoryEnabled(UpdateArgs args)
+    {
+        try { return args.GetService<History.IBazaarOrderHistoryWriter>()?.Enabled == true; }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// Mirrors every lifecycle observation into the cross-player history tables (the single hook for order state
+    /// changes). Queues only; any failure is swallowed so the order state update is never affected.
+    /// </summary>
+    private static void RecordHistory(UpdateArgs args, Offer offer, string source, string state, string itemTagOverride)
+    {
+        try
+        {
+            var writer = args.GetService<History.IBazaarOrderHistoryWriter>();
+            if (writer == null || !writer.Enabled)
+                return;
+            var lifecycleEvent = BazaarOrderLifecycleEvent.TryCreate(args, offer, source, state, itemTagOverride);
+            if (lifecycleEvent != null)
+                writer.EnqueueOrder(lifecycleEvent, offer.Customers);
+        }
+        catch { /* history is best effort and must never affect the caller */ }
     }
 }

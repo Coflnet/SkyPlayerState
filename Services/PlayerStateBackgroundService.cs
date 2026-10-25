@@ -465,6 +465,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
                     loaded.PlayerId = state.PlayerId;
                     state = loaded;
                     States[msg.PlayerId] = state;
+                    TryBackfillBazaarHistory(args, state);
                 }
             }
             args.currentState = state;
@@ -547,5 +548,21 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
     public AsyncServiceScope CreateAsyncScope()
     {
         return scopeFactory.CreateAsyncScope();
+    }
+
+    /// <summary>
+    /// Opt-in (BAZAAR_HISTORY:BACKFILL) piggy-back: as a player state is loaded, its current and recently closed orders are
+    /// queued into the cross-player history. No table scan, once per load, never throws.
+    /// </summary>
+    private static void TryBackfillBazaarHistory(UpdateArgs args, StateObject state)
+    {
+        try
+        {
+            args.GetService<Bazaar.History.IBazaarOrderHistoryWriter>().EnqueueBackfill(state, DateTime.UtcNow);
+        }
+        catch
+        {
+            // best effort only
+        }
     }
 }

@@ -123,6 +123,18 @@ public class Startup
         services.AddSingleton<BazaarSignalPublisher>();
         services.AddSingleton<Bazaar.BazaarFlipExportProducer>();
         services.AddSingleton<Bazaar.IBazaarOrderLifecycleProducer, Bazaar.BazaarOrderLifecycleProducer>();
+        // cross-player bazaar order/flip history on the existing Scylla session (disabled without BAZAAR_HISTORY:SALT)
+        services.AddSingleton(_ => Bazaar.History.BazaarHistoryOptions.From(Configuration));
+        services.AddSingleton<Bazaar.History.IBazaarHistoryStore, Bazaar.History.CassandraBazaarHistoryStore>();
+        services.AddSingleton<Bazaar.History.IBazaarOrderHistoryWriter>(p =>
+        {
+            var options = p.GetRequiredService<Bazaar.History.BazaarHistoryOptions>();
+            // disabled: no-op writer, so the hooks cost nothing and no Scylla schema work is triggered
+            return options.Enabled
+                ? new Bazaar.History.BazaarHistoryWriter(p.GetRequiredService<Bazaar.History.IBazaarHistoryStore>(), options, p.GetRequiredService<ILogger<Bazaar.History.BazaarHistoryWriter>>())
+                : new Bazaar.History.NoopBazaarOrderHistoryWriter();
+        });
+        services.AddSingleton<Bazaar.History.BazaarHistoryReader>();
 
         services.AddSingleton<IItemsApi>(context => new ItemsApi(Configuration["ITEMS_BASE_URL"]));
         services.AddSingleton<IAuctionsApi>(context => new AuctionsApi(Configuration["API_BASE_URL"]));
