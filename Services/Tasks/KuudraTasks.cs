@@ -106,6 +106,9 @@ public class KuudraT5Task : BaseKuudraTask
 /// </summary>
 public class KuudraChestClaimsTask : BaseKuudraTask
 {
+    // claims whose Kuudra tier is unknown are not a method a player can choose, and a bulk claim of several
+    // runs counts only one run's 7.5 minutes (same reasoning as the hidden "Dungeon Chest Claims")
+    protected override bool Hidden => true;
     protected override string MethodName => "Kuudra Chest Claims";
     protected override HashSet<string> Locations => ["Dungeon Hub", "Forgotten Skull"];
     protected override HashSet<string> DetectionItems =>

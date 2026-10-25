@@ -26,7 +26,7 @@ public class TaskCatalogRegistrationTests
         // hidden zone tasks for zones where no money making method exists - see HiddenTasks.cs
         "PrivateIslandActivityTask", "ForgeClaimsTask", "HubTradingTask", "RiftActivityTask", "UnknownLocationTask",
         // location-only catch-alls whose personal view would otherwise swallow a whole island - see CoverageGapTasks.cs
-        "CrimsonIsleMobsTask", "DungeonChestClaimsTask",
+        "CrimsonIsleMobsTask", "DungeonChestClaimsTask", "KuudraChestClaimsTask",
         // sink for Galatea contest rewards no foraging/hunting task earned: a contest cannot be done on its own (LateReward)
         "GalateaContestsTask"
     ];
@@ -112,5 +112,18 @@ public class TaskCatalogRegistrationTests
         hiddenNames.Should().BeEquivalentTo(expected,
             "hidden accounting tasks (HiddenTasks.cs) must never be shown to players; this test also "
             + "catches a real task accidentally marked Hidden");
+    }
+}
+
+public class KuudraChestClaimsVisibilityTests
+{
+    [Test]
+    public void KuudraChestClaims_IsHidden_ButStillRegistered()
+    {
+        var registry = new TaskRegistry();
+        var task = registry.GetByName("Kuudra Chest Claims") as MethodTask;
+        task.Should().NotBeNull("it stays registered so periods can still be classified to it");
+        task.IsHidden.Should().BeTrue();
+        registry.PublicTasks.Select(t => t.Name).Should().NotContain("Kuudra Chest Claims");
     }
 }

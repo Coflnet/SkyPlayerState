@@ -183,6 +183,8 @@ public class TaskEstimator
 
         // tier 1: personal, blended by the confidence ramp
         double personalMinutes = 0, rPersonal = 0;
+        if (personal != null && TaskDataResets.IsBeforeReset(name, personal.LastFold))
+            personal = null; // folded before the task's data reset
         if (personal != null)
         {
             var ageDays = (DateTime.UtcNow - personal.LastFold).TotalDays;
@@ -217,6 +219,8 @@ public class TaskEstimator
         span?.SetTag("saturation", saturation);
         span?.SetTag("source", source);
 
+        var (dropCounts, dropSeconds) = DropSource(p > 0.5 && personal != null, personal, bucketAgg);
+
         return new TaskEstimate
         {
             TaskName = name,
@@ -230,8 +234,7 @@ public class TaskEstimator
             Contributors = globalContributors,
             CurrentDoers = doers,
             DoersChange20m = deltas.GetValueOrDefault(name),
-            Drops = BuildDrops(task, p > 0.5 && personal != null ? PlayerStatCounts(personal) : bucketAgg?.ItemCounts,
-                bucketAgg?.WSeconds ?? personal?.WSeconds ?? 0, prices),
+            Drops = BuildDrops(task, dropCounts, dropSeconds, prices),
             TraceId = span?.TraceId.ToString() ?? System.Diagnostics.Activity.Current?.TraceId.ToString(),
             WikiUrl = task.WikiUrlForTest,
             Where = task.WhereForTest,
@@ -241,6 +244,12 @@ public class TaskEstimator
             Steps = task.StepsForTest
         };
     }
+
+    /// <summary>Counts and the hours basis they belong to: personal counts use the personal row's seconds.</summary>
+    internal static (Dictionary<string, double> counts, double wSeconds) DropSource(bool usePersonal, TaskPlayerStatRow personal, BucketAggregate bucketAgg)
+        => usePersonal && personal != null
+            ? (PlayerStatCounts(personal), personal.WSeconds)
+            : (bucketAgg?.ItemCounts, bucketAgg?.WSeconds ?? personal?.WSeconds ?? 0);
 
     private static Dictionary<string, double> PlayerStatCounts(TaskPlayerStatRow row) => row.ItemCounts ?? new();
 

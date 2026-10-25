@@ -1646,12 +1646,16 @@ public class CollectionListener : UpdateListener
     /// it: raw location is the claim spot (Dungeon Hub / Forgotten Skull), it resolved to a Catacombs floor or
     /// Kuudra tier zone, it was classified, carries no pending Kuudra run time (<paramref name="claimShift"/>),
     /// and no session of the same task is running to take it (then it is merged and counts with the run's time).
+    /// Only floor/tier tasks qualify (<see cref="IsFloorOrTierTask"/>): a purchase made at the hub is not loot.
     /// Such a claim is folded as a late reward: value for the floor/tier task, none of its own seconds.
     /// </summary>
+    internal static bool IsFloorOrTierTask(Tasks.ProfitTask task)
+        => task is Tasks.BaseDungeonTask or Tasks.BaseKuudraTask && task is not Tasks.KuudraChestClaimsTask;
+
     internal static bool IsLateClaim(string rawLocation, string resolvedLocation, string detectedTask,
-        TimeSpan claimShift, Models.TaskSession currentSession)
+        TimeSpan claimShift, Models.TaskSession currentSession, bool isTierTask)
     {
-        if (detectedTask == null || claimShift != TimeSpan.Zero || string.IsNullOrEmpty(rawLocation) || string.IsNullOrEmpty(resolvedLocation))
+        if (!isTierTask || detectedTask == null || claimShift != TimeSpan.Zero || string.IsNullOrEmpty(rawLocation) || string.IsNullOrEmpty(resolvedLocation))
             return false;
         if (!Tasks.KuudraRewardAttribution.IsClaimLocation(rawLocation))
             return false;
@@ -1734,7 +1738,8 @@ public class CollectionListener : UpdateListener
             ClassifyPeriod(args, period, cleanPrices);
             lateRewardTask = AttributeLateReward(args, period);
             lateRewardPeriod = lateRewardTask == null ? null : period;
-            if (IsLateClaim(previousLocation, resolvedLocation, period.DetectedTask, claimShift, info.CurrentSession))
+            if (IsLateClaim(previousLocation, resolvedLocation, period.DetectedTask, claimShift, info.CurrentSession,
+                    IsFloorOrTierTask(period.DetectedTask == null ? null : args.GetService<Tasks.TaskRegistry>().GetByName(period.DetectedTask))))
                 lateClaimPeriod = period;
             await args.GetService<TrackedProfitService>().AddPeriod(period);
             try

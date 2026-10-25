@@ -373,39 +373,50 @@ public class CollectionListenerProfitTests
 
     [Test]
     public void LateClaim_CroesusClaimWithoutSession_IsLate()
-        => CollectionListener.IsLateClaim("Dungeon Hub", "The Catacombs (M7)", "M7", TimeSpan.Zero, null).Should().BeTrue();
+        => CollectionListener.IsLateClaim("Dungeon Hub", "The Catacombs (M7)", "M7", TimeSpan.Zero, null, true).Should().BeTrue();
 
     [Test]
     public void LateClaim_SessionOfTheSameTask_KeepsTheNormalPath()
-        => CollectionListener.IsLateClaim("Dungeon Hub", "The Catacombs (M7)", "M7", TimeSpan.Zero, Session("M7")).Should().BeFalse();
+        => CollectionListener.IsLateClaim("Dungeon Hub", "The Catacombs (M7)", "M7", TimeSpan.Zero, Session("M7"), true).Should().BeFalse();
 
     [Test]
     public void LateClaim_SessionOfAnotherTask_IsLate()
-        => CollectionListener.IsLateClaim("Dungeon Hub", "The Catacombs (M7)", "M7", TimeSpan.Zero, Session("Mining")).Should().BeTrue();
+        => CollectionListener.IsLateClaim("Dungeon Hub", "The Catacombs (M7)", "M7", TimeSpan.Zero, Session("Mining"), true).Should().BeTrue();
 
     [Test]
     public void LateClaim_SessionWithoutTask_IsLate()
-        => CollectionListener.IsLateClaim("Dungeon Hub", "The Catacombs (M7)", "M7", TimeSpan.Zero, Session(null)).Should().BeTrue();
+        => CollectionListener.IsLateClaim("Dungeon Hub", "The Catacombs (M7)", "M7", TimeSpan.Zero, Session(null), true).Should().BeTrue();
 
     [Test]
     public void LateClaim_KuudraClaimAtForgottenSkull_IsLate()
-        => CollectionListener.IsLateClaim("Forgotten Skull", "Kuudra's Hollow (T5)", "Kuudra T5", TimeSpan.Zero, null).Should().BeTrue();
+        => CollectionListener.IsLateClaim("Forgotten Skull", "Kuudra's Hollow (T5)", "Kuudra T5", TimeSpan.Zero, null, true).Should().BeTrue();
 
     [Test]
     public void LateClaim_KuudraClaimCarryingRunTime_KeepsTheNormalPath()
-        => CollectionListener.IsLateClaim("Dungeon Hub", "Kuudra's Hollow (T5)", "Kuudra T5", TimeSpan.FromMinutes(5), null).Should().BeFalse();
+        => CollectionListener.IsLateClaim("Dungeon Hub", "Kuudra's Hollow (T5)", "Kuudra T5", TimeSpan.FromMinutes(5), null, true).Should().BeFalse();
 
     [Test]
     public void LateClaim_RawLocationAlreadyTheFloor_IsNoClaim()
-        => CollectionListener.IsLateClaim("The Catacombs (M7)", "The Catacombs (M7)", "M7", TimeSpan.Zero, null).Should().BeFalse();
+        => CollectionListener.IsLateClaim("The Catacombs (M7)", "The Catacombs (M7)", "M7", TimeSpan.Zero, null, true).Should().BeFalse();
+
+    [Test]
+    public void LateClaim_PurchaseTaskAtTheHub_IsNoClaim()
+    {
+        var registry = new Tasks.TaskRegistry();
+        foreach (var name in new[] { "Bazaar Purchases", "Auction Purchases", "Kuudra Chest Claims" })
+            CollectionListener.IsLateClaim("Dungeon Hub", "The Catacombs (M7)", name, TimeSpan.Zero, null,
+                CollectionListener.IsFloorOrTierTask(registry.GetByName(name))).Should().BeFalse(name);
+        CollectionListener.IsFloorOrTierTask(registry.GetByName("M7")).Should().BeTrue();
+        CollectionListener.IsFloorOrTierTask(registry.GetByName("Kuudra T5")).Should().BeTrue();
+    }
 
     [Test]
     public void LateClaim_Unclassified_IsNoClaim()
-        => CollectionListener.IsLateClaim("Dungeon Hub", "The Catacombs (M7)", null, TimeSpan.Zero, null).Should().BeFalse();
+        => CollectionListener.IsLateClaim("Dungeon Hub", "The Catacombs (M7)", null, TimeSpan.Zero, null, true).Should().BeFalse();
 
     [Test]
     public void LateClaim_HubActivityNotResolvedToAFloor_IsNoClaim()
-        => CollectionListener.IsLateClaim("Dungeon Hub", "Dungeon Hub", "Some Task", TimeSpan.Zero, null).Should().BeFalse();
+        => CollectionListener.IsLateClaim("Dungeon Hub", "Dungeon Hub", "Some Task", TimeSpan.Zero, null, true).Should().BeFalse();
 
     [Test]
     public async Task FlushOnTheAlphaNetwork_StoresNoPeriodAndClearsTheItems()

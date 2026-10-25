@@ -119,7 +119,7 @@ public class TaskPeriodFolder
             {
                 var bucketRate = EstimateBucketRate(methodTask, bucketAgg, prices);
                 var cap = WinsorFactor * bucketRate * hours;
-                if (commonValue > cap && commonValue > 0)
+                if (cap > 0 && commonValue > cap)
                 {
                     var scale = cap / commonValue;
                     foreach (var key in commonCounts.Keys.ToList())
@@ -344,7 +344,7 @@ public class TaskPeriodFolder
         try
         {
             var stat = await aggregates.GetPlayerStat(playerUuid, task);
-            if (stat == null)
+            if (stat == null || TaskDataResets.IsBeforeReset(task, stat.LastFold))
                 return 0;
             // decay the stored cumulative minutes toward now (7 day half life)
             var ageDays = (DateTime.UtcNow - stat.LastFold).TotalDays;
@@ -364,6 +364,8 @@ public class TaskPeriodFolder
         try
         {
             var existing = await aggregates.GetPlayerStat(playerUuid, task);
+            if (existing != null && TaskDataResets.IsBeforeReset(task, existing.LastFold))
+                existing = null; // stale data from before the reset: start fresh
             var row = existing ?? new TaskPlayerStatRow { PlayerUuid = playerUuid, TaskName = task };
             double decay = existing != null ? Math.Pow(0.5, (DateTime.UtcNow - existing.LastFold).TotalDays / 7) : 1;
             row.WSeconds = row.WSeconds * decay + seconds;
@@ -377,7 +379,7 @@ public class TaskPeriodFolder
             foreach (var (tag, count) in commonCounts)
                 counts[tag] = counts.GetValueOrDefault(tag) + count;
             if (counts.Count > 8)
-                counts = counts.OrderByDescending(e => e.Value).Take(8).ToDictionary(e => e.Key, e => e.Value);
+                counts = TaskAggregateService.KeepCostsAndTop(counts, 8);
             row.ItemCounts = counts;
             row.LastFold = DateTime.UtcNow;
             await aggregates.UpsertPlayerStat(row);

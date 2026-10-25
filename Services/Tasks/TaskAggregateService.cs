@@ -174,9 +174,9 @@ public class TaskAggregateService
                         if (existing.Players != null)
                             row.Players.UnionWith(existing.Players);
                     }
-                    // keep only the top 12 items to bound row size
+                    // keep every cost plus the top 12 items to bound row size
                     if (row.ItemCounts.Count > 12)
-                        row.ItemCounts = row.ItemCounts.OrderByDescending(e => e.Value).Take(12).ToDictionary(e => e.Key, e => e.Value);
+                        row.ItemCounts = KeepCostsAndTop(row.ItemCounts, 12);
                     await table!.Insert(row).SetTTL(TTL_SECONDS).ExecuteAsync();
                 }
                 catch (Exception e)
@@ -189,6 +189,22 @@ public class TaskAggregateService
         {
             flushLock.Release();
         }
+    }
+
+    /// <summary>
+    /// Keeps every negative entry (costs, bounded by the declared cost tags) plus the
+    /// <paramref name="limit"/> highest positive entries.
+    /// </summary>
+    internal static Dictionary<string, double> KeepCostsAndTop(Dictionary<string, double> counts, int limit)
+        => counts.Where(e => e.Value < 0)
+            .Concat(counts.Where(e => e.Value >= 0).OrderByDescending(e => e.Value).Take(limit))
+            .ToDictionary(e => e.Key, e => e.Value);
+
+    /// <summary>Replaces the read snapshot, for tests.</summary>
+    internal void SetSnapshotForTest(Dictionary<(string task, byte bucket), BucketAggregate> s)
+    {
+        snapshot = s;
+        snapshotAt = DateTime.UtcNow;
     }
 
     /// <summary>
@@ -230,6 +246,8 @@ public class TaskAggregateService
                 var rows = (await table!.Where(r => r.DayBucket == day).SetPageSize(MergePageSize).ExecuteAsync()).ToList();
                 foreach (var row in rows)
                 {
+                    if (TaskDataResets.IsBeforeReset(row.TaskName, row.DayBucket))
+                        continue;
                     var key = (row.TaskName, (byte)row.Bucket);
                     if (!merged.TryGetValue(key, out var agg))
                     {
