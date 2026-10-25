@@ -32,6 +32,10 @@ public class CollectionListener : UpdateListener
         "sky_playerstate_task_classified_total", "Periods attributed to a task by the classifier", "task");
     private static readonly Prometheus.Counter PeriodUnclassifiedCounter = Prometheus.Metrics.CreateCounter(
         "sky_playerstate_task_unclassified_total", "Periods the classifier could not attribute to any task");
+    private static readonly Prometheus.Counter PeriodUnclassifiedSecondsCounter = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_task_unclassified_seconds_total", "Seconds of sessions the classifier could not attribute to any task", "island");
+    private static readonly Prometheus.Counter PeriodUnclassifiedValueCounter = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_task_unclassified_value_total", "Coin value of sessions the classifier could not attribute to any task", "island");
     /// <inheritdoc/>
     public override async Task Process(UpdateArgs args)
     {
@@ -1816,6 +1820,11 @@ public class CollectionListener : UpdateListener
             if (flush.DetectedTask == null)
             {
                 PeriodUnclassifiedCounter.Inc();
+                var island = Tasks.TaskSessionService.IslandOfZone(flush.Location) ?? "unknown";
+                PeriodUnclassifiedSecondsCounter.WithLabels(island).Inc(Math.Max(0, (flush.EndTime - flush.StartTime).TotalSeconds));
+                var unclassifiedPrices = cleanPrices ?? cachedCleanPrices;
+                if (unclassifiedPrices != null && flush.ItemsCollected != null)
+                    PeriodUnclassifiedValueCounter.WithLabels(island).Inc(Math.Max(0, ComputeProfit(flush.ItemsCollected, unclassifiedPrices)));
                 return;
             }
             PeriodClassifiedCounter.WithLabels(flush.DetectedTask).Inc();

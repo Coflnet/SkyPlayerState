@@ -381,7 +381,7 @@ public class TarantulaSlayerCrimsonIsleTask : MethodTask
     protected override LateRewardSpec LateReward => SlayerBossDrops.TarantulaWeb;
     protected override string MethodName => "Tarantula Slayer (Crimson Isle)";
     protected override HashSet<string> Locations => ["Burning Desert", "Dragontail", "Crimson Isle"];
-    protected override HashSet<string> DetectionItems => ["TARANTULA_WEB", "TARANTULA_SILK", "TOXIC_ARROW_POISON", "BURNING_EYE"];
+    protected override HashSet<string> DetectionItems => ["TARANTULA_WEB", "TARANTULA_SILK", "TOXIC_ARROW_POISON", "BURNING_EYE", "SHARD_PRIMORDIAL"];
     // Production medians (2026-09) per 10-min period * 6: TARANTULA_WEB 71, BURNING_EYE 4.
     protected override List<MethodDrop> FormulaDrops => [new("TARANTULA_WEB", 426), new("BURNING_EYE", 24)];
     protected override string Category => "Slayer";
@@ -409,7 +409,7 @@ public class TarantulaSlayerTask : MethodTask
     protected override LateRewardSpec LateReward => SlayerBossDrops.TarantulaWeb;
     protected override string MethodName => "Tarantula Slayer";
     protected override HashSet<string> Locations => ["Arachne's Burrow", "Arachne's Sanctuary", "Spider's Den", "Spider Mound"];
-    protected override HashSet<string> DetectionItems => ["TARANTULA_WEB", "TARANTULA_SILK", "TOXIC_ARROW_POISON", "SPIDER_CATALYST"];
+    protected override HashSet<string> DetectionItems => ["TARANTULA_WEB", "TARANTULA_SILK", "TOXIC_ARROW_POISON", "SPIDER_CATALYST", "SHARD_PRIMORDIAL"];
     // Production medians (2026-10-02/03) per hour: TARANTULA_WEB 2700, TOXIC_ARROW_POISON 750, TARANTULA_SILK 12.
     protected override List<MethodDrop> FormulaDrops => [new("TARANTULA_WEB", 2700), new("TOXIC_ARROW_POISON", 750), new("TARANTULA_SILK", 12)];
     protected override string Category => "Slayer";

@@ -114,6 +114,15 @@ public class TaskSessionService
             return null;
         }
 
+        // unseen gap or catch-up/real boundary: never merge across it
+        if (HasGap(session, fragment) || CrossesUnknownBoundary(session, fragment))
+        {
+            var stale = BuildPeriod(session, playerUuid);
+            info.CurrentSession = StartSession(fragment, claimedTask, prices, info.CurrentIsland, info.CurrentIslandAt,
+                info.CurrentLocationSince, info.CurrentLocationSeenAt);
+            return stale;
+        }
+
         // tentatively merge and see whether the fragment shifts the classification
         var tentative = Merge(session.Items, fragment.ItemsCollected);
         var tentativePositive = PositiveOnly(tentative);
@@ -148,6 +157,23 @@ public class TaskSessionService
         }
         return null;
     }
+
+    /// <summary>
+    /// The fragment starts at least <see cref="IdleFlushMinutes"/> after the session's last item: the player was
+    /// unseen (offline) in between, so no idle tick flushed the session. Merging would stretch it over the gap.
+    /// </summary>
+    private static bool HasGap(TaskSession session, Period fragment)
+        => (fragment.StartTime - session.LastItemTime).TotalMinutes >= IdleFlushMinutes;
+
+    /// <summary>
+    /// Exactly one side is the Unknown location: that is the whole-inventory catch-up after a login (or a
+    /// stale location). It must not be attributed to a real session, nor may real play be added to it.
+    /// </summary>
+    private static bool CrossesUnknownBoundary(TaskSession session, Period fragment)
+        => IsUnknown(session.Location) != IsUnknown(fragment.Location);
+
+    private static bool IsUnknown(string location)
+        => string.Equals(location, Services.CollectionListener.UnknownLocation, StringComparison.Ordinal);
 
     /// <summary>
     /// A fragment with purchase evidence (BAZAAR_PURCHASE/AUCTION_PURCHASE) is a shopping trip: the bought

@@ -272,4 +272,69 @@ public class TaskSessionServiceTests
 
         flush.Should().BeNull();
     }
+
+    [Test]
+    public void UnknownCatchUp_DoesNotMergeIntoRunningRealSession()
+    {
+        var (_, locA, _, items) = MultiLocationTask();
+        var info = new ExtractedInfo();
+        Service.Accumulate(info, Player, Fragment(locA, items, T0, T0.AddMinutes(10)), null, null, T0.AddMinutes(10));
+        var running = info.CurrentSession!;
+        var catchUp = new Dictionary<string, int> { ["COINS_BASELINE"] = 5_000_000 };
+
+        var flush = Service.Accumulate(info, Player, Fragment("Unknown", catchUp, T0.AddMinutes(10), T0.AddMinutes(10)), null, null, T0.AddMinutes(10));
+
+        flush.Should().NotBeNull();
+        flush.ItemsCollected.Should().NotContainKey("COINS_BASELINE");
+        info.CurrentSession.Should().NotBeSameAs(running);
+        info.CurrentSession!.Location.Should().Be("Unknown");
+        info.CurrentSession.Items.Should().ContainKey("COINS_BASELINE");
+    }
+
+    [Test]
+    public void RealFragment_DoesNotMergeIntoUnknownSessionFromDaysAgo()
+    {
+        var (task, locA, _, items) = MultiLocationTask();
+        var info = new ExtractedInfo();
+        var old = T0.AddDays(-3);
+        var catchUp = new Dictionary<string, int> { ["COINS_BASELINE"] = 5_000_000 };
+        Service.Accumulate(info, Player, Fragment("Unknown", catchUp, old, old), null, null, T0);
+
+        var flush = Service.Accumulate(info, Player, Fragment(locA, items, T0, T0.AddMinutes(10)), null, null, T0.AddMinutes(10));
+
+        flush.Should().NotBeNull();
+        flush.ItemsCollected.Should().ContainKey("COINS_BASELINE");
+        info.CurrentSession!.StartTime.Should().Be(T0);
+        info.CurrentSession.Location.Should().Be(locA);
+        info.CurrentSession.Items.Should().NotContainKey("COINS_BASELINE");
+        info.CurrentSession.DetectedTask.Should().Be(task);
+    }
+
+    [Test]
+    public void SameZoneFragmentAfterOfflineGap_StartsNewSession()
+    {
+        var (_, locA, _, items) = MultiLocationTask();
+        var info = new ExtractedInfo();
+        Service.Accumulate(info, Player, Fragment(locA, items, T0, T0.AddMinutes(10)), null, null, T0.AddMinutes(10));
+        var gapStart = T0.AddMinutes(10).AddHours(2);
+
+        var flush = Service.Accumulate(info, Player, Fragment(locA, items, gapStart, gapStart.AddMinutes(5)), null, null, gapStart.AddMinutes(5));
+
+        flush.Should().NotBeNull();
+        flush.EndTime.Should().Be(T0.AddMinutes(10));
+        info.CurrentSession!.StartTime.Should().Be(gapStart);
+    }
+
+    [Test]
+    public void ContiguousFragments_StillMerge()
+    {
+        var (_, locA, _, items) = MultiLocationTask();
+        var info = new ExtractedInfo();
+        Service.Accumulate(info, Player, Fragment(locA, items, T0, T0.AddMinutes(2)), null, null, T0.AddMinutes(2));
+
+        var flush = Service.Accumulate(info, Player, Fragment(locA, items, T0.AddMinutes(2), T0.AddMinutes(4)), null, null, T0.AddMinutes(4));
+
+        flush.Should().BeNull();
+        info.CurrentSession!.StartTime.Should().Be(T0);
+    }
 }

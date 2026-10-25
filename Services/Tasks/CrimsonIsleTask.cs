@@ -80,13 +80,15 @@ public class MageOutlawTask : MethodTask
 /// <summary>
 /// Heavy Pearls are collected from the Matriarch (Crimson Isle) - a limited number can be
 /// obtained per day. Production 2026-10: ~21 players per 10h with {HEAVY_PEARL: 3..12}.
+/// The daily pearls are also logged at "Magma Chamber" (production 2026-10-24: 8 players/day with exactly 3 or 4);
+/// HEAVY_PEARL stays required, so other Magma Chamber activity is not claimed.
 /// </summary>
 public class HeavyPearlsTask : MethodTask
 {
     protected override string MethodName => "Heavy Pearls";
     protected override string Category => "Mob Farming";
     protected override string ActionUnit => "pearls";
-    protected override HashSet<string> Locations => ["Matriarch's Lair", "Belly of the Beast"];
+    protected override HashSet<string> Locations => ["Matriarch's Lair", "Belly of the Beast", "Magma Chamber"];
     protected override HashSet<string> DetectionItems => ["HEAVY_PEARL"];
     protected override List<MethodDrop> FormulaDrops => [new("HEAVY_PEARL", 8)];
     protected override string HowTo => "Visit the Matriarch in the Belly of the Beast on the Crimson Isle and collect Heavy Pearls. Only a limited number can be collected per day.";

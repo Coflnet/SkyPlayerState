@@ -38,7 +38,9 @@ internal static class FishingEvidence
     private static readonly string[] LavaBaseDrops =
     [
         "MAGMA_FISH", "MAGMA_FISH_SILVER", "MAGMA_FISH_GOLD", "MAGMA_FISH_DIAMOND",
-        "LUMP_OF_MAGMA", "MOOGMA_PELT", "CUP_OF_BLOOD", "PYROCLASTIC_SCALE", "FLAMING_HEART", "HORN_OF_TAURUS"
+        "LUMP_OF_MAGMA", "MOOGMA_PELT", "CUP_OF_BLOOD", "PYROCLASTIC_SCALE", "FLAMING_HEART", "HORN_OF_TAURUS",
+        // Lord Jawbus / Thunder drops (wiki-verified); production 2026-10-24 showed them alone in Crimson Isle periods
+        "MAGMA_LORD_FRAGMENT", "ENCHANTMENT_ULTIMATE_FLASH_1"
     ];
 
     /// <summary>Crimson Isle lava fishing drops - Magma Fish variants, Lava sea creature drops, and every Trophy Fish tier tag.</summary>

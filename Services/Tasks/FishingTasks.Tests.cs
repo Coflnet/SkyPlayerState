@@ -112,6 +112,38 @@ public class FishingTasksTests
         // Spot check a couple of the 72 generated SPECIES_TIER tags to guard the generation logic itself.
         FishingEvidence.Lava.Should().Contain("VOLCANIC_STONEFISH_DIAMOND");
         FishingEvidence.Lava.Should().Contain("SLUGFISH_SILVER");
-        FishingEvidence.Lava.Should().HaveCount(10 + 18 * 4, "10 base lava drops + 18 species * 4 tiers of Trophy Fish");
+        FishingEvidence.Lava.Should().HaveCount(12 + 18 * 4, "12 base lava drops + 18 species * 4 tiers of Trophy Fish");
+    }
+
+    [Test]
+    public void LoneMagmaLordFragmentAtStronghold_ClassifiesToCrimsonFishing()
+    {
+        // Lord Jawbus drop; the non-hunting variant (ExcludeShardItems) is right for a fragment without shards
+        Classifier.Classify("Stronghold", new() { { "MAGMA_LORD_FRAGMENT", 1 } }, 10)!.TaskName.Should().Be("Crimson Fishing");
+    }
+
+    [Test]
+    public void LoneFlashBookAtCrimsonFields_ClassifiesToCrimsonFishing()
+    {
+        Classifier.Classify("Crimson Fields", new() { { "ENCHANTMENT_ULTIMATE_FLASH_1", 1 } }, 10)!.TaskName.Should().Be("Crimson Fishing");
+    }
+
+    [Test]
+    public void LonePrimordialShardAtBurningDesert_ClassifiesToTarantulaSlayerCrimsonIsle()
+    {
+        Classifier.Classify("Burning Desert", new() { { "SHARD_PRIMORDIAL", 1 } }, 10)!.TaskName.Should().Be("Tarantula Slayer (Crimson Isle)");
+    }
+
+    [Test]
+    public void MatriarchPearlsAtMagmaChamber_ClassifiesToHeavyPearls()
+    {
+        Classifier.Classify("Magma Chamber", new() { { "HEAVY_PEARL", 3 } }, 10)!.TaskName.Should().Be("Heavy Pearls");
+    }
+
+    [Test]
+    public void MagmaChamberLavaFishingWithoutPearls_StillClassifiesToCrimsonFishing()
+    {
+        var items = new Dictionary<string, int> { { "MAGMA_FISH", 6 }, { "BLOBFISH_BRONZE", 6 }, { "MOOGMA_PELT", 1 } };
+        Classifier.Classify("Magma Chamber", items, 10)!.TaskName.Should().Be("Crimson Fishing");
     }
 }
