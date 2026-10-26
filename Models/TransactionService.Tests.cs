@@ -159,4 +159,21 @@ public class TransactionServiceTests
         Assert.That(TradeService.SelectOldestTransfer(new[] { recent, old }), Is.SameAs(old));
         Assert.That(TradeService.SelectOldestTransfer(Array.Empty<Transaction>()), Is.Null);
     }
+
+    [TestCase(0L, false)]
+    [TestCase(-1L, false)]
+    [TestCase(SpecialTransactionItemIds.Coins, false)]
+    [TestCase(2128L, true)]
+    public void ItemTransactionsSkipUnresolvedIds(long itemId, bool stored)
+    {
+        Assert.That(TransactionService.ShouldStoreInItemTransactions(new Transaction { ItemId = itemId }), Is.EqualTo(stored));
+    }
+
+    [Test]
+    public void UnresolvedNameIsLoggedOnlyOnce()
+    {
+        var name = "unresolved-" + Guid.NewGuid();
+        Assert.That(Coflnet.Sky.PlayerState.Bazaar.BazaarOrderListener.ShouldLogUnresolved(name), Is.True);
+        Assert.That(Coflnet.Sky.PlayerState.Bazaar.BazaarOrderListener.ShouldLogUnresolved(name), Is.False);
+    }
 }

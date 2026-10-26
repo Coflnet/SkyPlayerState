@@ -65,7 +65,8 @@ public class TransactionService : ITransactionService, ICassandraService
 
     internal static bool ShouldStoreInItemTransactions(Transaction transaction)
     {
-        return transaction.ItemId != SpecialTransactionItemIds.Coins;
+        // ItemId <= 0 means the item name was never resolved; it would pile up in a junk partition
+        return transaction.ItemId > 0 && transaction.ItemId != SpecialTransactionItemIds.Coins;
     }
 
     internal static List<Transaction> NormalizeTransactionsForStorage(IEnumerable<Transaction> transactions)

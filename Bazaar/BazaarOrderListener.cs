@@ -518,6 +518,13 @@ public class BazaarOrderListener : UpdateListener
         {
             var itemApi = args.GetService<IItemsApi>();
             var itemId = await itemApi.ItemsSearchTermIdGetAsync(itemName);
+            if (itemId <= 0)
+            {
+                if (ShouldLogUnresolved(itemName))
+                    args.GetService<ILogger<BazaarOrderListener>>().LogWarning("Could not resolve bazaar item id for {item}, not storing transaction", itemName);
+                unresolvedItems.Inc();
+                return;
+            }
             var mainTransaction = new Transaction()
             {
                 Amount = amount,
@@ -528,6 +535,19 @@ public class BazaarOrderListener : UpdateListener
             };
             await args.GetService<ITransactionService>().AddTransactions(mainTransaction);
         }
+    }
+
+    private static readonly Prometheus.Counter unresolvedItems = Prometheus.Metrics.CreateCounter("sky_playerstate_bazaar_unresolved_item", "Bazaar fills skipped because the item name had no item id");
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> loggedUnresolved = new();
+
+    /// <summary>
+    /// True once per item name (bounded to 500 names) so unresolved names don't flood the log.
+    /// </summary>
+    internal static bool ShouldLogUnresolved(string itemName)
+    {
+        if (loggedUnresolved.Count >= 500)
+            return false;
+        return loggedUnresolved.TryAdd(itemName, true);
     }
 
     private static async Task RegisterUserEvents(UpdateArgs args, Transaction.TransactionType side, int amount, string itemName, long price, Offer order)
