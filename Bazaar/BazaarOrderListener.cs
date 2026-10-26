@@ -521,9 +521,9 @@ public class BazaarOrderListener : UpdateListener
             if (itemId <= 0)
             {
                 if (ShouldLogUnresolved(itemName))
-                    args.GetService<ILogger<BazaarOrderListener>>().LogWarning("Could not resolve bazaar item id for {item}, not storing transaction", itemName);
+                    args.GetService<ILogger<BazaarOrderListener>>().LogWarning("Could not resolve bazaar item id for {item}, not stored in the item history", itemName);
                 unresolvedItems.Inc();
-                return;
+                // still stored for the player history; the transaction service keeps id <= 0 out of the item table
             }
             var mainTransaction = new Transaction()
             {

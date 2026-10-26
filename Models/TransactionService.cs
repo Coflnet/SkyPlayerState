@@ -126,7 +126,7 @@ public class TransactionService : ITransactionService, ICassandraService
                     await Task.WhenAll(playerInsert, itemInsert);
                     insertCount.Inc();
                     if (ShouldStoreInItemTransactions(transaction))
-                        MaybePruneItemTransactions(session, transaction.ItemId);
+                        MaybePruneItemTransactions(session, transaction);
                     return;
                 }
                 catch (Exception e)
@@ -343,21 +343,50 @@ public class TransactionService : ITransactionService, ICassandraService
         return await BuildNewestItemTransactionsQuery(table, itemId, ClampItemTransactionLimit(max)).ExecuteAsync();
     }
 
-    /// <summary>Default number of newest rows kept per item partition (config ITEM_TRANSACTIONS:KEEP, 0 disables pruning).</summary>
+    /// <summary>Default number of newest rows kept per item instance partition (config ITEM_TRANSACTIONS:KEEP, 0 disables pruning).</summary>
     public const int DefaultItemTransactionsKeep = MaxItemTransactions;
-    /// <summary>On average one in this many item writes triggers a prune check of that partition.</summary>
+    /// <summary>Default number of newest rows kept per bazaar product partition (config ITEM_TRANSACTIONS:KEEP_BAZAAR, 0 disables pruning).</summary>
+    public const int DefaultBazaarTransactionsKeep = 100_000;
+    /// <summary>Minimum sampling rate: on average one in this many item writes triggers a prune check.</summary>
     public const int PruneSampleRate = 50;
+    private const int PruneReadPageSize = 5000;
 
     private static readonly SemaphoreSlim pruneLock = new SemaphoreSlim(1);
     private static Prometheus.Counter pruneDeletes = Prometheus.Metrics.CreateCounter("sky_playerstate_item_transaction_prune", "Range deletes issued to trim item transaction partitions");
     private static Prometheus.Counter pruneFailed = Prometheus.Metrics.CreateCounter("sky_playerstate_item_transaction_prune_fail", "Failed item transaction prune attempts");
 
     /// <summary>
+    /// True for transactions carrying the BAZAAR flag (BazaarBuy, BazaarSell, BazaarListBuy, BazaarListSell).
+    /// </summary>
+    public static bool IsBazaarTransaction(Transaction transaction)
+    {
+        return (transaction.Type & Transaction.TransactionType.BAZAAR) != 0;
+    }
+
+    /// <summary>
+    /// Number of rows to keep for the partition a transaction was written to; 0 disables pruning.
+    /// </summary>
+    public static int GetKeepFor(Transaction transaction, int? keepConfig, int? keepBazaarConfig)
+    {
+        return IsBazaarTransaction(transaction)
+            ? keepBazaarConfig ?? DefaultBazaarTransactionsKeep
+            : keepConfig ?? DefaultItemTransactionsKeep;
+    }
+
+    /// <summary>
+    /// Sampling rate scaled with keep so large partitions are not re-read constantly (about 5% overflow per prune).
+    /// </summary>
+    public static int GetPruneSampleRate(int keep)
+    {
+        return Math.Max(PruneSampleRate, keep / 20);
+    }
+
+    /// <summary>
     /// Sampling decision for pruning; <paramref name="roll"/> is a random value in [0, sampleRate).
     /// </summary>
-    public static bool ShouldPrune(int keep, int roll, int sampleRate = PruneSampleRate)
+    public static bool ShouldPrune(int keep, int roll)
     {
-        return keep > 0 && roll == 0 && sampleRate > 0;
+        return keep > 0 && roll == 0;
     }
 
     /// <summary>
@@ -371,14 +400,15 @@ public class TransactionService : ITransactionService, ICassandraService
         return newestFirst[keep];
     }
 
-    private void MaybePruneItemTransactions(ISession session, long itemId)
+    private void MaybePruneItemTransactions(ISession session, Transaction transaction)
     {
-        var keep = config.GetValue<int?>("ITEM_TRANSACTIONS:KEEP") ?? DefaultItemTransactionsKeep;
-        if (!ShouldPrune(keep, Random.Shared.Next(PruneSampleRate)))
+        var keep = GetKeepFor(transaction, config.GetValue<int?>("ITEM_TRANSACTIONS:KEEP"), config.GetValue<int?>("ITEM_TRANSACTIONS:KEEP_BAZAAR"));
+        if (!ShouldPrune(keep, Random.Shared.Next(GetPruneSampleRate(keep))))
             return;
         // never more than one partition pruned at a time per process; skip instead of queueing
         if (!pruneLock.Wait(0))
             return;
+        var itemId = transaction.ItemId;
         _ = Task.Run(async () =>
         {
             try
@@ -399,14 +429,30 @@ public class TransactionService : ITransactionService, ICassandraService
 
     /// <summary>
     /// Deletes everything older than the newest <paramref name="keep"/> rows of one item partition
-    /// with a single range delete (one range tombstone).
+    /// with a single range delete (one range tombstone). The cutoff is found by paging through the
+    /// newest keep+1 timestamps and stopping there.
     /// </summary>
     public async Task<bool> PruneItemPartition(ISession session, long itemId, int keep)
     {
         if (keep <= 0)
             return false;
-        var table = GetItemTable(session);
-        var rows = (await BuildNewestItemTransactionsQuery(table, itemId, keep + 1).ExecuteAsync()).Select(r => r.TimeStamp).ToList();
+        var select = new SimpleStatement("SELECT timestamp FROM itemtransaction WHERE itemid = ? ORDER BY timestamp DESC LIMIT ?", itemId, keep + 1);
+        select.SetPageSize(PruneReadPageSize);
+        select.SetConsistencyLevel(ConsistencyLevel.Quorum);
+        var rowSet = await session.ExecuteAsync(select);
+        var rows = new List<DateTime>(Math.Min(keep + 1, 200_000));
+        while (rows.Count <= keep)
+        {
+            foreach (var row in rowSet.GetRows())
+            {
+                rows.Add(row.GetValue<DateTime>("timestamp"));
+                if (rows.Count > keep)
+                    break;
+            }
+            if (rows.Count > keep || rowSet.IsFullyFetched)
+                break;
+            await rowSet.FetchMoreResultsAsync();
+        }
         var cutoff = GetPruneCutoff(rows, keep);
         if (cutoff == null)
             return false;

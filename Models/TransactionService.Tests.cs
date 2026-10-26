@@ -176,4 +176,34 @@ public class TransactionServiceTests
         Assert.That(Coflnet.Sky.PlayerState.Bazaar.BazaarOrderListener.ShouldLogUnresolved(name), Is.True);
         Assert.That(Coflnet.Sky.PlayerState.Bazaar.BazaarOrderListener.ShouldLogUnresolved(name), Is.False);
     }
+
+    [Test]
+    public void KeepIsChosenByTransactionType()
+    {
+        foreach (var type in new[] { Transaction.TransactionType.BazaarBuy, Transaction.TransactionType.BazaarSell,
+            Transaction.TransactionType.BazaarListBuy, Transaction.TransactionType.BazaarListSell })
+            Assert.That(TransactionService.GetKeepFor(new Transaction { Type = type }, null, null), Is.EqualTo(100_000));
+        foreach (var type in new[] { Transaction.TransactionType.TRADE | Transaction.TransactionType.RECEIVE, Transaction.TransactionType.AHBuy })
+            Assert.That(TransactionService.GetKeepFor(new Transaction { Type = type }, null, null), Is.EqualTo(1000));
+        Assert.That(TransactionService.GetKeepFor(new Transaction { Type = Transaction.TransactionType.BazaarBuy }, 7, 9), Is.EqualTo(9));
+        Assert.That(TransactionService.GetKeepFor(new Transaction { Type = Transaction.TransactionType.TRADE }, 7, 9), Is.EqualTo(7));
+        Assert.That(TransactionService.GetKeepFor(new Transaction { Type = Transaction.TransactionType.BazaarBuy }, 7, 0), Is.EqualTo(0));
+    }
+
+    [TestCase(1000, 50)]
+    [TestCase(100_000, 5000)]
+    [TestCase(10, 50)]
+    public void SampleRateScalesWithKeep(int keep, int expected)
+    {
+        Assert.That(TransactionService.GetPruneSampleRate(keep), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void UnresolvedBazaarItemStillGoesToPlayerHistoryOnly()
+    {
+        var t = new Transaction { ItemId = 0, Type = Transaction.TransactionType.BazaarBuy };
+        Assert.That(TransactionService.ShouldStoreInItemTransactions(t), Is.False);
+        // player table is written unconditionally; normalization keeps the row
+        Assert.That(TransactionService.NormalizeTransactionsForStorage(new[] { t }), Has.Count.EqualTo(1));
+    }
 }
