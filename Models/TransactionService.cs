@@ -308,10 +308,25 @@ public class TransactionService : ITransactionService, ICassandraService
         await table.Where(t => t.PlayerUuid == playerUuid).Delete().ExecuteAsync();
     }
 
+    /// <summary>
+    /// Upper bound of rows read from one itemtransaction partition. Take(0) emits no LIMIT in the
+    /// DataStax LINQ provider, so max=0 read the whole partition; hot partitions (e.g. itemid 0)
+    /// hold hundreds of thousands of rows and took minutes.
+    /// </summary>
+    public const int MaxItemTransactions = 1000;
+
+    /// <summary>
+    /// Clamps a requested row count to 1..<see cref="MaxItemTransactions"/>; zero, negative and too large values become the cap.
+    /// </summary>
+    public static int ClampItemTransactionLimit(int max)
+    {
+        return max <= 0 || max > MaxItemTransactions ? MaxItemTransactions : max;
+    }
+
     public async Task<IEnumerable<Transaction>> GetItemTransactions(long itemId, int max)
     {
         var table = GetItemTable(await GetSession());
-        return await table.Where(t => t.ItemId == itemId).Take(max).ExecuteAsync();
+        return await table.Where(t => t.ItemId == itemId).Take(ClampItemTransactionLimit(max)).ExecuteAsync();
     }
 
     public Task<IEnumerable<Transaction>> GetTradeTransactions(string itemTag, Guid itemId, DateTime end)

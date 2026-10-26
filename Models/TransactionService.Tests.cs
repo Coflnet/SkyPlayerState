@@ -89,4 +89,17 @@ public class TransactionServiceTests
         Assert.That(result.Single(t => t.ItemId == 5).Amount, Is.EqualTo(5));
         Assert.That(result.Single(t => t.ItemId == SpecialTransactionItemIds.Coins).Amount, Is.EqualTo(999));
     }
+
+    [TestCase(0, TransactionService.MaxItemTransactions)]
+    [TestCase(-1, TransactionService.MaxItemTransactions)]
+    [TestCase(int.MinValue, TransactionService.MaxItemTransactions)]
+    [TestCase(TransactionService.MaxItemTransactions + 1, TransactionService.MaxItemTransactions)]
+    [TestCase(int.MaxValue, TransactionService.MaxItemTransactions)]
+    [TestCase(1, 1)]
+    [TestCase(100, 100)]
+    [TestCase(TransactionService.MaxItemTransactions, TransactionService.MaxItemTransactions)]
+    public void ClampItemTransactionLimitBoundsReads(int requested, int expected)
+    {
+        Assert.That(TransactionService.ClampItemTransactionLimit(requested), Is.EqualTo(expected));
+    }
 }
