@@ -52,11 +52,17 @@ public class TradeService : ITradeService
     {
         var items = await itemService.FindItems(new ItemIdSearch[] { new() { Tag = itemTag, Uuid = itemId } });
         var intItemId = items.FirstOrDefault()?.Id ?? throw new ValidationException("Item not found");
-        var transfers = await transactionService.GetItemTransactions(intItemId, 1);
-        var user = transfers.FirstOrDefault()?.PlayerUuid ?? throw new ValidationException("No transfers for item found");
-        var tradeTransactions = await transactionService.GetTransactions(user, TimeSpan.FromSeconds(30), transfers.First().TimeStamp + TimeSpan.FromSeconds(1));
+        // history is returned newest first; this lookup always used the oldest (first) transfer of the item
+        var transfers = await transactionService.GetItemTransactions(intItemId, TransactionService.MaxItemTransactions);
+        var first = SelectOldestTransfer(transfers) ?? throw new ValidationException("No transfers for item found");
+        var tradeTransactions = await transactionService.GetTransactions(first.PlayerUuid, TimeSpan.FromSeconds(30), first.TimeStamp + TimeSpan.FromSeconds(1));
 
         return tradeTransactions;
+    }
+
+    public static Transaction SelectOldestTransfer(IEnumerable<Transaction> transfers)
+    {
+        return transfers.OrderBy(t => t.TimeStamp).FirstOrDefault();
     }
 
     public Task ProduceTrade(TradeModel trade)

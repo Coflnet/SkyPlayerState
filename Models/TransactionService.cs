@@ -124,6 +124,8 @@ public class TransactionService : ITransactionService, ICassandraService
 
                     await Task.WhenAll(playerInsert, itemInsert);
                     insertCount.Inc();
+                    if (ShouldStoreInItemTransactions(transaction))
+                        MaybePruneItemTransactions(session, transaction.ItemId);
                     return;
                 }
                 catch (Exception e)
@@ -323,10 +325,96 @@ public class TransactionService : ITransactionService, ICassandraService
         return max <= 0 || max > MaxItemTransactions ? MaxItemTransactions : max;
     }
 
+    /// <summary>
+    /// Builds the item history query: newest first (clustering column DESC) with a LIMIT.
+    /// </summary>
+    public static CqlQuery<ItemTransaction> BuildNewestItemTransactionsQuery(Table<ItemTransaction> table, long itemId, int limit)
+    {
+        return table.Where(t => t.ItemId == itemId).OrderByDescending(t => t.TimeStamp).Take(limit);
+    }
+
+    /// <summary>
+    /// Returns the item history, newest first, at most <see cref="MaxItemTransactions"/> rows.
+    /// </summary>
     public async Task<IEnumerable<Transaction>> GetItemTransactions(long itemId, int max)
     {
         var table = GetItemTable(await GetSession());
-        return await table.Where(t => t.ItemId == itemId).Take(ClampItemTransactionLimit(max)).ExecuteAsync();
+        return await BuildNewestItemTransactionsQuery(table, itemId, ClampItemTransactionLimit(max)).ExecuteAsync();
+    }
+
+    /// <summary>Default number of newest rows kept per item partition (config ITEM_TRANSACTIONS:KEEP, 0 disables pruning).</summary>
+    public const int DefaultItemTransactionsKeep = MaxItemTransactions;
+    /// <summary>On average one in this many item writes triggers a prune check of that partition.</summary>
+    public const int PruneSampleRate = 50;
+
+    private static readonly SemaphoreSlim pruneLock = new SemaphoreSlim(1);
+    private static Prometheus.Counter pruneDeletes = Prometheus.Metrics.CreateCounter("sky_playerstate_item_transaction_prune", "Range deletes issued to trim item transaction partitions");
+    private static Prometheus.Counter pruneFailed = Prometheus.Metrics.CreateCounter("sky_playerstate_item_transaction_prune_fail", "Failed item transaction prune attempts");
+
+    /// <summary>
+    /// Sampling decision for pruning; <paramref name="roll"/> is a random value in [0, sampleRate).
+    /// </summary>
+    public static bool ShouldPrune(int keep, int roll, int sampleRate = PruneSampleRate)
+    {
+        return keep > 0 && roll == 0 && sampleRate > 0;
+    }
+
+    /// <summary>
+    /// Given the newest-first timestamps read with LIMIT keep+1, returns the timestamp up to (inclusive)
+    /// which rows must be deleted, or null when the partition holds at most <paramref name="keep"/> rows.
+    /// </summary>
+    public static DateTime? GetPruneCutoff(IReadOnlyList<DateTime> newestFirst, int keep)
+    {
+        if (keep <= 0 || newestFirst.Count <= keep)
+            return null;
+        return newestFirst[keep];
+    }
+
+    private void MaybePruneItemTransactions(ISession session, long itemId)
+    {
+        var keep = config.GetValue<int?>("ITEM_TRANSACTIONS:KEEP") ?? DefaultItemTransactionsKeep;
+        if (!ShouldPrune(keep, Random.Shared.Next(PruneSampleRate)))
+            return;
+        // never more than one partition pruned at a time per process; skip instead of queueing
+        if (!pruneLock.Wait(0))
+            return;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await PruneItemPartition(session, itemId, keep);
+            }
+            catch (Exception e)
+            {
+                pruneFailed.Inc();
+                logger.LogError(e, "pruning item transactions of {itemId} failed", itemId);
+            }
+            finally
+            {
+                pruneLock.Release();
+            }
+        });
+    }
+
+    /// <summary>
+    /// Deletes everything older than the newest <paramref name="keep"/> rows of one item partition
+    /// with a single range delete (one range tombstone).
+    /// </summary>
+    public async Task<bool> PruneItemPartition(ISession session, long itemId, int keep)
+    {
+        if (keep <= 0)
+            return false;
+        var table = GetItemTable(session);
+        var rows = (await BuildNewestItemTransactionsQuery(table, itemId, keep + 1).ExecuteAsync()).Select(r => r.TimeStamp).ToList();
+        var cutoff = GetPruneCutoff(rows, keep);
+        if (cutoff == null)
+            return false;
+        var statement = new SimpleStatement("DELETE FROM itemtransaction WHERE itemid = ? AND timestamp <= ?", itemId, cutoff.Value);
+        statement.SetConsistencyLevel(ConsistencyLevel.Quorum);
+        await session.ExecuteAsync(statement);
+        pruneDeletes.Inc();
+        logger.LogInformation("pruned item transactions of {itemId} up to {cutoff}", itemId, cutoff);
+        return true;
     }
 
     public Task<IEnumerable<Transaction>> GetTradeTransactions(string itemTag, Guid itemId, DateTime end)

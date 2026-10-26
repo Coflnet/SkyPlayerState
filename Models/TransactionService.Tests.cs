@@ -102,4 +102,61 @@ public class TransactionServiceTests
     {
         Assert.That(TransactionService.ClampItemTransactionLimit(requested), Is.EqualTo(expected));
     }
+
+    [Test]
+    public void ItemQueryIsNewestFirstWithLimit()
+    {
+        var session = new Moq.Mock<global::Cassandra.ISession>();
+        var cluster = new Moq.Mock<global::Cassandra.ICluster>();
+        cluster.Setup(c => c.Configuration).Returns(global::Cassandra.Cluster.Builder().AddContactPoint("127.0.0.1").GetConfiguration());
+        session.Setup(x => x.Cluster).Returns(cluster.Object);
+        var table = TransactionService.GetItemTable(session.Object);
+        var cql = TransactionService.BuildNewestItemTransactionsQuery(table, 5, 1000).ToString();
+        Assert.That(cql, Does.Contain("ORDER BY").And.Contain("DESC").And.Contain("LIMIT"));
+    }
+
+    private static System.Collections.Generic.List<DateTime> Stamps(int count)
+    {
+        var start = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        return Enumerable.Range(0, count).Select(i => start.AddMinutes(-i)).ToList();
+    }
+
+    [Test]
+    public void PruneCutoffIsNullAtOrBelowKeep()
+    {
+        Assert.That(TransactionService.GetPruneCutoff(Stamps(1000), 1000), Is.Null);
+        Assert.That(TransactionService.GetPruneCutoff(Stamps(3), 1000), Is.Null);
+    }
+
+    [Test]
+    public void PruneCutoffIsThe1001stRow()
+    {
+        var stamps = Stamps(1001);
+        Assert.That(TransactionService.GetPruneCutoff(stamps, 1000), Is.EqualTo(stamps[1000]));
+    }
+
+    [Test]
+    public void PruneDisabledWhenKeepIsZero()
+    {
+        Assert.That(TransactionService.GetPruneCutoff(Stamps(5000), 0), Is.Null);
+        Assert.That(TransactionService.ShouldPrune(0, 0), Is.False);
+    }
+
+    [Test]
+    public void PruneIsSampled()
+    {
+        Assert.That(TransactionService.ShouldPrune(1000, 0), Is.True);
+        Assert.That(TransactionService.ShouldPrune(1000, 1), Is.False);
+        Assert.That(TransactionService.ShouldPrune(1000, 49), Is.False);
+    }
+
+    [Test]
+    public void TradeLookupKeepsUsingOldestTransfer()
+    {
+        var old = new Transaction { TimeStamp = DateTime.UtcNow.AddDays(-2), PlayerUuid = Guid.NewGuid() };
+        var recent = new Transaction { TimeStamp = DateTime.UtcNow, PlayerUuid = Guid.NewGuid() };
+        // newest first, as returned by GetItemTransactions
+        Assert.That(TradeService.SelectOldestTransfer(new[] { recent, old }), Is.SameAs(old));
+        Assert.That(TradeService.SelectOldestTransfer(Array.Empty<Transaction>()), Is.Null);
+    }
 }
