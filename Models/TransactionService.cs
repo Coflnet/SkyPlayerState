@@ -402,7 +402,12 @@ public class TransactionService : ITransactionService, ICassandraService
 
     private void MaybePruneItemTransactions(ISession session, Transaction transaction)
     {
-        var keep = GetKeepFor(transaction, config.GetValue<int?>("ITEM_TRANSACTIONS:KEEP"), config.GetValue<int?>("ITEM_TRANSACTIONS:KEEP_BAZAAR"));
+        var keepConfig = config.GetValue<int?>("ITEM_TRANSACTIONS:KEEP");
+        var keepBazaarConfig = config.GetValue<int?>("ITEM_TRANSACTIONS:KEEP_BAZAAR");
+        var keep = GetKeepFor(transaction, keepConfig, keepBazaarConfig);
+        var triggerIsBazaar = IsBazaarTransaction(transaction);
+        var keepBazaar = keepBazaarConfig ?? DefaultBazaarTransactionsKeep;
+        var keepItem = keepConfig ?? DefaultItemTransactionsKeep;
         if (!ShouldPrune(keep, Random.Shared.Next(GetPruneSampleRate(keep))))
             return;
         // never more than one partition pruned at a time per process; skip instead of queueing
@@ -413,7 +418,7 @@ public class TransactionService : ITransactionService, ICassandraService
         {
             try
             {
-                await PruneItemPartition(session, itemId, keep);
+                await PruneItemPartition(session, itemId, triggerIsBazaar, keepItem, keepBazaar);
             }
             catch (Exception e)
             {
@@ -428,31 +433,48 @@ public class TransactionService : ITransactionService, ICassandraService
     }
 
     /// <summary>
-    /// Deletes everything older than the newest <paramref name="keep"/> rows of one item partition
-    /// with a single range delete (one range tombstone). The cutoff is found by paging through the
-    /// newest keep+1 timestamps and stopping there.
+    /// Decides how many rows a prune keeps. A bazaar write uses the bazaar keep. A non-bazaar write
+    /// (e.g. a trade of a bazaar product) must never shrink a partition that holds bazaar rows, so when
+    /// any of the newest rows is bazaar it returns 0 (skip, a bazaar write prunes that partition with the
+    /// bazaar keep). Otherwise it is an item instance partition and the item keep applies.
     /// </summary>
-    public async Task<bool> PruneItemPartition(ISession session, long itemId, int keep)
+    public static int ResolveKeep(bool triggerIsBazaar, IEnumerable<Transaction.TransactionType> newestTypes, int keep, int keepBazaar)
     {
-        if (keep <= 0)
+        if (triggerIsBazaar)
+            return keepBazaar;
+        return newestTypes.Any(t => (t & Transaction.TransactionType.BAZAAR) != 0) ? 0 : keep;
+    }
+
+    /// <summary>
+    /// Deletes everything older than the newest rows of one item partition with a single range delete
+    /// (one range tombstone). The cutoff is found by paging through the newest keep+1 rows (timestamp and
+    /// type) and stopping there; the keep is resolved from the partition content, see <see cref="ResolveKeep"/>.
+    /// </summary>
+    public async Task<bool> PruneItemPartition(ISession session, long itemId, bool triggerIsBazaar, int keepItem, int keepBazaar)
+    {
+        var readKeep = triggerIsBazaar ? keepBazaar : keepItem;
+        if (readKeep <= 0)
             return false;
-        var select = new SimpleStatement("SELECT timestamp FROM itemtransaction WHERE itemid = ? ORDER BY timestamp DESC LIMIT ?", itemId, keep + 1);
+        var select = new SimpleStatement("SELECT timestamp, type FROM itemtransaction WHERE itemid = ? ORDER BY timestamp DESC LIMIT ?", itemId, readKeep + 1);
         select.SetPageSize(PruneReadPageSize);
         select.SetConsistencyLevel(ConsistencyLevel.Quorum);
         var rowSet = await session.ExecuteAsync(select);
-        var rows = new List<DateTime>(Math.Min(keep + 1, 200_000));
-        while (rows.Count <= keep)
+        var rows = new List<DateTime>(Math.Min(readKeep + 1, 200_000));
+        var types = new List<Transaction.TransactionType>(Math.Min(readKeep + 1, 200_000));
+        while (rows.Count <= readKeep)
         {
             foreach (var row in rowSet.GetRows())
             {
                 rows.Add(row.GetValue<DateTime>("timestamp"));
-                if (rows.Count > keep)
+                types.Add((Transaction.TransactionType)row.GetValue<int>("type"));
+                if (rows.Count > readKeep)
                     break;
             }
-            if (rows.Count > keep || rowSet.IsFullyFetched)
+            if (rows.Count > readKeep || rowSet.IsFullyFetched)
                 break;
             await rowSet.FetchMoreResultsAsync();
         }
+        var keep = ResolveKeep(triggerIsBazaar, types, keepItem, keepBazaar);
         var cutoff = GetPruneCutoff(rows, keep);
         if (cutoff == null)
             return false;

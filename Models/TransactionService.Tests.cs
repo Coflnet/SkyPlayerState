@@ -206,4 +206,33 @@ public class TransactionServiceTests
         // player table is written unconditionally; normalization keeps the row
         Assert.That(TransactionService.NormalizeTransactionsForStorage(new[] { t }), Has.Count.EqualTo(1));
     }
+
+    private static readonly Transaction.TransactionType[] BazaarWindow = { Transaction.TransactionType.TRADE | Transaction.TransactionType.RECEIVE, Transaction.TransactionType.BazaarBuy };
+    private static readonly Transaction.TransactionType[] ItemWindow = { Transaction.TransactionType.TRADE | Transaction.TransactionType.RECEIVE, Transaction.TransactionType.TRADE | Transaction.TransactionType.REMOVE };
+
+    [Test]
+    public void NonBazaarTriggerNeverShrinksPartitionWithBazaarRows()
+    {
+        Assert.That(TransactionService.ResolveKeep(false, BazaarWindow, 1000, 100_000), Is.EqualTo(0));
+    }
+
+    [Test]
+    public void NonBazaarTriggerOnItemInstancePartitionUsesItemKeep()
+    {
+        Assert.That(TransactionService.ResolveKeep(false, ItemWindow, 1000, 100_000), Is.EqualTo(1000));
+    }
+
+    [Test]
+    public void BazaarTriggerUsesBazaarKeep()
+    {
+        Assert.That(TransactionService.ResolveKeep(true, ItemWindow, 1000, 100_000), Is.EqualTo(100_000));
+        Assert.That(TransactionService.ResolveKeep(true, BazaarWindow, 1000, 100_000), Is.EqualTo(100_000));
+    }
+
+    [Test]
+    public void DisabledBazaarKeepNeverPrunesBazaarPartitions()
+    {
+        Assert.That(TransactionService.ResolveKeep(true, BazaarWindow, 1000, 0), Is.EqualTo(0));
+        Assert.That(TransactionService.ResolveKeep(false, BazaarWindow, 1000, 0), Is.EqualTo(0));
+    }
 }
