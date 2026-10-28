@@ -173,7 +173,8 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         logger.LogInformation("Initialized handlers, consuming");
         var consumerConfig = new ConsumerConfig(Kafka.KafkaCreator.GetClientConfig(config))
         {
-            SessionTimeoutMs = 9_000,
+            // 9 s let a short broker hiccup drop the whole assignment (2026-10-26 23:55); a crashed pod still hands off within 30 s
+            SessionTimeoutMs = 30_000,
             AutoOffsetReset = AutoOffsetReset.Earliest,
             EnableAutoCommit = false,
             PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky,

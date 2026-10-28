@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -117,6 +118,52 @@ public class TradeDetectTests
 
         nameService.Verify(s => s.PlayerNameUuidNameGetAsync("AscendantShadow", 0, default), Times.Once);
         tradeService.Verify(s => s.ProduceTrade(It.Is<TradeModel>(trade => trade.OtherSide == "AscendantShadow")), Times.Once);
+    }
+
+    [TestCase("not_real_e")]
+    [TestCase("Player1205")]
+    [TestCase("")]
+    public async Task NickedOtherSideIsSkippedWithoutErrorLog(string lookupResult)
+    {
+        var logger = new Mock<ILogger<TradeDetect>>();
+        var service = new TradeDetect(logger.Object);
+        var args = GetUpdateArgs(ChatUpdate);
+        var transactionService = new Mock<ITransactionService>();
+        var nameService = new Mock<IPlayerNameApi>();
+        var tradeService = new Mock<ITradeService>();
+        var itemDetails = new ItemDetails(null);
+        nameService.Setup(s => s.PlayerNameUuidNameGetAsync(It.IsAny<string>(), 0, default)).ReturnsAsync(lookupResult);
+        args.AddService(transactionService.Object);
+        args.AddService(nameService.Object);
+        args.AddService(tradeService.Object);
+        args.AddService(itemDetails);
+        args.currentState.RecentViews.Enqueue(JsonConvert.DeserializeObject<UpdateMessage>(Inventory)!.Chest!);
+        itemDetails.TagLookup["RAW_BEEF"] = Random.Shared.Next(10, 10000);
+
+        await service.Process(args);
+
+        // only our own side (item + coins) is stored
+        transactionService.Verify(t => t.AddTransactions(It.Is<IEnumerable<Transaction>>(t => t.Count() == 2)), Times.Once);
+        logger.Verify(l => l.Log(LogLevel.Error, It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(), It.IsAny<Exception>(),
+            It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Never);
+    }
+
+    [TestCase(false, LogLevel.Debug)]
+    [TestCase(true, LogLevel.Warning)]
+    public async Task MissingTradeViewIsNotAnError(bool completedLine, LogLevel expected)
+    {
+        var logger = new Mock<ILogger<TradeDetect>>();
+        var service = new TradeDetect(logger.Object);
+        var chat = completedLine ? ChatUpdate : """{"Kind":1,"Chest":null,"ChatBatch":[" + 5 Foraging XP"],"PlayerId":"Ekwav"}""";
+        var args = GetUpdateArgs(chat);
+        args.AddService(new ItemDetails(null));
+
+        await service.Process(args);
+
+        logger.Verify(l => l.Log(expected, It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(), It.IsAny<Exception>(),
+            It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
+        logger.Verify(l => l.Log(LogLevel.Error, It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(), It.IsAny<Exception>(),
+            It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Never);
     }
 
     private MockedUpdateArgs GetUpdateArgs(string json)

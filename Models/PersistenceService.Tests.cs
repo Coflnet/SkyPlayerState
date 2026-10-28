@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Coflnet.Sky.PlayerState.Bazaar;
 using Coflnet.Sky.PlayerState.Services;
 using MessagePack;
+using Moq;
 using NUnit.Framework;
 
 namespace Coflnet.Sky.PlayerState.Models;
@@ -150,5 +151,40 @@ public class PersistenceServiceTests
                 ExtraAttributes = new Dictionary<string, object> { { "uuid", Guid.NewGuid().ToString() } } }
         } });
         Assert.That(state.KnownItemUuids, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public async System.Threading.Tasks.Task RedisSyncWaitsForPlayerLockSoCopyNeverSeesMidUpdateMutation()
+    {
+        var database = new Moq.Mock<StackExchange.Redis.IDatabase>();
+        byte[]? written = null;
+        var stored = new System.Threading.Tasks.TaskCompletionSource();
+        database.Setup(d => d.StringSetAsync(It.IsAny<StackExchange.Redis.RedisKey>(), It.IsAny<StackExchange.Redis.RedisValue>(),
+                It.IsAny<StackExchange.Redis.Expiration>(), It.IsAny<StackExchange.Redis.ValueCondition>(), It.IsAny<StackExchange.Redis.CommandFlags>()))
+            .Callback((StackExchange.Redis.RedisKey k, StackExchange.Redis.RedisValue v, StackExchange.Redis.Expiration t, StackExchange.Redis.ValueCondition c, StackExchange.Redis.CommandFlags f) =>
+            {
+                written = (byte[])v!;
+                stored.TrySetResult();
+            })
+            .ReturnsAsync(true);
+        var redis = new Moq.Mock<StackExchange.Redis.IConnectionMultiplexer>();
+        redis.Setup(r => r.GetDatabase(It.IsAny<int>(), It.IsAny<object>())).Returns(database.Object);
+        var service = new PersistenceService(new Moq.Mock<ICassandraService>().Object,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<PersistenceService>.Instance, redis.Object);
+        var state = new StateObject { PlayerId = "lockedPlayer" };
+        state.PurseHistory.Enqueue(new PurseUpdate { Amount = 1 });
+
+        // an update is in progress and holds the lock
+        await state.Lock.WaitAsync();
+        var save = service.SaveStateObject(state);
+        await System.Threading.Tasks.Task.Delay(100);
+        Assert.That(stored.Task.IsCompleted, Is.False, "state was copied while an update held the lock");
+        state.PurseHistory.Enqueue(new PurseUpdate { Amount = 2 });
+        state.Lock.Release();
+
+        await stored.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try { await save; } catch { /* cassandra is not available in this test */ }
+        var copy = new Inventory { Serialized = written! }.GetStateObject();
+        Assert.That(copy.PurseHistory.Select(p => p.Amount), Is.EqualTo(new[] { 1d, 2d }));
     }
 }

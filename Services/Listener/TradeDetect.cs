@@ -57,7 +57,11 @@ public class TradeDetect : UpdateListener
         var tradeView = args.currentState.RecentViews.Where(t => t.Name?.StartsWith("You    ") ?? false).LastOrDefault();
         if (tradeView == null)
         {
-            logger.LogError("no trade view was found");
+            // expected when the trade window already left the recent views (only the last few are kept) or
+            // the chat line was not a trade at all; only a real "Trade completed" line is worth a warning
+            var completed = args.msg.ChatBatch?.Any(l => StripMinecraftFormatting(l).StartsWith("Trade completed with ", StringComparison.Ordinal)) ?? false;
+            logger.Log(completed ? LogLevel.Warning : LogLevel.Debug,
+                "no trade view found for {playerId}, trade completed line present: {completed}", args.currentState.PlayerId, completed);
             return;
         }
         ParseTradeWindow(tradeView, out var spent, out var received);
@@ -91,7 +95,7 @@ public class TradeDetect : UpdateListener
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Trying to add other side of trade " + tradeView.Name);
+            logger.LogError(e, "Trying to add other side of trade {tradeName}", tradeView.Name);
         }
 
         var service = args.GetService<ITransactionService>();
@@ -289,8 +293,13 @@ public class TradeDetect : UpdateListener
     {
         var nameService = args.GetService<IPlayerNameApi>();
         var uuidString = await nameService.PlayerNameUuidNameGetAsync(playerName);
-        logger.LogInformation($"other side of trade is {playerName} {uuidString}");
-        var uuid = Guid.Parse(uuidString.Trim('"'));
+        if (!Guid.TryParse(uuidString?.Trim().Trim('"'), out var uuid))
+        {
+            // nicked/hidden names have no uuid, the other side is simply not tracked
+            logger.LogDebug("no uuid for other side of trade {playerName}, got {uuidString}", playerName, uuidString);
+            return;
+        }
+        logger.LogInformation("other side of trade is {playerName} {uuid}", playerName, uuid);
         transactions.AddRange(spent.Select(s =>
         {
             return CreateTransaction(uuid, s, timestamp, Transaction.TransactionType.TRADE | Transaction.TransactionType.RECEIVE);

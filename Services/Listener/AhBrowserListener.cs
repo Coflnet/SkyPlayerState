@@ -70,10 +70,21 @@ public class AhBrowserListener : UpdateListener
                 var found = await args.GetService<IPlayerNameApi>().PlayerNameUuidNameGetAsync(clearedBuyer); // trigger caching
                 if (string.IsNullOrEmpty(found))
                 {
+                    // the cache endpoint takes a uuid, the menu only shows the name
+                    var buyerUuid = System.Guid.TryParse(clearedBuyer, out _) ? clearedBuyer : await ResolveUuid(args, clearedBuyer);
+                    if (buyerUuid == null)
+                    {
+                        Logger.LogDebug("Not caching buyer {name}, no account found (nicked?)", clearedBuyer);
+                        continue;
+                    }
                     try
                     {
-                        await args.GetService<IPlayerApi>().ApiPlayerPlayerUuidNamePostAsync(clearedBuyer);
-                        Logger.LogInformation("Cached missing buyer name {name}", clearedBuyer);
+                        await args.GetService<IPlayerApi>().ApiPlayerPlayerUuidNamePostAsync(buyerUuid);
+                        Logger.LogInformation("Cached missing buyer name {name} {uuid}", clearedBuyer, buyerUuid);
+                    }
+                    catch (System.Exception e) when (e.Message.Contains("invalid_uuid"))
+                    {
+                        Logger.LogDebug(e, "Buyer {name} rejected as invalid uuid", clearedBuyer);
                     }
                     catch (System.Exception e)
                     {
@@ -82,6 +93,25 @@ public class AhBrowserListener : UpdateListener
                     continue;
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Resolves a name the name service doesn't know yet; the sky-api search falls back to Mojang.
+    /// </summary>
+    private async Task<string> ResolveUuid(UpdateArgs args, string name)
+    {
+        try
+        {
+            var results = await args.GetService<ISearchApi>().ApiSearchPlayerPlayerNameGetAsync(name);
+            var match = results?.FirstOrDefault(r => string.Equals(r.Name, name, System.StringComparison.OrdinalIgnoreCase));
+            return match?.Uuid != null && System.Guid.TryParse(match.Uuid, out _) ? match.Uuid : null;
+        }
+        catch (System.Exception e)
+        {
+            // player_not_found for nicked names
+            Logger.LogDebug(e, "Could not resolve uuid for buyer {name}", name);
+            return null;
         }
     }
 

@@ -156,13 +156,30 @@ public class PersistenceService : IPersistenceService
         redisNextSync[stateObject.PlayerId] = now + redisSyncThrottle;
         try
         {
-            var serialized = new Inventory(stateObject).Serialized;
+            var serialized = (await Snapshot(stateObject)).Serialized;
             await redis.GetDatabase().StringSetAsync(RedisKeyFor(stateObject.PlayerId), serialized, redisTtl);
             redisSyncCount.Inc();
         }
         catch (Exception e)
         {
             logger.LogError(e, "failed to sync state to redis for {playerId}", stateObject.PlayerId);
+        }
+    }
+
+    /// <summary>
+    /// Copies and serializes the state while holding the player's lock so no update mutates the
+    /// collections mid-copy. Must not be called by code that already holds the lock.
+    /// </summary>
+    private static async Task<Inventory> Snapshot(StateObject stateObject)
+    {
+        await stateObject.Lock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            return new Inventory(stateObject);
+        }
+        finally
+        {
+            stateObject.Lock.Release();
         }
     }
 
@@ -199,7 +216,7 @@ public class PersistenceService : IPersistenceService
             return;
         }
         var table = await GetPlayerTable();
-        var inventory = new Inventory(stateObject);
+        var inventory = await Snapshot(stateObject);
         byte[] hash;
         hash = GetHash(inventory);
         if (DidNothingChange(stateObject, hash))
