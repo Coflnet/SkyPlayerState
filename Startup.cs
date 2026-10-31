@@ -26,6 +26,8 @@ using Coflnet.Sky.Api.Client.Api;
 using Coflnet.Sky.Sniper.Client.Api;
 using Coflnet.Sky.PlayerState.Bazaar;
 using StackExchange.Redis;
+using Coflnet.Core.Security;
+using Coflnet.Sky.PlayerState.Infrastructure;
 
 namespace Coflnet.Sky.PlayerState;
 
@@ -204,10 +206,24 @@ public class Startup
         {
             endpoints.MapMetrics();
             endpoints.MapControllers();
+            endpoints.MapGet("/health/ready", DatabaseReadiness.HandleAsync);
         });
     }
+    internal static SSLOptions? CreatePemScyllaOptions(IConfiguration configuration, IServiceProvider services)
+    {
+        if (!configuration.GetValue<bool>("SCYLLA:TLS:ENABLED"))
+            return null;
+        var name = configuration["SCYLLA:TLS:SERVER_NAME"];
+        if (string.IsNullOrWhiteSpace(name))
+            throw new InvalidOperationException("SCYLLA:TLS:SERVER_NAME is required for strict CQL TLS.");
+        return Coflnet.Cassandra.PemTlsExtensions.CreateCassandraSslOptions(
+            services.GetRequiredKeyedService<PemTlsOptions>("SCYLLA"), name);
+    }
+
     private void RegisterScyllaSession(IServiceCollection services)
     {
+        services.AddKeyedSingleton<PemTlsOptions>("SCYLLA", (p, _) =>
+            PemTlsOptions.FromConfiguration(p.GetRequiredService<IConfiguration>().GetSection("SCYLLA:TLS")));
         services.AddSingleton<ISession>(p =>
         {
             var logger = p.GetRequiredService<ILogger<Startup>>();
@@ -222,12 +238,13 @@ public class Startup
             logger.LogDebug("Using replication class {replicationClass}", Configuration["SCYLLA:REPLICATION_CLASS"]);
             logger.LogDebug("Using replication factor {replicationFactor}", Configuration["SCYLLA:REPLICATION_FACTOR"]);
             logger.LogDebug("Using user {user}", Configuration["SCYLLA:USER"]);
-            logger.LogDebug("Using password {password}...", Configuration["SCYLLA:PASSWORD"].Truncate(2));
             var certificatePaths = Configuration["SCYLLA:X509Certificate_PATHS"];
             logger.LogDebug("Using certificate paths {certificatePaths}", certificatePaths);
-            logger.LogDebug("Using certificate password {certificatePassword}...", Configuration["SCYLLA:X509Certificate_PASSWORD"].Truncate(2));
             var validationCertificatePath = Configuration["SCYLLA:X509Certificate_VALIDATION_PATH"];
-            if (!string.IsNullOrEmpty(certificatePaths))
+            var pem = CreatePemScyllaOptions(Configuration, p);
+            if (pem != null)
+                builder.WithSSL(pem);
+            else if (!string.IsNullOrEmpty(certificatePaths))
             {
                 var password = Configuration["SCYLLA:X509Certificate_PASSWORD"] ?? throw new InvalidOperationException("SCYLLA:X509Certificate_PASSWORD must be set if SCYLLA:X509Certificate_PATHS is set.");
                 CustomRootCaCertificateValidator certificateValidator = null;

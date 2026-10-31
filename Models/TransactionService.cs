@@ -267,7 +267,7 @@ public class TransactionService : ITransactionService, ICassandraService
                     // Custom validator avoids need to trust the CA system-wide.
                     (sender, certificate, chain, errors) => true
                 ).SetCertificateCollection(new(certificatePaths.Split(',').Select(p => new X509Certificate2(p)).ToArray()));
-                builder.WithSSL();
+                builder.WithSSL(sslOptions);
             }
             var cluster = builder.Build();
             cluster.ConnectAndCreateDefaultKeyspaceIfNotExists(new Dictionary<string, string>()

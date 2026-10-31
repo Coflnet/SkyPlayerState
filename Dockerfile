@@ -1,6 +1,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /build
-RUN git clone --depth=1 https://github.com/Coflnet/HypixelSkyblock.git dev
+RUN git clone --depth=1 https://github.com/Coflnet/HypixelSkyblock.git dev \
+    && git -C dev fetch --depth=1 origin de08bc8053ba924201d98a3dc6c5588fe6dd1a5b \
+    && git -C dev checkout --detach de08bc8053ba924201d98a3dc6c5588fe6dd1a5b
 WORKDIR /build/sky
 COPY SkyPlayerState.csproj SkyPlayerState.csproj
 RUN dotnet restore
