@@ -181,4 +181,145 @@ public class ScoreboardParserTests
     {
         ScoreboardParser.ParseBits(new[] { "Purse: 5" }).Should().BeNull();
     }
+
+    [TestCase("Copper: 3,416", 3416)]
+    [TestCase("§7Copper: §c3,416", 3416)]
+    [TestCase("Copper: 1,234 (+12)", 1234)]
+    [TestCase("§cCopper: §c1,234 §a(+12)", 1234)]
+    public void ParseCopper_ReadsCopper(string line, long expected)
+    {
+        ScoreboardParser.ParseCopper(new[] { "Purse: 5", line }).Should().Be(expected);
+    }
+
+    [Test]
+    public void ParseCopper_NullWhenAbsent()
+    {
+        ScoreboardParser.ParseCopper(new[] { "Purse: 5", "Bits: 10" }).Should().BeNull();
+        ScoreboardParser.ParseCopper(null).Should().BeNull();
+    }
+
+    private static async Task<StateObject> CopperScoreboard(StateObject state, string line, string? server = null)
+    {
+        var args = new MockedUpdateArgs
+        {
+            currentState = state,
+            msg = new UpdateMessage { Kind = UpdateMessage.UpdateKind.Scoreboard, PlayerId = "p1", Scoreboard = server == null ? new[] { "[SKYBLOCK]", line } : new[] { "[SKYBLOCK]", System.DateTime.UtcNow.ToString("MM/dd/yy") + " " + server, line }, ReceivedAt = System.DateTime.UtcNow }
+        };
+        args.AddService<Microsoft.Extensions.Logging.ILogger<CollectionListener>>(Microsoft.Extensions.Logging.Abstractions.NullLogger<CollectionListener>.Instance);
+        await new CollectionListener().Process(args);
+        return state;
+    }
+
+    [Test]
+    public async Task Copper_IsStoredAndBookedOnlyOnIncrease()
+    {
+        var state = new StateObject();
+        // first reading: stored, nothing booked
+        await CopperScoreboard(state, "Copper: 1,000");
+        state.ExtractedInfo.Copper.Should().Be(1000);
+        state.ItemsCollectedRecently.Should().NotContainKey(Tasks.PseudoItems.COPPER);
+
+        // increase books the difference (gain suffix ignored)
+        await CopperScoreboard(state, "§cCopper: §c1,120 §a(+120)");
+        state.ExtractedInfo.Copper.Should().Be(1120);
+        state.ItemsCollectedRecently[Tasks.PseudoItems.COPPER].Should().Be(120);
+
+        // spending at SkyMart books nothing
+        await CopperScoreboard(state, "Copper: 20");
+        state.ExtractedInfo.Copper.Should().Be(20);
+        state.ItemsCollectedRecently[Tasks.PseudoItems.COPPER].Should().Be(120);
+
+        // and a second gain accumulates
+        await CopperScoreboard(state, "Copper: 50");
+        state.ItemsCollectedRecently[Tasks.PseudoItems.COPPER].Should().Be(150);
+    }
+
+    [Test]
+    public async Task Copper_JumpOfNinePointFiveThousandOnSameServer_IsBooked()
+    {
+        var state = new StateObject();
+        await CopperScoreboard(state, "Copper: 500");
+        await CopperScoreboard(state, "Copper: 10,000");
+        state.ItemsCollectedRecently[Tasks.PseudoItems.COPPER].Should().Be(9_500);
+    }
+
+    [Test]
+    public async Task Copper_GainAboveFiftyThousand_IsNotBooked()
+    {
+        var state = new StateObject();
+        await CopperScoreboard(state, "Copper: 500");
+        await CopperScoreboard(state, "Copper: 60,000");
+        state.ExtractedInfo.Copper.Should().Be(60_000);
+        state.ItemsCollectedRecently.Should().NotContainKey(Tasks.PseudoItems.COPPER);
+    }
+
+    [Test]
+    public async Task Copper_AnalyzerSizedGainWithinAMinute_IsBooked()
+    {
+        var state = new StateObject();
+        await CopperScoreboard(state, "Copper: 500");
+        state.ExtractedInfo.CopperSeenAt = System.DateTime.UtcNow.AddSeconds(-50);
+        await CopperScoreboard(state, "Copper: 4,500");
+        state.ItemsCollectedRecently[Tasks.PseudoItems.COPPER].Should().Be(4_000);
+    }
+
+    [Test]
+    public async Task Copper_GainAfterServerChange_IsNotBookedButNextOneIs()
+    {
+        var state = new StateObject();
+        await CopperScoreboard(state, "Copper: 500", "mini11A");
+        await CopperScoreboard(state, "Copper: 520", "mini22B");
+        state.ExtractedInfo.Copper.Should().Be(520);
+        state.ItemsCollectedRecently.Should().NotContainKey(Tasks.PseudoItems.COPPER);
+
+        await CopperScoreboard(state, "Copper: 540", "mini22B");
+        state.ItemsCollectedRecently[Tasks.PseudoItems.COPPER].Should().Be(20);
+    }
+
+    [Test]
+    public async Task Copper_GainAfterTwoHourGap_IsNotBooked()
+    {
+        var state = new StateObject();
+        await CopperScoreboard(state, "Copper: 500");
+        state.ExtractedInfo.CopperSeenAt = System.DateTime.UtcNow.AddHours(-2);
+        await CopperScoreboard(state, "Copper: 620");
+        state.ExtractedInfo.Copper.Should().Be(620);
+        state.ItemsCollectedRecently.Should().NotContainKey(Tasks.PseudoItems.COPPER);
+    }
+
+    [Test]
+    public async Task Copper_NormalGainWithinAMinute_IsBooked()
+    {
+        var state = new StateObject();
+        await CopperScoreboard(state, "Copper: 500");
+        state.ExtractedInfo.CopperSeenAt = System.DateTime.UtcNow.AddSeconds(-40);
+        await CopperScoreboard(state, "Copper: 620");
+        state.ItemsCollectedRecently[Tasks.PseudoItems.COPPER].Should().Be(120);
+    }
+
+    [Test]
+    public async Task GetCurrencies_ReturnsCopper()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.Copper = 777;
+        var persistence = new Moq.Mock<Coflnet.Sky.PlayerState.Models.IPersistenceService>();
+        persistence.Setup(p => p.GetStateObject("p1")).Returns(Task.FromResult(state));
+        var controller = new Coflnet.Sky.PlayerState.Controllers.PlayerStateController(persistence.Object, null!);
+
+        var currencies = await controller.GetCurrencies("p1");
+
+        currencies.Copper.Should().Be(777);
+    }
+
+    [Test]
+    public async Task Copper_GainOnAlphaNetwork_IsNotBookedButSetsTheBaseline()
+    {
+        var state = new StateObject();
+        state.ExtractedInfo.OnAlphaNetwork = true;
+        await CopperScoreboard(state, "Copper: 500");
+        state.ExtractedInfo.CopperSeenAt = System.DateTime.UtcNow.AddSeconds(-30);
+        await CopperScoreboard(state, "Copper: 620");
+        state.ExtractedInfo.Copper.Should().Be(620);
+        state.ItemsCollectedRecently.Should().NotContainKey(Tasks.PseudoItems.COPPER);
+    }
 }

@@ -22,7 +22,7 @@ public class TaskCatalogRegistrationTests
     /// </summary>
     private static readonly string[] ExpectedHiddenTaskNames =
     [
-        "BazaarPurchaseTask", "AuctionPurchaseTask", "MinionCollectionTask",
+        "BazaarPurchaseTask", "AuctionPurchaseTask", "MinionCollectionTask", "CropAnalyzerTask",
         // hidden zone tasks for zones where no money making method exists - see HiddenTasks.cs
         "PrivateIslandActivityTask", "ForgeClaimsTask", "HubTradingTask", "RiftActivityTask", "UnknownLocationTask",
         // location-only catch-alls whose personal view would otherwise swallow a whole island - see CoverageGapTasks.cs
@@ -51,7 +51,7 @@ public class TaskCatalogRegistrationTests
         "HoneycombGatheringTask", "HubTradingTask", "HuntingTrapTask",
         "InvisibugHuntingTask", "JadeMiningTask", "JasperMiningTask", "JerryTask", "JoydiveTask",
         "JunglePowderMiningTask", "KadaKnightHuntingTask", "KatTask", "KuudraT1Task", "KuudraT2Task",
-        "KuudraT3Task", "KuudraT4Task", "KuudraT5Task", "KuudraChestClaimsTask", "HeavyPearlsTask", "GardenVisitorsTask", "RiftActivityTask", "UnknownLocationTask", "LotusAtollTask", "LumisquidTask",
+        "KuudraT3Task", "KuudraT4Task", "KuudraT5Task", "KuudraChestClaimsTask", "HeavyPearlsTask", "GardenVisitorsTask", "CropAnalyzerTask", "RiftActivityTask", "UnknownLocationTask", "LotusAtollTask", "LumisquidTask",
         "M1Task", "M2Task", "M3Task", "M4Task", "M5Task",
         "M6Task", "M7Task", "MageOutlawTask", "MagmaCoreFishingTask", "MangroveForagingTask", "MatchoTask", "MelonFarmingTask", "MithrilDepositsPowderMiningTask",
         "MinerZombieHuntingTask", "MinionCollectionTask", "MithrilMiningTask", "MochibearkTask", "MoonflowerFarmingTask", "MossybitTask", "MudwormHuntingTask", "MushroomFarmingTask", "MyceliumTask", "NetherWartFarmingTask", "NucleusMiningTask", "OasisFishingTask",

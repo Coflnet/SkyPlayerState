@@ -14,6 +14,9 @@ public static class ScoreboardParser
     private static readonly Regex PurseRegex = new(@"(?:Purse|Piggy):\s*([\d,]+)", RegexOptions.Compiled);
     // "Bits: 10,920"
     private static readonly Regex BitsRegex = new(@"Bits:\s*([\d,]+)", RegexOptions.Compiled);
+    // "Copper: 3,416" (Garden), possibly followed by a gain suffix like " (+12)" which is ignored.
+    // Pattern follows SkyHanni's ScoreboardPattern.copperPattern: "(?:§.)*Copper: (?:§.)*(?<copper>[\d,]+).*"
+    private static readonly Regex CopperRegex = new(@"Copper:\s*([\d,]+)", RegexOptions.Compiled);
 
     /// <summary>
     /// Coins in the players purse (or piggy bank), or null when no purse line is present.
@@ -24,6 +27,11 @@ public static class ScoreboardParser
     /// Bits shown on the scoreboard, or null when no bits line is present.
     /// </summary>
     public static long? ParseBits(IEnumerable<string> scoreboard) => ParseLabeledAmount(scoreboard, BitsRegex);
+
+    /// <summary>
+    /// Copper (Garden currency) shown on the scoreboard, or null when no copper line is present.
+    /// </summary>
+    public static long? ParseCopper(IEnumerable<string> scoreboard) => ParseLabeledAmount(scoreboard, CopperRegex);
 
     private static long? ParseLabeledAmount(IEnumerable<string> scoreboard, Regex regex)
     {

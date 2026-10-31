@@ -1341,6 +1341,31 @@ public class TaskClassifierTests
         => NameAt("The Garden", new() { { "CARNIVAL_TICKET", 15 }, { "FEAST_FLASK", 4 } }).Should().Be("Garden Visitors");
 
     [Test]
+    public void GardenVisitorCopperWithHandedOverCrops_ClassifiesToGardenVisitors()
+        => NameAt("The Garden", new() { { PseudoItems.COPPER, 120 }, { "ENCHANTED_HAY_BALE", -256 } }).Should().Be("Garden Visitors");
+
+    [TestCase("DUSKBLOOM", -1)]
+    [TestCase("CHOCONUT", -7)]
+    public void UndergroundLabMutationsWithCopper_ClassifiesToHiddenCropAnalyzer(string mutation, int count)
+    {
+        var items = new Dictionary<string, int> { { mutation, count } };
+        if (count == -1)
+            items[PseudoItems.COPPER] = 5;
+        var name = NameAt("Underground Lab", items);
+        name.Should().Be("Crop Analyzer");
+        IsHidden(name!).Should().BeTrue();
+    }
+
+    [Test]
+    public void GardenCropFarmingWithPricedCopper_StaysWheatFarming()
+        => NameAtPriced("The Garden", new() { { "ENCHANTED_WHEAT", 300 }, { PseudoItems.COPPER, 120 } },
+            new() { { "ENCHANTED_WHEAT", 200 }, { PseudoItems.COPPER, 1300 } }).Should().Be("Wheat Farming");
+
+    [Test]
+    public void GardenCropFarmingWithSmallCopperGain_StaysWheatFarming()
+        => NameAt("The Garden", new() { { "ENCHANTED_WHEAT", 300 }, { PseudoItems.COPPER, 5 } }).Should().Be("Wheat Farming");
+
+    [Test]
     public void GardenCarrotsWithJacobsTicket_StaysCarrotFarming()
     {
         // null prices, like the other crop tests here

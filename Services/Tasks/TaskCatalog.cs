@@ -329,6 +329,7 @@ internal static class TaskCatalog
         // Garden tasks
         tasks.Add<PestTask>();
         tasks.Add<GardenVisitorsTask>();
+        tasks.Add<CropAnalyzerTask>(); // hidden
         // GardenFarmingTask (discovered from unclassified production revenue 2026-09) split 2026-09
         // into one task per crop - see GardenTasks.cs/BaseGardenCropTask.
         tasks.Add<WheatFarmingTask>();

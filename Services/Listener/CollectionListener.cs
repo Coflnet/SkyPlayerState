@@ -28,6 +28,12 @@ public class CollectionListener : UpdateListener
     private static readonly TimeSpan CleanPricesFailureBackoff = TimeSpan.FromSeconds(15);
     private static readonly Dictionary<string, double> EmptyCleanPrices = new();
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> lastLiveClassification = new();
+    private static readonly TimeSpan MaxCopperReadingAge = TimeSpan.FromMinutes(30);
+    // only a parse-glitch guard: a single Crop Analyzer mass analysis can give thousands
+    private const long MaxCopperGain = 50_000;
+    private static readonly Prometheus.Counter CopperBookedCounter = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_copper_booked_total",
+        "Copper (Garden currency) gains booked into the current period from scoreboard increases");
     private static readonly Prometheus.Counter PeriodClassifiedCounter = Prometheus.Metrics.CreateCounter(
         "sky_playerstate_task_classified_total", "Periods attributed to a task by the classifier", "task");
     private static readonly Prometheus.Counter PeriodUnclassifiedCounter = Prometheus.Metrics.CreateCounter(
@@ -149,6 +155,47 @@ public class CollectionListener : UpdateListener
         }
 
         args.currentState.ExtractedInfo.MithrilPowder = currentMithrilPowder;
+    }
+
+    /// <summary>
+    /// Stores the scoreboard copper balance and books an increase since the previous reading as
+    /// earned copper (<see cref="Tasks.PseudoItems.COPPER"/>) in the current period. A decrease (spent at
+    /// SkyMart) and the first reading after none (0 = unknown) book nothing. Copper comes from Garden visitors
+    /// and the Crop Analyzer. <paramref name="serverChanged"/> (a profile switch always moves the player to
+    /// another server, earning copper never does) drops the baseline so the reading only sets a new one.
+    /// </summary>
+    internal static void TrackCopper(UpdateArgs args, long currentCopper, bool serverChanged = false)
+    {
+        if (currentCopper < 0)
+            return;
+        if (serverChanged)
+            args.currentState.ExtractedInfo.CopperSeenAt = default;
+        // the alpha network is a separate copy: its copper must neither be booked nor leak into the first main period
+        if (args.currentState.ExtractedInfo.OnAlphaNetwork)
+            args.currentState.ExtractedInfo.CopperSeenAt = default;
+        var previous = args.currentState.ExtractedInfo.Copper;
+        // message time, not wall clock: a consumer backlog is processed late but the readings stay minutes apart
+        var now = args.msg.ReceivedAt;
+        var seenAt = args.currentState.ExtractedInfo.CopperSeenAt;
+        if (previous > 0 && currentCopper > previous)
+        {
+            var amount = currentCopper - previous;
+            var age = now - seenAt;
+            // copper is per profile: a stale or missing baseline (time away, server change) may be another
+            // profile, and a huge jump is a parse glitch - none of those is earned copper
+            if (seenAt != default && age >= TimeSpan.Zero && age <= MaxCopperReadingAge && amount <= MaxCopperGain)
+            {
+                var gain = (int)amount;
+                Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, Tasks.PseudoItems.COPPER, gain);
+                CopperBookedCounter.Inc(gain);
+                args.GetService<ILogger<CollectionListener>>().LogInformation("Copper gain of {amount} for {playerId}", gain, args.currentState.PlayerId);
+            }
+            else
+                args.GetService<ILogger<CollectionListener>>().LogInformation("Copper jump of {amount} for {playerId} not booked (last seen {age})",
+                    amount, args.currentState.PlayerId, age);
+        }
+        args.currentState.ExtractedInfo.Copper = currentCopper;
+        args.currentState.ExtractedInfo.CopperSeenAt = now;
     }
 
     private static bool TryParseNumber(string value, out int parsed)
@@ -1240,6 +1287,8 @@ public class CollectionListener : UpdateListener
                     if (item.Value > 0)
                         cleanPrices[item.Key] = item.Value;
                 }
+                // copper is no market item: value it from the SkyMart derivation (at most one cache period stale)
+                cleanPrices[Tasks.PseudoItems.COPPER] = Tasks.CopperValue.Current;
                 cachedCleanPrices = cleanPrices;
                 cleanPricesFetchedAt = DateTime.UtcNow;
                 return cachedCleanPrices;
@@ -1301,6 +1350,9 @@ public class CollectionListener : UpdateListener
         }
     }
 
+    private static bool ServerChanged(string? server, string? previousServer)
+        => !string.IsNullOrEmpty(server) && !string.IsNullOrEmpty(previousServer) && server != previousServer;
+
     private async Task HandleScoreboard(UpdateArgs args)
     {
         UpdateAlphaNetwork(args);
@@ -1321,6 +1373,9 @@ public class CollectionListener : UpdateListener
         var bits = ScoreboardParser.ParseBits(args.msg.Scoreboard);
         if (bits.HasValue)
             args.currentState.ExtractedInfo.Bits = bits.Value;
+        var copper = ScoreboardParser.ParseCopper(args.msg.Scoreboard);
+        if (copper.HasValue)
+            TrackCopper(args, copper.Value, ServerChanged(server, previousServer));
         var currentLocation = ScoreboardParser.ExtractArea(args.msg.Scoreboard);
         if (currentLocation == null)
         {

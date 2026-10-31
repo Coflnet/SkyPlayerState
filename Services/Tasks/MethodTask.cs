@@ -589,7 +589,7 @@ public abstract class MethodTask : ProfitTask
 
         var fmt = parameters.Formatter;
         var formattedDuration = fmt.FormatTime(TimeSpan.FromHours(totalHours));
-        var itemCount = items.Where(i => i.Value > 0).Sum(i => i.Value);
+        var itemCount = items.Where(i => i.Value > 0 && i.Key != PseudoItems.COPPER).Sum(i => i.Value);
         var itemBreakDown = items.Take(20)
             .Select(i => $"{McColorCodes.YELLOW}{i.Key} {McColorCodes.GRAY}x{i.Value}")
             .DefaultIfEmpty("No items tracked")

@@ -15,4 +15,8 @@ public class PlayerCurrencies
     /// Bits currently available. 0 when unknown.
     /// </summary>
     public long Bits { get; set; }
+    /// <summary>
+    /// Copper (Garden currency) currently available. 0 when unknown.
+    /// </summary>
+    public long Copper { get; set; }
 }

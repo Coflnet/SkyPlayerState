@@ -133,7 +133,7 @@ namespace Coflnet.Sky.PlayerState.Controllers
         }
 
         /// <summary>
-        /// Returns the players current currency balances (purse, bits) as last seen on the
+        /// Returns the players current currency balances (purse, bits, copper) as last seen on the
         /// sidebar scoreboard. Lightweight alternative to fetching the full state.
         /// </summary>
         /// <param name="playerId">the player name the state is stored under</param>
@@ -145,7 +145,8 @@ namespace Coflnet.Sky.PlayerState.Controllers
             return new PlayerCurrencies
             {
                 Purse = extracted?.Purse ?? 0,
-                Bits = extracted?.Bits ?? 0
+                Bits = extracted?.Bits ?? 0,
+                Copper = extracted?.Copper ?? 0
             };
         }
 

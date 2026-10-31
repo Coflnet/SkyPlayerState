@@ -43,4 +43,15 @@ public class BitController : ControllerBase
     {
         return await _bitService.GetAllTagToBitMappings();
     }
+
+    /// <summary>
+    /// Gets the current coins-per-copper value (Garden currency) and the SkyMart items it was derived from.
+    /// Falls back to a constant when too few items qualify (see <c>IsFallback</c>).
+    /// </summary>
+    [HttpGet]
+    [Route("copper")]
+    public Tasks.CopperValueInfo GetCopperValue()
+    {
+        return Tasks.CopperValue.Info;
+    }
 }

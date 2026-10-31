@@ -42,6 +42,11 @@ public static class PseudoItems
     /// <summary>EVIDENCE tag, +1 per completed dungeon run (from the "The Catacombs - Floor X" chat header). Worth 0 coins.</summary>
     public const string DUNGEON_RUN = "DUNGEON_RUN";
     public const string DUNGEON_CHEST_COST = "DUNGEON_CHEST_COST";
+    /// <summary>
+    /// Copper (Garden currency) earned, +N per scoreboard increase. NOT evidence/cost: it is a real currency valued in
+    /// coins via <see cref="CopperValue"/> (derived from SkyMart prices). Prefixed so it can never clash with a real item tag.
+    /// </summary>
+    public const string COPPER = "SKYBLOCK_COPPER";
 
     private static readonly HashSet<string> EvidenceTags = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -94,8 +99,9 @@ public static class PseudoItems
     /// Weight used by <see cref="TaskClassifier"/> when tie-breaking which task a window belongs to.
     /// Pseudo tags (both evidence and cost) weigh 1 coin per unit - since their COUNT already IS
     /// coins (spent or cost), that lets a purchase-dominated window out-weigh a small real grind
-    /// without needing a market price. Real item tags fall back to <paramref name="prices"/>.
+    /// without needing a market price. Copper weighs 0: it is item-match evidence only, its coin value must not
+    /// pull a crop period with one served visitor over to Garden Visitors. Real item tags fall back to <paramref name="prices"/>.
     /// </summary>
     public static double ClassifierWeight(string tag, Dictionary<string, double>? prices) =>
-        IsPseudo(tag) ? 1 : (prices?.GetValueOrDefault(tag) ?? 0);
+        tag == COPPER ? 0 : IsPseudo(tag) ? 1 : (prices?.GetValueOrDefault(tag) ?? 0);
 }

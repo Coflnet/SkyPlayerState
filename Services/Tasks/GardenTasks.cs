@@ -301,7 +301,10 @@ public class GardenVisitorsTask : MethodTask
     [
         "OVERCLOCKER_3000", "SQUEAKY_TOY", "JACOBS_TICKET", "CARNIVAL_TICKET", "FEAST_FLASK", "BOOKWORM_BOOK",
         "QUICKDRAW_GARDEN_CHIP", "SYNTHESIS_GARDEN_CHIP", "EVERGREEN_GARDEN_CHIP", "FLOWERING_BOUQUET",
-        "OVERGROWN_GRASS", "GREEN_BANDANA", "SPACE_HELMET", "FRUIT_BOWL"
+        "OVERGROWN_GRASS", "GREEN_BANDANA", "SPACE_HELMET", "FRUIT_BOWL",
+        // copper comes from serving visitors and, at the Underground Lab, the Crop Analyzer (CropAnalyzerTask);
+        // booked from the scoreboard, see CollectionListener.TrackCopper
+        PseudoItems.COPPER
     ];
     protected override bool ExcludeShardItems => true;
     protected override int Priority => -1;
@@ -314,4 +317,39 @@ public class GardenVisitorsTask : MethodTask
     protected override string HowTo => "Serve the visitors that arrive at your Garden and accept their rewards.";
     public override string Description =>
         "Rewards from serving Garden visitors (Garden chips, tickets, Overclocker 3000, ...).";
+}
+
+/// <summary>
+/// Mutation items analysed (consumed) at the Crop Analyzer in the Garden's Underground Lab. Tags seen in
+/// production Underground Lab periods 2026-10; the wiki names more mutations whose tags are unverified
+/// and therefore left out (hypixelskyblock.minecraft.wiki/w/Crop_Analyzer).
+/// </summary>
+internal static class CropAnalyzerEvidence
+{
+    public static readonly HashSet<string> Mutations =
+    [
+        "CHLORONITE", "CINDERSHADE", "LONELILY", "VEILSHROOM", "FLESHTRAP", "CHOCOBERRY", "DUSKBLOOM",
+        "PHANTOMLEAF", "CHOCONUT", "DUSTGRAIN", "ZOMBUD", "COALROOT", "WITHERBLOOM", "TURTLELLINI",
+        "SOGGYBUD", "THUNDERLING", "SHADEVINE", "SCOURROOT", "GLOOMGOURD", "ETHEREAL_VINE"
+    ];
+}
+
+/// <summary>
+/// Hidden accounting task: mutations are analysed for copper at the Underground Lab. The coin cost of an
+/// analysis is not tracked, so this must never show as a profitable method. Matches the literal zone
+/// (SkyblockZones.Matches checks the exact zone string first), so Garden Visitors (island "Garden") cannot win it.
+/// </summary>
+public class CropAnalyzerTask : MethodTask
+{
+    protected override bool Hidden => true;
+    protected override string MethodName => "Crop Analyzer";
+    protected override string Category => "Garden";
+    protected override HashSet<string> Locations => ["Underground Lab"];
+    protected override HashSet<string> DetectionItems => [PseudoItems.COPPER, .. CropAnalyzerEvidence.Mutations];
+    // consumed mutations (negative counts) are the signal and cost of an analysis
+    protected override HashSet<string> ObservedCostItems => CropAnalyzerEvidence.Mutations;
+    protected override TaskType TaskType => TaskType.Passive;
+    public override string Description =>
+        "Hidden accounting task: mutations analysed for copper at the Crop Analyzer in the Underground Lab. "
+        + "The coin cost is not tracked, so it is never shown to players.";
 }

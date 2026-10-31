@@ -169,6 +169,7 @@ public class Startup
         services.AddSingleton<Tasks.TaskBackfillService>();
         services.AddSingleton<Tasks.TaskExecutionService>();
         services.AddHostedService<Tasks.TaskAggregateFlusher>();
+        services.AddHostedService<Tasks.CopperValueRefresher>();
         // export the fold/estimate spans (and the existing consumer spans) to jaeger.
         // AddOpenTelemetry().WithTracing is additive to the config AddJaeger set up.
         services.AddOpenTelemetry().WithTracing(b => b.AddSource(Tasks.TaskTelemetry.SourceName).AddSource(BazaarOrderSync.SourceName));

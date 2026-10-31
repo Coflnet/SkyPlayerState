@@ -82,6 +82,8 @@ public class TaskPriceService
             {
                 logger.LogWarning(e, "sniper clean prices unavailable for task estimates");
             }
+            // copper is no market item: value it from the SkyMart derivation (refreshed hourly, so at most one cache period stale)
+            prices[PseudoItems.COPPER] = CopperValue.Current;
             cached = prices;
             fetchedAt = DateTime.UtcNow;
             return cached;

@@ -268,6 +268,8 @@ public class ExtractedInfo
         CurrentSession = extractedInfo.CurrentSession == null ? null : new TaskSession(extractedInfo.CurrentSession);
         Purse = extractedInfo.Purse;
         Bits = extractedInfo.Bits;
+        Copper = extractedInfo.Copper;
+        CopperSeenAt = extractedInfo.CopperSeenAt;
         CurrentIsland = extractedInfo.CurrentIsland;
         CurrentIslandAt = extractedInfo.CurrentIslandAt;
         CurrentLocationSince = extractedInfo.CurrentLocationSince;
@@ -425,6 +427,18 @@ public class ExtractedInfo
     /// </summary>
     [Key(66)]
     public Dictionary<string, DateTime> PlayerStatSetAt { get; set; } = new();
+    /// <summary>
+    /// Copper (the Garden currency, spent at SkyMart) the player currently has, parsed from the sidebar
+    /// scoreboard. 0 when not yet known. Increases between scoreboards are booked as earned copper.
+    /// </summary>
+    [Key(67)]
+    public long Copper { get; set; }
+    /// <summary>
+    /// When <see cref="Copper"/> was last read from the scoreboard. Copper is per profile and profile switches are not
+    /// tracked, so a gain is only booked against a recent reading.
+    /// </summary>
+    [Key(68)]
+    public DateTime CopperSeenAt { get; set; }
 }
 
 /// <summary>

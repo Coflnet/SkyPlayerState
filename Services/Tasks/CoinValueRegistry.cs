@@ -60,6 +60,8 @@ public class CoinValueRegistry
         // defined value of 1/unit instead of falling through to the real price lookup below.
         if (PseudoItems.TryGetCoinValue(tag, out var pseudoValue))
             return pseudoValue;
+        if (tag == PseudoItems.COPPER)
+            return CopperValue.Current;
         var overrides = cachedOverrides;
         if (overrides != null && overrides.TryGetValue(tag, out var overrideValue))
             return overrideValue;
