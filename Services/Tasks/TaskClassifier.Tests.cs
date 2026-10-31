@@ -1312,8 +1312,8 @@ public class TaskClassifierTests
         => NameAt("Graveyard", new() { { "GREEN_CANDY", 25 }, { "PURPLE_CANDY", 17 } }).Should().NotBe("Spooky Fishing");
 
     [Test]
-    public void BayouFishWithWerewolfSkin_StaysBayouFishing()
-        => NameAt("Backwater Bayou", new() { { "RAW_FISH", 100 }, { "WEREWOLF_SKIN", 2 } }).Should().Be("Bayou Fishing");
+    public void BayouFishWithWerewolfSkin_IsSpookyFishing()
+        => NameAt("Backwater Bayou", new() { { "RAW_FISH", 100 }, { "WEREWOLF_SKIN", 2 } }).Should().Be("Spooky Fishing");
 
     [Test]
     public void BellyOfTheBeastHeavyPearls_ClassifiesToHeavyPearls()
@@ -1996,4 +1996,54 @@ public class TaskClassifierTests
     [TestCase("ETHERWARP_MERGER")]
     public void VoidgloomBossDropNextToPearlsIsTheSlayer(string drop)
         => NameAt("Void Sepulture", new() { { drop, 1 }, { "ENDER_PEARL", 30 } }).Should().StartWith("T4 Voidglooms");
+
+    // ── A consumed/sold item only detects the task it is a cost of ──
+
+    [Test]
+    public void FearMongererCandySpend_IsNotSpookyFishing()
+        => NameAt("Village", new() { { "PURPLE_CANDY", -64 }, { "GREEN_CANDY", -128 } }).Should().NotBe("Spooky Fishing");
+
+    [Test]
+    public void GoldenToothCraftFlip_IsNotDiana()
+        => NameAt("Bazaar Alley", new() { { "GOLDEN_TOOTH", 4 }, { "WOLF_TOOTH", -768 }, { "ENCHANTED_GOLD", -256 }, { "BAZAAR_PURCHASE", -3_000_000 } })
+            .Should().NotStartWith("Diana");
+
+    [Test]
+    public void DrinkingExpBottles_IsNotExperimentationTable()
+        => NameAt("Village", new() { { "GRAND_EXP_BOTTLE", -32 } }).Should().NotBe("Experimentation Table");
+
+    [Test]
+    public void DungeonFloorWithOnlyChestCostAndEssence_StillClassifiesToFloor()
+        => NameAt("The Catacombs (M7)", new() { { "DUNGEON_CHEST_COST", -2_000_000 }, { "ESSENCE_WITHER", 40 } }).Should().Be("M7");
+
+    [Test]
+    public void PlacedSummoningEyesOnly_StillClassifiesToEnderDragon()
+        => NameAt("Dragon's Nest", new() { { "SUMMONING_EYE", -2 } }).Should().Be("Ender Dragon");
+
+    [Test]
+    public void BayouFestivalPeriod_IsSpookyFishing()
+        => NameAt("Backwater Bayou", new()
+        {
+            { "PURPLE_CANDY", 51 }, { "GREEN_CANDY", 395 }, { "WEREWOLF_SKIN", 3 }, { "PUMPKIN", 878 },
+            { "ENCHANTED_PUMPKIN", 26 }, { "PRISMARINE_CRYSTALS", 63 }, { "SPOOKY_BAIT", -59 }
+        }).Should().Be("Spooky Fishing");
+
+    [Test]
+    public void PlainBayouPeriod_StaysBayouFishing()
+        => NameAt("Backwater Bayou", new() { { "RAW_FISH", 100 }, { "WATER_LILY", 40 }, { "PRISMARINE_CRYSTALS", 20 } }).Should().Be("Bayou Fishing");
+
+    [Test]
+    public void BayouHotspotWithoutSpookyDrops_StaysHotspot()
+        => NameAt("Backwater Bayou", new() { { "HOTSPOT_CATCH", 3 }, { "RAW_FISH", 100 } }).Should().Be("Bayou Hotspot Fishing");
+
+    [Test]
+    public void SpookyBaitOnlyAtFishingZone_IsSpookyFishing()
+        => NameAt("Spider's Den", new() { { "SPOOKY_BAIT", -40 } }).Should().Be("Spooky Fishing");
+
+    [TestCase("LUCKY_HOOF")]
+    [TestCase("PHANTOM_HOOK")]
+    [TestCase("PHANTOM_ROD")]
+    [TestCase("PET_ITEM_VAMPIRE_FANG")]
+    public void NewSpookyExclusiveDrops_ClassifyToSpookyFishing(string drop)
+        => NameAt("Backwater Bayou", new() { { drop, 1 }, { "RAW_FISH", 100 } }).Should().Be("Spooky Fishing");
 }

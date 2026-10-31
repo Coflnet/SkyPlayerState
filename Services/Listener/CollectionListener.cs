@@ -1142,14 +1142,40 @@ public class CollectionListener : UpdateListener
     /// leaves without a negative entry) and "Liz's Stock Redemption" (a shop where Stock of Stonks is exchanged for
     /// items; production 2026-10-20: 114 players, 78B coins of redeemed items booked as loot in 48 h).
     /// First-time counting is skipped around them.
+    /// NPC shops are also recognised without a "Shop" title, by a container item with the lore line "Click to buyback!" or
+    /// the empty "Sell Item" slot (production 24 h: "Builder" 435 changes of 10M+ coins, 9B, 61 players; "Combat Merchant",
+    /// "Mine Merchant", "Bea"). Needs the items of the view, a bare name is not enough.
     /// </summary>
     private static bool IsSwapView(Models.ChestView view)
     {
         var name = view?.Name;
         if (name == null)
             return false;
+        if (HasNpcShopItem(view!))
+            return true;
         return name.StartsWith("You    ") || name.Contains("Sack") || name.Contains("Shop") || name.Contains("Trades")
             || name.Contains("Hunting Box") || name.Contains("Fusion Box") || name is "Gemstone Grinder" or "Storage" or "Toy Box" or "Salvage Items" or "Liz's Stock Redemption";
+    }
+
+    /// <summary>
+    /// True when the container part (never the player's inventory slots at the end) holds a buyback item or
+    /// the empty "Sell Item" slot of an NPC shop.
+    /// </summary>
+    private static bool HasNpcShopItem(Models.ChestView view)
+    {
+        if (view.Items == null)
+            return false;
+        foreach (var item in view.Items.Take(AccessibleInventoryStart(view.Items)))
+        {
+            if (item == null)
+                continue;
+            if (StripFormatting(item.ItemName).Trim() == "Sell Item")
+                return true;
+            var lastLine = StripFormatting(item.Description).TrimEnd().Split('\n').LastOrDefault()?.Trim();
+            if (lastLine == "Click to buyback!")
+                return true;
+        }
+        return false;
     }
 
     /// <summary>

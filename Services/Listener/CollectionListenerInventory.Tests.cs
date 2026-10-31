@@ -1343,6 +1343,53 @@ public class CollectionListenerInventoryTests
         state.ItemsCollectedRecently.Should().BeEmpty();
     }
 
+    private static List<Item> ShopContainer(Item? slot49)
+    {
+        var container = Enumerable.Range(0, 54).Select(_ => new Item()).ToList();
+        if (slot49 != null)
+            container[49] = slot49;
+        return container;
+    }
+
+    private static Item BuybackWheat() => new()
+    {
+        Tag = "WHEAT",
+        Count = 8,
+        ItemName = "Wheat",
+        Description = "Collection Item\n\nCOMMON\n\nCost\n48 Coins\n\nClick to buyback!"
+    };
+
+    [Test]
+    public void NpcShopsWithoutShopInTheTitleAreTransferViews()
+    {
+        CollectionListener.IsTransferView(View("Mine Merchant", ShopContainer(new Item { ItemName = "Sell Item" }))).Should().BeTrue();
+        // the Booster Cookie menu is no shop by title
+        CollectionListener.IsTransferView(View("Booster Cookie", ShopContainer(null))).Should().BeFalse();
+        CollectionListener.IsTransferView(View("Builder", ShopContainer(BuybackWheat()))).Should().BeTrue();
+        CollectionListener.IsTransferView(View("Bea", ShopContainer(new Item { ItemName = "§aSell Item" }))).Should().BeTrue();
+        CollectionListener.IsTransferView(View("Combat Merchant", ShopContainer(new Item { Tag = "X", ItemName = "X", Description = "§7Cost\n§7Click to buyback!" }))).Should().BeTrue();
+        CollectionListener.IsTransferView(View("SkyBlock Menu", ShopContainer(null))).Should().BeFalse();
+        // a buyback-looking item in the player inventory part must not trigger it
+        CollectionListener.IsTransferView(View("Chest", ShopContainer(null), BuybackWheat())).Should().BeFalse();
+        CollectionListener.IsTransferView(View("Chest", ShopContainer(null), new Item { ItemName = "Sell Item" })).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task NpcMerchantSaleAndBuybackAreNotBooked()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_HAY_BALE", 183)), Now);
+        await ProcessView(state, View("Builder", ShopContainer(new Item { ItemName = "Sell Item" }), StackableItem("ENCHANTED_HAY_BALE", 183)), Now);
+
+        // part of the stack is sold (a fully sold stack was never booked, so only a partial sale shows the bug)
+        await ProcessView(state, View("Builder", ShopContainer(BuybackWheat()), StackableItem("ENCHANTED_HAY_BALE", 55)), Now);
+        state.ItemsCollectedRecently.Should().BeEmpty();
+
+        // buyback: item returns while the previous view is the merchant
+        await ProcessView(state, View("", new(), StackableItem("ENCHANTED_HAY_BALE", 183)), Now);
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
     private static async Task ProcessScoreboard(StateObject state, params string[] lines)
     {
         var args = new MockedUpdateArgs

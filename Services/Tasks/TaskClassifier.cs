@@ -151,11 +151,13 @@ public class TaskClassifier
             var detectionItems = sig.DetectionItemsAt(location);
             if (detectionItems.Count > 0)
             {
-                matched = itemsCollected.Keys.Where(k => detectionItems.Contains(k)).ToList();
+                // a consumed/sold item (negative count) only detects the task it is a cost of (sig.CountsAsSignal)
+                matched = itemsCollected.Where(kv => detectionItems.Contains(kv.Key) && sig.CountsAsSignal(kv.Key, kv.Value))
+                    .Select(kv => kv.Key).ToList();
                 // a cost (negative count) of an evidence item stands in for a detection item: a period of only
                 // consumed items (eyes placed on the dragon altar) still belongs to the task that consumes them
                 if (matched.Count == 0 && !(sig.EvidenceItems is { Count: > 0 }
-                    && itemsCollected.Any(kv => kv.Value < 0 && sig.EvidenceItems.Contains(kv.Key))))
+                    && itemsCollected.Any(kv => kv.Value < 0 && sig.EvidenceItems.Contains(kv.Key) && sig.CountsAsSignal(kv.Key, kv.Value))))
                     continue;
             }
             // a short window of a non-instance signature needs a detection item hit and real activity, not just the zone
@@ -165,10 +167,10 @@ public class TaskClassifier
                 continue;
             if (sig.ExcludeShardItems && hasShard)
                 continue;
-            // evidence items (see DetectionSignature.EvidenceItems): any non-zero count, positive or
-            // negative, strengthens the match but their absence never disqualified it above
+            // evidence items (see DetectionSignature.EvidenceItems): a positive count, or a negative one that is a cost of
+            // the task, strengthens the match but their absence never disqualified it above
             var evidence = sig.EvidenceItems is { Count: > 0 }
-                ? itemsCollected.Where(kv => kv.Value != 0 && sig.EvidenceItems.Contains(kv.Key)).Select(kv => kv.Key).ToList()
+                ? itemsCollected.Where(kv => sig.EvidenceItems.Contains(kv.Key) && sig.CountsAsSignal(kv.Key, kv.Value)).Select(kv => kv.Key).ToList()
                 : [];
             var itemMatched = matched != null || evidence.Count > 0;
             // minimum signal: a detection item hit, or enough generic activity for location-only tasks -

@@ -25,6 +25,11 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 /// candidate of a regular task, so it can only ever classify a period no regular task matched -
 /// never take one away from another task, not even by out-valuing it.
 /// </param>
+/// <param name="CostItems">
+/// Real item tags the task consumes (see MethodTask.KeepableCostTags). A NEGATIVE count (item consumed or sold) only
+/// counts as detection/evidence for a tag listed here or a cost pseudo tag (DUNGEON_CHEST_COST); any other consumed
+/// item says nothing about the activity (candy spent at a shop, exp bottles drunk, an ingredient of a craft flip).
+/// </param>
 /// <param name="ZoneDetectionItems">
 /// Per-zone replacement of <see cref="DetectionItems"/> (see MethodTask.ZoneDetectionItems): in a zone
 /// matching one of the keys the period needs one of THESE items, whatever DetectionItems lists.
@@ -47,13 +52,21 @@ public record DetectionSignature(
     bool Fallback = false,
     Dictionary<string, HashSet<string>> ZoneDetectionItems = null,
     Dictionary<string, HashSet<string>> ZoneExcludedItems = null,
-    bool Hidden = false)
+    bool Hidden = false,
+    HashSet<string> CostItems = null)
 {
     /// <summary>
     /// True for the hidden Bazaar/Auction purchase accounting tasks: their only detection items are
     /// purchase pseudo tags. They classify purchase-only periods but must never displace a real task.
     /// </summary>
     public bool IsPurchaseSink => DetectionItems.Count > 0 && DetectionItems.All(PseudoItems.IsPurchase);
+
+    /// <summary>
+    /// True when <paramref name="count"/> of <paramref name="tag"/> is a signal for this task: a gained item (&gt; 0), or a
+    /// consumed one (&lt; 0) that is a cost of this task (<see cref="CostItems"/> or a cost pseudo tag).
+    /// </summary>
+    public bool CountsAsSignal(string tag, int count)
+        => count > 0 || (count < 0 && (PseudoItems.IsCost(tag) || (CostItems?.Contains(tag) ?? false)));
 
     /// <summary>The items one of which a period at <paramref name="zone"/> must hold: the zone-specific set when one applies, else <see cref="DetectionItems"/>.</summary>
     public HashSet<string> DetectionItemsAt(string zone)

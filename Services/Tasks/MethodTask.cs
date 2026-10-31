@@ -421,7 +421,7 @@ public abstract class MethodTask : ProfitTask
     /// Exposes the same rules <see cref="FindMatchingPeriods"/> applies.
     /// </summary>
     public DetectionSignature GetDetectionSignature() => new(
-        MethodName, Locations, DetectionItems, RequireShardItems, ExcludeShardItems, Priority, Category, DerivedFrom, MinLocationOnlyItems, EvidenceItems, Fallback, ZoneDetectionItems, ZoneExcludedItems, Hidden);
+        MethodName, Locations, DetectionItems, RequireShardItems, ExcludeShardItems, Priority, Category, DerivedFrom, MinLocationOnlyItems, EvidenceItems, Fallback, ZoneDetectionItems, ZoneExcludedItems, Hidden, KeepableCostTags());
 
     /// <summary>
     /// Estimated multipliers from the declared effects, used to seed the
@@ -530,7 +530,7 @@ public abstract class MethodTask : ProfitTask
             {
                 var detection = signature.DetectionItemsAt(lp.Key);
                 return detection.Count == 0
-                    || (p.ItemsCollected != null && p.ItemsCollected.Keys.Any(k => detection.Contains(k)));
+                    || (p.ItemsCollected != null && p.ItemsCollected.Any(kv => detection.Contains(kv.Key) && signature.CountsAsSignal(kv.Key, kv.Value)));
             }));
 
         if (RequireShardItems)

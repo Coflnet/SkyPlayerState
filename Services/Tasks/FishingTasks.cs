@@ -51,10 +51,15 @@ internal static class FishingEvidence
 internal static class SpookyFishingEvidence
 {
     /// <summary>Drops only spooky sea creatures give (mandatory for Spooky Fishing).</summary>
-    public static readonly HashSet<string> Exclusive = ["WEREWOLF_SKIN", "SOUL_FRAGMENT", "DEEP_SEA_ORB"];
+    public static readonly HashSet<string> Exclusive = [
+        "WEREWOLF_SKIN", "SOUL_FRAGMENT", "DEEP_SEA_ORB",
+        "LUCKY_HOOF", // Nightmare
+        "PHANTOM_HOOK", "PHANTOM_ROD", // Phantom Fisher
+        "PET_ITEM_VAMPIRE_FANG"
+    ];
     /// <summary>Optional extras that raise the matched value over plain Water Fishing.</summary>
     public static readonly HashSet<string> Evidence = new(FishingEvidence.Water)
-        { "GREEN_CANDY", "PURPLE_CANDY", "PUMPKIN", "ENCHANTED_PUMPKIN" };
+        { "GREEN_CANDY", "PURPLE_CANDY", "PUMPKIN", "ENCHANTED_PUMPKIN", "SPOOKY_BAIT" };
 }
 
 // ── Base for all fishing tasks with shared metadata ──
@@ -110,8 +115,11 @@ public class SpookyFishingTask : BaseFishingTask
 {
     protected override string MethodName => "Spooky Fishing";
     // Spooky sea creatures spawn wherever water fishing works (Spooky Festival is not a zone).
-    // Backwater Bayou is deliberately excluded - Bayou Fishing keeps its periods.
-    protected override HashSet<string> Locations => ["Hub", "Village", "Forest", "Birch Park", "The Park", "Spider's Den", "Crystal Hollows"];
+    // Backwater Bayou is included: most festival fishers fish there. Plain Bayou fishing keeps Bayou Fishing because
+    // the exclusive drops are mandatory, and Bayou Hotspot Fishing still wins hotspot periods without them.
+    protected override HashSet<string> Locations => ["Hub", "Village", "Forest", "Birch Park", "The Park", "Spider's Den", "Crystal Hollows", "Backwater Bayou"];
+    protected override string HowTo => "Only during the 1 hour Spooky Festival: fish in any water (most players use Backwater Bayou) and kill the spooky sea creatures that replace part of your catches. They drop Werewolf Skin, Soul Fragments, Deep Sea Orbs and Phantom Fisher / Nightmare items, plus candy and pumpkins. Spooky Bait is used up while fishing.";
+    protected override HashSet<string> ObservedCostItems => ["SPOOKY_BAIT"];
     // Spooky-sea-creature exclusive drops are mandatory; the normal fish evidence and festival
     // items only add matched value so a spooky period outranks plain Water Fishing.
     protected override HashSet<string> DetectionItems => SpookyFishingEvidence.Exclusive;
