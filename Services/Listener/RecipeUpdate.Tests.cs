@@ -1,3 +1,11 @@
+using System.Threading.Tasks;
+using Cassandra;
+using Coflnet.Sky.PlayerState.Tests;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using System.Collections.Generic;
 using System.Linq;
 using AwesomeAssertions;
@@ -8,6 +16,84 @@ namespace Coflnet.Sky.PlayerState.Services;
 
 public class RecipeUpdateTests
 {
+    [TestCase(true, null, 0)]
+    [TestCase(false, null, 1)]
+    [TestCase(false, "alpha.hypixel.net", 0)]
+    [TestCase(true, "www.hypixel.net", 1)]
+    public async Task FeaturedShopOnlySavesOnMainNetwork(bool alpha, string? footer, int expectedWrites)
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Logging.ClearProviders();
+        await using var app = builder.Build();
+        app.MapGet("/api/profile/{uuid}/current", () => "{}");
+        app.Urls.Add("http://127.0.0.1:0");
+        await app.StartAsync();
+        using var cluster = Cluster.Builder().AddContactPoint("127.0.0.1").Build();
+        var session = RecordingSession(cluster);
+        var args = FeaturedShopArgs(alpha, footer, session.Object, app.Urls.Single());
+
+        await new RecipeUpdate().Process(args);
+
+        session.Verify(s => s.ExecuteAsync(It.IsAny<IStatement>(), It.IsAny<string>()), Times.Exactly(expectedWrites));
+    }
+
+    private static Mock<ISession> RecordingSession(ICluster cluster)
+    {
+        var session = new Mock<ISession>();
+        session.SetupGet(s => s.Cluster).Returns(cluster);
+        var prepared = new Mock<PreparedStatement>();
+        prepared.Setup(p => p.Bind(It.IsAny<object[]>())).Returns(new Mock<BoundStatement>().Object);
+        session.Setup(s => s.PrepareAsync(It.IsAny<string>())).ReturnsAsync(prepared.Object);
+        session.Setup(s => s.ExecuteAsync(It.IsAny<IStatement>(), It.IsAny<string>())).ReturnsAsync(new RowSet());
+        return session;
+    }
+
+    private static MockedUpdateArgs FeaturedShopArgs(bool alpha, string? footer, ISession session, string profileUrl)
+    {
+        var prices = new Mock<Api.Client.Api.IPricesApi>();
+        prices.Setup(p => p.ApiProfileItemsPostAsync(It.IsAny<Api.Client.Model.Member>(), default))
+            .ReturnsAsync(new Dictionary<string, List<Api.Client.Model.SaveAuction>>
+            {
+                ["inventory"] = [new Api.Client.Model.SaveAuction(tag: "STONE", flatNbt: new Dictionary<string, string>())]
+            });
+        var items = Enumerable.Range(0, 90).Select(_ => new Item()).ToList();
+        items[10] = new Item { Tag = "CROWN_OF_AVARICE", Count = 1, Description = "Cost\n1 Coins\n\nClick to trade!" };
+        var args = new MockedUpdateArgs
+        {
+            currentState = new StateObject { ExtractedInfo = new ExtractedInfo { OnAlphaNetwork = alpha } },
+            msg = new UpdateMessage { UserId = "synthetic", Scoreboard = footer == null ? null : [footer], Chest = new ChestView { Name = "(1/2) Featured Update Items", Items = items } }
+        };
+        args.AddService(RecordingRecipeService(session));
+        args.AddService(prices.Object);
+        args.AddService<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?> { ["PROFILE_BASE_URL"] = profileUrl }).Build());
+        args.AddService<ILogger<RecipeUpdate>>(NullLogger<RecipeUpdate>.Instance);
+
+        return args;
+    }
+
+    private static RecipeService RecordingRecipeService(ISession session)
+    {
+        // Bypass schema creation; exercise the real Save method against a recording session.
+        var recipes = (RecipeService)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(RecipeService));
+        var table = new global::Cassandra.Data.Linq.Table<NpcCost>(session);
+        typeof(RecipeService).GetField("npcCosts", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(recipes, table);
+        typeof(RecipeService).GetField("logger", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(recipes, NullLogger<RecipeService>.Instance);
+        return recipes;
+    }
+
+    [Test]
+    public async Task AlphaCraftingRecipeDoesNotReachSharedStorage()
+    {
+        var args = new MockedUpdateArgs
+        {
+            currentState = new StateObject { ExtractedInfo = new ExtractedInfo { OnAlphaNetwork = true } },
+            msg = new UpdateMessage { UserId = "synthetic", Chest = BerserkerLeggings("Supercraft", "") }
+        };
+        // No storage is registered: any attempt to save the recipe fails this test.
+        await new RecipeUpdate().Process(args);
+    }
+
     private const string NotUnlockedLore = " §c✖ §c0§c/4 §9Enchanted Red Sand Cube\n §c✖ §c0§c/50 §aBurning Eye\n §c✖ §e1§c/40 §8(-39) §aMagma Chunk\n  §81x from §eInventory\n\nRecipe not unlocked!\n";
 
     /// <summary>

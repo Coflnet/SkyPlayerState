@@ -9,6 +9,9 @@ public partial class MayorAuraListener : UpdateListener
 {
     public override async Task Process(UpdateArgs args)
     {
+        if (IsAlphaNetwork(args))
+            return;
+
         if (args.msg.Chest?.Name != "Mayor Aura")
             return;
 

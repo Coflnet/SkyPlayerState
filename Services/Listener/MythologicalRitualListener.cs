@@ -13,6 +13,9 @@ public partial class MythologicalRitualListener : UpdateListener
 
     public override async Task Process(UpdateArgs args)
     {
+        if (IsAlphaNetwork(args))
+            return;
+
         _service ??= args.GetService<IMythologicalRitualService>();
 
         if (args.msg.Chest?.Items == null)

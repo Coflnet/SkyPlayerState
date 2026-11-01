@@ -32,6 +32,13 @@ public abstract class UpdateListener
     /// <param name="args"></param>
     /// <returns></returns>
     public abstract Task Process(UpdateArgs args);
+
+    // A current footer takes precedence over retained state, including before CollectionListener runs.
+    // Without a footer, preserve the existing default-main policy for early session uploads.
+    protected static bool IsAlphaNetwork(UpdateArgs args) =>
+        CollectionListener.DetectAlphaNetwork(args.msg.Scoreboard)
+        ?? (args.currentState?.ExtractedInfo?.OnAlphaNetwork == true);
+
     /// <summary>
     /// Called when registering to do async loading stuff
     /// </summary>

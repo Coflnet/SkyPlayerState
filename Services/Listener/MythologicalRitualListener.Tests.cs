@@ -9,6 +9,26 @@ namespace Coflnet.Sky.PlayerState.Services;
 public class MythologicalRitualListenerTests
 {
     [Test]
+    public async System.Threading.Tasks.Task AlphaUploadDoesNotWriteSharedData()
+    {
+        var args = new Coflnet.Sky.PlayerState.Tests.MockedUpdateArgs
+        {
+            currentState = new Models.StateObject { ExtractedInfo = new Models.ExtractedInfo { OnAlphaNetwork = true } },
+            msg = new Models.UpdateMessage
+            {
+                UserId = "synthetic",
+                Chest = new Models.ChestView
+                {
+                    Name = "Inventory",
+                    Items = [new Models.Item { Tag = "ITEM", ItemName = "ITEM", Description = "Mythological Ritual" }]
+                }
+            }
+        };
+        // No storage service is registered: any shared write would fail this test.
+        await new MythologicalRitualListener().Process(args);
+    }
+
+    [Test]
     public void ContainsMythologicalRitual_WithDirectMatch_ReturnsTrue()
     {
         var description = "Some text Mythological Ritual more text";

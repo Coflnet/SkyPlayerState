@@ -21,7 +21,7 @@ public partial class PlayerElectionListener : UpdateListener
         // Parse the top 14 players and their votes
         var votes = ParseVotes(items);
         
-        if (votes.Count > 0)
+        if (votes.Count > 0 && !IsAlphaNetwork(args))
         {
             var timestamp = new DateTime(
                 args.msg.ReceivedAt.Year,

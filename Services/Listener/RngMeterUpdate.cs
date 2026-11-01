@@ -17,6 +17,9 @@ public class RngMeterUpdate : UpdateListener
     /// <inheritdoc/>
     public override async Task Process(UpdateArgs args)
     {
+        if (IsAlphaNetwork(args))
+            return;
+
         var chest = args.msg.Chest;
         if (chest == null || chest.Name == null || !chest.Name.EndsWith("RNG Meter") || args.msg.UserId == null)
             return;

@@ -11,6 +11,9 @@ public partial class BitListener : UpdateListener
 {
     public override async Task Process(UpdateArgs args)
     {
+        if (IsAlphaNetwork(args))
+            return;
+
         if (args.msg.Chest?.Name == null)
             return;
 

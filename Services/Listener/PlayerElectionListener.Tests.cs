@@ -11,6 +11,26 @@ namespace Coflnet.Sky.PlayerState.Services;
 public class PlayerElectionListenerTests
 {
     [Test]
+    public async System.Threading.Tasks.Task AlphaUploadDoesNotWriteSharedData()
+    {
+        var args = new Coflnet.Sky.PlayerState.Tests.MockedUpdateArgs
+        {
+            currentState = new Models.StateObject { ExtractedInfo = new Models.ExtractedInfo { OnAlphaNetwork = true } },
+            msg = new Models.UpdateMessage
+            {
+                UserId = "synthetic",
+                Chest = new Models.ChestView
+                {
+                    Name = "Player Election",
+                    Items = [new Models.Item { Tag = "ITEM", ItemName = "§a[VIP] Someone", Description = "§7Votes: §b100" }]
+                }
+            }
+        };
+        // No storage service is registered: any shared write would fail this test.
+        await new PlayerElectionListener().Process(args);
+    }
+
+    [Test]
     public void ParseVotes_ValidItems_ReturnsDictionary()
     {
         // Arrange

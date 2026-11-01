@@ -24,6 +24,9 @@ public class AhBrowserListener : UpdateListener
 
     public override async Task Process(UpdateArgs args)
     {
+        if (IsAlphaNetwork(args))
+            return;
+
         if (args.msg.Chest.Name == null || !args.msg.Chest.Name.Contains("Auction"))
             return;
         foreach (var item in args.msg.Chest.Items)
