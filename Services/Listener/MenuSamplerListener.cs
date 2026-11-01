@@ -277,6 +277,9 @@ public class MenuSamplerListener : UpdateListener
 
     public override async Task Process(UpdateArgs args)
     {
+        if (IsAlphaNetwork(args))
+            return;
+
         try
         {
             var chest = args.msg.Chest;

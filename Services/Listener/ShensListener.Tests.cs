@@ -16,6 +16,26 @@ namespace Coflnet.Sky.PlayerState.Services;
 public class ShensListenerTest
 {
     [Test]
+    public async System.Threading.Tasks.Task AlphaUploadDoesNotWriteSharedData()
+    {
+        var args = new Coflnet.Sky.PlayerState.Tests.MockedUpdateArgs
+        {
+            currentState = new Models.StateObject { ExtractedInfo = new Models.ExtractedInfo { OnAlphaNetwork = true } },
+            msg = new Models.UpdateMessage
+            {
+                UserId = "synthetic",
+                Chest = new Models.ChestView
+                {
+                    Name = "Shen's Auction",
+                    Items = [new Models.Item { Tag = "ITEM", ItemName = "ITEM", Description = "lore" }]
+                }
+            }
+        };
+        // No storage service is registered: any shared write would fail this test.
+        await new ShensListener(Microsoft.Extensions.Logging.Abstractions.NullLogger<ShensListener>.Instance).Process(args);
+    }
+
+    [Test]
     public async Task ExtractAndStore()
     {
         var stored = File.ReadAllText("Mock/shens.json");

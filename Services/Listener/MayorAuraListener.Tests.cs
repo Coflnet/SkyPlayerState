@@ -11,6 +11,26 @@ namespace Coflnet.Sky.PlayerState.Services;
 public class MayorAuraListenerTests
 {
     [Test]
+    public async System.Threading.Tasks.Task AlphaUploadDoesNotWriteSharedData()
+    {
+        var args = new Coflnet.Sky.PlayerState.Tests.MockedUpdateArgs
+        {
+            currentState = new Models.StateObject { ExtractedInfo = new Models.ExtractedInfo { OnAlphaNetwork = true } },
+            msg = new Models.UpdateMessage
+            {
+                UserId = "synthetic",
+                Chest = new Models.ChestView
+                {
+                    Name = "Mayor Aura",
+                    Items = [new Models.Item { Tag = "ITEM", ItemName = "Fundraising", Description = "Total Coins Raised: §61,000" }]
+                }
+            }
+        };
+        // No storage service is registered: any shared write would fail this test.
+        await new MayorAuraListener().Process(args);
+    }
+
+    [Test]
     public void ParseTotalCoinsRaised_ValidDescription_ReturnsAmount()
     {
         // Arrange

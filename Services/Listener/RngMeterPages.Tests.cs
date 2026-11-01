@@ -7,6 +7,26 @@ namespace Coflnet.Sky.PlayerState.Services;
 
 public class RngMeterPagesTests
 {
+    [Test]
+    public async System.Threading.Tasks.Task AlphaUploadDoesNotWriteSharedData()
+    {
+        var args = new Coflnet.Sky.PlayerState.Tests.MockedUpdateArgs
+        {
+            currentState = new Models.StateObject { ExtractedInfo = new Models.ExtractedInfo { OnAlphaNetwork = true } },
+            msg = new Models.UpdateMessage
+            {
+                UserId = "synthetic",
+                Chest = new Models.ChestView
+                {
+                    Name = "Zombie RNG Meter",
+                    Items = [new Models.Item { Tag = "ITEM", ItemName = "ITEM", Description = "XP: 0/100" }]
+                }
+            }
+        };
+        // No storage service is registered: any shared write would fail this test.
+        await new RngMeterUpdate().Process(args);
+    }
+
     private static RngMeterItem Row(string chest, int index, string tag, string name = null, int minute = 0) => new()
     {
         ChestName = chest, ItemIndex = index, ItemTag = tag, ItemName = name ?? tag, LastUpdated = new DateTime(2026, 10, 1, 12, minute, 0)

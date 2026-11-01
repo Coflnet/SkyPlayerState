@@ -11,6 +11,26 @@ namespace Coflnet.Sky.PlayerState.Services;
 public class BitListenerTests
 {
     [Test]
+    public async System.Threading.Tasks.Task AlphaUploadDoesNotWriteSharedData()
+    {
+        var args = new Coflnet.Sky.PlayerState.Tests.MockedUpdateArgs
+        {
+            currentState = new Models.StateObject { ExtractedInfo = new Models.ExtractedInfo { OnAlphaNetwork = true } },
+            msg = new Models.UpdateMessage
+            {
+                UserId = "synthetic",
+                Chest = new Models.ChestView
+                {
+                    Name = "Bits Shop",
+                    Items = [new Models.Item { Tag = "ITEM", ItemName = "ITEM", Description = "Cost\n1,500 Bits" }]
+                }
+            }
+        };
+        // No storage service is registered: any shared write would fail this test.
+        await new BitListener().Process(args);
+    }
+
+    [Test]
     public void ParseBitValue_ValidCostDescription_ReturnsAmount()
     {
         // Arrange

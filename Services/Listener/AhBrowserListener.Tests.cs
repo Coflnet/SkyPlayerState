@@ -11,6 +11,15 @@ namespace Coflnet.Sky.PlayerState.Services;
 
 public class AhBrowserListenerTests
 {
+    [Test]
+    public async Task AlphaAuctionDoesNotWarmSharedNameCache()
+    {
+        var (args, names, _) = Setup("Sold for: §6100 coins\n§7Buyer: Someone");
+        args.currentState = new StateObject { ExtractedInfo = new ExtractedInfo { OnAlphaNetwork = true } };
+        await new AhBrowserListener().Process(args);
+        names.Verify(n => n.PlayerNameUuidNameGetAsync(It.IsAny<string>(), 0, default), Times.Never);
+    }
+
     private static (MockedUpdateArgs args, Mock<IPlayerNameApi> names, Mock<IPlayerApi> player) Setup(string description)
         => Setup(description, out _);
 

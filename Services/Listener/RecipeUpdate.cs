@@ -27,6 +27,9 @@ public class RecipeUpdate : UpdateListener
     /// <inheritdoc/>
     public override async Task Process(UpdateArgs args)
     {
+        if (IsAlphaNetwork(args))
+            return;
+
         if (args.msg.UserId != null && ReadRecipe(args.msg.Chest) is { } recipe)
             await SaveRecipe(args, recipe);
         if (args.msg.Chest?.Name == "Anvil")

@@ -15,6 +15,16 @@ namespace Coflnet.Sky.PlayerState.Services;
 
 public class MenuSamplerListenerTests
 {
+    [Test]
+    public async Task AlphaMenusAreNotSampled()
+    {
+        var store = new FakeStore();
+        var args = Args("Your Skills", store);
+        args.currentState.ExtractedInfo.OnAlphaNetwork = true;
+        await Listener().Process(args);
+        Assert.That(store.AddCalls, Is.Zero);
+    }
+
     private class FakeStore : IMenuSampleStore
     {
         public readonly Dictionary<string, List<StoredMenuSample>> Samples = new();
