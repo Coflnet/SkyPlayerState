@@ -202,6 +202,34 @@ public class TaskController : ControllerBase
     }
 
     /// <summary>
+    /// Coins the player realized from folded task periods in a time range (default the last 24 hours), summed
+    /// from the short lived fold ledger (it keeps about 2 days). Only realized outcomes are in it.
+    /// </summary>
+    /// <param name="playerId">minecraft uuid, with or without dashes</param>
+    [HttpGet("{playerId}/realized")]
+    public async Task<ActionResult<RealizedTaskValue>> GetRealized(string playerId, DateTime? from = null, DateTime? to = null)
+    {
+        if (!Guid.TryParse(playerId, out var uuid))
+            return BadRequest("playerId must be a minecraft uuid");
+        var end = to ?? DateTime.UtcNow;
+        var start = from ?? end.AddDays(-1);
+        var rows = await aggregates.GetRealized(uuid.ToString("N"), start, end);
+        return BuildRealized(rows, start, end);
+    }
+
+    internal static RealizedTaskValue BuildRealized(IEnumerable<TaskRealizedDailyRow> rows, DateTime from, DateTime to)
+    {
+        var list = rows.ToList();
+        return new RealizedTaskValue
+        {
+            From = from,
+            To = to,
+            Total = list.Sum(r => r.Value),
+            PerTask = list.GroupBy(r => r.Task).ToDictionary(g => g.Key, g => g.Sum(r => r.Value))
+        };
+    }
+
+    /// <summary>
     /// The task the player is currently detected or claimed to be doing.
     /// </summary>
     [HttpGet("{playerId}/current")]
@@ -226,6 +254,15 @@ public class TaskController : ControllerBase
     {
         return await activity.GetDoers(taskName);
     }
+}
+
+public class RealizedTaskValue
+{
+    public DateTime From { get; set; }
+    public DateTime To { get; set; }
+    /// <summary>summed realized coins</summary>
+    public long Total { get; set; }
+    public Dictionary<string, long> PerTask { get; set; } = new();
 }
 
 public class TaskMetrics

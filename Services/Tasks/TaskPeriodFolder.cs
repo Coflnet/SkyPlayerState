@@ -168,6 +168,7 @@ public class TaskPeriodFolder
                 AddZoneShares(task, period, weight, winsorScale);
 
             FoldMetrics.Record(task, lateReward ? FoldMetrics.LateReward : FoldMetrics.Folded, seconds, itemValue);
+            await RecordRealized(period.PlayerUuid, task, itemValue);
 
             if (!lateReward)
                 await FoldDerivedTasks(task, commonCounts, hours, minutes, seconds, weight, period.PlayerUuid, state, prices, span);
@@ -177,6 +178,29 @@ public class TaskPeriodFolder
             if (task != null)
                 FoldMetrics.Record(task, FoldMetrics.Error, metricMinutes * 60, 0);
             logger.LogError(e, "failed to fold period for task {task}", period.DetectedTask);
+        }
+    }
+
+    /// <summary>
+    /// Appends the period's realized coin value (items kept after external-item subtraction, net of costs,
+    /// before ramp weighting or winsorizing) to the per player ledger. Only called for the Folded and
+    /// LateReward outcomes: those are periods the player really earned the value in. TooShort, NoOwnedItems and
+    /// NotAMethodTask carry no counted value, and Afk periods are classified as not-played time. Derived
+    /// tasks are never recorded, they re-express the primary's items and would double count. A ledger failure
+    /// must not turn a successful fold into an Error outcome, so it is swallowed here.
+    /// </summary>
+    private async Task RecordRealized(string playerUuid, string task, double itemValue)
+    {
+        if (!double.IsFinite(itemValue))
+            return;
+        try
+        {
+            var key = Guid.TryParse(playerUuid, out var uuid) ? uuid.ToString("N") : playerUuid;
+            await aggregates.AddRealized(key, task, DateTime.UtcNow, (long)Math.Round(itemValue));
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "failed to record realized value for {player}/{task}", playerUuid, task);
         }
     }
 

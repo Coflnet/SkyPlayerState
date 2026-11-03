@@ -52,10 +52,12 @@ public class TaskAggregateService
     private Table<TaskBucketAggregateRow> table;
     private Table<TaskPlayerStatRow> playerTable;
     private Table<TaskZoneAggregateRow> zoneTable;
+    private Table<TaskRealizedDailyRow> realizedTable;
     private readonly ISession session;
     private readonly ILogger<TaskAggregateService> logger;
     private readonly string instanceId = Environment.MachineName;
     private const int TTL_SECONDS = 1209600; // 14 days
+    private const int RealizedTtlSeconds = 2 * 24 * 3600; // the realized ledger only serves "last day" sums
     private const double DecayHalfLifeDays = 7;
     // with a stable instanceId a day partition holds ~tasks*buckets*instances rows (~1.8k);
     // page generously so the merge is one round trip per day even after some instanceId churn.
@@ -472,6 +474,39 @@ public class TaskAggregateService
         await playerTable!.Where(r => r.PlayerUuid == playerUuid).Delete().ExecuteAsync();
     }
 
+    // ── Realized value ledger (what folded periods actually earned, for per user profit stats) ──
+
+    /// <summary>Appends one realized fold value to the player's short lived ledger.</summary>
+    public virtual async Task AddRealized(string playerUuid, string task, DateTime foldTime, long value)
+    {
+        if (realizedTable == null)
+            await SetupRealized();
+        var row = new TaskRealizedDailyRow { PlayerUuid = playerUuid, FoldTime = foldTime, Task = task, Value = value };
+        await realizedTable!.Insert(row).SetTTL(RealizedTtlSeconds).ExecuteAsync();
+    }
+
+    /// <summary>Ledger rows of a player with <c>from &lt;= fold_time &lt;= to</c>.</summary>
+    public virtual async Task<List<TaskRealizedDailyRow>> GetRealized(string playerUuid, DateTime from, DateTime to)
+    {
+        if (realizedTable == null)
+            await SetupRealized();
+        return (await realizedTable!
+            .Where(r => r.PlayerUuid == playerUuid && r.FoldTime >= from && r.FoldTime <= to)
+            .ExecuteAsync()).ToList();
+    }
+
+    private async Task SetupRealized()
+    {
+        var mapping = new MappingConfiguration().Define(new Map<TaskRealizedDailyRow>()
+            .TableName("task_realized_daily")
+            .PartitionKey(r => r.PlayerUuid)
+            .ClusteringKey(r => r.FoldTime, SortOrder.Descending)
+            .ClusteringKey(r => r.Task));
+        var created = new Table<TaskRealizedDailyRow>(session, mapping);
+        await created.CreateIfNotExistsAsync();
+        realizedTable = created;
+    }
+
     private async Task SetupZones()
     {
         var zoneMapping = new MappingConfiguration().Define(new Map<TaskZoneAggregateRow>()
@@ -533,6 +568,15 @@ public class TaskZoneAggregateRow
     public double Value { get; set; }
     public double Periods { get; set; }
     public HashSet<string> Players { get; set; } = new();
+}
+
+/// <summary>One realized fold value (coins, net of costs) of a player's task period.</summary>
+public class TaskRealizedDailyRow
+{
+    public string PlayerUuid { get; set; }
+    public DateTime FoldTime { get; set; }
+    public string Task { get; set; }
+    public long Value { get; set; }
 }
 
 public class TaskPlayerStatRow
