@@ -64,6 +64,12 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
     private readonly ConcurrentDictionary<int, DateTime> revokedAt = new();
 
     private readonly ItemIdCache itemIdCache;
+    /// <summary>
+    /// Wait before each retry of a failed update, so a sub-second database blip doesn't burn every attempt.
+    /// Configurable via UPDATE_RETRY_DELAYS_MS (comma separated milliseconds); one entry per retry.
+    /// Kept far below the lag watchdog's 3 minute no-commit restart.
+    /// </summary>
+    private readonly TimeSpan[] retryDelays;
 
     private ConcurrentDictionary<UpdateMessage.UpdateKind, List<UpdateListener>> Handlers = new();
 
@@ -75,6 +81,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         this.config = config;
         this.logger = logger;
         this.loggerFactory = loggerFactory;
+        retryDelays = ParseRetryDelays(config["UPDATE_RETRY_DELAYS_MS"], logger);
         AddHandler<SettingsListener>(UpdateMessage.UpdateKind.Setting);
         // handlers are executed in this order
         AddHandler<ChatHistoryUpdate>(UpdateMessage.UpdateKind.CHAT);
@@ -125,6 +132,35 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         AddHandler<MenuSamplerListener>(UpdateMessage.UpdateKind.INVENTORY);
         this.persistenceService = persistenceService;
         this.activitySource = activitySource;
+    }
+
+    private static readonly TimeSpan[] defaultRetryDelays = { TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5) };
+    private const int maxRetries = 5;
+    private static readonly TimeSpan maxRetryBudget = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Parses the configured retry delays; anything unparsable, negative, longer than <see cref="maxRetries"/>
+    /// entries or summing past <see cref="maxRetryBudget"/> falls back to the default so a bad setting can
+    /// neither block a partition forever nor approach the lag watchdog.
+    /// </summary>
+    private static TimeSpan[] ParseRetryDelays(string? configured, ILogger logger)
+    {
+        if (string.IsNullOrWhiteSpace(configured))
+            return defaultRetryDelays;
+        var parts = configured.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var delays = new List<TimeSpan>();
+        foreach (var part in parts)
+        {
+            if (!int.TryParse(part, out var ms) || ms < 0)
+                break;
+            delays.Add(TimeSpan.FromMilliseconds(ms));
+        }
+        var valid = delays.Count == parts.Length && delays.Count <= maxRetries
+            && delays.Aggregate(TimeSpan.Zero, (sum, d) => sum + d) <= maxRetryBudget;
+        if (valid)
+            return delays.ToArray();
+        logger.LogWarning("Ignoring invalid UPDATE_RETRY_DELAYS_MS {value}, using the default retry delays", configured);
+        return defaultRetryDelays;
     }
 
     private void AddHandler<T>(UpdateMessage.UpdateKind kinds = UpdateMessage.UpdateKind.UNKOWN) where T : UpdateListener
@@ -507,15 +543,18 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         }
         catch (Exception e)
         {
-            logger.LogError(e, "failed update state on " + msg.Kind + " with " + JsonConvert.SerializeObject(msg));
+            logger.LogError(e, "failed update state for {player} on {kind} in attempt {attempt}", msg.PlayerId, msg.Kind, attempt + 1);
             error = true;
         }
         finally
         {
             state.Lock.Release();
         }
-        if (error && attempt < 3) // after finally to avoid semaphore lock
+        if (error && attempt < retryDelays.Length) // after finally to avoid semaphore lock
+        {
+            await Task.Delay(retryDelays[attempt]);
             return await Update(msg, attempt + 1);
+        }
         if (error)
         {
             // exhausted retries: drop the message so it can't stall the partition, but make the
