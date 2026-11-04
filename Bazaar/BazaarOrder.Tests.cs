@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -119,6 +120,94 @@ public class BazaarOrderTests
         Assert.That(1, Is.EqualTo(currentState.BazaarOffers.Count));
         Assert.That(64, Is.EqualTo(currentState.BazaarOffers[0].Amount));
         Assert.That(12085.9, Is.EqualTo(currentState.BazaarOffers[0].PricePerUnit));
+    }
+
+    private static ChestView ConfirmView(string viewName, string itemName, string description, string? tag = null)
+    {
+        var view = new ChestView { Name = viewName };
+        for (var i = 0; i < 13; i++)
+            view.Items.Add(new Item { ItemName = " ", Description = "", Count = 1 });
+        view.Items.Add(new Item { ItemName = itemName, Description = description, Count = 1, Tag = tag });
+        return view;
+    }
+
+    private const string BadgerPreClickLore = "§8Bazaar\n\n§7Price per unit: §6674,713.6 coins\n\n§7Selling: §a6§7x §9Badger Shard\n§7You earn: §64,002,738 coins\n\n§7§eClick to submit offer!";
+    private const string MagmaPreClickLore = "§8Bazaar\n\n§7Price per unit: §6545,659.6 coins\n\n§7Order: §a4§7x §9Magma Core\n§7Total price: §62,182,638 coins\n\n§7§eClick to submit order!";
+
+    [Test]
+    public async Task SellOfferSetupUsesPriceFromConfirmViewEvenWhenPostClickViewFollows()
+    {
+        UpdateArgs args = CreateArgs("[Bazaar] Sell Offer Setup! 6x Badger Shard for 4,002,738 coins.");
+        args.currentState.RecentViews.Enqueue(ConfirmView("Confirm Sell Offer", "§aSell Offer", BadgerPreClickLore));
+        args.currentState.RecentViews.Enqueue(ConfirmView("Confirm Sell Offer", "§cCancel Sell Offer", ""));
+        await listener.Process(args);
+
+        Assert.That(currentState.BazaarOffers.Single().PricePerUnit, Is.EqualTo(674713.6));
+        orderBookApi.Verify(o => o.AddOrderAsync(It.Is<Coflnet.Sky.Bazaar.Client.Model.OrderEntry>(e =>
+            e.ItemId == "SHARD_BADGER" && e.Amount == 6 && Math.Abs(e.PricePerUnit - 674713.6) < 0.0001), 0, default), Times.Once);
+    }
+
+    [Test]
+    public async Task BuyOrderSetupUsesPriceFromConfirmViewEvenWhenPostClickViewFollows()
+    {
+        UpdateArgs args = CreateArgs("[Bazaar] Buy Order Setup! 4x Magma Core for 2,182,638 coins.");
+        args.currentState.RecentViews.Enqueue(ConfirmView("Confirm Buy Order", "§aBuy Order", MagmaPreClickLore));
+        args.currentState.RecentViews.Enqueue(ConfirmView("Confirm Buy Order", "§cCancel Buy Order", ""));
+        await listener.Process(args);
+
+        Assert.That(currentState.BazaarOffers.Single().PricePerUnit, Is.EqualTo(545659.6));
+    }
+
+    [Test]
+    public async Task StaleConfirmViewOfOtherAmountIsNotUsed()
+    {
+        UpdateArgs args = CreateArgs("[Bazaar] Sell Offer Setup! 7x Badger Shard for 4,670,000 coins.");
+        args.currentState.RecentViews.Enqueue(ConfirmView("Confirm Sell Offer", "§aSell Offer", BadgerPreClickLore));
+        await listener.Process(args);
+
+        Assert.That(currentState.BazaarOffers.Single().PricePerUnit, Is.Not.EqualTo(674713.6));
+    }
+
+    [Test]
+    public async Task ConfirmViewWithDifferentLoreNameIsUsedWhenTagMatchesChatName()
+    {
+        UpdateArgs args = CreateArgs("[Bazaar] Sell Offer Setup! 6x Badger Shard for 4,002,738 coins.");
+        var lore = BadgerPreClickLore.Replace("Badger Shard", "Renamed Badger");
+        args.currentState.RecentViews.Enqueue(ConfirmView("Confirm Sell Offer", "§aSell Offer", lore, "SHARD_BADGER"));
+        await listener.Process(args);
+
+        Assert.That(currentState.BazaarOffers.Single().PricePerUnit, Is.EqualTo(674713.6));
+    }
+
+    [Test]
+    public async Task ConfirmViewWithDifferentLoreNameAndTagIsNotUsed()
+    {
+        UpdateArgs args = CreateArgs("[Bazaar] Sell Offer Setup! 6x Badger Shard for 4,002,738 coins.");
+        var lore = BadgerPreClickLore.Replace("Badger Shard", "Renamed Badger");
+        args.currentState.RecentViews.Enqueue(ConfirmView("Confirm Sell Offer", "§aSell Offer", lore, "SHARD_OTHER"));
+        await listener.Process(args);
+
+        Assert.That(currentState.BazaarOffers.Single().PricePerUnit, Is.Not.EqualTo(674713.6));
+    }
+
+    [Test]
+    public async Task CheapOrderUsesPriceFromConfirmView()
+    {
+        UpdateArgs args = CreateArgs("[Bazaar] Buy Order Setup! 10x Enchanted Coal for 45.5 coins.");
+        var lore = "§8Bazaar\n\n§7Price per unit: §64.7 coins\n\n§7Order: §a10§7x §aEnchanted Coal\n§7Total price: §647 coins\n\n§7§eClick to submit order!";
+        args.currentState.RecentViews.Enqueue(ConfirmView("Confirm Buy Order", "§aBuy Order", lore));
+        await listener.Process(args);
+
+        Assert.That(currentState.BazaarOffers.Single().PricePerUnit, Is.EqualTo(4.7));
+    }
+
+    [TestCase("674,713.6", 6747136)]
+    [TestCase("1,084,165.9", 10841659)]
+    [TestCase("12,085.9", 120859)]
+    [TestCase("4.35", 44)]
+    public void ParseCoinsRoundsToTenths(string input, long expected)
+    {
+        Assert.That(BazaarOrderListener.ParseCoins(input), Is.EqualTo(expected));
     }
 
     private void AssertCoalBuy()

@@ -110,36 +110,18 @@ public class BazaarOrderListener : UpdateListener
                 price = (long)(price / (1 - 0.01125) - 0.1); // include tax (estimate)
                 args.GetService<ILogger<BazaarOrderListener>>().LogDebug("Adjusted price for tax {price} ({perUnit} per unit) for {amount}x {item}", price, (double)price / amount / 10, amount, itemName);
             }
-            if (price > 10000)
             {
                 // hypixel doesn't display the decimal price anymore, we got to parse it from the item in previous gui
                 args.GetService<ILogger<BazaarOrderListener>>().LogDebug("Found from message {price} ({perUnit} per unit) for {amount}x {item}", price, (double)price / amount / 10, amount, itemName);
-                var lastView = args.currentState.RecentViews.LastOrDefault(v => v.Name.Contains("Confirm"));
-                if (lastView != null)
+                var perUnit = await TryGetConfirmedPricePerUnit(args, amount, itemName);
+                if (perUnit != null)
                 {
-                    var item = lastView.Items.FirstOrDefault(i => i.ItemName != null && (i.ItemName.Contains("Buy Order") || i.ItemName.Contains("Sell Offer")));
-                    if (item != null)
-                    {
-                        var itemMatch = Regex.Match(item.Description!, @"Price per unit: §6([\d,]+\.?\d*) coins").Groups;
-                        if (itemMatch.Count > 1)
-                        {
-                            var perUnit = ParseCoins(itemMatch[1].Value);
-                            price = (long)(perUnit * amount);
-                            args.GetService<ILogger<BazaarOrderListener>>().LogDebug("Found from item {price} ({perUnit} per unit) for {amount}x {item}", price, (double)price / amount / 10, amount, itemName);
-                        }
-                        else
-                        {
-                            args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No price match found in {items} from {player}", JsonConvert.SerializeObject(lastView.Items.Take(9 * 3).Where(i => i.Tag != null)), args.msg.PlayerId);
-                        }
-                    }
-                    else
-                    {
-                        args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No order item found in {items}", JsonConvert.SerializeObject(lastView.Items));
-                    }
+                    price = perUnit.Value * amount;
+                    args.GetService<ILogger<BazaarOrderListener>>().LogDebug("Found from item {price} ({perUnit} per unit) for {amount}x {item}", price, (double)price / amount / 10, amount, itemName);
                 }
                 else
                 {
-                    args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No last view found");
+                    args.GetService<ILogger<BazaarOrderListener>>().LogWarning("No confirm view price found for {amount}x {item} from {player}, using estimate", amount, itemName, args.msg.PlayerId);
                 }
             }
             var order = new Offer()
@@ -601,7 +583,7 @@ public class BazaarOrderListener : UpdateListener
                 Amount = amount,
                 UserId = args.msg.UserId,
                 ItemId = tag,
-                PricePerUnit = (double)price / amount / 10,
+                PricePerUnit = Math.Round((double)price / amount) / 10,
                 IsSell = isSell,
                 Timestamp = created ?? args.msg.ReceivedAt,
                 PlayerName = args.currentState.McInfo.Name
@@ -1088,7 +1070,62 @@ public class BazaarOrderListener : UpdateListener
         }
     }
 
-    private static long ParseCoins(string value)
+    private static readonly Regex PricePerUnitRegex = new(@"Price per unit: §6([\d,]+\.?\d*) coins", RegexOptions.CultureInvariant);
+    private static readonly Regex ConfirmAmountRegex = new(@"(?:Selling|Buying|Order): §a([\d,]+)§7x (.+)", RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Finds the exact price per unit (in tenths of coins) of the order from the "Confirm" views.
+    /// The mod sends a pre-click view (item "Sell Offer"/"Buy Order" with the price in the lore) and a
+    /// post-click view (item "Cancel Sell Offer", no lore), so views are walked newest to oldest and
+    /// views without a matching item are skipped.
+    /// </summary>
+    private static async Task<long?> TryGetConfirmedPricePerUnit(UpdateArgs args, int amount, string itemName)
+    {
+        foreach (var view in args.currentState.RecentViews.Reverse())
+        {
+            if (view.Name == null || !view.Name.StartsWith("Confirm"))
+                continue;
+            var orderItem = view.Items.FirstOrDefault(IsOrderItem);
+            var description = orderItem?.Description;
+            if (description == null || !await DescribesOrder(args, orderItem, amount, itemName))
+                continue;
+            var match = PricePerUnitRegex.Match(description);
+            if (match.Success)
+                return ParseCoins(match.Groups[1].Value);
+        }
+        return null;
+    }
+
+    /// <summary>Exact name match so "Cancel Sell Offer" is excluded</summary>
+    private static bool IsOrderItem(Item i)
+    {
+        if (i.ItemName == null)
+            return false;
+        var name = Regex.Replace(i.ItemName, "§.", "").Trim();
+        return name == "Sell Offer" || name == "Buy Order";
+    }
+
+    /// <summary>
+    /// Rejects stale views of another order by comparing the amount/item line when present.
+    /// The item matches by display name, or by tag when the lore shows a different name than the chat.
+    /// </summary>
+    private static async Task<bool> DescribesOrder(UpdateArgs args, Item orderItem, int amount, string itemName)
+    {
+        var match = ConfirmAmountRegex.Match(orderItem.Description);
+        if (!match.Success)
+            return true;
+        if (ParseInt(match.Groups[1].Value) != amount)
+            return false;
+        var viewItem = Regex.Replace(match.Groups[2].Value, "§.", "").Trim();
+        if (string.Equals(viewItem, itemName, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return await TagMatchesName(args, orderItem.Tag, itemName);
+    }
+
+    private static async Task<bool> TagMatchesName(UpdateArgs args, string tag, string itemName)
+        => !string.IsNullOrEmpty(tag) && tag == await GetTagForName(args, itemName);
+
+    internal static long ParseCoins(string value)
     {
         try
         {
@@ -1102,13 +1139,13 @@ public class BazaarOrderListener : UpdateListener
                 if (double.TryParse(numberPart, NumberStyles.AllowDecimalPoint | NumberStyles.AllowThousands, System.Globalization.CultureInfo.InvariantCulture, out var d))
                 {
                     var factor = last == 'k' ? 1_000d : 1_000_000d;
-                    return (long)(d * factor * 10);
+                    return (long)Math.Round(d * factor * 10);
                 }
                 return 0;
             }
             var cleaned = v.Replace(",", "").Trim();
             if (double.TryParse(cleaned, NumberStyles.AllowDecimalPoint | NumberStyles.AllowThousands, System.Globalization.CultureInfo.InvariantCulture, out var d2))
-                return (long)(d2 * 10);
+                return (long)Math.Round(d2 * 10);
             return 0;
         }
         catch
