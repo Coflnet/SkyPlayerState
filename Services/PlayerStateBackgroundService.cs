@@ -92,6 +92,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         // ExtractedInfo.LastDungeonFloor which is only ever set by earlier ticks, never this one) -
         // registered early so its ordering relative to CollectionListener never matters either way.
         AddHandler<DungeonRewardListener>(UpdateMessage.UpdateKind.INVENTORY | UpdateMessage.UpdateKind.Scoreboard | UpdateMessage.UpdateKind.CHAT);
+        AddHandler<ProfileSwitchListener>(UpdateMessage.UpdateKind.CHAT | UpdateMessage.UpdateKind.Tab);
         AddHandler<ProfileAndNameUpdate>(UpdateMessage.UpdateKind.CHAT | UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<BazaarOrderListener>(UpdateMessage.UpdateKind.CHAT);
         AddHandler<TradeLimitsUpdate>(UpdateMessage.UpdateKind.CHAT);
@@ -124,6 +125,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         AddHandler<ShensListener>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<SkillListener>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<StorageListener>(UpdateMessage.UpdateKind.INVENTORY);
+        AddHandler<AccessoryBagListener>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<AttributeMenuListener>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<MayorAuraListener>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<PlayerElectionListener>(UpdateMessage.UpdateKind.INVENTORY);

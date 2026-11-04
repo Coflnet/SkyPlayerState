@@ -311,6 +311,8 @@ public class ExtractedInfo
         PlayerStats = extractedInfo.PlayerStats == null ? new() : new Dictionary<string, double>(extractedInfo.PlayerStats);
         PlayerStatsAt = extractedInfo.PlayerStatsAt;
         PlayerStatSetAt = extractedInfo.PlayerStatSetAt == null ? new() : new Dictionary<string, DateTime>(extractedInfo.PlayerStatSetAt);
+        CurrentProfileId = extractedInfo.CurrentProfileId;
+        CurrentProfileName = extractedInfo.CurrentProfileName;
     }
 
     /// <summary>
@@ -439,6 +441,15 @@ public class ExtractedInfo
     /// </summary>
     [Key(68)]
     public DateTime CopperSeenAt { get; set; }
+    /// <summary>
+    /// SkyBlock profile the player is currently on, Guid.Empty while unknown (see <see cref="Services.ProfileSwitchListener"/>).
+    /// Per profile data must be saved under this id, never under a guessed one.
+    /// </summary>
+    [Key(69)]
+    public Guid CurrentProfileId { get; set; }
+    /// <summary>Name (fruit) of the current profile, null while unknown.</summary>
+    [Key(70)]
+    public string? CurrentProfileName { get; set; }
 }
 
 /// <summary>

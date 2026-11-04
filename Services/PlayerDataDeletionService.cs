@@ -18,6 +18,7 @@ public class PlayerDataDeletionService
 {
     private readonly IPersistenceService persistenceService;
     private readonly StorageService storageService;
+    private readonly AccessoryBagService accessoryBagService;
     private readonly SkillService skillService;
     private readonly TrackedProfitService trackedProfitService;
     private readonly IBazaarProfitTracker bazaarProfitTracker;
@@ -30,6 +31,7 @@ public class PlayerDataDeletionService
     public PlayerDataDeletionService(
         IPersistenceService persistenceService,
         StorageService storageService,
+        AccessoryBagService accessoryBagService,
         SkillService skillService,
         TrackedProfitService trackedProfitService,
         IBazaarProfitTracker bazaarProfitTracker,
@@ -41,6 +43,7 @@ public class PlayerDataDeletionService
     {
         this.persistenceService = persistenceService;
         this.storageService = storageService;
+        this.accessoryBagService = accessoryBagService;
         this.skillService = skillService;
         this.trackedProfitService = trackedProfitService;
         this.bazaarProfitTracker = bazaarProfitTracker;
@@ -86,6 +89,7 @@ public class PlayerDataDeletionService
         summary.PlayerUuid = playerUuid;
         if (summary.ProfileIds.Count > 0)
             await storageService.DeleteStorage(playerUuid, summary.ProfileIds);
+        await accessoryBagService.DeleteBag(playerUuid);
         await skillService.DeleteSkills(playerUuid);
         await transactionService.DeletePlayerTransactions(playerUuid);
         await bazaarProfitTracker.DeletePlayer(playerUuid);
@@ -108,7 +112,7 @@ public class PlayerDataDeletionService
         /// </summary>
         public bool StateDeleted { get; set; }
         /// <summary>
-        /// True when the uuid keyed data (storage, skills, transactions, bazaar, profit, tasks) was removed
+        /// True when the uuid keyed data (storage, accessory bag, skills, transactions, bazaar, profit, tasks) was removed
         /// </summary>
         public bool UuidDataDeleted { get; set; }
         /// <summary>

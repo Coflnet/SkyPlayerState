@@ -205,6 +205,18 @@ namespace Coflnet.Sky.PlayerState.Controllers
             }).ToList();
         }
 
+        /// <summary>
+        /// Gets the accessories seen in the player's accessory bag, an empty bag if none were stored
+        /// </summary>
+        /// <param name="playerId">minecraft uuid</param>
+        /// <param name="profileId">optional profile, defaults to the most recently opened bag</param>
+        [HttpGet]
+        [Route("{playerId}/accessories")]
+        public async Task<AccessoryBag> GetAccessories(Guid playerId, [FromServices] AccessoryBagService service, Guid? profileId = null)
+        {
+            return await service.GetBag(playerId, profileId);
+        }
+
         [HttpGet]
         [Route("rng-meter")]
         public async Task<object> GetAllRngMeters([FromServices] RngMeterService rngService)
