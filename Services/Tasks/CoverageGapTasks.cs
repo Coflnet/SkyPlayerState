@@ -25,7 +25,7 @@ public class CrimsonIsleMobsTask : MethodTask
     // show every Crimson Isle period of the player - fishing, slayers, Kuudra claims - as "mob" profit
     protected override bool Hidden => true;
     protected override string MethodName => "Crimson Isle Mobs";
-    protected override string Category => "Passive";
+    protected override string Category => "Tracking";
     protected override TaskType TaskType => TaskType.Passive;
     protected override string ActionUnit => "kills";
     // island key: every Crimson Isle zone resolves to it (the zone map), "Crimson Isle" itself included
@@ -215,7 +215,7 @@ public class DungeonChestClaimsTask : MethodTask
     // its personal view (FindMatchingPeriods) would show the player's whole dungeon profit
     protected override bool Hidden => true;
     protected override string MethodName => "Dungeon Chest Claims";
-    protected override string Category => "Passive";
+    protected override string Category => "Tracking";
     protected override TaskType TaskType => TaskType.Passive;
     protected override string ActionUnit => "claims";
     protected override HashSet<string> Locations => ["Dungeon Hub"];

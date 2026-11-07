@@ -196,6 +196,8 @@ public abstract class MethodTask : ProfitTask
     /// Task type: Active (default), Passive (setup+wait), Limited (daily/cooldown)
     /// </summary>
     protected virtual TaskType TaskType => TaskType.Active;
+    /// <summary>Public accessor for the estimator/tests - see <see cref="TaskType"/>.</summary>
+    public TaskType TaskTypeForTest => TaskType;
     /// <summary>
     /// Check whether this task is currently accessible. Return null if accessible,
     /// or a reason string if not (e.g. "Only available during Diana mayor", "Rain Slimes only spawn :00-:20")

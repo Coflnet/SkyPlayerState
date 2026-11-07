@@ -91,6 +91,64 @@ public class TaskEstimator
         return results;
     }
 
+    private static readonly TimeSpan CommunityCacheDuration = TimeSpan.FromSeconds(60);
+    /// <summary>Cache time while the aggregate snapshot is not warmed up yet (formula-only result, retry soon).</summary>
+    internal static readonly TimeSpan CommunityColdCacheDuration = TimeSpan.FromSeconds(5);
+    private TimeSpan communityCacheDuration = CommunityCacheDuration;
+    private readonly SemaphoreSlim communityLock = new(1, 1);
+    private List<TaskEstimate> communityCache;
+    private DateTime communityCachedAt = DateTime.MinValue;
+
+    /// <summary>
+    /// Community-only estimates for every public method task, best coins/hour first, with no player involved.
+    /// Computed once per <see cref="CommunityCacheDuration"/> (only a few seconds while the aggregate snapshot is cold) and shared (~180 tasks are too many to recompute per
+    /// request); callers must not mutate the returned list.
+    /// </summary>
+    public async Task<List<TaskEstimate>> GetCommunityEstimates(Dictionary<string, double> prices,
+        CancellationToken cancellationToken = default)
+    {
+        if (IsCommunityCacheFresh())
+            return communityCache;
+        await communityLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (IsCommunityCacheFresh())
+                return communityCache;
+            // the shared result must not depend on this caller's token: a slow compute would otherwise never be cached
+            var warm = aggregates.IsSnapshotWarm;
+            communityCache = await EstimateCommunity(prices, CancellationToken.None);
+            communityCacheDuration = warm ? CommunityCacheDuration : CommunityColdCacheDuration;
+            communityCachedAt = DateTime.UtcNow;
+            return communityCache;
+        }
+        finally
+        {
+            communityLock.Release();
+        }
+    }
+
+    internal TimeSpan CommunityCacheTtl => communityCacheDuration;
+
+    private bool IsCommunityCacheFresh() =>
+        communityCache != null && DateTime.UtcNow - communityCachedAt < communityCacheDuration;
+
+    /// <summary>
+    /// The no-player path: <see cref="EstimateAll"/> with a null state. Without a state no stat factor resolves, so
+    /// every task lands in <see cref="StatScoreService.UnknownBucket"/> (3): the bucket prior multiplier is neutral
+    /// (1.0), the personal tier is skipped (no uuid, no personal rows) and the result is the stat-bucket-3 /
+    /// global / formula blend, i.e. what an average player of unknown stats gets. The saturation penalty still
+    /// applies (it counts all current doers, since nobody is excluded). The trace id is cleared, it belongs
+    /// to the computing request and the result is shared between callers.
+    /// </summary>
+    internal async Task<List<TaskEstimate>> EstimateCommunity(Dictionary<string, double> prices,
+        CancellationToken cancellationToken)
+    {
+        var estimates = await EstimateAll(null, prices, cancellationToken);
+        foreach (var estimate in estimates)
+            estimate.TraceId = null;
+        return estimates.OrderByDescending(e => e.CoinsPerHour).ToList();
+    }
+
     internal static string GetTaskName(MethodTask task) => task.GetDetectionSignature().MethodName;
 
     private async Task RefreshCoinValues(CancellationToken cancellationToken)
@@ -237,6 +295,8 @@ public class TaskEstimator
         {
             TaskName = name,
             Category = signature.Category,
+            Description = task.Description,
+            Type = task.TaskTypeForTest,
             Source = source,
             StatBucket = bucket,
             CoinsPerHour = displayed,

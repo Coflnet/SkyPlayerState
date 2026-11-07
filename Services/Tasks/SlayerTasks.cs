@@ -12,6 +12,8 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 public abstract class IndividualSlayerTask : ProfitTask
 {
     protected abstract string SlayerName { get; }
+    /// <summary>Breakdown category. "Slayer" means Maddox slayer quests only; other bosses override it.</summary>
+    protected virtual string Category => "Slayer";
     protected abstract HashSet<string> LocationNames { get; }
     /// <summary>Public accessor for tests to audit LocationNames (see SkyblockZones bare-island-name regression).</summary>
     public HashSet<string> LocationNamesForTest => LocationNames;
@@ -64,7 +66,7 @@ public abstract class IndividualSlayerTask : ProfitTask
                 Message = $"No {SlayerName} activity tracked so far.",
                 Details = $"Do some {SlayerName} slayer runs so we can calculate your profitability.",
                 OnClick = EffectiveWarpCommand,
-                Breakdown = NewGuidanceBreakdown("Slayer", "none")
+                Breakdown = NewGuidanceBreakdown(Category, "none")
             });
 
         var totalProfit = matched.Sum(p => (double)p.Profit);
@@ -76,7 +78,7 @@ public abstract class IndividualSlayerTask : ProfitTask
                 Message = $"{SlayerName} sessions too short.",
                 Name = SlayerName,
                 OnClick = EffectiveWarpCommand,
-                Breakdown = NewGuidanceBreakdown("Slayer", "none")
+                Breakdown = NewGuidanceBreakdown(Category, "none")
             });
 
         var perHour = totalProfit / totalHours;
@@ -90,7 +92,7 @@ public abstract class IndividualSlayerTask : ProfitTask
             .Select(i => $"{McColorCodes.YELLOW}{i.Key} {McColorCodes.GRAY}x{i.Value}")
             .DefaultIfEmpty("No items tracked").Aggregate((a, b) => a + "\n" + b);
 
-        var breakdown = NewGuidanceBreakdown("Slayer", "player_data");
+        var breakdown = NewGuidanceBreakdown(Category, "player_data");
         breakdown.TrackedHours = totalHours;
         breakdown.Drops = items.Take(15).Select(i => new DropInfo
         {
@@ -246,6 +248,8 @@ public class T4TarantulaTask : IndividualSlayerTask
 public class AshfangTask : IndividualSlayerTask
 {
     protected override string SlayerName => "Ashfang";
+    // a Crimson Isle boss, not a Maddox slayer quest
+    protected override string Category => "Combat";
     protected override HashSet<string> LocationNames => ["Ruins of Ashfang", "Smoldering Tomb", "Blazing Volcano"];
     public override string Description => "Ashfang on Crimson Isle";
 }
@@ -260,7 +264,7 @@ public class BarbarianDukeXTask : MethodTask
     protected override HashSet<string> Locations => ["The Dukedom", "Stronghold", "Dragontail", "Mage Outpost"];
     protected override HashSet<string> DetectionItems => ["SHARD_BARBARIAN_DUKE_X", "MAGMA_URCHIN"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_BARBARIAN_DUKE_X", 20)];
-    protected override string Category => "Slayer";
+    protected override string Category => "Combat";
     protected override string ActionUnit => "kills";
     protected override string Where => "The Dukedom";
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Barbarian_Duke_X";

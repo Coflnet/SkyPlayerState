@@ -5,35 +5,7 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 public class GardenTask : IslandTask
 {
     protected override string RegionName => "the garden";
-    protected override HashSet<string> locationNames =>
-    [
-        "The Garden",
-        "Plot 1",
-        "Plot 2",
-        "Plot 3",
-        "Plot 4",
-        "Plot 5",
-        "Plot 6",
-        "Plot 7",
-        "Plot 8",
-        "Plot 9",
-        "Plot 10",
-        "Plot 11",
-        "Plot 12",
-        "Plot 13",
-        "Plot 14",
-        "Plot 15",
-        "Plot 16",
-        "Plot 17",
-        "Plot 18",
-        "Plot 19",
-        "Plot 20",
-        "Plot 21",
-        "Plot 22",
-        "Plot 23",
-        "Plot 24",
-        "Plot 25",
-        "Compost",
-        "Visitor's Center"
-    ];
+    // SkyblockZones.Canonical collapses every renamed plot ("Plot - 8", "Plot - Left Farm 2", ...) to the single
+    // "Plot" zone and the pest count suffix to "The Garden", so those are the only two zones that ever occur.
+    protected override HashSet<string> locationNames => ["The Garden", "Plot"];
 }

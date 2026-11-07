@@ -13,6 +13,10 @@ public class TaskEstimate
 {
     public string TaskName { get; set; }
     public string Category { get; set; }
+    /// <summary>What the method is, same text as /Task/methods (MethodTask.Description).</summary>
+    public string Description { get; set; }
+    /// <summary>Active, Passive or Limited - see MethodTask.TaskType. Serialized as a number like TaskResult.Type.</summary>
+    public TaskType Type { get; set; }
     public string Source { get; set; }         // personal | stat_bucket | global | formula
     public byte StatBucket { get; set; }
     // Both already net of ingredient cost for recipe tasks (MethodTask.FormulaCosts, e.g. the 16

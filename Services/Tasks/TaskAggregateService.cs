@@ -320,6 +320,9 @@ public class TaskAggregateService
             .Concat(counts.Where(e => e.Value >= 0).OrderByDescending(e => e.Value).Take(limit))
             .ToDictionary(e => e.Key, e => e.Value);
 
+    /// <summary>False until the first merge finished: before that <see cref="GetSnapshot"/> is empty and estimates are formula-only.</summary>
+    public bool IsSnapshotWarm => snapshotAt != DateTime.MinValue;
+
     /// <summary>Replaces the read snapshot, for tests.</summary>
     internal void SetSnapshotForTest(Dictionary<(string task, byte bucket), BucketAggregate> s)
     {

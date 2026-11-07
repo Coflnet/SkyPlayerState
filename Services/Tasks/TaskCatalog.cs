@@ -23,6 +23,13 @@ internal static class TaskCatalog
         typeof(DungeonHubTask),         // not a money making area
         typeof(FarmingIslandsTask),     // superseded by GardenTask
         typeof(SpidersDenTask),         // superseded by tarantula slayer tasks
+        // Profit-level slayer trackers with no detection signature: they counted every period in their zones, so the
+        // same activity showed twice in /Task/{player}/results next to the MethodTask below.
+        typeof(T3InfernoDemonlordTask), // superseded by BlazeSlayerTask
+        typeof(T4InfernoDemonlordTask), // superseded by BlazeSlayerTask
+        typeof(T4TarantulaTask),        // superseded by TarantulaSlayerTask
+        typeof(T5TarantulaTask),        // superseded by TarantulaSlayerTask
+        typeof(AshfangTask),            // location-only, its Smoldering Tomb zone overlaps BlazeSlayerTask (Crimson Isle); re-add as a MethodTask once a verified Ashfang-exclusive drop exists
 
         // ── Unregistered 2026-07 after per-task web research found the data fabricated. ──
         // Kept as classes (not deleted) so they can be re-added once corrected. See task-verdicts.json.
@@ -126,14 +133,12 @@ internal static class TaskCatalog
         tasks.Add<KuudraT4Task>();
         tasks.Add<KuudraT5Task>();
         tasks.Add<KuudraChestClaimsTask>();
+        // Crimson Isle mob task, not a Kuudra run (kept here to leave the registration order unchanged)
         tasks.Add<HeavyPearlsTask>();
 
         // Slayer tasks
-        tasks.Add<T3InfernoDemonlordTask>();
-        tasks.Add<T4InfernoDemonlordTask>();
-        tasks.Add<T5TarantulaTask>();
-        tasks.Add<T4TarantulaTask>();
-        tasks.Add<AshfangTask>();
+        // T3/T4 Inferno Demonlord and T4/T5 Tarantula were unregistered: see IntentionallyUnregistered
+        // AshfangTask unregistered: see IntentionallyUnregistered
         tasks.Add<BarbarianDukeXTask>();
         tasks.Add<T4VoidgloomsTask>();
         tasks.Add<T4VoidgloomsFdTask>();
@@ -353,7 +358,7 @@ internal static class TaskCatalog
         tasks.Add<BrownMushroomTask>();
         tasks.Add<MyceliumTask>();
 
-        // Passive tasks
+        // Passive tasks (TaskType.Passive: setup then wait)
         tasks.Add<HuntingTrapTask>();
 
         // Limited/daily tasks

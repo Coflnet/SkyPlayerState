@@ -7,6 +7,7 @@ using Coflnet.Sky.Core;
 using Coflnet.Sky.PlayerState.Models;
 using Coflnet.Sky.PlayerState.Services;
 using Coflnet.Sky.PlayerState.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
@@ -59,6 +60,21 @@ public class TaskController : ControllerBase
         var priceLookup = await pricesTask;
         var estimates = await estimator.EstimateAll(state, priceLookup, cancellationToken);
         return estimates.OrderByDescending(e => e.CoinsPerHour).ToList();
+    }
+
+    /// <summary>
+    /// Community-only estimates for every public (non hidden) method task, best coins per hour first. No player
+    /// state is involved: every task is estimated for an average player of unknown stats (stat bucket 3, see
+    /// <see cref="TaskEstimator.EstimateCommunity"/>), so personal fields are zero/empty and TraceId is null.
+    /// Cached for ~2 minutes (response cache) on top of the estimator's own 60 second in-memory cache.
+    /// </summary>
+    [HttpGet("estimates")]
+    [ResponseCache(Duration = 120)]
+    [ProducesResponseType(typeof(List<TaskEstimate>), StatusCodes.Status200OK)]
+    public async Task<List<TaskEstimate>> GetCommunityEstimates(CancellationToken cancellationToken)
+    {
+        var priceLookup = await prices.GetPrices(cancellationToken);
+        return await estimator.GetCommunityEstimates(priceLookup, cancellationToken);
     }
 
     private async Task<StateObject> LoadState(string playerId, CancellationToken cancellationToken)

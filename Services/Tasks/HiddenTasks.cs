@@ -64,7 +64,7 @@ public class MinionCollectionTask : MethodTask
 
     protected override bool Hidden => true;
     protected override string MethodName => "Minion Collection";
-    protected override string Category => "Passive";
+    protected override string Category => "Tracking";
     // "Your Island" is the literal scoreboard zone for a private island, the same string regardless
     // of island type - it is deliberately ambiguous/unmapped in SkyblockZones (AmbiguousZones), but
     // SkyblockZones.Matches checks a task's Locations against the exact zone string FIRST, before
@@ -95,7 +95,7 @@ public class PrivateIslandActivityTask : MethodTask
 {
     protected override bool Hidden => true;
     protected override string MethodName => "Private Island Activity";
-    protected override string Category => "Passive";
+    protected override string Category => "Tracking";
     protected override HashSet<string> Locations => ["Your Island"];
     protected override int MinLocationOnlyItems => 1;
     protected override int Priority => -100;
@@ -113,7 +113,7 @@ public class RiftActivityTask : MethodTask
 {
     protected override bool Hidden => true;
     protected override string MethodName => "Rift Activity";
-    protected override string Category => "Passive";
+    protected override string Category => "Tracking";
     protected override HashSet<string> Locations => ["Rift"];
     protected override int MinLocationOnlyItems => 1;
     protected override int Priority => -100;
@@ -131,7 +131,7 @@ public class UnknownLocationTask : MethodTask
 {
     protected override bool Hidden => true;
     protected override string MethodName => "Unknown Location";
-    protected override string Category => "Passive";
+    protected override string Category => "Tracking";
     protected override HashSet<string> Locations => ["Unknown"];
     protected override int MinLocationOnlyItems => 1;
     protected override int Priority => -100;
@@ -149,7 +149,7 @@ public class ForgeClaimsTask : MethodTask
 {
     protected override bool Hidden => true;
     protected override string MethodName => "Forge Claims";
-    protected override string Category => "Passive";
+    protected override string Category => "Tracking";
     // Forged items are often booked a zone later (Rampart's Quarry, The Lift, Dwarven Base Camp, ... ~2B unclassified
     // 2026-10-10), so the island matches too, but there only with a forge-only output.
     protected override HashSet<string> Locations => ["The Forge", "Forge Basin", "Dwarven Mines"];

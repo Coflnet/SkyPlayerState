@@ -33,7 +33,7 @@ public class TaskCatalogRegistrationTests
 
     private static readonly string[] ExpectedRegisteredTaskNames =
     [
-        "AmberMiningTask", "AshfangTask", "AuctionPurchaseTask", "AutomatonTask", "BackwaterBayouTask", "BambuleafTask",
+        "AmberMiningTask", "AuctionPurchaseTask", "AutomatonTask", "BackwaterBayouTask", "BambuleafTask",
         "BarbarianDukeXTask", "BayouFishingHuntingTask", "BayouFishingTask", "BayouHotspotFishingHuntingTask",
         "BayouHotspotFishingTask", "BazaarPurchaseTask", "BezalHuntingTask", "BirriesHuntingTask", "BladesoulTask", "BlazeSlayerTask", "BrownMushroomTask", "BruiserHuntingTask",
         "BurningsoulTask", "CactusFarmingTask", "CarrotFarmingTask", "CoalMiningTask", "CobblestoneMiningTask",
@@ -61,8 +61,8 @@ public class TaskCatalogRegistrationTests
         "ShellwiseTask", "ShimmeringLightSlippersTask", "SludgeMiningGemMixtureTask", "SludgeMiningTask",
         "SpikeTask", "SpookyFishingTask", "SquidFishingHuntingTask", "SquidFishingTask", "StarSentryTask",
         "SugarCaneFarmingTask", "SunflowerFarmingTask", "SvenSlayerTask",
-        "T3InfernoDemonlordTask", "T4InfernoDemonlordTask", "T4TarantulaTask", "T4VoidgloomsFdTask",
-        "T4VoidgloomsTask", "T5TarantulaTask", "TarantulaSlayerCrimsonIsleTask", "TheEndTask", "TheParkTask", "ThystMiningTask",
+        "T4VoidgloomsFdTask",
+        "T4VoidgloomsTask", "TarantulaSlayerCrimsonIsleTask", "TheEndTask", "TheParkTask", "ThystMiningTask",
         "TikiHuntingTask", "TreasureHoarderHuntingTask",
         "TungstenMiningTask", "UmberMiningTask", "ViperShardNpcFlipTask", "VoraciousSpiderTask",
         "WaterFishingHuntingTask", "WaterFishingTask", "WaterWormFishingHuntingTask", "WaterWormFishingTask",
