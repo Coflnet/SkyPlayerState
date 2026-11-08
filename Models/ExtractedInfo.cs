@@ -313,6 +313,11 @@ public class ExtractedInfo
         PlayerStatSetAt = extractedInfo.PlayerStatSetAt == null ? new() : new Dictionary<string, DateTime>(extractedInfo.PlayerStatSetAt);
         CurrentProfileId = extractedInfo.CurrentProfileId;
         CurrentProfileName = extractedInfo.CurrentProfileName;
+        CurrentGear = extractedInfo.CurrentGear == null ? null : new GearSnapshot(extractedInfo.CurrentGear);
+        LiveStats = extractedInfo.LiveStats == null ? null : new(extractedInfo.LiveStats);
+        LiveStatsAt = extractedInfo.LiveStatsAt;
+        BaseStats = extractedInfo.BaseStats == null ? null : new BaseStatsReading(extractedInfo.BaseStats);
+        LivePet = extractedInfo.LivePet == null ? null : new GearPet(extractedInfo.LivePet);
     }
 
     /// <summary>
@@ -353,8 +358,9 @@ public class ExtractedInfo
     public string? LastLateRewardTaskLocation { get; set; }
     /// <summary>
     /// Tags of the worn equipment, armor and active pet seen in the "Stats &amp; Equipment" and "Loadouts" menus
-    /// (see <see cref="Services.WornGearListener"/>): worn gear is not part of the inventory, so this is
-    /// what makes it count as owned. Only grows (capped), a swapped out piece is still owned.
+    /// (see <see cref="Services.WornGearListener"/>): worn gear is not part of <see cref="StateObject.Inventory"/>, so this
+    /// is what makes it count as owned. Only grows (capped), a swapped out piece is still owned. The currently worn armor
+    /// is also read from the bare inventory upload into <see cref="CurrentGear"/>.
     /// </summary>
     [Key(50)]
     public List<string> WornGearTags { get; set; } = new();
@@ -450,6 +456,29 @@ public class ExtractedInfo
     /// <summary>Name (fruit) of the current profile, null while unknown.</summary>
     [Key(70)]
     public string? CurrentProfileName { get; set; }
+    /// <summary>
+    /// Worn armor/equipment, the inventory tools (the task's optimal one in the tool slot) and the active pet, reduced to rate relevant modifiers and lore stats (see
+    /// <see cref="Services.GearSnapshotListener"/>). Null until gear was seen. Copied into each task session.
+    /// </summary>
+    [Key(71)]
+    public GearSnapshot? CurrentGear { get; set; }
+    /// <summary>
+    /// Rate relevant stats of the last tab list that showed the Stats widget (see <see cref="Services.TabStatsListener"/>):
+    /// the last values, not max-merged. A stat missing from the widget is absent, never 0.
+    /// </summary>
+    [Key(72)]
+    public Dictionary<string, double>? LiveStats { get; set; }
+    [Key(73)]
+    public DateTime LiveStatsAt { get; set; }
+    /// <summary>
+    /// Stats without the gear, derived from the last "Stats &amp; Equipment" read outside dungeon and Kuudra instances (see
+    /// <see cref="Services.Gear.GearBaseStats"/>). Only used for the profile it was read on. Keys 75-78 are unused.
+    /// </summary>
+    [Key(74)]
+    public BaseStatsReading? BaseStats { get; set; }
+    /// <summary>The pet named by the tab list's Pet widget (" [Lvl 100] Elephant"); its tier is only known when it matches a Pets menu entry.</summary>
+    [Key(79)]
+    public GearPet? LivePet { get; set; }
 }
 
 /// <summary>
@@ -495,6 +524,25 @@ public class TaskSession
     [Key(6)] public Dictionary<string, double> ZoneSeconds { get; set; } = new();
     /// <summary>Coin value (costs negative) of the items collected per canonical zone.</summary>
     [Key(7)] public Dictionary<string, double> ZoneValue { get; set; } = new();
+    /// <summary>
+    /// <see cref="ExtractedInfo.CurrentGear"/> when the session started, filled in and refreshed while nothing known
+    /// changes (see <see cref="Services.Gear.GearSessionTracker"/>).
+    /// </summary>
+    [Key(8)] public GearSnapshot? Gear { get; set; }
+    /// <summary><see cref="Services.Gear.GearFingerprint.Of"/> of <see cref="Gear"/>.</summary>
+    [Key(9)] public string? GearFingerprint { get; set; }
+    /// <summary>A known piece, the pet or the tool changed mid session: the session is excluded from gear observations.</summary>
+    [Key(10)] public bool GearChanged { get; set; }
+    /// <summary>Sum per stat of the tab Stats widget samples during the session (fallback when no base stats exist).</summary>
+    [Key(11)] public Dictionary<string, double> StatSums { get; set; } = new();
+    /// <summary>Number of samples per stat in <see cref="StatSums"/> (a stat missing from a sample is not counted).</summary>
+    [Key(12)] public Dictionary<string, int> StatSamples { get; set; } = new();
+    [Key(13)] public DateTime LastStatSampleAt { get; set; }
+    /// <summary>
+    /// The session start the gear is tracked from: parts read before it are provisional (they may predate a wardrobe
+    /// swap) and are replaced by a newer reading without counting as a change, see <see cref="Services.Gear.GearSessionTracker"/>.
+    /// </summary>
+    [Key(14)] public DateTime GearSince { get; set; }
 
     public TaskSession() { }
     public TaskSession(TaskSession other)
@@ -507,6 +555,13 @@ public class TaskSession
         Items = other.Items == null ? new() : new(other.Items);
         ZoneSeconds = other.ZoneSeconds == null ? new() : new(other.ZoneSeconds);
         ZoneValue = other.ZoneValue == null ? new() : new(other.ZoneValue);
+        Gear = other.Gear == null ? null : new GearSnapshot(other.Gear);
+        GearFingerprint = other.GearFingerprint;
+        GearChanged = other.GearChanged;
+        StatSums = other.StatSums == null ? new() : new(other.StatSums);
+        StatSamples = other.StatSamples == null ? new() : new(other.StatSamples);
+        LastStatSampleAt = other.LastStatSampleAt;
+        GearSince = other.GearSince;
     }
 }
 

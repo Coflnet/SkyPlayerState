@@ -23,6 +23,7 @@ public class TaskPeriodFolder
     private readonly CoinValueRegistry coinValues;
     private readonly ITransactionService transactions;
     private readonly ILogger<TaskPeriodFolder> logger;
+    private readonly Services.Gear.IGearObservationSink gearObservations;
 
     private const double RarePriceThreshold = 1_000_000;
     private const double RareAppearanceRatio = 0.05;
@@ -31,8 +32,10 @@ public class TaskPeriodFolder
     private const double AfkFactor = 0.05;
 
     public TaskPeriodFolder(TaskAggregateService aggregates, StatScoreService statScore, TaskRegistry registry,
-        CoinValueRegistry coinValues, ITransactionService transactions, ILogger<TaskPeriodFolder> logger)
+        CoinValueRegistry coinValues, ITransactionService transactions, ILogger<TaskPeriodFolder> logger,
+        Services.Gear.IGearObservationSink gearObservations = null)
     {
+        this.gearObservations = gearObservations;
         this.aggregates = aggregates;
         this.statScore = statScore;
         this.registry = registry;
@@ -163,6 +166,10 @@ public class TaskPeriodFolder
                 weightedItemCounts, residual * weight, rareCoins * weight, itemValue * weight, span?.TraceId.ToString());
 
             await UpdatePlayerStat(period.PlayerUuid, task, seconds, commonCounts, residual, rareCoins, itemValue, minutes, prices);
+
+            if (!lateReward)
+                gearObservations?.Record(new Services.Gear.GearFoldInput(period, task, bucket, seconds, weight,
+                    commonValue * winsorScale, rareCoins, itemValue, state?.ExtractedInfo));
 
             if (!lateReward)
                 AddZoneShares(task, period, weight, winsorScale);

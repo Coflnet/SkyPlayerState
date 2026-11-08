@@ -297,6 +297,7 @@ public abstract class MethodTask : ProfitTask
     /// </summary>
     public List<MethodDrop> FormulaCostsForTest => FormulaCosts;
     public HashSet<string> ObservedCostItemsForTest => ObservedCostItems;
+    public List<RequiredItem> RequiredItemsForTest => RequiredItems;
 
     /// <summary>
     /// Real item tags whose negative count is a cost of this task: the <see cref="FormulaCosts"/> tags

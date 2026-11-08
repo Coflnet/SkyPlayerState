@@ -8,8 +8,9 @@ using Coflnet.Sky.PlayerState.Models;
 namespace Coflnet.Sky.PlayerState.Services;
 
 /// <summary>
-/// Records the worn equipment, armor and the active pet as owned. Worn gear is not in the inventory view, but
-/// the "Stats &amp; Equipment" menu and the first page of "Loadouts" show it with real item tags in fixed
+/// Records the worn equipment, armor and the active pet as owned. Equipment is in no inventory view (the bare inventory
+/// upload has the armor, see GearSnapshotListener), but
+/// the "Stats &amp; Equipment" menu and every page of "Loadouts" show it with real item tags in fixed
 /// slots (checked against production samples of both menus):
 /// equipment (necklace, cloak, belt, gloves) in slots 10, 19, 28, 37, armor (helmet, chestplate, leggings, boots)
 /// in 11, 20, 29, 38, the active pet in slot 47 (Stats &amp; Equipment) or 21 (Loadouts).
@@ -23,20 +24,14 @@ public class WornGearListener : UpdateListener
 
     public const int MaxTags = 100;
     private static readonly int[] EquipmentAndArmorSlots = [10, 19, 28, 37, 11, 20, 29, 38];
-    private static readonly Regex LoadoutsFirstPage = new(@"^\(1/\d+\) Loadouts$", RegexOptions.Compiled);
+    private static readonly Regex LoadoutsPage = new(@"^\(\d+/\d+\) Loadouts$", RegexOptions.Compiled);
 
     public override Task Process(UpdateArgs args)
     {
         var chest = args.msg.Chest;
         if (chest?.Name == null || chest.Items == null)
             return Task.CompletedTask;
-        var name = Services.MenuTitleNormalizer.StripColors(chest.Name).Trim();
-        int petSlot;
-        if (name == "Stats & Equipment")
-            petSlot = 47;
-        else if (LoadoutsFirstPage.IsMatch(name))
-            petSlot = 21;
-        else
+        if (WornGearPetSlot(chest.Name) is not { } petSlot)
             return Task.CompletedTask;
 
         var tags = ReadWornTags(chest.Items, petSlot);
@@ -49,6 +44,25 @@ public class WornGearListener : UpdateListener
             known.RemoveRange(0, known.Count - MaxTags);
         return Task.CompletedTask;
     }
+
+    /// <summary>
+    /// The active pet's slot when the view shows the worn gear (47 in "Stats &amp; Equipment", 21 on every "Loadouts" page:
+    /// production samples of pages 1-3 all show the worn column in the same slots), null for every other view.
+    /// </summary>
+    public static int? WornGearPetSlot(string? title)
+    {
+        if (title == null)
+            return null;
+        var name = MenuTitleNormalizer.StripColors(title).Trim();
+        if (name == "Stats & Equipment")
+            return 47;
+        return LoadoutsPage.IsMatch(name) ? 21 : null;
+    }
+
+    /// <summary>Equipment slots (necklace, cloak, belt, gloves) of the worn gear menus.</summary>
+    public static readonly int[] EquipmentMenuSlots = [10, 19, 28, 37];
+    /// <summary>Armor slots (helmet, chestplate, leggings, boots) of the worn gear menus.</summary>
+    public static readonly int[] ArmorMenuSlots = [11, 20, 29, 38];
 
     /// <summary>The tags in the fixed worn slots, the pet only when its tag is a PET_ tag.</summary>
     public static List<string> ReadWornTags(IReadOnlyList<Item> items, int petSlot)

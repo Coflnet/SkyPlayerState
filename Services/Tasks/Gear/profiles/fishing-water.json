@@ -1,0 +1,414 @@
+{
+  "id": "fishing-water",
+  "name": "Water fishing",
+  "anchor": "budget",
+  "researchedAt": "2026-11-07",
+  "sources": [
+    "https://hypixelskyblock.minecraft.wiki/w/Fishing",
+    "https://hypixelskyblock.minecraft.wiki/w/Fishing_Speed",
+    "https://hypixelskyblock.minecraft.wiki/w/Sea_Creature_Chance",
+    "https://hypixelskyblock.minecraft.wiki/w/Sea_Creatures",
+    "https://hypixelskyblock.minecraft.wiki/w/Changelog/2026/October_6",
+    "https://api.hypixel.net/v2/resources/skyblock/items",
+    "https://www.youtube.com/watch?v=ZE23-vgLaP8"
+  ],
+  "model": {
+    "kind": "fishing",
+    "fishingSpeedStat": "Fishing Speed",
+    "seaCreatureChanceStat": "Sea Creature Chance",
+    "baseWaitSeconds": 15,
+    "reelSeconds": 2.5,
+    "fishingSpeedCap": 300,
+    "sccCap": 100,
+    "bulkFrom": "creatures"
+  },
+  "modelConfidence": "medium",
+  "baseline": {
+    "id": "baseline",
+    "name": "Starter fishing gear",
+    "items": [
+      {
+        "slot": "rod",
+        "tag": "CHALLENGE_ROD",
+        "name": "Challenging Rod",
+        "reason": "Fishing speed and sea creature chance for a fresh fisher"
+      },
+      {
+        "slot": "helmet",
+        "tag": "BACKWATER_HELMET",
+        "name": "Backwater Helmet",
+        "reason": "Cheap sea creature chance armor"
+      },
+      {
+        "slot": "chestplate",
+        "tag": "BACKWATER_CHESTPLATE",
+        "name": "Backwater Chestplate",
+        "reason": "Cheap sea creature chance armor"
+      },
+      {
+        "slot": "leggings",
+        "tag": "BACKWATER_LEGGINGS",
+        "name": "Backwater Leggings",
+        "reason": "Cheap sea creature chance armor"
+      },
+      {
+        "slot": "boots",
+        "tag": "BACKWATER_BOOTS",
+        "name": "Backwater Boots",
+        "reason": "Cheap sea creature chance armor"
+      },
+      {
+        "slot": "cloak",
+        "tag": "BACKWATER_CLOAK",
+        "name": "Backwater Cloak",
+        "reason": "Fishing speed and sea creature chance"
+      },
+      {
+        "slot": "belt",
+        "tag": "BACKWATER_BELT",
+        "name": "Backwater Belt",
+        "reason": "Fishing speed and sea creature chance"
+      },
+      {
+        "slot": "gloves",
+        "tag": "BACKWATER_GLOVES",
+        "name": "Backwater Gloves",
+        "reason": "Fishing speed and sea creature chance"
+      },
+      {
+        "slot": "necklace",
+        "tag": "BACKWATER_NECKLACE",
+        "name": "Backwater Necklace",
+        "reason": "Fishing speed and sea creature chance"
+      }
+    ],
+    "stats": {
+      "Fishing Speed": 43,
+      "Sea Creature Chance": 34
+    }
+  },
+  "setups": [
+    {
+      "id": "budget",
+      "tier": "budget",
+      "name": "Legend rod and Thunder armor",
+      "items": [
+        {
+          "slot": "rod",
+          "tag": "LEGEND_ROD",
+          "name": "Rod of Legends",
+          "reason": "Fishing speed and sea creature chance"
+        },
+        {
+          "slot": "helmet",
+          "tag": "THUNDER_HELMET",
+          "name": "Thunder Helmet",
+          "reason": "Sea creature chance from the Thunder armor set"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "THUNDER_CHESTPLATE",
+          "name": "Thunder Chestplate",
+          "reason": "Sea creature chance from the Thunder armor set"
+        },
+        {
+          "slot": "leggings",
+          "tag": "THUNDER_LEGGINGS",
+          "name": "Thunder Leggings",
+          "reason": "Sea creature chance from the Thunder armor set"
+        },
+        {
+          "slot": "boots",
+          "tag": "THUNDER_BOOTS",
+          "name": "Thunder Boots",
+          "reason": "Sea creature chance from the Thunder armor set"
+        },
+        {
+          "slot": "cloak",
+          "tag": "BACKWATER_CLOAK",
+          "name": "Backwater Cloak",
+          "reason": "Kept from the starter gear"
+        },
+        {
+          "slot": "belt",
+          "tag": "BACKWATER_BELT",
+          "name": "Backwater Belt",
+          "reason": "Kept from the starter gear"
+        },
+        {
+          "slot": "gloves",
+          "tag": "ICHTHYIC_GLOVES",
+          "name": "Ichthyic Gloves",
+          "reason": "Fishing speed"
+        },
+        {
+          "slot": "necklace",
+          "tag": "THUNDERBOLT_NECKLACE",
+          "name": "Thunderbolt Necklace",
+          "reason": "Sea creature chance"
+        }
+      ],
+      "stats": {
+        "Fishing Speed": 75,
+        "Sea Creature Chance": 45.5
+      },
+      "runSeconds": null,
+      "unlocksTask": null,
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Sea_Creature_Chance",
+        "https://hypixelskyblock.minecraft.wiki/w/Fishing_Speed",
+        "https://hypixelskyblock.minecraft.wiki/w/Thunder_Armor"
+      ],
+      "assumptions": [
+        "Thunder armor needs a high fishing level",
+        "The Backwater cloak and belt are kept from the starter gear",
+        "The bite time formula changed in the recent fishing speed patch and the new one is not published, so bite time uses the older formula shape and the estimate is rough",
+        "Kill time of sea creatures is not modelled because no source gives it, so very strong and very weak setups both look better than a kill limited player will see",
+        "Sea creature caps per player and per server are not modelled",
+        "Enchants, potions, bait, rod parts and hotspot bonuses are treated as equal across setups and are left out",
+        "Pet prices use the cheapest listing of any rarity and level, which can understate the cost of a maxed pet"
+      ]
+    },
+    {
+      "id": "mid",
+      "tier": "mid",
+      "name": "Rod of the Sea with Ichthyic equipment and Ammonite pet",
+      "items": [
+        {
+          "slot": "rod",
+          "tag": "ROD_OF_THE_SEA",
+          "name": "Rod of the Sea",
+          "reason": "Fishing speed and sea creature chance"
+        },
+        {
+          "slot": "helmet",
+          "tag": "THUNDER_HELMET",
+          "name": "Thunder Helmet",
+          "reason": "Sea creature chance from the Thunder armor set"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "THUNDER_CHESTPLATE",
+          "name": "Thunder Chestplate",
+          "reason": "Sea creature chance from the Thunder armor set"
+        },
+        {
+          "slot": "leggings",
+          "tag": "THUNDER_LEGGINGS",
+          "name": "Thunder Leggings",
+          "reason": "Sea creature chance from the Thunder armor set"
+        },
+        {
+          "slot": "boots",
+          "tag": "THUNDER_BOOTS",
+          "name": "Thunder Boots",
+          "reason": "Sea creature chance from the Thunder armor set"
+        },
+        {
+          "slot": "cloak",
+          "tag": "ICHTHYIC_CLOAK",
+          "name": "Ichthyic Cloak",
+          "reason": "Fishing speed"
+        },
+        {
+          "slot": "belt",
+          "tag": "ICHTHYIC_BELT",
+          "name": "Ichthyic Belt",
+          "reason": "Fishing speed"
+        },
+        {
+          "slot": "gloves",
+          "tag": "ICHTHYIC_GLOVES",
+          "name": "Ichthyic Gloves",
+          "reason": "Fishing speed"
+        },
+        {
+          "slot": "necklace",
+          "tag": "THUNDERBOLT_NECKLACE",
+          "name": "Thunderbolt Necklace",
+          "reason": "Sea creature chance"
+        },
+        {
+          "slot": "pet",
+          "tag": "PET_AMMONITE",
+          "name": "Ammonite Pet",
+          "reason": "Sea creature chance"
+        }
+      ],
+      "stats": {
+        "Fishing Speed": 98,
+        "Sea Creature Chance": 51.5
+      },
+      "runSeconds": null,
+      "unlocksTask": null,
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Sea_Creature_Chance",
+        "https://hypixelskyblock.minecraft.wiki/w/Fishing_Speed",
+        "https://hypixelskyblock.minecraft.wiki/w/Ammonite_Pet",
+        "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/petnums.json"
+      ],
+      "assumptions": [
+        "Pet stats assume a max level legendary Ammonite Pet",
+        "The bite time formula changed in the recent fishing speed patch and the new one is not published, so bite time uses the older formula shape and the estimate is rough",
+        "Kill time of sea creatures is not modelled because no source gives it, so very strong and very weak setups both look better than a kill limited player will see",
+        "Sea creature caps per player and per server are not modelled",
+        "Enchants, potions, bait, rod parts and hotspot bonuses are treated as equal across setups and are left out",
+        "Pet prices use the cheapest listing of any rarity and level, which can understate the cost of a maxed pet"
+      ]
+    },
+    {
+      "id": "endgame",
+      "tier": "endgame",
+      "name": "Magma Lord armor with Gillsplash equipment",
+      "items": [
+        {
+          "slot": "rod",
+          "tag": "ROD_OF_THE_SEA",
+          "name": "Rod of the Sea",
+          "reason": "Fishing speed and sea creature chance"
+        },
+        {
+          "slot": "helmet",
+          "tag": "MAGMA_LORD_HELMET",
+          "name": "Magma Lord Helmet",
+          "reason": "Sea creature chance from the Magma Lord armor set"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "MAGMA_LORD_CHESTPLATE",
+          "name": "Magma Lord Chestplate",
+          "reason": "Sea creature chance from the Magma Lord armor set"
+        },
+        {
+          "slot": "leggings",
+          "tag": "MAGMA_LORD_LEGGINGS",
+          "name": "Magma Lord Leggings",
+          "reason": "Sea creature chance from the Magma Lord armor set"
+        },
+        {
+          "slot": "boots",
+          "tag": "MAGMA_LORD_BOOTS",
+          "name": "Magma Lord Boots",
+          "reason": "Sea creature chance from the Magma Lord armor set"
+        },
+        {
+          "slot": "cloak",
+          "tag": "GILLSPLASH_CLOAK",
+          "name": "Gillsplash Cloak",
+          "reason": "Fishing speed"
+        },
+        {
+          "slot": "belt",
+          "tag": "GILLSPLASH_BELT",
+          "name": "Gillsplash Belt",
+          "reason": "Fishing speed"
+        },
+        {
+          "slot": "gloves",
+          "tag": "GILLSPLASH_GLOVES",
+          "name": "Gillsplash Gloves",
+          "reason": "Fishing speed"
+        },
+        {
+          "slot": "necklace",
+          "tag": "MAGMA_LORD_GAUNTLET",
+          "name": "Magma Lord Necklace",
+          "reason": "Sea creature chance"
+        },
+        {
+          "slot": "pet",
+          "tag": "PET_MEGALODON",
+          "name": "Megalodon Pet",
+          "reason": "Fishing speed and sea creature chance"
+        }
+      ],
+      "stats": {
+        "Fishing Speed": 162,
+        "Sea Creature Chance": 58.5
+      },
+      "runSeconds": null,
+      "unlocksTask": null,
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Sea_Creature_Chance",
+        "https://hypixelskyblock.minecraft.wiki/w/Fishing_Speed",
+        "https://hypixelskyblock.minecraft.wiki/w/Magma_Lord_Armor",
+        "https://hypixelskyblock.minecraft.wiki/w/Megalodon_Pet",
+        "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/petnums.json"
+      ],
+      "assumptions": [
+        "Pet stats assume a max level legendary Megalodon Pet outside of the fishing festival",
+        "Gillsplash equipment is very expensive for the fishing speed it adds",
+        "The bite time formula changed in the recent fishing speed patch and the new one is not published, so bite time uses the older formula shape and the estimate is rough",
+        "Kill time of sea creatures is not modelled because no source gives it, so very strong and very weak setups both look better than a kill limited player will see",
+        "Sea creature caps per player and per server are not modelled",
+        "Enchants, potions, bait, rod parts and hotspot bonuses are treated as equal across setups and are left out",
+        "Pet prices use the cheapest listing of any rarity and level, which can understate the cost of a maxed pet"
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "task": "Water Fishing",
+      "modelOverrides": {
+        "bulkFrom": "catches"
+      }
+    },
+    {
+      "task": "Galatea Fishing",
+      "modelOverrides": {
+        "bulkFrom": "catches"
+      }
+    },
+    {
+      "task": "Bayou Fishing",
+      "modelOverrides": {
+        "bulkFrom": "catches",
+        "fishingSpeedCap": 200
+      }
+    },
+    {
+      "task": "Bayou Hotspot Fishing",
+      "modelOverrides": {
+        "bulkFrom": "catches",
+        "fishingSpeedCap": 200
+      }
+    },
+    {
+      "task": "Winter Fishing",
+      "modelOverrides": {
+        "bulkFrom": "catches"
+      }
+    },
+    {
+      "task": "Spooky Fishing",
+      "modelOverrides": {
+        "bulkFrom": "creatures"
+      }
+    },
+    {
+      "task": "Squid Fishing",
+      "modelOverrides": {
+        "bulkFrom": "creatures"
+      }
+    },
+    {
+      "task": "Oasis Fishing",
+      "modelOverrides": {
+        "bulkFrom": "creatures"
+      }
+    },
+    {
+      "task": "Lotus Atoll",
+      "modelOverrides": {
+        "bulkFrom": "creatures",
+        "fishingSpeedCap": 250
+      }
+    },
+    {
+      "task": "Water Worm Fishing",
+      "modelOverrides": {
+        "bulkFrom": "creatures"
+      }
+    }
+  ]
+}

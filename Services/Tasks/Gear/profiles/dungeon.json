@@ -1,0 +1,266 @@
+{
+  "id": "dungeon",
+  "name": "Catacombs floors",
+  "anchor": "baseline",
+  "researchedAt": "2026-11-07",
+  "sources": [
+    "https://hypixelskyblock.minecraft.wiki/w/Catacombs",
+    "https://api.hypixel.net/v2/resources/skyblock/items",
+    "https://www.youtube.com/watch?v=zpxxPsxficc",
+    "https://www.youtube.com/watch?v=XFhs_W60c60",
+    "https://sky-commands.coflnet.com/guides/money-making-methods"
+  ],
+  "model": {
+    "kind": "tierUnlock"
+  },
+  "tiers": ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "M1", "M2", "M3", "M4", "M5", "M6", "M7"],
+  "modelConfidence": "medium",
+  "baseline": {
+    "id": "baseline",
+    "name": "Adaptive armor starter kit",
+    "items": [
+      {
+        "slot": "helmet",
+        "tag": "ADAPTIVE_HELMET",
+        "name": "Adaptive Helmet",
+        "reason": "Cheap early dungeon armor"
+      },
+      {
+        "slot": "chestplate",
+        "tag": "ADAPTIVE_CHESTPLATE",
+        "name": "Adaptive Chestplate",
+        "reason": "Cheap early dungeon armor"
+      },
+      {
+        "slot": "leggings",
+        "tag": "ADAPTIVE_LEGGINGS",
+        "name": "Adaptive Leggings",
+        "reason": "Cheap early dungeon armor"
+      },
+      {
+        "slot": "boots",
+        "tag": "ADAPTIVE_BOOTS",
+        "name": "Adaptive Boots",
+        "reason": "Cheap early dungeon armor"
+      },
+      {
+        "slot": "weapon",
+        "tag": "ASPECT_OF_THE_END",
+        "name": "Aspect of the End",
+        "reason": "Cheap starter weapon"
+      }
+    ],
+    "stats": {},
+    "assumptions": [
+      "Which floors a setup realistically supports is a progression guide opinion, not a measurement."
+    ]
+  },
+  "setups": [
+    {
+      "id": "budget",
+      "tier": "budget",
+      "name": "Shadow Assassin armor with Livid Dagger",
+      "items": [
+        {
+          "slot": "helmet",
+          "tag": "SHADOW_ASSASSIN_HELMET",
+          "name": "Shadow Assassin Helmet",
+          "reason": "Berserker armor for the mid floors"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "SHADOW_ASSASSIN_CHESTPLATE",
+          "name": "Shadow Assassin Chestplate",
+          "reason": "Berserker armor for the mid floors"
+        },
+        {
+          "slot": "leggings",
+          "tag": "SHADOW_ASSASSIN_LEGGINGS",
+          "name": "Shadow Assassin Leggings",
+          "reason": "Berserker armor for the mid floors"
+        },
+        {
+          "slot": "boots",
+          "tag": "SHADOW_ASSASSIN_BOOTS",
+          "name": "Shadow Assassin Boots",
+          "reason": "Berserker armor for the mid floors"
+        },
+        {
+          "slot": "weapon",
+          "tag": "LIVID_DAGGER",
+          "name": "Livid Dagger",
+          "reason": "Berserker dagger for the mid floors"
+        }
+      ],
+      "stats": {},
+      "unlocksTask": "F6",
+      "sources": [
+        "https://www.youtube.com/watch?v=zpxxPsxficc"
+      ],
+      "assumptions": [
+        "Which floors a setup realistically supports is a progression guide opinion, not a measurement.",
+        "Each floor needs a Catacombs level; the higher floors need a high level."
+      ]
+    },
+    {
+      "id": "mid",
+      "tier": "mid",
+      "name": "Necron's armor with Giant's Sword",
+      "items": [
+        {
+          "slot": "helmet",
+          "tag": "POWER_WITHER_HELMET",
+          "name": "Necron's Helmet",
+          "reason": "Wither lord armor for the final normal floor"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "POWER_WITHER_CHESTPLATE",
+          "name": "Necron's Chestplate",
+          "reason": "Wither lord armor for the final normal floor"
+        },
+        {
+          "slot": "leggings",
+          "tag": "POWER_WITHER_LEGGINGS",
+          "name": "Necron's Leggings",
+          "reason": "Wither lord armor for the final normal floor"
+        },
+        {
+          "slot": "boots",
+          "tag": "POWER_WITHER_BOOTS",
+          "name": "Necron's Boots",
+          "reason": "Wither lord armor for the final normal floor"
+        },
+        {
+          "slot": "weapon",
+          "tag": "GIANTS_SWORD",
+          "name": "Giant's Sword",
+          "reason": "Berserker weapon for the final normal floor"
+        }
+      ],
+      "stats": {},
+      "unlocksTask": "M3",
+      "sources": [
+        "https://www.youtube.com/watch?v=zpxxPsxficc",
+        "https://www.youtube.com/watch?v=XFhs_W60c60"
+      ],
+      "assumptions": [
+        "Which floors a setup realistically supports is a progression guide opinion, not a measurement.",
+        "Master Mode unlocks after the final normal floor and each master floor needs a high Catacombs level.",
+        "Class changes the weapon needed; this setup follows the berserker path."
+      ]
+    },
+    {
+      "id": "endgame",
+      "tier": "endgame",
+      "name": "Necron's armor, Spirit Mask and Hyperion",
+      "items": [
+        {
+          "slot": "helmet",
+          "tag": "SPIRIT_MASK",
+          "name": "Spirit Mask",
+          "reason": "Late game helmet; needs a cleared Master Mode floor"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "POWER_WITHER_CHESTPLATE",
+          "name": "Necron's Chestplate",
+          "reason": "Necron armor piece for the Wither lord floors"
+        },
+        {
+          "slot": "leggings",
+          "tag": "POWER_WITHER_LEGGINGS",
+          "name": "Necron's Leggings",
+          "reason": "Necron armor piece for the Wither lord floors"
+        },
+        {
+          "slot": "boots",
+          "tag": "POWER_WITHER_BOOTS",
+          "name": "Necron's Boots",
+          "reason": "Necron armor piece for the Wither lord floors"
+        },
+        {
+          "slot": "weapon",
+          "tag": "HYPERION",
+          "name": "Hyperion",
+          "reason": "Mage endgame weapon, needs Floor VII cleared; archers use Terminator instead"
+        },
+        {
+          "slot": "scroll_1",
+          "tag": "IMPLOSION_SCROLL",
+          "name": "Implosion Scroll",
+          "reason": "Hyperion ability scroll"
+        },
+        {
+          "slot": "scroll_2",
+          "tag": "SHADOW_WARP_SCROLL",
+          "name": "Shadow Warp Scroll",
+          "reason": "Hyperion ability scroll"
+        },
+        {
+          "slot": "scroll_3",
+          "tag": "WITHER_SHIELD_SCROLL",
+          "name": "Wither Shield Scroll",
+          "reason": "Hyperion ability scroll"
+        }
+      ],
+      "stats": {},
+      "unlocksTask": "M7",
+      "sources": [
+        "https://www.youtube.com/watch?v=zpxxPsxficc",
+        "https://www.youtube.com/watch?v=XFhs_W60c60",
+        "https://hypixelskyblock.minecraft.wiki/w/Hyperion",
+        "https://hypixelskyblock.minecraft.wiki/w/Terminator"
+      ],
+      "assumptions": [
+        "Which floors a setup realistically supports is a progression guide opinion, not a measurement.",
+        "Hyperion needs the final normal floor cleared and dungeonized weapons need a high Catacombs level.",
+        "Gear alone does not clear the hardest floors; skill and a good party matter just as much."
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "task": "F1"
+    },
+    {
+      "task": "F2"
+    },
+    {
+      "task": "F3"
+    },
+    {
+      "task": "F4"
+    },
+    {
+      "task": "F5"
+    },
+    {
+      "task": "F6"
+    },
+    {
+      "task": "F7"
+    },
+    {
+      "task": "M1"
+    },
+    {
+      "task": "M2"
+    },
+    {
+      "task": "M3"
+    },
+    {
+      "task": "M4"
+    },
+    {
+      "task": "M5"
+    },
+    {
+      "task": "M6"
+    },
+    {
+      "task": "M7"
+    }
+  ]
+}

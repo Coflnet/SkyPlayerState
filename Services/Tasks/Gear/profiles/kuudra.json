@@ -1,0 +1,200 @@
+{
+  "id": "kuudra",
+  "name": "Kuudra tiers",
+  "anchor": "baseline",
+  "researchedAt": "2026-11-07",
+  "sources": [
+    "https://hypixelskyblock.minecraft.wiki/w/Kuudra",
+    "https://hypixelskyblock.minecraft.wiki/w/Terror_Armor",
+    "https://api.hypixel.net/v2/resources/skyblock/items",
+    "https://www.youtube.com/watch?v=elYjHeYDTWU"
+  ],
+  "model": {
+    "kind": "tierUnlock"
+  },
+  "tiers": ["Kuudra T1", "Kuudra T2", "Kuudra T3", "Kuudra T4", "Kuudra T5"],
+  "modelConfidence": "medium",
+  "baseline": {
+    "id": "baseline",
+    "name": "Basic Terror armor",
+    "items": [
+      {
+        "slot": "helmet",
+        "tag": "TERROR_HELMET",
+        "name": "Terror Helmet",
+        "reason": "Armor of the lowest Kuudra tier, enough for the first tiers"
+      },
+      {
+        "slot": "chestplate",
+        "tag": "TERROR_CHESTPLATE",
+        "name": "Terror Chestplate",
+        "reason": "Armor of the lowest Kuudra tier, enough for the first tiers"
+      },
+      {
+        "slot": "leggings",
+        "tag": "TERROR_LEGGINGS",
+        "name": "Terror Leggings",
+        "reason": "Armor of the lowest Kuudra tier, enough for the first tiers"
+      },
+      {
+        "slot": "boots",
+        "tag": "TERROR_BOOTS",
+        "name": "Terror Boots",
+        "reason": "Armor of the lowest Kuudra tier, enough for the first tiers"
+      }
+    ],
+    "stats": {},
+    "assumptions": [
+      "Which tiers a setup realistically supports is a research estimate, not a measurement."
+    ]
+  },
+  "setups": [
+    {
+      "id": "budget",
+      "tier": "budget",
+      "name": "Hot Terror armor",
+      "items": [
+        {
+          "slot": "helmet",
+          "tag": "HOT_TERROR_HELMET",
+          "name": "Hot Terror Helmet",
+          "reason": "Prestiged one step, supports the middle tiers"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "HOT_TERROR_CHESTPLATE",
+          "name": "Hot Terror Chestplate",
+          "reason": "Prestiged one step, supports the middle tiers"
+        },
+        {
+          "slot": "leggings",
+          "tag": "HOT_TERROR_LEGGINGS",
+          "name": "Hot Terror Leggings",
+          "reason": "Prestiged one step, supports the middle tiers"
+        },
+        {
+          "slot": "boots",
+          "tag": "HOT_TERROR_BOOTS",
+          "name": "Hot Terror Boots",
+          "reason": "Prestiged one step, supports the middle tiers"
+        }
+      ],
+      "stats": {},
+      "unlocksTask": "Kuudra T3",
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Terror_Armor"
+      ],
+      "assumptions": [
+        "Each Kuudra tier also needs the previous tier cleared, enough faction reputation and a Kuudra key.",
+        "Which tiers a setup realistically supports is a research estimate, not a measurement.",
+        "Prestiging your own armor is often cheaper than buying high tier pieces on a thin market."
+      ]
+    },
+    {
+      "id": "mid",
+      "tier": "mid",
+      "name": "Burning Terror armor",
+      "items": [
+        {
+          "slot": "helmet",
+          "tag": "BURNING_TERROR_HELMET",
+          "name": "Burning Terror Helmet",
+          "reason": "Prestiged two steps, supports the upper tiers"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "BURNING_TERROR_CHESTPLATE",
+          "name": "Burning Terror Chestplate",
+          "reason": "Prestiged two steps, supports the upper tiers"
+        },
+        {
+          "slot": "leggings",
+          "tag": "BURNING_TERROR_LEGGINGS",
+          "name": "Burning Terror Leggings",
+          "reason": "Prestiged two steps, supports the upper tiers"
+        },
+        {
+          "slot": "boots",
+          "tag": "BURNING_TERROR_BOOTS",
+          "name": "Burning Terror Boots",
+          "reason": "Prestiged two steps, supports the upper tiers"
+        }
+      ],
+      "stats": {},
+      "unlocksTask": "Kuudra T4",
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Terror_Armor"
+      ],
+      "assumptions": [
+        "Armor tiers need a matching combat level on top of the cleared Kuudra tier.",
+        "Which tiers a setup realistically supports is a research estimate, not a measurement.",
+        "Kuudra armor markets are thin, so single piece prices can be outliers."
+      ]
+    },
+    {
+      "id": "endgame",
+      "tier": "endgame",
+      "name": "Infernal Terror armor with Terminator",
+      "items": [
+        {
+          "slot": "helmet",
+          "tag": "INFERNAL_TERROR_HELMET",
+          "name": "Infernal Terror Helmet",
+          "reason": "Top tier armor for the hardest tier"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "INFERNAL_TERROR_CHESTPLATE",
+          "name": "Infernal Terror Chestplate",
+          "reason": "Top tier armor for the hardest tier"
+        },
+        {
+          "slot": "leggings",
+          "tag": "INFERNAL_TERROR_LEGGINGS",
+          "name": "Infernal Terror Leggings",
+          "reason": "Top tier armor for the hardest tier"
+        },
+        {
+          "slot": "boots",
+          "tag": "INFERNAL_TERROR_BOOTS",
+          "name": "Infernal Terror Boots",
+          "reason": "Top tier armor for the hardest tier"
+        },
+        {
+          "slot": "weapon",
+          "tag": "TERMINATOR",
+          "name": "Terminator",
+          "reason": "Top bow for archers; needs a high Enderman slayer level and a high Catacombs level when dungeonized"
+        }
+      ],
+      "stats": {},
+      "unlocksTask": "Kuudra T5",
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Terror_Armor",
+        "https://hypixelskyblock.minecraft.wiki/w/Terminator"
+      ],
+      "assumptions": [
+        "The hardest tier needs the highest faction reputation and a combat level matching the armor tier.",
+        "Which tiers a setup realistically supports is a research estimate, not a measurement.",
+        "Kuudra armor markets are thin, so single piece prices can be outliers."
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "task": "Kuudra T1"
+    },
+    {
+      "task": "Kuudra T2"
+    },
+    {
+      "task": "Kuudra T3"
+    },
+    {
+      "task": "Kuudra T4"
+    },
+    {
+      "task": "Kuudra T5"
+    }
+  ]
+}

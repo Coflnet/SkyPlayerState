@@ -10,7 +10,9 @@ namespace Coflnet.Sky.PlayerState.Services;
 /// <summary>
 /// Reads the player stats (Mining Speed, Mining Spread, Combat Wisdom, ...) from the item descriptions of the
 /// "Stats &amp; Equipment" menu: every item named "... Stats" lists " Stat Name 123" lines. Used by the "stat:" task
-/// stat factors to bucket players.
+/// stat factors to bucket players (max-merged <see cref="ExtractedInfo.PlayerStats"/>); the gear observations derive
+/// <see cref="ExtractedInfo.BaseStats"/> from the same read (<see cref="GearSnapshotListener"/>). The category item names after the 0.23.4 reorganization
+/// ("Mining Stats", "Wisdom Stats", slots 15 and 34) are confirmed by the production sample in the tests.
 /// </summary>
 public class PlayerStatsListener : UpdateListener
 {
@@ -33,7 +35,8 @@ public class PlayerStatsListener : UpdateListener
         var stats = ParseStats(chest.Items);
         if (stats.Count == 0)
             return Task.CompletedTask;
-        Merge(args.currentState.ExtractedInfo, stats, args.msg.ReceivedAt == default ? DateTime.UtcNow : args.msg.ReceivedAt);
+        var now = args.msg.ReceivedAt == default ? DateTime.UtcNow : args.msg.ReceivedAt;
+        Merge(args.currentState.ExtractedInfo, stats, now);
         return Task.CompletedTask;
     }
 

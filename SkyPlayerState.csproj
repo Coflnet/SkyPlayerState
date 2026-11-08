@@ -21,6 +21,9 @@
          byte-identical to the copy in SkyBackendForFrontend/Services/minion_data.json (see
          Tasks/MinionData.cs and its regression test). -->
     <EmbeddedResource Include="Services\Tasks\minion_data.json" LogicalName="Coflnet.Sky.PlayerState.Tasks.minion_data.json" />
+    <!-- Researched gear setups (Tasks/Gear/GearProfileCatalog.cs): every json file dropped into this folder is
+         embedded and loaded; the catalog tests validate each one. Schema: Services/Tasks/Gear/profiles/README.md. -->
+    <EmbeddedResource Include="Services\Tasks\Gear\profiles\*.json" LogicalName="Coflnet.Sky.PlayerState.Tasks.Gear.profiles.%(Filename).json" />
   </ItemGroup>
 
   <ItemGroup>

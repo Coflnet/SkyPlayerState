@@ -109,8 +109,7 @@ public class TaskSessionService
 
         if (session == null)
         {
-            info.CurrentSession = StartSession(fragment, claimedTask, prices, info.CurrentIsland, info.CurrentIslandAt,
-                info.CurrentLocationSince, info.CurrentLocationSeenAt);
+            Restart(info, fragment, claimedTask, prices, now);
             return null;
         }
 
@@ -118,8 +117,7 @@ public class TaskSessionService
         if (HasGap(session, fragment) || CrossesUnknownBoundary(session, fragment))
         {
             var stale = BuildPeriod(session, playerUuid);
-            info.CurrentSession = StartSession(fragment, claimedTask, prices, info.CurrentIsland, info.CurrentIslandAt,
-                info.CurrentLocationSince, info.CurrentLocationSeenAt);
+            Restart(info, fragment, claimedTask, prices, now);
             return stale;
         }
 
@@ -137,8 +135,7 @@ public class TaskSessionService
             // the fragment belongs to a different task -> flush the pre-merge session,
             // begin a fresh session from this fragment.
             var flush = BuildPeriod(session, playerUuid);
-            info.CurrentSession = StartSession(fragment, claimedTask, prices, info.CurrentIsland, info.CurrentIslandAt,
-                info.CurrentLocationSince, info.CurrentLocationSeenAt);
+            Restart(info, fragment, claimedTask, prices, now);
             return flush;
         }
 
@@ -149,6 +146,7 @@ public class TaskSessionService
         session.Server = fragment.Server;
         session.DetectedTask = newTask ?? session.DetectedTask;
         AddZone(session, fragment, prices);
+        TrackGear(session, info.CurrentGear, now);
 
         if ((now - session.StartTime).TotalMinutes >= MaxSessionMinutes)
         {
@@ -204,6 +202,44 @@ public class TaskSessionService
     internal static string IslandOfZone(string zone)
         => SkyblockZones.Canonical(zone) == "Your Island" ? "Private Island" : SkyblockZones.IslandOf(zone);
 
+    /// <summary>Starts a new session from the fragment, with the player's current gear (provisional, see <see cref="TaskSession.GearSince"/>).</summary>
+    private void Restart(ExtractedInfo info, Period fragment, string claimedTask, Dictionary<string, double> prices, DateTime now)
+    {
+        info.CurrentSession = StartSession(fragment, claimedTask, prices, info.CurrentIsland, info.CurrentIslandAt,
+            info.CurrentLocationSince, info.CurrentLocationSeenAt);
+        TrackGear(info.CurrentSession, info.CurrentGear, now);
+    }
+
+    private static readonly Prometheus.Counter gearTrackFailed = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_gear_track_failed_total", "Task sessions whose gear could not be tracked (the session itself is kept).");
+
+    /// <summary>Gear is optional: a failure marks the session's gear as unusable but never loses the session or its flush.</summary>
+    private static void TrackGear(TaskSession session, GearSnapshot gear, DateTime now)
+    {
+        try
+        {
+            Services.Gear.GearSessionTracker.Track(session, gear, now);
+        }
+        catch (Exception)
+        {
+            gearTrackFailed.Inc();
+            session.GearChanged = true;
+        }
+    }
+
+    private static GearSnapshot CopyGear(TaskSession session)
+    {
+        try
+        {
+            return session.Gear == null ? null : new GearSnapshot(session.Gear);
+        }
+        catch (Exception)
+        {
+            gearTrackFailed.Inc();
+            return null;
+        }
+    }
+
     private TaskSession StartSession(Period fragment, string claimedTask, Dictionary<string, double> prices,
         string currentIsland, DateTime currentIslandAt, DateTime currentLocationSince, DateTime currentLocationSeenAt)
     {
@@ -235,7 +271,12 @@ public class TaskSessionService
         ItemsCollected = new Dictionary<string, int>(session.Items),
         DetectedTask = session.DetectedTask,
         ZoneSeconds = session.ZoneSeconds == null ? new() : new(session.ZoneSeconds),
-        ZoneValue = session.ZoneValue == null ? new() : new(session.ZoneValue)
+        ZoneValue = session.ZoneValue == null ? new() : new(session.ZoneValue),
+        Gear = CopyGear(session),
+        GearChanged = session.GearChanged,
+        StatSums = session.StatSums == null ? new() : new(session.StatSums),
+        StatSamples = session.StatSamples == null ? new() : new(session.StatSamples),
+        LastStatSampleAt = session.LastStatSampleAt
     };
 
     /// <summary>

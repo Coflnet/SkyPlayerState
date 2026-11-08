@@ -964,21 +964,14 @@ public class CollectionListener : UpdateListener
         return item.Tag;
     }
 
-    /// <summary>Slots of a bare inventory upload from Minecraft 1.21: 5 crafting, 4 armor, 36 inventory, 1 offhand.</summary>
-    private const int BareInventoryWithOffhandSlots = 46;
-
     /// <summary>
-    /// Index of the first of the 36 accessible inventory slots in a view's items. They are the last 36
-    /// slots of every chest view and of the 1.8 bare inventory, but the 1.21 bare inventory ("Crafting")
-    /// has the offhand slot after them. Taking the last 36 there dropped the top left inventory slot,
+    /// Index of the first of the 36 accessible inventory slots in a view's items, see <see cref="InventoryLayout.AccessibleStart"/>.
+    /// Taking the last 36 of the 1.21 bare inventory ("Crafting", offhand last) dropped the top left inventory slot,
     /// so a stack in it vanished in every bare inventory view and came back as a gain in the next chest
     /// view (production 2026-10-02: 12x "+64 SHARD_FLAMING_SPIDER" between "Crafting" and the bazaar).
     /// </summary>
     internal static int AccessibleInventoryStart(IReadOnlyCollection<Models.Item> items)
-    {
-        var trailing = items.Count == BareInventoryWithOffhandSlots ? 1 : 0;
-        return Math.Max(0, items.Count - 36 - trailing);
-    }
+        => InventoryLayout.AccessibleStart(items);
 
     /// <summary>
     /// Identities of the distinct items in the accessible inventory part (same 36-slot slicing as

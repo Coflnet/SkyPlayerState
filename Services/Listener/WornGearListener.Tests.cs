@@ -68,7 +68,6 @@ public class WornGearListenerTests
             "SHARK_SCALE_HELMET", "SHARK_SCALE_CHESTPLATE", "SHARK_SCALE_LEGGINGS", "SHARK_SCALE_BOOTS", "PET_AMMONITE");
     }
 
-    [TestCase("(2/2) Loadouts")]
     [TestCase("Catacombs Gate")]
     [TestCase("Pets")]
     public async Task OtherMenus_AreIgnored(string title)
@@ -78,6 +77,17 @@ public class WornGearListenerTests
         await new WornGearListener().Process(args);
 
         args.currentState.ExtractedInfo.WornGearTags.Should().BeEmpty();
+    }
+
+    /// <summary>Production samples of Loadouts pages 2 and 3 show the worn column in the same slots as page 1.</summary>
+    [Test]
+    public async Task Loadouts_LaterPages_ReadTheWornSlotsToo()
+    {
+        var args = Args("(2/3) Loadouts", Menu(new() { [11] = "GOLD_LIVID_HEAD", [21] = "PET_GOLDEN_DRAGON" }));
+
+        await new WornGearListener().Process(args);
+
+        args.currentState.ExtractedInfo.WornGearTags.Should().BeEquivalentTo("GOLD_LIVID_HEAD", "PET_GOLDEN_DRAGON");
     }
 
     [Test]

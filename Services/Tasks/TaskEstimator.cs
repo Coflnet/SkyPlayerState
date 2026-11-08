@@ -419,7 +419,8 @@ public class TaskEstimator
         return values[bucket] / mean;
     }
 
-    private BucketAggregate MergeBuckets(Dictionary<(string, byte), BucketAggregate> snapshot, string task)
+    /// <summary>All stat buckets of one task merged into one aggregate, null when the task has none.</summary>
+    internal static BucketAggregate MergeBuckets(Dictionary<(string, byte), BucketAggregate> snapshot, string task)
     {
         BucketAggregate merged = null;
         for (byte b = 0; b < StatScoreService.BucketCount; b++)

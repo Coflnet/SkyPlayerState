@@ -1,0 +1,276 @@
+{
+  "id": "fishing-lava",
+  "name": "Lava fishing",
+  "anchor": "mid",
+  "researchedAt": "2026-11-07",
+  "sources": [
+    "https://hypixelskyblock.minecraft.wiki/w/Fishing",
+    "https://hypixelskyblock.minecraft.wiki/w/Fishing_Speed",
+    "https://hypixelskyblock.minecraft.wiki/w/Sea_Creature_Chance",
+    "https://hypixelskyblock.minecraft.wiki/w/Sea_Creatures",
+    "https://hypixelskyblock.minecraft.wiki/w/Trophy_Fish",
+    "https://hypixelskyblock.minecraft.wiki/w/Changelog/2026/October_6",
+    "https://api.hypixel.net/v2/resources/skyblock/items",
+    "https://www.youtube.com/watch?v=ZE23-vgLaP8"
+  ],
+  "model": {
+    "kind": "fishing",
+    "fishingSpeedStat": "Fishing Speed",
+    "seaCreatureChanceStat": "Sea Creature Chance",
+    "baseWaitSeconds": 15,
+    "reelSeconds": 2.5,
+    "fishingSpeedCap": 350,
+    "sccCap": 100,
+    "bulkFrom": "creatures"
+  },
+  "modelConfidence": "medium",
+  "baseline": {
+    "id": "baseline",
+    "name": "Starter lava rod",
+    "items": [
+      {
+        "slot": "rod",
+        "tag": "STARTER_LAVA_ROD",
+        "name": "Starter Lava Rod",
+        "reason": "Soulbound first lava rod",
+        "tradeable": false
+      }
+    ],
+    "stats": {
+      "Fishing Speed": 10,
+      "Sea Creature Chance": 20
+    }
+  },
+  "setups": [
+    {
+      "id": "budget",
+      "tier": "budget",
+      "name": "Magma rod with Thunder armor",
+      "items": [
+        {
+          "slot": "rod",
+          "tag": "MAGMA_ROD",
+          "name": "Magma Rod",
+          "reason": "Fishing speed and sea creature chance"
+        },
+        {
+          "slot": "helmet",
+          "tag": "THUNDER_HELMET",
+          "name": "Thunder Helmet",
+          "reason": "Sea creature chance from the Thunder armor set"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "THUNDER_CHESTPLATE",
+          "name": "Thunder Chestplate",
+          "reason": "Sea creature chance from the Thunder armor set"
+        },
+        {
+          "slot": "leggings",
+          "tag": "THUNDER_LEGGINGS",
+          "name": "Thunder Leggings",
+          "reason": "Sea creature chance from the Thunder armor set"
+        },
+        {
+          "slot": "boots",
+          "tag": "THUNDER_BOOTS",
+          "name": "Thunder Boots",
+          "reason": "Sea creature chance from the Thunder armor set"
+        }
+      ],
+      "stats": {
+        "Fishing Speed": 40,
+        "Sea Creature Chance": 42
+      },
+      "runSeconds": null,
+      "unlocksTask": null,
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Sea_Creature_Chance",
+        "https://hypixelskyblock.minecraft.wiki/w/Fishing_Speed",
+        "https://hypixelskyblock.minecraft.wiki/w/Thunder_Armor"
+      ],
+      "assumptions": [
+        "Thunder armor needs a high fishing level",
+        "The bite time formula changed in the recent fishing speed patch and the new one is not published, so bite time uses the older formula shape and the estimate is rough",
+        "Kill time of sea creatures is not modelled because no source gives it, so very strong and very weak setups both look better than a kill limited player will see",
+        "Sea creature caps per player and per server are not modelled",
+        "Enchants, potions, bait, rod parts and hotspot bonuses are treated as equal across setups and are left out",
+        "Pet prices use the cheapest listing of any rarity and level, which can understate the cost of a maxed pet",
+        "Trophy fish and Magmafish income depends on trophy fish chance, which is not modelled",
+        "The fishing speed cap in the Crystal Hollows is assumed to match the general cap"
+      ]
+    },
+    {
+      "id": "mid",
+      "tier": "mid",
+      "name": "Inferno rod with Spinosaurus pet",
+      "items": [
+        {
+          "slot": "rod",
+          "tag": "INFERNO_ROD",
+          "name": "Inferno Rod",
+          "reason": "Fishing speed and sea creature chance"
+        },
+        {
+          "slot": "helmet",
+          "tag": "THUNDER_HELMET",
+          "name": "Thunder Helmet",
+          "reason": "Sea creature chance from the Thunder armor set"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "THUNDER_CHESTPLATE",
+          "name": "Thunder Chestplate",
+          "reason": "Sea creature chance from the Thunder armor set"
+        },
+        {
+          "slot": "leggings",
+          "tag": "THUNDER_LEGGINGS",
+          "name": "Thunder Leggings",
+          "reason": "Sea creature chance from the Thunder armor set"
+        },
+        {
+          "slot": "boots",
+          "tag": "THUNDER_BOOTS",
+          "name": "Thunder Boots",
+          "reason": "Sea creature chance from the Thunder armor set"
+        },
+        {
+          "slot": "necklace",
+          "tag": "THUNDERBOLT_NECKLACE",
+          "name": "Thunderbolt Necklace",
+          "reason": "Sea creature chance"
+        },
+        {
+          "slot": "pet",
+          "tag": "PET_SPINOSAURUS",
+          "name": "Spinosaurus Pet",
+          "reason": "Fishing speed and sea creature chance"
+        }
+      ],
+      "stats": {
+        "Fishing Speed": 100,
+        "Sea Creature Chance": 52.5
+      },
+      "runSeconds": null,
+      "unlocksTask": null,
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Sea_Creature_Chance",
+        "https://hypixelskyblock.minecraft.wiki/w/Fishing_Speed",
+        "https://hypixelskyblock.minecraft.wiki/w/Spinosaurus_Pet",
+        "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/petnums.json"
+      ],
+      "assumptions": [
+        "Pet stats assume a max level legendary Spinosaurus Pet",
+        "The bite time formula changed in the recent fishing speed patch and the new one is not published, so bite time uses the older formula shape and the estimate is rough",
+        "Kill time of sea creatures is not modelled because no source gives it, so very strong and very weak setups both look better than a kill limited player will see",
+        "Sea creature caps per player and per server are not modelled",
+        "Enchants, potions, bait, rod parts and hotspot bonuses are treated as equal across setups and are left out",
+        "Pet prices use the cheapest listing of any rarity and level, which can understate the cost of a maxed pet",
+        "Trophy fish and Magmafish income depends on trophy fish chance, which is not modelled",
+        "The fishing speed cap in the Crystal Hollows is assumed to match the general cap"
+      ]
+    },
+    {
+      "id": "endgame",
+      "tier": "endgame",
+      "name": "Hellfire rod with Magma Lord armor",
+      "items": [
+        {
+          "slot": "rod",
+          "tag": "HELLFIRE_ROD",
+          "name": "Hellfire Rod",
+          "reason": "Fishing speed and sea creature chance"
+        },
+        {
+          "slot": "helmet",
+          "tag": "MAGMA_LORD_HELMET",
+          "name": "Magma Lord Helmet",
+          "reason": "Sea creature chance from the Magma Lord armor set"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "MAGMA_LORD_CHESTPLATE",
+          "name": "Magma Lord Chestplate",
+          "reason": "Sea creature chance from the Magma Lord armor set"
+        },
+        {
+          "slot": "leggings",
+          "tag": "MAGMA_LORD_LEGGINGS",
+          "name": "Magma Lord Leggings",
+          "reason": "Sea creature chance from the Magma Lord armor set"
+        },
+        {
+          "slot": "boots",
+          "tag": "MAGMA_LORD_BOOTS",
+          "name": "Magma Lord Boots",
+          "reason": "Sea creature chance from the Magma Lord armor set"
+        },
+        {
+          "slot": "necklace",
+          "tag": "MAGMA_LORD_GAUNTLET",
+          "name": "Magma Lord Necklace",
+          "reason": "Sea creature chance"
+        },
+        {
+          "slot": "pet",
+          "tag": "PET_SPINOSAURUS",
+          "name": "Spinosaurus Pet",
+          "reason": "Fishing speed and sea creature chance"
+        }
+      ],
+      "stats": {
+        "Fishing Speed": 110,
+        "Sea Creature Chance": 59.5
+      },
+      "runSeconds": null,
+      "unlocksTask": null,
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Sea_Creature_Chance",
+        "https://hypixelskyblock.minecraft.wiki/w/Fishing_Speed",
+        "https://hypixelskyblock.minecraft.wiki/w/Hellfire_Rod",
+        "https://hypixelskyblock.minecraft.wiki/w/Magma_Lord_Armor",
+        "https://hypixelskyblock.minecraft.wiki/w/Spinosaurus_Pet"
+      ],
+      "assumptions": [
+        "Pet stats assume a max level legendary Spinosaurus Pet",
+        "A strong melee weapon would speed up kills but kill time is not modelled, so no weapon is listed",
+        "The bite time formula changed in the recent fishing speed patch and the new one is not published, so bite time uses the older formula shape and the estimate is rough",
+        "Kill time of sea creatures is not modelled because no source gives it, so very strong and very weak setups both look better than a kill limited player will see",
+        "Sea creature caps per player and per server are not modelled",
+        "Enchants, potions, bait, rod parts and hotspot bonuses are treated as equal across setups and are left out",
+        "Pet prices use the cheapest listing of any rarity and level, which can understate the cost of a maxed pet",
+        "Trophy fish and Magmafish income depends on trophy fish chance, which is not modelled",
+        "The fishing speed cap in the Crystal Hollows is assumed to match the general cap"
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "task": "Crimson Fishing",
+      "modelOverrides": {
+        "bulkFrom": "creatures"
+      }
+    },
+    {
+      "task": "Crimson Hotspot Fishing",
+      "modelOverrides": {
+        "bulkFrom": "creatures"
+      }
+    },
+    {
+      "task": "Magma Core Fishing",
+      "modelOverrides": {
+        "bulkFrom": "creatures",
+        "fishingSpeedCap": 300
+      }
+    },
+    {
+      "task": "Flaming Worm Fishing",
+      "modelOverrides": {
+        "bulkFrom": "creatures",
+        "fishingSpeedCap": 300
+      }
+    }
+  ]
+}

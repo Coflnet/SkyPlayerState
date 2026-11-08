@@ -1,0 +1,715 @@
+{
+  "id": "mining-ore",
+  "name": "Ore, block and metal mining",
+  "anchor": "budget",
+  "researchedAt": "2026-11-07",
+  "sources": [
+    "https://hypixelskyblock.minecraft.wiki/w/Block_Strength",
+    "https://hypixelskyblock.minecraft.wiki/w/Mining_Speed",
+    "https://hypixelskyblock.minecraft.wiki/w/Mining_Fortune",
+    "https://hypixelskyblock.minecraft.wiki/w/Heart_of_the_Mountain",
+    "https://hypixelskyblock.minecraft.wiki/w/Mining_Spread",
+    "https://hypixelskyblock.minecraft.wiki/w/Ore_Fortune",
+    "https://hypixelskyblock.minecraft.wiki/w/Block_Fortune",
+    "https://hypixelskyblock.minecraft.wiki/w/Dwarven_Metal_Fortune",
+    "https://hypixelskyblock.minecraft.wiki/w/Breaking_Power",
+    "https://hypixelskyblock.minecraft.wiki/w/Drills"
+  ],
+  "model": {
+    "kind": "mining",
+    "speedStat": "Mining Speed",
+    "fortuneStats": [
+      "Mining Fortune",
+      "Ore Fortune"
+    ],
+    "blockStrength": 30,
+    "instamineFactor": 60,
+    "spreadStat": "Mining Spread",
+    "formulaSource": "https://hypixelskyblock.minecraft.wiki/w/Block_Strength"
+  },
+  "modelConfidence": "medium",
+  "baseline": {
+    "id": "baseline",
+    "name": "Starter mining gear",
+    "items": [
+      {
+        "slot": "tool",
+        "tag": "REFINED_MITHRIL_PICKAXE",
+        "name": "Refined Mithril Pickaxe",
+        "reason": "Pickaxe without fuel; Efficiency V and Fortune IV books applied"
+      },
+      {
+        "slot": "helmet",
+        "tag": "MINER_OUTFIT_HELMET",
+        "name": "Prospecting Helmet",
+        "reason": "Free starter armor with a little Mining Speed"
+      },
+      {
+        "slot": "chestplate",
+        "tag": "MINER_OUTFIT_CHESTPLATE",
+        "name": "Prospecting Chestplate",
+        "reason": "Free starter armor with a little Mining Speed"
+      },
+      {
+        "slot": "leggings",
+        "tag": "MINER_OUTFIT_LEGGINGS",
+        "name": "Prospecting Leggings",
+        "reason": "Free starter armor with a little Mining Speed"
+      },
+      {
+        "slot": "boots",
+        "tag": "MINER_OUTFIT_BOOTS",
+        "name": "Prospecting Boots",
+        "reason": "Free starter armor with a little Mining Speed"
+      },
+      {
+        "slot": "necklace",
+        "tag": "MITHRIL_NECKLACE",
+        "name": "Mithril Necklace",
+        "reason": "Cheap Mining Speed and Mining Fortune"
+      },
+      {
+        "slot": "cloak",
+        "tag": "MITHRIL_CLOAK",
+        "name": "Mithril Cloak",
+        "reason": "Cheap Mining Speed and Mining Fortune"
+      },
+      {
+        "slot": "belt",
+        "tag": "MITHRIL_BELT",
+        "name": "Mithril Belt",
+        "reason": "Cheap Mining Speed and Mining Fortune"
+      },
+      {
+        "slot": "gloves",
+        "tag": "MITHRIL_GAUNTLET",
+        "name": "Mithril Gauntlet",
+        "reason": "Cheap Mining Speed and Mining Fortune"
+      },
+      {
+        "slot": "pet",
+        "tag": "PET_MITHRIL_GOLEM",
+        "name": "Mithril Golem Pet",
+        "reason": "Cheap pet with a little Mining Fortune",
+        "priceFilters": {
+          "PetLevel": "100"
+        }
+      }
+    ],
+    "stats": {
+      "Mining Speed": 2600,
+      "Mining Fortune": 515,
+      "Ore Fortune": 100,
+      "Block Fortune": 100,
+      "Dwarven Metal Fortune": 0,
+      "Mining Spread": 300
+    },
+    "sources": [
+      "https://hypixelskyblock.minecraft.wiki/w/Pickaxes"
+    ],
+    "assumptions": [
+      "Heart of the Mountain perks and the mining skill level are the same in every setup because they cannot be bought.",
+      "A pet stat is taken at its listed value for a high level pet; its rarity is not verified."
+    ]
+  },
+  "setups": [
+    {
+      "id": "budget",
+      "name": "Budget mining drill",
+      "tier": "budget",
+      "items": [
+        {
+          "slot": "tool",
+          "tag": "MITHRIL_DRILL_1",
+          "name": "Mithril Drill SX-R226",
+          "reason": "Drill with Mining Fortune and the Breaking Power for Mithril; Efficiency V and Fortune IV books applied"
+        },
+        {
+          "slot": "helmet",
+          "tag": "ARMOR_OF_YOG_HELMET",
+          "name": "Yog Helmet",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "ARMOR_OF_YOG_CHESTPLATE",
+          "name": "Yog Chestplate",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        {
+          "slot": "leggings",
+          "tag": "ARMOR_OF_YOG_LEGGINGS",
+          "name": "Yog Leggings",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        {
+          "slot": "boots",
+          "tag": "ARMOR_OF_YOG_BOOTS",
+          "name": "Yog Boots",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        {
+          "slot": "armor_gem_amber",
+          "tag": "FINE_AMBER_GEM",
+          "name": "Fine Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        {
+          "slot": "armor_gem_jade",
+          "tag": "FINE_JADE_GEM",
+          "name": "Fine Jade Gemstone",
+          "reason": "Fills the armor Jade slots for Mining Fortune"
+        },
+        {
+          "slot": "necklace",
+          "tag": "MITHRIL_NECKLACE",
+          "name": "Mithril Necklace",
+          "reason": "Cheap Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "cloak",
+          "tag": "MITHRIL_CLOAK",
+          "name": "Mithril Cloak",
+          "reason": "Cheap Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "belt",
+          "tag": "MITHRIL_BELT",
+          "name": "Mithril Belt",
+          "reason": "Cheap Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "gloves",
+          "tag": "MITHRIL_GAUNTLET",
+          "name": "Mithril Gauntlet",
+          "reason": "Cheap Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "accessory",
+          "tag": "HASTE_ARTIFACT",
+          "name": "Haste Artifact",
+          "reason": "Extra Mining Speed"
+        },
+        {
+          "slot": "pet",
+          "tag": "PET_BAL",
+          "name": "Bal Pet",
+          "reason": "Pet with Mining Fortune",
+          "priceFilters": {
+            "PetLevel": "100"
+          }
+        }
+      ],
+      "stats": {
+        "Mining Speed": 2877,
+        "Mining Fortune": 795,
+        "Ore Fortune": 100,
+        "Block Fortune": 100,
+        "Dwarven Metal Fortune": 0,
+        "Mining Spread": 300
+      },
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Drills",
+        "https://hypixelskyblock.minecraft.wiki/w/Breaking_Power"
+      ],
+      "assumptions": [
+        "Heart of the Mountain perks and the mining skill level are the same in every setup because they cannot be bought.",
+        "The Bal pet value is a research estimate because the pet rarity is not verified."
+      ]
+    },
+    {
+      "id": "mid",
+      "name": "Mid Titanium drill",
+      "tier": "mid",
+      "items": [
+        {
+          "slot": "tool",
+          "tag": "TITANIUM_DRILL_1",
+          "name": "Titanium Drill DR-X355",
+          "reason": "Breaking Power for Titanium and fast Mithril; Efficiency V and Fortune IV books applied"
+        },
+        {
+          "slot": "helmet",
+          "tag": "SORROW_HELMET",
+          "name": "Sorrow Helmet",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "SORROW_CHESTPLATE",
+          "name": "Sorrow Chestplate",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        {
+          "slot": "leggings",
+          "tag": "SORROW_LEGGINGS",
+          "name": "Sorrow Leggings",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        {
+          "slot": "boots",
+          "tag": "SORROW_BOOTS",
+          "name": "Sorrow Boots",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        {
+          "slot": "armor_gem_amber",
+          "tag": "FINE_AMBER_GEM",
+          "name": "Fine Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        {
+          "slot": "armor_gem_jade",
+          "tag": "FINE_JADE_GEM",
+          "name": "Fine Jade Gemstone",
+          "reason": "Fills the armor Jade and Universal slots for Mining Fortune"
+        },
+        {
+          "slot": "necklace",
+          "tag": "TITANIUM_NECKLACE",
+          "name": "Titanium Necklace",
+          "reason": "Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "cloak",
+          "tag": "TITANIUM_CLOAK",
+          "name": "Titanium Cloak",
+          "reason": "Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "belt",
+          "tag": "TITANIUM_BELT",
+          "name": "Titanium Belt",
+          "reason": "Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "gloves",
+          "tag": "TITANIUM_GAUNTLET",
+          "name": "Titanium Gauntlet",
+          "reason": "Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "accessory",
+          "tag": "TITANIUM_ARTIFACT",
+          "name": "Titanium Artifact",
+          "reason": "Extra Mining Speed"
+        },
+        {
+          "slot": "pet",
+          "tag": "PET_BAL",
+          "name": "Bal Pet",
+          "reason": "Pet with Mining Fortune",
+          "priceFilters": {
+            "PetLevel": "100"
+          }
+        }
+      ],
+      "stats": {
+        "Mining Speed": 3319,
+        "Mining Fortune": 865,
+        "Ore Fortune": 100,
+        "Block Fortune": 100,
+        "Dwarven Metal Fortune": 0,
+        "Mining Spread": 300
+      },
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Drills",
+        "https://hypixelskyblock.minecraft.wiki/w/Gemstone_Slot"
+      ],
+      "assumptions": [
+        "Heart of the Mountain perks and the mining skill level are the same in every setup because they cannot be bought.",
+        "Gemstone slot unlock costs are not part of the item list, and the Bal pet value is a research estimate because the pet rarity is not verified."
+      ]
+    },
+    {
+      "id": "endgame",
+      "name": "Endgame Divan armor",
+      "tier": "endgame",
+      "items": [
+        {
+          "slot": "tool",
+          "tag": "TITANIUM_DRILL_4",
+          "name": "Titanium Drill DR-X655",
+          "reason": "Top Breaking Power drill with high Mining Speed and Mining Fortune; Efficiency V and Fortune IV books applied"
+        },
+        {
+          "slot": "helmet",
+          "tag": "DIVAN_HELMET",
+          "name": "Helmet of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "DIVAN_CHESTPLATE",
+          "name": "Chestplate of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        {
+          "slot": "leggings",
+          "tag": "DIVAN_LEGGINGS",
+          "name": "Leggings of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        {
+          "slot": "boots",
+          "tag": "DIVAN_BOOTS",
+          "name": "Boots of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        {
+          "slot": "armor_gem_amber",
+          "tag": "FLAWLESS_AMBER_GEM",
+          "name": "Flawless Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        {
+          "slot": "armor_gem_jade",
+          "tag": "FLAWLESS_JADE_GEM",
+          "name": "Flawless Jade Gemstone",
+          "reason": "Fills the armor Jade slots for Mining Fortune"
+        },
+        {
+          "slot": "necklace",
+          "tag": "TITANIUM_NECKLACE",
+          "name": "Titanium Necklace",
+          "reason": "Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "cloak",
+          "tag": "TITANIUM_CLOAK",
+          "name": "Titanium Cloak",
+          "reason": "Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "belt",
+          "tag": "TITANIUM_BELT",
+          "name": "Titanium Belt",
+          "reason": "Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "gloves",
+          "tag": "DWARVEN_HANDWARMERS",
+          "name": "Dwarven Handwarmers",
+          "reason": "Best gloves for Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "accessory",
+          "tag": "TITANIUM_RELIC",
+          "name": "Titanium Relic",
+          "reason": "Extra Mining Speed"
+        },
+        {
+          "slot": "pet",
+          "tag": "PET_SCATHA",
+          "name": "Scatha Pet",
+          "reason": "Pet with Mining Speed and the best Mining Fortune",
+          "priceFilters": {
+            "PetLevel": "100",
+            "Rarity": "LEGENDARY"
+          }
+        }
+      ],
+      "stats": {
+        "Mining Speed": 4925,
+        "Mining Fortune": 1165,
+        "Ore Fortune": 100,
+        "Block Fortune": 100,
+        "Dwarven Metal Fortune": 0,
+        "Mining Spread": 300
+      },
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Titanium_Drill_DR-X655",
+        "https://hypixelskyblock.minecraft.wiki/w/Drills"
+      ],
+      "assumptions": [
+        "Heart of the Mountain perks and the mining skill level are the same in every setup because they cannot be bought.",
+        "The Scatha pet rarity is not verified and the estimate uses the pet's listed legendary values."
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "task": "Coal Mining",
+      "modelOverrides": {
+        "blockStrength": 30,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Ore Fortune"
+        ]
+      }
+    },
+    {
+      "task": "Redstone Mining",
+      "modelOverrides": {
+        "blockStrength": 30,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Ore Fortune"
+        ]
+      }
+    },
+    {
+      "task": "Diamond Mining",
+      "modelOverrides": {
+        "blockStrength": 30,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Ore Fortune"
+        ]
+      }
+    },
+    {
+      "task": "Gold Mining",
+      "modelOverrides": {
+        "blockStrength": 600,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Ore Fortune"
+        ]
+      }
+    },
+    {
+      "task": "Iron Mining",
+      "modelOverrides": {
+        "blockStrength": 600,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Ore Fortune"
+        ]
+      }
+    },
+    {
+      "task": "Lapis Mining",
+      "modelOverrides": {
+        "blockStrength": 600,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Ore Fortune"
+        ]
+      }
+    },
+    {
+      "task": "Emerald Mining",
+      "modelOverrides": {
+        "blockStrength": 600,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Ore Fortune"
+        ]
+      }
+    },
+    {
+      "task": "Cobblestone Mining",
+      "modelOverrides": {
+        "blockStrength": 20,
+        "instamineFactor": 30,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Block Fortune"
+        ]
+      }
+    },
+    {
+      "task": "End Stone Mining",
+      "modelOverrides": {
+        "blockStrength": 30,
+        "instamineFactor": 30,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Block Fortune"
+        ]
+      }
+    },
+    {
+      "task": "Obsidian Mining",
+      "modelOverrides": {
+        "blockStrength": 500,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Block Fortune"
+        ]
+      }
+    },
+    {
+      "task": "Mithril Mining",
+      "modelOverrides": {
+        "blockStrength": 800,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Dwarven Metal Fortune"
+        ]
+      },
+      "itemOverrides": {
+        "endgame:accessory2": {
+          "tag": "DWARVEN_METAL",
+          "name": "Dwarven Metal Talisman",
+          "reason": "Dwarven Metal Fortune for metal blocks"
+        }
+      },
+      "statOverrides": {
+        "endgame": {
+          "Dwarven Metal Fortune": 15
+        }
+      }
+    },
+    {
+      "task": "Umber Mining",
+      "modelOverrides": {
+        "blockStrength": 5600,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Dwarven Metal Fortune"
+        ]
+      },
+      "itemOverrides": {
+        "baseline:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Cheapest drill with the Breaking Power for Glacite, Umber and Tungsten; Efficiency V and Fortune IV books applied"
+        },
+        "budget:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Cheapest drill with the Breaking Power for Glacite, Umber and Tungsten; Efficiency V and Fortune IV books applied"
+        },
+        "mid:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Cheapest drill with the Breaking Power for Glacite, Umber and Tungsten; Efficiency V and Fortune IV books applied"
+        },
+        "endgame:accessory2": {
+          "tag": "DWARVEN_METAL",
+          "name": "Dwarven Metal Talisman",
+          "reason": "Dwarven Metal Fortune for metal blocks"
+        }
+      },
+      "statOverrides": {
+        "baseline": {
+          "Mining Speed": 2850,
+          "Mining Fortune": 505
+        },
+        "budget": {
+          "Mining Speed": 3027,
+          "Mining Fortune": 780
+        },
+        "mid": {
+          "Mining Speed": 3219,
+          "Mining Fortune": 840
+        },
+        "endgame": {
+          "Dwarven Metal Fortune": 15
+        }
+      }
+    },
+    {
+      "task": "Tungsten Mining",
+      "modelOverrides": {
+        "blockStrength": 5600,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Dwarven Metal Fortune"
+        ]
+      },
+      "itemOverrides": {
+        "baseline:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Cheapest drill with the Breaking Power for Glacite, Umber and Tungsten; Efficiency V and Fortune IV books applied"
+        },
+        "budget:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Cheapest drill with the Breaking Power for Glacite, Umber and Tungsten; Efficiency V and Fortune IV books applied"
+        },
+        "mid:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Cheapest drill with the Breaking Power for Glacite, Umber and Tungsten; Efficiency V and Fortune IV books applied"
+        },
+        "endgame:accessory2": {
+          "tag": "DWARVEN_METAL",
+          "name": "Dwarven Metal Talisman",
+          "reason": "Dwarven Metal Fortune for metal blocks"
+        }
+      },
+      "statOverrides": {
+        "baseline": {
+          "Mining Speed": 2850,
+          "Mining Fortune": 505
+        },
+        "budget": {
+          "Mining Speed": 3027,
+          "Mining Fortune": 780
+        },
+        "mid": {
+          "Mining Speed": 3219,
+          "Mining Fortune": 840
+        },
+        "endgame": {
+          "Dwarven Metal Fortune": 15
+        }
+      }
+    },
+    {
+      "task": "Glacite Mining",
+      "modelOverrides": {
+        "blockStrength": 6000,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Dwarven Metal Fortune"
+        ]
+      },
+      "itemOverrides": {
+        "baseline:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Cheapest drill with the Breaking Power for Glacite, Umber and Tungsten; Efficiency V and Fortune IV books applied"
+        },
+        "budget:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Cheapest drill with the Breaking Power for Glacite, Umber and Tungsten; Efficiency V and Fortune IV books applied"
+        },
+        "mid:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Cheapest drill with the Breaking Power for Glacite, Umber and Tungsten; Efficiency V and Fortune IV books applied"
+        },
+        "endgame:accessory2": {
+          "tag": "DWARVEN_METAL",
+          "name": "Dwarven Metal Talisman",
+          "reason": "Dwarven Metal Fortune for metal blocks"
+        }
+      },
+      "statOverrides": {
+        "baseline": {
+          "Mining Speed": 2850,
+          "Mining Fortune": 505
+        },
+        "budget": {
+          "Mining Speed": 3027,
+          "Mining Fortune": 780
+        },
+        "mid": {
+          "Mining Speed": 3219,
+          "Mining Fortune": 840
+        },
+        "endgame": {
+          "Dwarven Metal Fortune": 15
+        }
+      }
+    }
+  ]
+}

@@ -31,9 +31,28 @@ public static class GearOwnership
         ["TERMINATOR", "VOID_SWORD"],
         // the spade tiers only make longer chains
         ["ANCESTRAL_SPADE", "ARCHAIC_SPADE", "DEIFIC_SPADE"],
-        // Divan's Drill out-mines the Titanium Drill DR-X555 (higher tiers are covered by HasHigherTier)
-        ["TITANIUM_DRILL_1", "DIVAN_DRILL"],
     ];
+
+    /// <summary>
+    /// Requirements that only stand for a Breaking Power (Mithril, Glacite): any drill in <see cref="BreakingPower"/>
+    /// with at least that power satisfies them. One-directional on purpose - a Titanium Drill must never satisfy a
+    /// gemstone drill requirement, which is about gemstone fortune, not breaking power.
+    /// </summary>
+    private static readonly HashSet<string> BreakingPowerRequirements = new(StringComparer.Ordinal)
+    {
+        "TITANIUM_DRILL_1", "TITANIUM_DRILL_2", "TITANIUM_DRILL_3", "TITANIUM_DRILL_4"
+    };
+
+    /// <summary>
+    /// Breaking Power per mining tool, from NotEnoughUpdates-REPO items/&lt;TAG&gt;.json lore. PICKONIMBUS is left out
+    /// on purpose: it breaks after a limited number of uses, so owning one does not mean a tool for the method.
+    /// </summary>
+    private static readonly Dictionary<string, int> BreakingPower = new(StringComparer.Ordinal)
+    {
+        ["TITANIUM_DRILL_1"] = 7, ["TITANIUM_DRILL_2"] = 8, ["TITANIUM_DRILL_3"] = 9, ["TITANIUM_DRILL_4"] = 9,
+        ["GEMSTONE_DRILL_1"] = 7, ["GEMSTONE_DRILL_2"] = 8, ["GEMSTONE_DRILL_3"] = 9, ["GEMSTONE_DRILL_4"] = 9,
+        ["GEMSTONE_GAUNTLET"] = 8, ["DIVAN_DRILL"] = 10,
+    };
 
     /// <summary>Example entries: when none is owned this stays unknown (an unlisted equivalent may exist).</summary>
     private static readonly HashSet<string> ExampleOnly = new(StringComparer.Ordinal) { "ASPECT_OF_THE_DRAGON" };
@@ -46,7 +65,8 @@ public static class GearOwnership
     /// Collects every item tag the state holds: inventory, the hunting weapon and toolkit, pets
     /// (as <c>PET_&lt;TYPE&gt;</c>) and the given persisted storage containers (ender chest, backpacks).
     /// An upgraded item also counts as its base items (<paramref name="upgradeBases"/>, see <see cref="ItemUpgradeMap"/>); without the map only the starred prefix is known.
-    /// Worn armor/equipment/pet are included once the "Stats &amp; Equipment" or "Loadouts" menu was seen (<see cref="ExtractedInfo.WornGearTags"/>). Not covered: wardrobe, accessory bag.
+    /// Worn armor/equipment/pet are included once the "Stats &amp; Equipment" or "Loadouts" menu was seen (<see cref="ExtractedInfo.WornGearTags"/>),
+    /// the currently worn armor, tool and offhand also from <see cref="ExtractedInfo.CurrentGear"/>. Not covered: wardrobe, accessory bag.
     /// </summary>
     public static HashSet<string> BuildOwnedTags(StateObject state, IEnumerable<IEnumerable<Item>> storage = null,
         IReadOnlyDictionary<string, HashSet<string>> upgradeBases = null)
@@ -71,7 +91,7 @@ public static class GearOwnership
         if (info?.WeaponInHuntaxe?.Tag != null)
             owned.Add(info.WeaponInHuntaxe.Tag);
         AddAll(info?.HuntingToolkitItems);
-        foreach (var worn in info?.WornGearTags ?? [])
+        foreach (var worn in (info?.WornGearTags ?? []).Concat(CurrentGearTags(info?.CurrentGear)))
         {
             owned.Add(worn);
             // a starred piece is the same item as the plain tag a task requires
@@ -91,6 +111,18 @@ public static class GearOwnership
     }
 
     private const string StarredPrefix = "STARRED_";
+
+    /// <summary>
+    /// Worn armor, equipment and the hotbar tool (see GearSnapshotListener), plus the offhand item: the offhand is not in
+    /// <see cref="StateObject.Inventory"/> (its 36 slots are main and hotbar).
+    /// </summary>
+    private static IEnumerable<string> CurrentGearTags(GearSnapshot gear)
+    {
+        if (gear == null)
+            return [];
+        var pieces = (gear.Slots?.Values ?? Enumerable.Empty<GearPiece>()).Append(gear.Offhand);
+        return pieces.Where(p => !string.IsNullOrEmpty(p?.Tag)).Select(p => p.Tag);
+    }
 
     /// <summary>Annotates a result's breakdown in place. No-op when it has no breakdown.</summary>
     public static void Annotate(TaskResult result, TaskParams parameters)
@@ -151,7 +183,15 @@ public static class GearOwnership
             return true;
         if (EquivalentGroups.Any(g => g.Contains(tag) && g.Any(owned.Contains)))
             return true;
-        return HasHigherTier(tag, owned);
+        return HasBreakingPowerFor(tag, owned) || HasHigherTier(tag, owned);
+    }
+
+    private static bool HasBreakingPowerFor(string tag, HashSet<string> owned)
+    {
+        if (!BreakingPowerRequirements.Contains(tag))
+            return false;
+        var needed = BreakingPower[tag];
+        return owned.Any(o => BreakingPower.TryGetValue(o, out var power) && power >= needed);
     }
 
     /// <summary>

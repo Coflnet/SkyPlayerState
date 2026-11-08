@@ -24,5 +24,11 @@ public class ChestView
     public BlockPos? Position;
     [Key(3)]
     public DateTime OpenedAt;
+    /// <summary>
+    /// Index into <see cref="Items"/> of the item the player holds (selected hotbar slot), null when the mod does not send it
+    /// (older mods). Marks the optimal tool as held (evidence heldSlot), see <see cref="Services.Gear.OptimalTool"/>.
+    /// </summary>
+    [Key(4)]
+    public int? HeldSlot;
 }
 #nullable restore

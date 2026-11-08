@@ -26,6 +26,11 @@ public class TrackedProfitService
                 .ClusteringKey(t => t.Location)
                 .Column(t => t.ZoneSeconds, c => c.Ignore())
                 .Column(t => t.ZoneValue, c => c.Ignore())
+                .Column(t => t.Gear, c => c.Ignore())
+                .Column(t => t.GearChanged, c => c.Ignore())
+                .Column(t => t.StatSums, c => c.Ignore())
+                .Column(t => t.StatSamples, c => c.Ignore())
+                .Column(t => t.LastStatSampleAt, c => c.Ignore())
             );
         var historyMapping = new MappingConfiguration()
             .Define(new Map<Period>()
@@ -33,6 +38,11 @@ public class TrackedProfitService
                 .ClusteringKey(t => t.EndTime, SortOrder.Descending)
                 .Column(t => t.ZoneSeconds, c => c.Ignore())
                 .Column(t => t.ZoneValue, c => c.Ignore())
+                .Column(t => t.Gear, c => c.Ignore())
+                .Column(t => t.GearChanged, c => c.Ignore())
+                .Column(t => t.StatSums, c => c.Ignore())
+                .Column(t => t.StatSamples, c => c.Ignore())
+                .Column(t => t.LastStatSampleAt, c => c.Ignore())
             );
         
         var TABLE_NAME_HISTORY = "historyPeriods2";
@@ -142,5 +152,19 @@ public class TrackedProfitService
         public Dictionary<string, double> ZoneSeconds { get; set; }
         [System.Text.Json.Serialization.JsonIgnore]
         public Dictionary<string, double> ZoneValue { get; set; }
+        /// <summary>
+        /// Gear and stat samples of the flushed session (see <see cref="Tasks.TaskSessionService"/>), in-memory only like
+        /// <see cref="ZoneSeconds"/>: they feed the gear observation when the period is folded.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public Models.GearSnapshot? Gear { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public bool GearChanged { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public Dictionary<string, double> StatSums { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public Dictionary<string, int> StatSamples { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public DateTime LastStatSampleAt { get; set; }
     }
 }

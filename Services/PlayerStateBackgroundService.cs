@@ -109,6 +109,8 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         AddHandler<BoosterCookieExtractor>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<ActivePetListener>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<WornGearListener>(UpdateMessage.UpdateKind.INVENTORY);
+        // after ActivePetListener (reads its pets) and before PlayerStatsListener (stores the tool held with the stats)
+        AddHandler<GearSnapshotListener>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<PlayerStatsListener>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<RecipeUpdate>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<RngMeterUpdate>(UpdateMessage.UpdateKind.INVENTORY);
@@ -119,6 +121,8 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         AddHandler<HuntingListener>(UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<KuudraListener>(UpdateMessage.UpdateKind.INVENTORY | UpdateMessage.UpdateKind.Scoreboard);
         AddHandler<TabListUpdate>(UpdateMessage.UpdateKind.Tab);
+        // before CollectionListener: a session flushed by this tab update already holds the sample
+        AddHandler<TabStatsListener>(UpdateMessage.UpdateKind.Tab);
         AddHandler<CollectionListener>(UpdateMessage.UpdateKind.INVENTORY | UpdateMessage.UpdateKind.Scoreboard | UpdateMessage.UpdateKind.CHAT | UpdateMessage.UpdateKind.Tab);
         AddHandler<TradeDetect>(UpdateMessage.UpdateKind.INVENTORY | UpdateMessage.UpdateKind.CHAT);
         AddHandler<TradeInfoListener>(UpdateMessage.UpdateKind.INVENTORY);

@@ -138,6 +138,13 @@ public class Startup
                 : new Bazaar.History.NoopBazaarOrderHistoryWriter();
         });
         services.AddSingleton<Bazaar.History.BazaarHistoryReader>();
+        // measured gear setups: task session gear observations (task_gear_observations, gear_fingerprints)
+        services.AddSingleton(_ => Services.Gear.GearObservationOptions.From(Configuration));
+        services.AddSingleton<Services.Gear.CassandraGearObservationStore>();
+        services.AddSingleton<Services.Gear.IGearObservationStore>(p => p.GetRequiredService<Services.Gear.CassandraGearObservationStore>());
+        services.AddSingleton<Services.Gear.IGearObservationReader>(p => p.GetRequiredService<Services.Gear.CassandraGearObservationStore>());
+        services.AddSingleton<Services.Gear.GearObservationService>();
+        services.AddSingleton<Services.Gear.IGearObservationSink>(p => p.GetRequiredService<Services.Gear.GearObservationService>());
 
         services.AddSingleton<IItemsApi>(context => new ItemsApi(Configuration["ITEMS_BASE_URL"]));
         services.AddSingleton<IAuctionsApi>(context => new AuctionsApi(Configuration["API_BASE_URL"]));
@@ -169,6 +176,10 @@ public class Startup
         services.AddSingleton<Tasks.TaskPriceService>();
         services.AddSingleton<Tasks.TaskBackfillService>();
         services.AddSingleton<Tasks.TaskExecutionService>();
+        services.AddSingleton<Tasks.Gear.GearSetupService>();
+        // measured gear setups derived hourly from the observations (GET /Task/gear-clusters/{task})
+        services.AddSingleton<Services.Gear.GearClusterService>();
+        services.AddHostedService<Services.Gear.GearClusterRefresher>();
         services.AddHostedService<Tasks.TaskAggregateFlusher>();
         services.AddHostedService<Tasks.CopperValueRefresher>();
         // export the fold/estimate spans (and the existing consumer spans) to jaeger.

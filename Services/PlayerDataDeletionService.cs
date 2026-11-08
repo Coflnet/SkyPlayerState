@@ -26,6 +26,7 @@ public class PlayerDataDeletionService
     private readonly ICoinCounterService coinCounterService;
     private readonly ITransactionService transactionService;
     private readonly PlayerStateBackgroundService backgroundService;
+    private readonly Gear.IGearObservationSink gearObservations;
     private readonly ILogger<PlayerDataDeletionService> logger;
 
     public PlayerDataDeletionService(
@@ -39,8 +40,10 @@ public class PlayerDataDeletionService
         ICoinCounterService coinCounterService,
         ITransactionService transactionService,
         PlayerStateBackgroundService backgroundService,
+        Gear.IGearObservationSink gearObservations,
         ILogger<PlayerDataDeletionService> logger)
     {
+        this.gearObservations = gearObservations;
         this.persistenceService = persistenceService;
         this.storageService = storageService;
         this.accessoryBagService = accessoryBagService;
@@ -97,6 +100,8 @@ public class PlayerDataDeletionService
         var dashless = playerUuid.ToString("N");
         await trackedProfitService.DeletePlayer(dashless);
         await taskAggregateService.DeletePlayerStats(dashless);
+        // gear observations, keyed by the dashless uuid
+        await gearObservations.DeletePlayer(playerUuid);
         summary.UuidDataDeleted = true;
         logger.LogInformation("Deleted all data of player {playerId} ({uuid})", playerId, playerUuid);
         return summary;
@@ -112,7 +117,7 @@ public class PlayerDataDeletionService
         /// </summary>
         public bool StateDeleted { get; set; }
         /// <summary>
-        /// True when the uuid keyed data (storage, accessory bag, skills, transactions, bazaar, profit, tasks) was removed
+        /// True when the uuid keyed data (storage, accessory bag, skills, transactions, bazaar, profit, tasks, gear observations) was removed
         /// </summary>
         public bool UuidDataDeleted { get; set; }
         /// <summary>

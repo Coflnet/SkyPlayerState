@@ -496,9 +496,10 @@ public class MithrilMiningTask : BaseMiningTask
     // 300/h assumed the Titanium Insanium perk (production median 95/period); 200/h is the
     // conservative seed for players without it.
     protected override List<MethodDrop> FormulaDrops => [new("MITHRIL_ORE", 3000), new("TITANIUM_ORE", 200)];
-    // Titanium Drill DR-X555 has Breaking Power 9, which mines both Mithril and Titanium fast.
+    // TITANIUM_DRILL_1 is the Titanium Drill DR-X355 (Breaking Power 7, NEU items/TITANIUM_DRILL_1.json),
+    // the cheapest drill that mines both Mithril and Titanium fast.
     protected override List<RequiredItem> RequiredItems =>
-        [new() { ItemTag = "TITANIUM_DRILL_1", Name = "Titanium Drill DR-X555", Reason = "Breaking Power 9 drill - mines Mithril and Titanium fast" }];
+        [new() { ItemTag = "TITANIUM_DRILL_1", Name = "Titanium Drill DR-X355", Reason = "Breaking Power 7 drill - mines Mithril and Titanium fast" }];
     protected override string HowTo =>
         "Mine Mithril ore (needs Mining XII and Breaking Power 4+ to unlock the Dwarven Mines) in the "
         + "Rampart's Quarry, Royal Mines, Cliffside Veins, Lava Springs or Upper Mines - each ore drops "
@@ -508,7 +509,7 @@ public class MithrilMiningTask : BaseMiningTask
     protected override List<TaskStep> Steps =>
     [
         new() { Number = 1, Text = "Level Mining to XII - you need it (plus a pickaxe with Breaking Power 4+) to get into the Dwarven Mines." },
-        new() { Number = 2, Text = "Get a Titanium Drill DR-X555 (Breaking Power 9 drill - mines Mithril and Titanium fast)." },
+        new() { Number = 2, Text = "Get a Titanium Drill DR-X355 (Breaking Power 7 drill - mines Mithril and Titanium fast)." },
         new() { Number = 3, Text = "Type /warp mines to get close.", OnClick = "/warp mines" },
         new() { Number = 4, Text = "Go to Rampart's Quarry, Cliffside Veins, Upper Mines or Lava Springs and look for the light-blue/blue Mithril veins.", OnClick = WikiUrl },
         new() { Number = 5, Text = "Mine the Mithril veins - Titanium veins spawn alongside them, mine those too." },
@@ -524,9 +525,10 @@ public class GlaciteMiningTask : BaseMiningTask
     protected override HashSet<string> Locations => ["Glacite Tunnels", "Great Glacite Lake", "Dwarven Base Camp"];
     protected override HashSet<string> DetectionItems => ["GLACITE", "ENCHANTED_GLACITE"];
     protected override List<MethodDrop> FormulaDrops => [new("GLACITE", 4000), new("GOLD_INGOT", 800)];
-    // Glacite needs Breaking Power 9 (block strength 6000) - same drill as Mithril Mining works.
+    // Glacite needs Breaking Power 9 (block strength 6000): the Mithril Mining drill (DR-X355, Breaking Power 7)
+    // can't mine it. TITANIUM_DRILL_3 is the Titanium Drill DR-X555 (Breaking Power 9, NEU items/TITANIUM_DRILL_3.json).
     protected override List<RequiredItem> RequiredItems =>
-        [new() { ItemTag = "TITANIUM_DRILL_1", Name = "Titanium Drill DR-X555", Reason = "Breaking Power 9 drill - Glacite has 6000 block strength" }];
+        [new() { ItemTag = "TITANIUM_DRILL_3", Name = "Titanium Drill DR-X555", Reason = "Breaking Power 9 drill - Glacite has 6000 block strength" }];
     protected override string HowTo =>
         "Mine Glacite in the Glacite Tunnels, which need Heart of the Mountain tier VII (Secret Railroad "
         + "Pass) to enter. Glacite Mineshafts, which open from the tunnels, hold Glacite too and are tracked as their own task. "

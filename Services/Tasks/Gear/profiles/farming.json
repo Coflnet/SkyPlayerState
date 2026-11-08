@@ -1,0 +1,915 @@
+{
+  "id": "farming",
+  "name": "Crop farming (Garden)",
+  "anchor": "budget",
+  "researchedAt": "2026-11-07",
+  "sources": [
+    "https://hypixelskyblock.minecraft.wiki/w/Farming_Fortune",
+    "https://hypixelskyblock.minecraft.wiki/w/Crop_Fortune",
+    "https://hypixelskyblock.minecraft.wiki/w/Garden",
+    "https://hypixelskyblock.minecraft.wiki/w/Farming_Tools",
+    "https://api.hypixel.net/v2/resources/skyblock/items"
+  ],
+  "model": {
+    "kind": "fortune",
+    "fortuneStat": "Farming Fortune",
+    "formulaSource": "https://hypixelskyblock.minecraft.wiki/w/Crop_Fortune"
+  },
+  "modelConfidence": "medium",
+  "baseline": {
+    "id": "baseline",
+    "name": "Starter Garden gear",
+    "items": [
+      {
+        "slot": "tool",
+        "tag": "ROOKIE_HOE",
+        "name": "Rookie Hoe",
+        "reason": "Starter hoe, +5 Farming Fortune"
+      },
+      {
+        "slot": "helmet",
+        "tag": "FARM_ARMOR_HELMET",
+        "name": "Haymaker Helmet",
+        "reason": "+10 Farming Fortune"
+      },
+      {
+        "slot": "chestplate",
+        "tag": "FARM_ARMOR_CHESTPLATE",
+        "name": "Haymaker Chestplate",
+        "reason": "+10 Farming Fortune"
+      },
+      {
+        "slot": "leggings",
+        "tag": "FARM_ARMOR_LEGGINGS",
+        "name": "Haymaker Leggings",
+        "reason": "+10 Farming Fortune"
+      },
+      {
+        "slot": "boots",
+        "tag": "FARM_ARMOR_BOOTS",
+        "name": "Haymaker Boots",
+        "reason": "+10 Farming Fortune"
+      },
+      {
+        "slot": "talisman",
+        "tag": "FARMING_TALISMAN",
+        "name": "Farming Talisman",
+        "reason": "+3 Farming Fortune"
+      }
+    ],
+    "stats": {
+      "Farming Fortune": 590
+    }
+  },
+  "setups": [
+    {
+      "id": "budget",
+      "tier": "budget",
+      "name": "Tater armor and Peony equipment",
+      "items": [
+        {
+          "slot": "helmet",
+          "tag": "MELON_HELMET",
+          "name": "Tater Helmet",
+          "reason": "Tater armor set, 100 Farming Fortune for the full set (pieces plus set bonus)"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "MELON_CHESTPLATE",
+          "name": "Tater Chestplate",
+          "reason": "Tater armor set, 100 Farming Fortune for the full set (pieces plus set bonus)"
+        },
+        {
+          "slot": "leggings",
+          "tag": "MELON_LEGGINGS",
+          "name": "Tater Leggings",
+          "reason": "Tater armor set, 100 Farming Fortune for the full set (pieces plus set bonus)"
+        },
+        {
+          "slot": "boots",
+          "tag": "MELON_BOOTS",
+          "name": "Tater Boots",
+          "reason": "Tater armor set, 100 Farming Fortune for the full set (pieces plus set bonus)"
+        },
+        {
+          "slot": "necklace",
+          "tag": "LOTUS_NECKLACE",
+          "name": "Peony Necklace",
+          "reason": "+5 Farming Fortune per piece"
+        },
+        {
+          "slot": "cloak",
+          "tag": "LOTUS_CLOAK",
+          "name": "Peony Cloak",
+          "reason": "+5 Farming Fortune per piece"
+        },
+        {
+          "slot": "belt",
+          "tag": "LOTUS_BELT",
+          "name": "Peony Belt",
+          "reason": "+5 Farming Fortune per piece"
+        },
+        {
+          "slot": "gloves",
+          "tag": "LOTUS_BRACELET",
+          "name": "Peony Bracelet",
+          "reason": "+5 Farming Fortune per piece"
+        },
+        {
+          "slot": "talisman",
+          "tag": "FARMING_TALISMAN",
+          "name": "Farming Talisman",
+          "reason": "+3 Farming Fortune"
+        },
+        {
+          "slot": "pet",
+          "tag": "PET_ELEPHANT",
+          "name": "Elephant (Legendary, level 100)",
+          "reason": "+150 Farming Fortune from Trunk Efficiency at level 100",
+          "priceFilters": {
+            "PetLevel": "100",
+            "Rarity": "LEGENDARY"
+          },
+          "tradeable": true
+        }
+      ],
+      "stats": {
+        "Farming Fortune": 815
+      },
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Farming_Fortune",
+        "https://hypixelskyblock.minecraft.wiki/w/Elephant_Pet",
+        "https://api.hypixel.net/v2/resources/skyblock/items"
+      ],
+      "assumptions": [
+        "Crop specific tools and accessories are applied per crop in the task bindings",
+        "Account farming fortune is the same in every setup, so only the gear difference is shown",
+        "Tater set bonus split between pieces and set is inferred from the wiki full set total",
+        "Peony fortune is counted at its base value only",
+        "Tool and pet enchantments are not modeled"
+      ]
+    },
+    {
+      "id": "mid",
+      "tier": "mid",
+      "name": "Squash armor and Blossom equipment",
+      "items": [
+        {
+          "slot": "helmet",
+          "tag": "SQUASH_HELMET",
+          "name": "Squash Helmet",
+          "reason": "Squash armor set, 170 Farming Fortune for the full set (pieces plus set bonus)"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "SQUASH_CHESTPLATE",
+          "name": "Squash Chestplate",
+          "reason": "Squash armor set, 170 Farming Fortune for the full set (pieces plus set bonus)"
+        },
+        {
+          "slot": "leggings",
+          "tag": "SQUASH_LEGGINGS",
+          "name": "Squash Leggings",
+          "reason": "Squash armor set, 170 Farming Fortune for the full set (pieces plus set bonus)"
+        },
+        {
+          "slot": "boots",
+          "tag": "SQUASH_BOOTS",
+          "name": "Squash Boots",
+          "reason": "Squash armor set, 170 Farming Fortune for the full set (pieces plus set bonus)"
+        },
+        {
+          "slot": "necklace",
+          "tag": "BLOSSOM_NECKLACE",
+          "name": "Blossom Necklace",
+          "reason": "+7 base Farming Fortune per piece (visitor bonus not counted)"
+        },
+        {
+          "slot": "cloak",
+          "tag": "BLOSSOM_CLOAK",
+          "name": "Blossom Cloak",
+          "reason": "+7 base Farming Fortune per piece (visitor bonus not counted)"
+        },
+        {
+          "slot": "belt",
+          "tag": "BLOSSOM_BELT",
+          "name": "Blossom Belt",
+          "reason": "+7 base Farming Fortune per piece (visitor bonus not counted)"
+        },
+        {
+          "slot": "gloves",
+          "tag": "BLOSSOM_BRACELET",
+          "name": "Blossom Bracelet",
+          "reason": "+7 base Farming Fortune per piece (visitor bonus not counted)"
+        },
+        {
+          "slot": "talisman",
+          "tag": "FARMING_TALISMAN",
+          "name": "Farming Talisman",
+          "reason": "+3 Farming Fortune"
+        },
+        {
+          "slot": "pet",
+          "tag": "PET_ELEPHANT",
+          "name": "Elephant (Legendary, level 100)",
+          "reason": "+150 Farming Fortune from Trunk Efficiency at level 100",
+          "priceFilters": {
+            "PetLevel": "100",
+            "Rarity": "LEGENDARY"
+          },
+          "tradeable": true
+        }
+      ],
+      "stats": {
+        "Farming Fortune": 893
+      },
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Farming_Fortune",
+        "https://hypixelskyblock.minecraft.wiki/w/Blossom_Equipment",
+        "https://hypixelskyblock.minecraft.wiki/w/Elephant_Pet",
+        "https://api.hypixel.net/v2/resources/skyblock/items"
+      ],
+      "assumptions": [
+        "Crop specific tools and accessories are applied per crop in the task bindings",
+        "Account farming fortune is the same in every setup, so only the gear difference is shown",
+        "Squash set bonus split between pieces and set is inferred from the wiki full set total",
+        "Blossom is counted at its base value, the visitor based bonus is left out",
+        "Tool and pet enchantments are not modeled"
+      ]
+    },
+    {
+      "id": "endgame",
+      "tier": "endgame",
+      "name": "Helianthus armor and Mythic Elephant",
+      "items": [
+        {
+          "slot": "helmet",
+          "tag": "HELIANTHUS_HELMET",
+          "name": "Helianthus Helmet",
+          "reason": "Helianthus armor set, 225 Farming Fortune for the full set (pieces plus set bonus)"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "HELIANTHUS_CHESTPLATE",
+          "name": "Helianthus Chestplate",
+          "reason": "Helianthus armor set, 225 Farming Fortune for the full set (pieces plus set bonus)"
+        },
+        {
+          "slot": "leggings",
+          "tag": "HELIANTHUS_LEGGINGS",
+          "name": "Helianthus Leggings",
+          "reason": "Helianthus armor set, 225 Farming Fortune for the full set (pieces plus set bonus)"
+        },
+        {
+          "slot": "boots",
+          "tag": "HELIANTHUS_BOOTS",
+          "name": "Helianthus Boots",
+          "reason": "Helianthus armor set, 225 Farming Fortune for the full set (pieces plus set bonus)"
+        },
+        {
+          "slot": "necklace",
+          "tag": "BLOSSOM_NECKLACE",
+          "name": "Blossom Necklace",
+          "reason": "+7 base Farming Fortune per piece (visitor bonus not counted)"
+        },
+        {
+          "slot": "cloak",
+          "tag": "BLOSSOM_CLOAK",
+          "name": "Blossom Cloak",
+          "reason": "+7 base Farming Fortune per piece (visitor bonus not counted)"
+        },
+        {
+          "slot": "belt",
+          "tag": "BLOSSOM_BELT",
+          "name": "Blossom Belt",
+          "reason": "+7 base Farming Fortune per piece (visitor bonus not counted)"
+        },
+        {
+          "slot": "gloves",
+          "tag": "BLOSSOM_BRACELET",
+          "name": "Blossom Bracelet",
+          "reason": "+7 base Farming Fortune per piece (visitor bonus not counted)"
+        },
+        {
+          "slot": "talisman",
+          "tag": "FARMING_TALISMAN",
+          "name": "Farming Talisman",
+          "reason": "+3 Farming Fortune"
+        },
+        {
+          "slot": "relic",
+          "tag": "HELIANTHUS_RELIC",
+          "name": "Helianthus Relic",
+          "reason": "+40 Farming Fortune"
+        },
+        {
+          "slot": "pet",
+          "tag": "PET_ELEPHANT",
+          "name": "Elephant (Mythic, level 100)",
+          "reason": "+200 Farming Fortune at level 100 (Mythic base bonus plus Trunk Efficiency)",
+          "priceFilters": {
+            "PetLevel": "100",
+            "Rarity": "MYTHIC"
+          },
+          "tradeable": true
+        }
+      ],
+      "stats": {
+        "Farming Fortune": 1038
+      },
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Helianthus_Armor",
+        "https://hypixelskyblock.minecraft.wiki/w/Fermento_Armor",
+        "https://hypixelskyblock.minecraft.wiki/w/Blossom_Equipment",
+        "https://hypixelskyblock.minecraft.wiki/w/Elephant_Pet",
+        "https://api.hypixel.net/v2/resources/skyblock/items"
+      ],
+      "assumptions": [
+        "Crop specific tools and accessories are applied per crop in the task bindings",
+        "Account farming fortune is the same in every setup, so only the gear difference is shown",
+        "Blossom is counted at its base value, the visitor based bonus is left out",
+        "A Rose Dragon is not modeled because its wiki values disagree",
+        "Tool and pet enchantments are not modeled"
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "task": "Wheat Farming",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_WHEAT_1",
+          "name": "Euclid's Wheat Sickle Mk. I",
+          "reason": "Wheat Crop Fortune: 4 per tool level, assumed level 15; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_WHEAT_2",
+          "name": "Euclid's Wheat Sickle Mk. II",
+          "reason": "Wheat Crop Fortune: 4 per tool level, assumed level 30; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_WHEAT_3",
+          "name": "Euclid's Wheat Sickle Mk. III",
+          "reason": "Wheat Crop Fortune: 4 per tool level, assumed level 50; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:accessory": {
+          "slot": "accessory",
+          "tag": "SQUASH_RING",
+          "name": "Squash Ring",
+          "reason": "+20 Crop Fortune for this crop"
+        },
+        "endgame:accessory": {
+          "slot": "accessory",
+          "tag": "FERMENTO_ARTIFACT",
+          "name": "Fermento Artifact",
+          "reason": "+30 Crop Fortune for this crop"
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Farming Fortune": 875
+        },
+        "mid": {
+          "Farming Fortune": 1033
+        },
+        "endgame": {
+          "Farming Fortune": 1268
+        }
+      }
+    },
+    {
+      "task": "Carrot Farming",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_CARROT_1",
+          "name": "Gauss Carrot Shovel Mk. I",
+          "reason": "Carrot Crop Fortune: 4 per tool level, assumed level 15; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_CARROT_2",
+          "name": "Gauss Carrot Shovel Mk. II",
+          "reason": "Carrot Crop Fortune: 4 per tool level, assumed level 30; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_CARROT_3",
+          "name": "Gauss Carrot Shovel Mk. III",
+          "reason": "Carrot Crop Fortune: 4 per tool level, assumed level 50; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:accessory": {
+          "slot": "accessory",
+          "tag": "SQUASH_RING",
+          "name": "Squash Ring",
+          "reason": "+20 Crop Fortune for this crop"
+        },
+        "endgame:accessory": {
+          "slot": "accessory",
+          "tag": "FERMENTO_ARTIFACT",
+          "name": "Fermento Artifact",
+          "reason": "+30 Crop Fortune for this crop"
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Farming Fortune": 875
+        },
+        "mid": {
+          "Farming Fortune": 1033
+        },
+        "endgame": {
+          "Farming Fortune": 1268
+        }
+      }
+    },
+    {
+      "task": "Potato Farming",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_POTATO_1",
+          "name": "Pythagorean Potato Shovel Mk. I",
+          "reason": "Potato Crop Fortune: 4 per tool level, assumed level 15; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_POTATO_2",
+          "name": "Pythagorean Potato Shovel Mk. II",
+          "reason": "Potato Crop Fortune: 4 per tool level, assumed level 30; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_POTATO_3",
+          "name": "Pythagorean Potato Shovel Mk. III",
+          "reason": "Potato Crop Fortune: 4 per tool level, assumed level 50; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:accessory": {
+          "slot": "accessory",
+          "tag": "SQUASH_RING",
+          "name": "Squash Ring",
+          "reason": "+20 Crop Fortune for this crop"
+        },
+        "endgame:accessory": {
+          "slot": "accessory",
+          "tag": "FERMENTO_ARTIFACT",
+          "name": "Fermento Artifact",
+          "reason": "+30 Crop Fortune for this crop"
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Farming Fortune": 875
+        },
+        "mid": {
+          "Farming Fortune": 1033
+        },
+        "endgame": {
+          "Farming Fortune": 1268
+        }
+      }
+    },
+    {
+      "task": "Pumpkin Farming",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "PUMPKIN_DICER",
+          "name": "Pumpkin Dicer Mk. I",
+          "reason": "Pumpkin Crop Fortune: 4 per tool level, assumed level 15; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "PUMPKIN_DICER_2",
+          "name": "Pumpkin Dicer Mk. II",
+          "reason": "Pumpkin Crop Fortune: 4 per tool level, assumed level 30; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "PUMPKIN_DICER_3",
+          "name": "Pumpkin Dicer Mk. III",
+          "reason": "Pumpkin Crop Fortune: 4 per tool level, assumed level 50; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:accessory": {
+          "slot": "accessory",
+          "tag": "SQUASH_RING",
+          "name": "Squash Ring",
+          "reason": "+20 Crop Fortune for this crop"
+        },
+        "endgame:accessory": {
+          "slot": "accessory",
+          "tag": "FERMENTO_ARTIFACT",
+          "name": "Fermento Artifact",
+          "reason": "+30 Crop Fortune for this crop"
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Farming Fortune": 875
+        },
+        "mid": {
+          "Farming Fortune": 1033
+        },
+        "endgame": {
+          "Farming Fortune": 1268
+        }
+      }
+    },
+    {
+      "task": "Melon Farming",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "MELON_DICER",
+          "name": "Melon Dicer Mk. I",
+          "reason": "Melon Crop Fortune: 4 per tool level, assumed level 15; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "MELON_DICER_2",
+          "name": "Melon Dicer Mk. II",
+          "reason": "Melon Crop Fortune: 4 per tool level, assumed level 30; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "MELON_DICER_3",
+          "name": "Melon Dicer Mk. III",
+          "reason": "Melon Crop Fortune: 4 per tool level, assumed level 50; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:accessory": {
+          "slot": "accessory",
+          "tag": "SQUASH_RING",
+          "name": "Squash Ring",
+          "reason": "+20 Crop Fortune for this crop"
+        },
+        "endgame:accessory": {
+          "slot": "accessory",
+          "tag": "FERMENTO_ARTIFACT",
+          "name": "Fermento Artifact",
+          "reason": "+30 Crop Fortune for this crop"
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Farming Fortune": 875
+        },
+        "mid": {
+          "Farming Fortune": 1033
+        },
+        "endgame": {
+          "Farming Fortune": 1268
+        }
+      }
+    },
+    {
+      "task": "Sugar Cane Farming",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_CANE_1",
+          "name": "Turing Sugar Cane Cutter Mk. I",
+          "reason": "Sugar Cane Crop Fortune: 4 per tool level, assumed level 15; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_CANE_2",
+          "name": "Turing Sugar Cane Cutter Mk. II",
+          "reason": "Sugar Cane Crop Fortune: 4 per tool level, assumed level 30; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_CANE_3",
+          "name": "Turing Sugar Cane Cutter Mk. III",
+          "reason": "Sugar Cane Crop Fortune: 4 per tool level, assumed level 50; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "endgame:accessory": {
+          "slot": "accessory",
+          "tag": "FERMENTO_ARTIFACT",
+          "name": "Fermento Artifact",
+          "reason": "+30 Crop Fortune for this crop"
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Farming Fortune": 875
+        },
+        "mid": {
+          "Farming Fortune": 1013
+        },
+        "endgame": {
+          "Farming Fortune": 1268
+        }
+      }
+    },
+    {
+      "task": "Cactus Farming",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "CACTUS_KNIFE",
+          "name": "Cactus Knife Mk. I",
+          "reason": "Cactus Crop Fortune: 4 per tool level, assumed level 15; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "CACTUS_KNIFE_2",
+          "name": "Cactus Knife Mk. II",
+          "reason": "Cactus Crop Fortune: 4 per tool level, assumed level 30; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "CACTUS_KNIFE_3",
+          "name": "Cactus Knife Mk. III",
+          "reason": "Cactus Crop Fortune: 4 per tool level, assumed level 50; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "endgame:accessory": {
+          "slot": "accessory",
+          "tag": "FERMENTO_ARTIFACT",
+          "name": "Fermento Artifact",
+          "reason": "+30 Crop Fortune for this crop"
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Farming Fortune": 875
+        },
+        "mid": {
+          "Farming Fortune": 1013
+        },
+        "endgame": {
+          "Farming Fortune": 1268
+        }
+      }
+    },
+    {
+      "task": "Cocoa Beans Farming",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "COCO_CHOPPER",
+          "name": "Cocoa Chopper Mk. I",
+          "reason": "Cocoa Beans Crop Fortune: 4 per tool level, assumed level 15; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "COCO_CHOPPER_2",
+          "name": "Cocoa Chopper Mk. II",
+          "reason": "Cocoa Beans Crop Fortune: 4 per tool level, assumed level 30; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "COCO_CHOPPER_3",
+          "name": "Cocoa Chopper Mk. III",
+          "reason": "Cocoa Beans Crop Fortune: 4 per tool level, assumed level 50; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:accessory": {
+          "slot": "accessory",
+          "tag": "SQUASH_RING",
+          "name": "Squash Ring",
+          "reason": "+20 Crop Fortune for this crop"
+        },
+        "endgame:accessory": {
+          "slot": "accessory",
+          "tag": "FERMENTO_ARTIFACT",
+          "name": "Fermento Artifact",
+          "reason": "+30 Crop Fortune for this crop"
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Farming Fortune": 875
+        },
+        "mid": {
+          "Farming Fortune": 1033
+        },
+        "endgame": {
+          "Farming Fortune": 1268
+        }
+      }
+    },
+    {
+      "task": "Nether Wart Farming",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_WARTS_1",
+          "name": "Newton Nether Wart Cutter Mk. I",
+          "reason": "Nether Wart Crop Fortune: 4 per tool level, assumed level 15; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_WARTS_2",
+          "name": "Newton Nether Wart Cutter Mk. II",
+          "reason": "Nether Wart Crop Fortune: 4 per tool level, assumed level 30; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_WARTS_3",
+          "name": "Newton Nether Wart Cutter Mk. III",
+          "reason": "Nether Wart Crop Fortune: 4 per tool level, assumed level 50; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "endgame:accessory": {
+          "slot": "accessory",
+          "tag": "FERMENTO_ARTIFACT",
+          "name": "Fermento Artifact",
+          "reason": "+30 Crop Fortune for this crop"
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Farming Fortune": 875
+        },
+        "mid": {
+          "Farming Fortune": 1013
+        },
+        "endgame": {
+          "Farming Fortune": 1268
+        }
+      }
+    },
+    {
+      "task": "Mushroom Farming",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "FUNGI_CUTTER",
+          "name": "Fungi Cutter Mk. I",
+          "reason": "Mushroom Crop Fortune: 4 per tool level, assumed level 15; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "FUNGI_CUTTER_2",
+          "name": "Fungi Cutter Mk. II",
+          "reason": "Mushroom Crop Fortune: 4 per tool level, assumed level 30; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "FUNGI_CUTTER_3",
+          "name": "Fungi Cutter Mk. III",
+          "reason": "Mushroom Crop Fortune: 4 per tool level, assumed level 50; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "endgame:accessory": {
+          "slot": "accessory",
+          "tag": "FERMENTO_ARTIFACT",
+          "name": "Fermento Artifact",
+          "reason": "+30 Crop Fortune for this crop"
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Farming Fortune": 875
+        },
+        "mid": {
+          "Farming Fortune": 1013
+        },
+        "endgame": {
+          "Farming Fortune": 1268
+        }
+      }
+    },
+    {
+      "task": "Sunflower Farming",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_SUNFLOWER_1",
+          "name": "Eclipse Sickle Mk. I",
+          "reason": "Sunflower Crop Fortune: 4 per tool level, assumed level 15; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_SUNFLOWER_2",
+          "name": "Eclipse Sickle Mk. II",
+          "reason": "Sunflower Crop Fortune: 4 per tool level, assumed level 30; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_SUNFLOWER_3",
+          "name": "Eclipse Sickle Mk. III",
+          "reason": "Sunflower Crop Fortune: 4 per tool level, assumed level 50; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Farming Fortune": 875
+        },
+        "mid": {
+          "Farming Fortune": 1013
+        },
+        "endgame": {
+          "Farming Fortune": 1238
+        }
+      }
+    },
+    {
+      "task": "Moonflower Farming",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_SUNFLOWER_1",
+          "name": "Eclipse Sickle Mk. I",
+          "reason": "Moonflower Crop Fortune: 4 per tool level, assumed level 15; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_SUNFLOWER_2",
+          "name": "Eclipse Sickle Mk. II",
+          "reason": "Moonflower Crop Fortune: 4 per tool level, assumed level 30; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_SUNFLOWER_3",
+          "name": "Eclipse Sickle Mk. III",
+          "reason": "Moonflower Crop Fortune: 4 per tool level, assumed level 50; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Farming Fortune": 875
+        },
+        "mid": {
+          "Farming Fortune": 1013
+        },
+        "endgame": {
+          "Farming Fortune": 1238
+        }
+      }
+    },
+    {
+      "task": "Wild Rose Farming",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_WILD_ROSE_1",
+          "name": "Wild Rose Cutter Mk. I",
+          "reason": "Wild Rose Crop Fortune: 4 per tool level, assumed level 15; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_WILD_ROSE_2",
+          "name": "Wild Rose Cutter Mk. II",
+          "reason": "Wild Rose Crop Fortune: 4 per tool level, assumed level 30; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "THEORETICAL_HOE_WILD_ROSE_3",
+          "name": "Wild Rose Cutter Mk. III",
+          "reason": "Wild Rose Crop Fortune: 4 per tool level, assumed level 50; not auctionable, built from copper and Jacob's tickets",
+          "tradeable": false
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Farming Fortune": 875
+        },
+        "mid": {
+          "Farming Fortune": 1013
+        },
+        "endgame": {
+          "Farming Fortune": 1238
+        }
+      }
+    }
+  ]
+}

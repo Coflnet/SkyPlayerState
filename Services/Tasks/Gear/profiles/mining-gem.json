@@ -1,0 +1,693 @@
+{
+  "id": "mining-gem",
+  "name": "Gemstone mining",
+  "anchor": "mid",
+  "maxMultiplier": 8.6,
+  "researchedAt": "2026-11-07",
+  "sources": [
+    "https://hypixelskyblock.minecraft.wiki/w/Block_Strength",
+    "https://hypixelskyblock.minecraft.wiki/w/Mining_Speed",
+    "https://hypixelskyblock.minecraft.wiki/w/Mining_Fortune",
+    "https://hypixelskyblock.minecraft.wiki/w/Heart_of_the_Mountain",
+    "https://hypixelskyblock.minecraft.wiki/w/Pristine",
+    "https://hypixelskyblock.minecraft.wiki/w/Gemstone",
+    "https://hypixelskyblock.minecraft.wiki/w/Gemstone/Stats",
+    "https://hypixelskyblock.minecraft.wiki/w/Gemstone_Fortune",
+    "https://hypixelskyblock.minecraft.wiki/w/Lapidary",
+    "https://hypixelskyblock.minecraft.wiki/w/Drills",
+    "https://hypixelskyblock.minecraft.wiki/w/Breaking_Power"
+  ],
+  "model": {
+    "kind": "mining",
+    "speedStat": "Mining Speed",
+    "fortuneStats": [
+      "Mining Fortune",
+      "Gemstone Fortune"
+    ],
+    "blockStrength": 3000,
+    "instamineFactor": 60,
+    "pristineStat": "Pristine",
+    "pristineFactor": 0.79,
+    "formulaSource": "https://hypixelskyblock.minecraft.wiki/w/Pristine"
+  },
+  "modelConfidence": "medium",
+  "baseline": {
+    "id": "baseline",
+    "name": "Starter gemstone drill",
+    "items": [
+      {
+        "slot": "tool",
+        "tag": "GEMSTONE_DRILL_1",
+        "name": "Ruby Drill TX-15",
+        "reason": "Gemstone drill with bonus Mining Speed on gemstones, Gemstone Fortune and Pristine; Efficiency V and Fortune IV books applied"
+      },
+      {
+        "slot": "helmet",
+        "tag": "MINER_OUTFIT_HELMET",
+        "name": "Prospecting Helmet",
+        "reason": "Free starter armor with a little Mining Speed"
+      },
+      {
+        "slot": "chestplate",
+        "tag": "MINER_OUTFIT_CHESTPLATE",
+        "name": "Prospecting Chestplate",
+        "reason": "Free starter armor with a little Mining Speed"
+      },
+      {
+        "slot": "leggings",
+        "tag": "MINER_OUTFIT_LEGGINGS",
+        "name": "Prospecting Leggings",
+        "reason": "Free starter armor with a little Mining Speed"
+      },
+      {
+        "slot": "boots",
+        "tag": "MINER_OUTFIT_BOOTS",
+        "name": "Prospecting Boots",
+        "reason": "Free starter armor with a little Mining Speed"
+      },
+      {
+        "slot": "necklace",
+        "tag": "MITHRIL_NECKLACE",
+        "name": "Mithril Necklace",
+        "reason": "Cheap Mining Speed and Mining Fortune"
+      },
+      {
+        "slot": "cloak",
+        "tag": "MITHRIL_CLOAK",
+        "name": "Mithril Cloak",
+        "reason": "Cheap Mining Speed and Mining Fortune"
+      },
+      {
+        "slot": "belt",
+        "tag": "MITHRIL_BELT",
+        "name": "Mithril Belt",
+        "reason": "Cheap Mining Speed and Mining Fortune"
+      },
+      {
+        "slot": "gloves",
+        "tag": "MITHRIL_GAUNTLET",
+        "name": "Mithril Gauntlet",
+        "reason": "Cheap Mining Speed and Mining Fortune"
+      }
+    ],
+    "stats": {
+      "Mining Speed": 3750,
+      "Mining Fortune": 480,
+      "Gemstone Fortune": 160,
+      "Pristine": 0.5
+    },
+    "sources": [
+      "https://hypixelskyblock.minecraft.wiki/w/Drills"
+    ],
+    "assumptions": [
+      "Heart of the Mountain perks and the mining skill level are the same in every setup because they cannot be bought.",
+      "Mining Speed is the total on gemstone blocks, including the bonus the drill and Lapidary give there.",
+      "Gemstone block strengths are the live values, not the alpha test values."
+    ]
+  },
+  "setups": [
+    {
+      "id": "budget",
+      "name": "Budget Gemstone Drill",
+      "tier": "budget",
+      "items": [
+        {
+          "slot": "tool",
+          "tag": "GEMSTONE_DRILL_2",
+          "name": "Gemstone Drill LT-522",
+          "reason": "Breaking Power for Topaz with more Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+        },
+        {
+          "slot": "helmet",
+          "tag": "ARMOR_OF_YOG_HELMET",
+          "name": "Yog Helmet",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "ARMOR_OF_YOG_CHESTPLATE",
+          "name": "Yog Chestplate",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        {
+          "slot": "leggings",
+          "tag": "ARMOR_OF_YOG_LEGGINGS",
+          "name": "Yog Leggings",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        {
+          "slot": "boots",
+          "tag": "ARMOR_OF_YOG_BOOTS",
+          "name": "Yog Boots",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        {
+          "slot": "armor_gem_amber",
+          "tag": "FINE_AMBER_GEM",
+          "name": "Fine Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        {
+          "slot": "armor_gem_jade",
+          "tag": "FINE_JADE_GEM",
+          "name": "Fine Jade Gemstone",
+          "reason": "Fills the armor Jade slots for Mining Fortune"
+        },
+        {
+          "slot": "necklace",
+          "tag": "MITHRIL_NECKLACE",
+          "name": "Mithril Necklace",
+          "reason": "Cheap Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "cloak",
+          "tag": "MITHRIL_CLOAK",
+          "name": "Mithril Cloak",
+          "reason": "Cheap Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "belt",
+          "tag": "MITHRIL_BELT",
+          "name": "Mithril Belt",
+          "reason": "Cheap Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "gloves",
+          "tag": "MITHRIL_GAUNTLET",
+          "name": "Mithril Gauntlet",
+          "reason": "Cheap Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "talisman",
+          "tag": "JUNGLE_AMULET",
+          "name": "Jungle Amulet",
+          "reason": "Gemstone Fortune"
+        },
+        {
+          "slot": "pet",
+          "tag": "PET_BAL",
+          "name": "Bal Pet",
+          "reason": "Pet with Mining Fortune",
+          "priceFilters": {
+            "PetLevel": "100"
+          }
+        }
+      ],
+      "stats": {
+        "Mining Speed": 4152,
+        "Mining Fortune": 780,
+        "Gemstone Fortune": 240,
+        "Pristine": 1.0
+      },
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Drills",
+        "https://hypixelskyblock.minecraft.wiki/w/Lapidary"
+      ],
+      "assumptions": [
+        "Heart of the Mountain perks and the mining skill level are the same in every setup because they cannot be bought.",
+        "Mining Speed is the total on gemstone blocks, including the bonus the drill and Lapidary give there.",
+        "Gemstone block strengths are the live values, not the alpha test values.",
+        "The Bal pet value is a research estimate because the pet rarity is not verified."
+      ]
+    },
+    {
+      "id": "mid",
+      "name": "Mid Jasper Drill",
+      "tier": "mid",
+      "items": [
+        {
+          "slot": "tool",
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+        },
+        {
+          "slot": "drill_gem_amber",
+          "tag": "FINE_AMBER_GEM",
+          "name": "Fine Amber Gemstone",
+          "reason": "Drill Amber slot for Mining Speed"
+        },
+        {
+          "slot": "drill_gem_jade",
+          "tag": "FINE_JADE_GEM",
+          "name": "Fine Jade Gemstone",
+          "reason": "Drill Jade slot for Mining Fortune"
+        },
+        {
+          "slot": "helmet",
+          "tag": "SORROW_HELMET",
+          "name": "Sorrow Helmet",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "SORROW_CHESTPLATE",
+          "name": "Sorrow Chestplate",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        {
+          "slot": "leggings",
+          "tag": "SORROW_LEGGINGS",
+          "name": "Sorrow Leggings",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        {
+          "slot": "boots",
+          "tag": "SORROW_BOOTS",
+          "name": "Sorrow Boots",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        {
+          "slot": "armor_gem_amber",
+          "tag": "FINE_AMBER_GEM",
+          "name": "Fine Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        {
+          "slot": "armor_gem_jade",
+          "tag": "FINE_JADE_GEM",
+          "name": "Fine Jade Gemstone",
+          "reason": "Fills the armor Jade and Universal slots for Mining Fortune"
+        },
+        {
+          "slot": "necklace",
+          "tag": "TITANIUM_NECKLACE",
+          "name": "Titanium Necklace",
+          "reason": "Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "cloak",
+          "tag": "TITANIUM_CLOAK",
+          "name": "Titanium Cloak",
+          "reason": "Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "belt",
+          "tag": "TITANIUM_BELT",
+          "name": "Titanium Belt",
+          "reason": "Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "gloves",
+          "tag": "TITANIUM_GAUNTLET",
+          "name": "Titanium Gauntlet",
+          "reason": "Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "talisman",
+          "tag": "JUNGLE_AMULET",
+          "name": "Jungle Amulet",
+          "reason": "Gemstone Fortune"
+        },
+        {
+          "slot": "pet",
+          "tag": "PET_BAL",
+          "name": "Bal Pet",
+          "reason": "Pet with Mining Fortune",
+          "priceFilters": {
+            "PetLevel": "100"
+          }
+        }
+      ],
+      "stats": {
+        "Mining Speed": 4652,
+        "Mining Fortune": 855,
+        "Gemstone Fortune": 280,
+        "Pristine": 2.0
+      },
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Drills",
+        "https://hypixelskyblock.minecraft.wiki/w/Gemstone/Stats"
+      ],
+      "assumptions": [
+        "Heart of the Mountain perks and the mining skill level are the same in every setup because they cannot be bought.",
+        "Mining Speed is the total on gemstone blocks, including the bonus the drill and Lapidary give there.",
+        "Gemstone block strengths are the live values, not the alpha test values.",
+        "The Bal pet value is a research estimate because the pet rarity is not verified."
+      ]
+    },
+    {
+      "id": "endgame",
+      "name": "Endgame Divan and Titanium drill",
+      "tier": "endgame",
+      "items": [
+        {
+          "slot": "tool",
+          "tag": "TITANIUM_DRILL_4",
+          "name": "Titanium Drill DR-X655",
+          "reason": "Top drill; Efficiency V, Fortune IV, Lapidary V and Prismatic V books applied"
+        },
+        {
+          "slot": "drill_gem_amber",
+          "tag": "PERFECT_AMBER_GEM",
+          "name": "Perfect Amber Gemstone",
+          "reason": "Drill Amber slot for Mining Speed"
+        },
+        {
+          "slot": "drill_gem_jade",
+          "tag": "PERFECT_JADE_GEM",
+          "name": "Perfect Jade Gemstone",
+          "reason": "Drill Jade slot for Mining Fortune"
+        },
+        {
+          "slot": "drill_gem_topaz",
+          "tag": "PERFECT_TOPAZ_GEM",
+          "name": "Perfect Topaz Gemstone",
+          "reason": "Drill Topaz slot for Pristine"
+        },
+        {
+          "slot": "helmet",
+          "tag": "DIVAN_HELMET",
+          "name": "Helmet of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "DIVAN_CHESTPLATE",
+          "name": "Chestplate of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        {
+          "slot": "leggings",
+          "tag": "DIVAN_LEGGINGS",
+          "name": "Leggings of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        {
+          "slot": "boots",
+          "tag": "DIVAN_BOOTS",
+          "name": "Boots of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        {
+          "slot": "armor_gem_amber",
+          "tag": "PERFECT_AMBER_GEM",
+          "name": "Perfect Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        {
+          "slot": "armor_gem_jade",
+          "tag": "PERFECT_JADE_GEM",
+          "name": "Perfect Jade Gemstone",
+          "reason": "Fills the armor Jade slots for Mining Fortune"
+        },
+        {
+          "slot": "armor_gem_topaz",
+          "tag": "PERFECT_TOPAZ_GEM",
+          "name": "Perfect Topaz Gemstone",
+          "reason": "Fills the armor Topaz slot for Pristine"
+        },
+        {
+          "slot": "recombobulator",
+          "tag": "RECOMBOBULATOR_3000",
+          "name": "Recombobulator 3000",
+          "reason": "Raises the gear rarity so the gemstones give their top rarity values"
+        },
+        {
+          "slot": "necklace",
+          "tag": "DIVAN_PENDANT",
+          "name": "Pendant of Divan",
+          "reason": "Top necklace with gemstone slots"
+        },
+        {
+          "slot": "pendant_gem_amber",
+          "tag": "PERFECT_AMBER_GEM",
+          "name": "Perfect Amber Gemstone",
+          "reason": "Pendant Amber slot for Mining Speed"
+        },
+        {
+          "slot": "pendant_gem_jade",
+          "tag": "PERFECT_JADE_GEM",
+          "name": "Perfect Jade Gemstone",
+          "reason": "Pendant Jade slot for Mining Fortune"
+        },
+        {
+          "slot": "cloak",
+          "tag": "TITANIUM_CLOAK",
+          "name": "Titanium Cloak",
+          "reason": "Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "belt",
+          "tag": "TITANIUM_BELT",
+          "name": "Titanium Belt",
+          "reason": "Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "gloves",
+          "tag": "DWARVEN_HANDWARMERS",
+          "name": "Dwarven Handwarmers",
+          "reason": "Best gloves for Mining Speed and Mining Fortune"
+        },
+        {
+          "slot": "accessory",
+          "tag": "TITANIUM_RELIC",
+          "name": "Titanium Relic",
+          "reason": "Extra Mining Speed"
+        },
+        {
+          "slot": "talisman",
+          "tag": "JUNGLE_AMULET",
+          "name": "Jungle Amulet",
+          "reason": "Gemstone Fortune"
+        },
+        {
+          "slot": "pet",
+          "tag": "PET_SCATHA",
+          "name": "Scatha Pet",
+          "reason": "Pet with Mining Speed, Mining Fortune and Gemstone Fortune on drills",
+          "priceFilters": {
+            "PetLevel": "100",
+            "Rarity": "LEGENDARY"
+          }
+        },
+        {
+          "slot": "pet_item",
+          "tag": "HEPHAESTUS_RELIC",
+          "name": "Hephaestus Relic",
+          "reason": "Raises the pet's Mining Speed and Mining Fortune"
+        }
+      ],
+      "stats": {
+        "Mining Speed": 6095,
+        "Mining Fortune": 1462.5,
+        "Gemstone Fortune": 285,
+        "Pristine": 12.5
+      },
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Titanium_Drill_DR-X655",
+        "https://hypixelskyblock.minecraft.wiki/w/Pristine",
+        "https://hypixelskyblock.minecraft.wiki/w/Gemstone/Stats"
+      ],
+      "assumptions": [
+        "Heart of the Mountain perks and the mining skill level are the same in every setup because they cannot be bought.",
+        "Mining Speed is the total on gemstone blocks, including the bonus the drill and Lapidary give there.",
+        "Gemstone block strengths are the live values, not the alpha test values.",
+        "The Scatha pet rarity is not verified, and the Hephaestus Relic is assumed not to raise the pet's Gemstone Fortune.",
+        "The Lapidary and Prismatic enchantment books are part of the stats but are not priced."
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "task": "Ruby Mining",
+      "modelOverrides": {
+        "blockStrength": 2300
+      }
+    },
+    {
+      "task": "Amber Mining",
+      "modelOverrides": {
+        "blockStrength": 3000
+      }
+    },
+    {
+      "task": "Sapphire Mining",
+      "modelOverrides": {
+        "blockStrength": 3000
+      }
+    },
+    {
+      "task": "Jade Mining",
+      "modelOverrides": {
+        "blockStrength": 3000
+      }
+    },
+    {
+      "task": "Thyst Mining",
+      "modelOverrides": {
+        "blockStrength": 3000
+      }
+    },
+    {
+      "task": "Topaz Mining",
+      "modelOverrides": {
+        "blockStrength": 3800
+      },
+      "itemOverrides": {
+        "baseline:tool": {
+          "tag": "GEMSTONE_DRILL_2",
+          "name": "Gemstone Drill LT-522",
+          "reason": "Breaking Power for Topaz with more Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+        }
+      },
+      "statOverrides": {
+        "baseline": {
+          "Mining Speed": 3900,
+          "Gemstone Fortune": 180,
+          "Pristine": 1.0
+        }
+      }
+    },
+    {
+      "task": "Jasper Mining",
+      "modelOverrides": {
+        "blockStrength": 4800
+      },
+      "itemOverrides": {
+        "baseline:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+        },
+        "budget:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+        }
+      },
+      "statOverrides": {
+        "baseline": {
+          "Mining Speed": 4200,
+          "Gemstone Fortune": 220,
+          "Pristine": 2.0
+        },
+        "budget": {
+          "Mining Speed": 4452,
+          "Gemstone Fortune": 280,
+          "Pristine": 2.0
+        }
+      }
+    },
+    {
+      "task": "Onyx Mining",
+      "modelOverrides": {
+        "blockStrength": 5200
+      },
+      "itemOverrides": {
+        "baseline:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+        },
+        "budget:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+        }
+      },
+      "statOverrides": {
+        "baseline": {
+          "Mining Speed": 4200,
+          "Gemstone Fortune": 220,
+          "Pristine": 2.0
+        },
+        "budget": {
+          "Mining Speed": 4452,
+          "Gemstone Fortune": 280,
+          "Pristine": 2.0
+        }
+      }
+    },
+    {
+      "task": "Aquamarine Mining",
+      "modelOverrides": {
+        "blockStrength": 5200
+      },
+      "itemOverrides": {
+        "baseline:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+        },
+        "budget:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+        }
+      },
+      "statOverrides": {
+        "baseline": {
+          "Mining Speed": 4200,
+          "Gemstone Fortune": 220,
+          "Pristine": 2.0
+        },
+        "budget": {
+          "Mining Speed": 4452,
+          "Gemstone Fortune": 280,
+          "Pristine": 2.0
+        }
+      }
+    },
+    {
+      "task": "Citrine Mining",
+      "modelOverrides": {
+        "blockStrength": 5200
+      },
+      "itemOverrides": {
+        "baseline:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+        },
+        "budget:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+        }
+      },
+      "statOverrides": {
+        "baseline": {
+          "Mining Speed": 4200,
+          "Gemstone Fortune": 220,
+          "Pristine": 2.0
+        },
+        "budget": {
+          "Mining Speed": 4452,
+          "Gemstone Fortune": 280,
+          "Pristine": 2.0
+        }
+      }
+    },
+    {
+      "task": "Peridot Mining",
+      "modelOverrides": {
+        "blockStrength": 5200
+      },
+      "itemOverrides": {
+        "baseline:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+        },
+        "budget:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+        }
+      },
+      "statOverrides": {
+        "baseline": {
+          "Mining Speed": 4200,
+          "Gemstone Fortune": 220,
+          "Pristine": 2.0
+        },
+        "budget": {
+          "Mining Speed": 4452,
+          "Gemstone Fortune": 280,
+          "Pristine": 2.0
+        }
+      }
+    }
+  ]
+}

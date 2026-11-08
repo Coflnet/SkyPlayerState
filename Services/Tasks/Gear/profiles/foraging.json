@@ -1,0 +1,483 @@
+{
+  "id": "foraging",
+  "name": "Foraging",
+  "anchor": "budget",
+  "researchedAt": "2026-11-07",
+  "sources": [
+    "https://hypixelskyblock.minecraft.wiki/w/Foraging_Fortune",
+    "https://hypixelskyblock.minecraft.wiki/w/Axe",
+    "https://hypixelskyblock.minecraft.wiki/w/Fig_Armor",
+    "https://hypixelskyblock.minecraft.wiki/w/Helix_Armor",
+    "https://api.hypixel.net/v2/resources/skyblock/items"
+  ],
+  "model": {
+    "kind": "fortune",
+    "fortuneStat": "Foraging Fortune",
+    "formulaSource": "https://hypixelskyblock.minecraft.wiki/w/Foraging_Fortune"
+  },
+  "modelConfidence": "medium",
+  "baseline": {
+    "id": "baseline",
+    "name": "Starter foraging gear",
+    "items": [
+      {
+        "slot": "tool",
+        "tag": "ROOKIE_AXE",
+        "name": "Rookie Foraging Axe",
+        "reason": "Starter axe, no Foraging Fortune"
+      },
+      {
+        "slot": "helmet",
+        "tag": "LEAFLET_HELMET",
+        "name": "Leaflet Hat",
+        "reason": "+3 Foraging Fortune"
+      },
+      {
+        "slot": "chestplate",
+        "tag": "LEAFLET_CHESTPLATE",
+        "name": "Leaflet Tunic",
+        "reason": "+3 Foraging Fortune"
+      },
+      {
+        "slot": "leggings",
+        "tag": "LEAFLET_LEGGINGS",
+        "name": "Leaflet Pants",
+        "reason": "+3 Foraging Fortune"
+      },
+      {
+        "slot": "boots",
+        "tag": "LEAFLET_BOOTS",
+        "name": "Leaflet Sandals",
+        "reason": "+3 Foraging Fortune"
+      }
+    ],
+    "stats": {
+      "Foraging Fortune": 132
+    }
+  },
+  "setups": [
+    {
+      "id": "budget",
+      "tier": "budget",
+      "name": "Figstone Splitter and Monkey",
+      "items": [
+        {
+          "slot": "tool",
+          "tag": "FIGSTONE_AXE",
+          "name": "Figstone Splitter",
+          "reason": "+35 Foraging Fortune"
+        },
+        {
+          "slot": "helmet",
+          "tag": "LEAFLET_HELMET",
+          "name": "Leaflet Hat",
+          "reason": "+3 Foraging Fortune"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "LEAFLET_CHESTPLATE",
+          "name": "Leaflet Tunic",
+          "reason": "+3 Foraging Fortune"
+        },
+        {
+          "slot": "leggings",
+          "tag": "LEAFLET_LEGGINGS",
+          "name": "Leaflet Pants",
+          "reason": "+3 Foraging Fortune"
+        },
+        {
+          "slot": "boots",
+          "tag": "LEAFLET_BOOTS",
+          "name": "Leaflet Sandals",
+          "reason": "+3 Foraging Fortune"
+        },
+        {
+          "slot": "necklace",
+          "tag": "MANGROVE_LOCKET",
+          "name": "Mangrove Locket",
+          "reason": "+5 Foraging Fortune"
+        },
+        {
+          "slot": "belt",
+          "tag": "MANGROVE_VINE",
+          "name": "Moonglade Belt",
+          "reason": "+5 Foraging Fortune"
+        },
+        {
+          "slot": "pet",
+          "tag": "PET_MONKEY",
+          "name": "Monkey (Rare, level 100)",
+          "reason": "+50 Foraging Fortune at level 100",
+          "priceFilters": {
+            "PetLevel": "100",
+            "Rarity": "RARE"
+          },
+          "tradeable": true
+        }
+      ],
+      "stats": {
+        "Foraging Fortune": 227
+      },
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Foraging_Fortune",
+        "https://hypixelskyblock.minecraft.wiki/w/Axe",
+        "https://hypixelskyblock.minecraft.wiki/w/Monkey_Pet",
+        "https://api.hypixel.net/v2/resources/skyblock/items"
+      ],
+      "assumptions": [
+        "Sweep is not modeled because the logs per swing formula is not verified",
+        "Account foraging fortune comes from levels only and is the same in every setup",
+        "Tree specific fortune from Galatea items, shards and upgrades is not modeled",
+        "Pet and axe enchantments and reforges are not modeled"
+      ]
+    },
+    {
+      "id": "mid",
+      "tier": "mid",
+      "name": "Fig armor and Honeycomb Necklace",
+      "items": [
+        {
+          "slot": "tool",
+          "tag": "FIGSTONE_AXE",
+          "name": "Figstone Splitter",
+          "reason": "+35 Foraging Fortune"
+        },
+        {
+          "slot": "helmet",
+          "tag": "FIG_HELMET",
+          "name": "Fig Cap",
+          "reason": "+30 Foraging Fortune"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "FIG_CHESTPLATE",
+          "name": "Figmail",
+          "reason": "+30 Foraging Fortune"
+        },
+        {
+          "slot": "leggings",
+          "tag": "FIG_LEGGINGS",
+          "name": "Fig Trousers",
+          "reason": "+30 Foraging Fortune"
+        },
+        {
+          "slot": "boots",
+          "tag": "FIG_BOOTS",
+          "name": "Fig Striders",
+          "reason": "+30 Foraging Fortune"
+        },
+        {
+          "slot": "necklace",
+          "tag": "HONEYCOMB_NECKLACE",
+          "name": "Honeycomb Necklace",
+          "reason": "+25 Foraging Fortune"
+        },
+        {
+          "slot": "belt",
+          "tag": "MANGROVE_VINE",
+          "name": "Moonglade Belt",
+          "reason": "+5 Foraging Fortune"
+        },
+        {
+          "slot": "gloves",
+          "tag": "MANGROVE_GRIPPERS",
+          "name": "Mangrove Grippers",
+          "reason": "+5 Foraging Fortune"
+        },
+        {
+          "slot": "pet",
+          "tag": "PET_MONKEY",
+          "name": "Monkey (Legendary, level 100)",
+          "reason": "+60 Foraging Fortune at level 100",
+          "priceFilters": {
+            "PetLevel": "100",
+            "Rarity": "LEGENDARY"
+          },
+          "tradeable": true
+        }
+      ],
+      "stats": {
+        "Foraging Fortune": 370
+      },
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Foraging_Fortune",
+        "https://hypixelskyblock.minecraft.wiki/w/Fig_Armor",
+        "https://hypixelskyblock.minecraft.wiki/w/Monkey_Pet",
+        "https://api.hypixel.net/v2/resources/skyblock/items"
+      ],
+      "assumptions": [
+        "Sweep is not modeled because the logs per swing formula is not verified",
+        "Account foraging fortune comes from levels only and is the same in every setup",
+        "Tree specific fortune from Galatea items, shards and upgrades is not modeled",
+        "Pet and axe enchantments and reforges are not modeled"
+      ]
+    },
+    {
+      "id": "endgame",
+      "tier": "endgame",
+      "name": "Helix Chopper and Helix armor",
+      "items": [
+        {
+          "slot": "tool",
+          "tag": "HELIX_CHOPPER",
+          "name": "Helix Chopper",
+          "reason": "+50 Foraging Fortune"
+        },
+        {
+          "slot": "helmet",
+          "tag": "HELIX_ARMOR_HELMET",
+          "name": "Helix Helmet",
+          "reason": "+45 Foraging Fortune"
+        },
+        {
+          "slot": "chestplate",
+          "tag": "HELIX_ARMOR_CHESTPLATE",
+          "name": "Helix Chestplate",
+          "reason": "+45 Foraging Fortune"
+        },
+        {
+          "slot": "leggings",
+          "tag": "HELIX_ARMOR_LEGGINGS",
+          "name": "Helix Leggings",
+          "reason": "+45 Foraging Fortune"
+        },
+        {
+          "slot": "boots",
+          "tag": "HELIX_ARMOR_BOOTS",
+          "name": "Helix Boots",
+          "reason": "+45 Foraging Fortune"
+        },
+        {
+          "slot": "necklace",
+          "tag": "HONEYCOMB_NECKLACE",
+          "name": "Honeycomb Necklace",
+          "reason": "+25 Foraging Fortune"
+        },
+        {
+          "slot": "gloves",
+          "tag": "VEILSHROOM_BRACELET",
+          "name": "Veilshroom Bracelet",
+          "reason": "+25 Foraging Fortune"
+        },
+        {
+          "slot": "belt",
+          "tag": "TORRHUS_BELT",
+          "name": "Torrhus Belt",
+          "reason": "+10 Foraging Fortune"
+        },
+        {
+          "slot": "pet",
+          "tag": "PET_MONKEY",
+          "name": "Monkey (Legendary, level 100)",
+          "reason": "+60 Foraging Fortune at level 100",
+          "priceFilters": {
+            "PetLevel": "100",
+            "Rarity": "LEGENDARY"
+          },
+          "tradeable": true
+        }
+      ],
+      "stats": {
+        "Foraging Fortune": 470
+      },
+      "sources": [
+        "https://hypixelskyblock.minecraft.wiki/w/Foraging_Fortune",
+        "https://hypixelskyblock.minecraft.wiki/w/Helix_Armor",
+        "https://hypixelskyblock.minecraft.wiki/w/Axe",
+        "https://hypixelskyblock.minecraft.wiki/w/Monkey_Pet",
+        "https://api.hypixel.net/v2/resources/skyblock/items"
+      ],
+      "assumptions": [
+        "Sweep is not modeled because the logs per swing formula is not verified",
+        "Account foraging fortune comes from levels only and is the same in every setup",
+        "Tree specific fortune from Galatea items, shards and upgrades is not modeled",
+        "Pet and axe enchantments and reforges are not modeled",
+        "Soulbound milestone gear and the Jade Dragon are left out because their bonuses depend on progress"
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "task": "Oak Foraging"
+    },
+    {
+      "task": "Fig Foraging"
+    },
+    {
+      "task": "Mangrove Foraging"
+    },
+    {
+      "task": "Helix Foraging"
+    },
+    {
+      "task": "Birch Foraging",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "TREECAPITATOR_AXE",
+          "name": "Treecapitator",
+          "reason": "+100 Foraging Fortune, only in The Park"
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "TREECAPITATOR_AXE",
+          "name": "Treecapitator",
+          "reason": "+100 Foraging Fortune, only in The Park"
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "TREECAPITATOR_AXE",
+          "name": "Treecapitator",
+          "reason": "+100 Foraging Fortune, only in The Park"
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Foraging Fortune": 292
+        },
+        "mid": {
+          "Foraging Fortune": 435
+        },
+        "endgame": {
+          "Foraging Fortune": 520
+        }
+      }
+    },
+    {
+      "task": "Spruce Foraging",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "TREECAPITATOR_AXE",
+          "name": "Treecapitator",
+          "reason": "+100 Foraging Fortune, only in The Park"
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "TREECAPITATOR_AXE",
+          "name": "Treecapitator",
+          "reason": "+100 Foraging Fortune, only in The Park"
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "TREECAPITATOR_AXE",
+          "name": "Treecapitator",
+          "reason": "+100 Foraging Fortune, only in The Park"
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Foraging Fortune": 292
+        },
+        "mid": {
+          "Foraging Fortune": 435
+        },
+        "endgame": {
+          "Foraging Fortune": 520
+        }
+      }
+    },
+    {
+      "task": "Dark Oak Foraging",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "TREECAPITATOR_AXE",
+          "name": "Treecapitator",
+          "reason": "+100 Foraging Fortune, only in The Park"
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "TREECAPITATOR_AXE",
+          "name": "Treecapitator",
+          "reason": "+100 Foraging Fortune, only in The Park"
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "TREECAPITATOR_AXE",
+          "name": "Treecapitator",
+          "reason": "+100 Foraging Fortune, only in The Park"
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Foraging Fortune": 292
+        },
+        "mid": {
+          "Foraging Fortune": 435
+        },
+        "endgame": {
+          "Foraging Fortune": 520
+        }
+      }
+    },
+    {
+      "task": "Acacia Foraging",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "TREECAPITATOR_AXE",
+          "name": "Treecapitator",
+          "reason": "+100 Foraging Fortune, only in The Park"
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "TREECAPITATOR_AXE",
+          "name": "Treecapitator",
+          "reason": "+100 Foraging Fortune, only in The Park"
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "TREECAPITATOR_AXE",
+          "name": "Treecapitator",
+          "reason": "+100 Foraging Fortune, only in The Park"
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Foraging Fortune": 292
+        },
+        "mid": {
+          "Foraging Fortune": 435
+        },
+        "endgame": {
+          "Foraging Fortune": 520
+        }
+      }
+    },
+    {
+      "task": "Jungle Foraging",
+      "itemOverrides": {
+        "budget:tool": {
+          "slot": "tool",
+          "tag": "TREECAPITATOR_AXE",
+          "name": "Treecapitator",
+          "reason": "+100 Foraging Fortune, only in The Park"
+        },
+        "mid:tool": {
+          "slot": "tool",
+          "tag": "TREECAPITATOR_AXE",
+          "name": "Treecapitator",
+          "reason": "+100 Foraging Fortune, only in The Park"
+        },
+        "endgame:tool": {
+          "slot": "tool",
+          "tag": "TREECAPITATOR_AXE",
+          "name": "Treecapitator",
+          "reason": "+100 Foraging Fortune, only in The Park"
+        }
+      },
+      "statOverrides": {
+        "budget": {
+          "Foraging Fortune": 292
+        },
+        "mid": {
+          "Foraging Fortune": 435
+        },
+        "endgame": {
+          "Foraging Fortune": 520
+        }
+      }
+    }
+  ]
+}
