@@ -232,7 +232,8 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         if (slowChainSeconds <= 0)
             slowChainSeconds = 5;
         logger.LogInformation("Consuming up to {batchSize} updates per partition batch", batchSizePerPartition);
-        await Kafka.KafkaConsumer.ConsumePartitionedParallelBatch<UpdateMessage>(consumerConfig, new string[] { config["TOPICS:STATE_UPDATE"] }, async (partition, batch) =>
+        var backoff = new ConsumeBackoff();
+        await ConsumeRetryLoop.RunAsync("player-state-updates", () => Kafka.KafkaConsumer.ConsumePartitionedParallelBatch<UpdateMessage>(consumerConfig, new string[] { config["TOPICS:STATE_UPDATE"] }, async (partition, batch) =>
         {
             var updates = batch.ToList();
             var now = DateTime.UtcNow;
@@ -267,6 +268,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
             partitionLastCompleted.WithLabels(partition.Partition.Value.ToString())
                 .Set(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
             KeepStateCountInCheck();
+            backoff.Reset();
         }, stoppingToken, batchSizePerPartition,
             partitionsRevoked: partitions =>
             {
@@ -278,9 +280,16 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
                     slowestChainSeconds.RemoveLabelled(partition.Partition.Value.ToString());
                 }
             },
-            partitionStallTimeout: TimeSpan.FromMinutes(stallMinutes));
+            partitionStallTimeout: TimeSpan.FromMinutes(stallMinutes)), backoff, logger, stoppingToken, isFatal: IsPartitionStall);
         var retrieved = new UpdateMessage();
     }
+
+    /// <summary>
+    /// The consumer host throws this on a partition stall so the pod restarts (StopHost). Rebuilding in-process
+    /// could leave a hung batch task holding a state lock, so it must not be retried.
+    /// </summary>
+    internal static bool IsPartitionStall(Exception e)
+        => e is TimeoutException && e.Message.Contains("while lagging");
 
     /// <summary>
     /// Called by the host on shutdown (planned restarts are the common case). The consumer is
