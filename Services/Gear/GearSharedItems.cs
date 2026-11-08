@@ -12,10 +12,12 @@ public sealed record GearSeen<T>(T Item, double Hours, string Player);
 /// Item specs built so that no single player's item shows (k = <c>minPlayers</c>):
 /// <list type="bullet">
 /// <item>a piece is only built from sightings of at least k distinct players with its tag;</item>
-/// <item>of that tag, every modifier (rarity, reforge, stars, hot potato count, recombobulated, each enchant, gem slot,
-/// part and applied count) is shown only with a value at least k distinct players share (the most shared value wins);
-/// a counter shows the highest bucket at least k players reach;</item>
-/// <item>lore stats are each player's hours weighted mean, then the median over at least k players;</item>
+/// <item>numeric and ordered modifiers (rarity, stars, hot potato count, recombobulated, each enchant level, applied count,
+/// counter bucket) show the highest value at least k distinct players reach (each player's highest counts): a published
+/// piece is a minimum that k players have at least, so the top players' upgrades are kept;</item>
+/// <item>categorical modifiers (reforge, each gem slot and part) are shown only with a value at least k distinct players
+/// share (the most shared value wins);</item>
+/// <item>lore stats are each player's hours weighted mean, then the highest value at least k players reach;</item>
 /// <item>the pet likewise: the type of at least k players; tier and level as one combination at least k of them reach
 /// together (each player's highest counts, like the counters); the held item when k players share it.</item>
 /// </list>
@@ -32,19 +34,57 @@ public static class GearSharedItems
         {
             Tag = tag,
             ItemType = Shared(same, p => p.ItemType, 1) as string,
-            Rarity = Shared(same, p => p.Rarity, minPlayers) as string,
+            Rarity = ReachedRarity(same, minPlayers),
             Reforge = Shared(same, p => p.Reforge, minPlayers) as string,
-            Stars = Shared(same, p => p.Stars, minPlayers) as int?,
-            HotPotatoCount = Shared(same, p => p.HotPotatoCount, minPlayers) as int?,
-            Recombobulated = Shared(same, p => p.Recombobulated, minPlayers) as bool?,
-            Enchants = SharedEntries(same, p => p.Enchants, minPlayers),
+            Stars = Reached(same, p => p.Stars, minPlayers),
+            HotPotatoCount = Reached(same, p => p.HotPotatoCount, minPlayers),
+            Recombobulated = Reached(same, p => p.Recombobulated is { } r ? (r ? 1 : 0) : null, minPlayers) is { } recomb ? recomb == 1 : null,
+            Enchants = ReachedEntries(same, p => p.Enchants, minPlayers),
             Gems = SharedEntries(same, p => p.Gems, minPlayers),
             Parts = SharedEntries(same, p => p.Parts, minPlayers),
-            Applied = SharedEntries(same, p => p.Applied, minPlayers),
+            Applied = ReachedEntries(same, p => p.Applied, minPlayers),
             Counters = ReachedCounters(same, minPlayers),
-            Stats = LoreStats(same, p => p.Stats, minPlayers)
+            Stats = ReachedStats(same, p => p.Stats, minPlayers)
         };
     }
+
+    /// <summary>The highest value at least k players reach (each player's highest counts); null below k players with a value.</summary>
+    private static int? Reached<T>(IEnumerable<GearSeen<T>> seen, Func<T, int?> pick, int minPlayers)
+        => KthHighest(seen.Where(s => pick(s.Item) != null).Select(s => (s.Player, (double)pick(s.Item)!.Value)), minPlayers) is { } value
+            ? (int)value : null;
+
+    private static string? ReachedRarity(List<GearSeen<GearPiece>> seen, int minPlayers)
+    {
+        var rank = Reached(seen, p => GearRarities.Rank(p.Rarity) >= 0 ? GearRarities.Rank(p.Rarity) : (int?)null, minPlayers);
+        return rank == null ? null : seen.First(s => GearRarities.Rank(s.Item.Rarity) == rank).Item.Rarity!.ToUpperInvariant();
+    }
+
+    /// <summary>Per key (enchant, applied count): the highest level at least k of the players that have the key reach.</summary>
+    private static Dictionary<string, int> ReachedEntries(List<GearSeen<GearPiece>> seen, Func<GearPiece, Dictionary<string, int>?> pick, int minPlayers)
+    {
+        var result = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var key in seen.SelectMany(s => pick(s.Item)?.Keys ?? Enumerable.Empty<string>()).Distinct().OrderBy(k => k, StringComparer.Ordinal))
+        {
+            if (Reached(seen, p => pick(p) is { } values && values.TryGetValue(key, out var v) ? v : null, minPlayers) is { } level)
+                result[key] = level;
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Per stat: each player's hours weighted mean, then the highest value at least k players reach (consistent with the
+    /// reached modifiers: a published piece is what at least k players have at least).
+    /// </summary>
+    private static Dictionary<string, double> ReachedStats<T>(IEnumerable<GearSeen<T>> seen, Func<T, Dictionary<string, double>?> stats, int minPlayers)
+        => seen.Where(s => s.Hours > 0)
+            .SelectMany(s => (stats(s.Item) ?? new()).Select(v => (s.Player, Name: v.Key, v.Value, s.Hours)))
+            .GroupBy(v => (v.Player, v.Name))
+            .Select(g => (g.Key.Player, g.Key.Name, Mean: g.Sum(v => v.Value * v.Hours) / g.Sum(v => v.Hours)))
+            .GroupBy(v => v.Name, StringComparer.Ordinal)
+            .Select(g => (Name: g.Key, Value: KthHighest(g.Select(v => (v.Player, v.Mean)), minPlayers)))
+            .Where(v => v.Value != null)
+            .OrderBy(v => v.Name, StringComparer.Ordinal)
+            .ToDictionary(v => v.Name, v => v.Value!.Value, StringComparer.Ordinal);
 
     public static GearPet? SharedPet(IReadOnlyList<GearSeen<GearPet>> pets, int minPlayers)
     {
@@ -58,7 +98,7 @@ public static class GearSharedItems
             Tier = tier,
             Level = level,
             HeldItem = Shared(same, p => p.HeldItem, minPlayers) as string,
-            Stats = LoreStats(same, p => p.Stats, minPlayers)
+            Stats = ReachedStats(same, p => p.Stats, minPlayers)
         };
     }
 
@@ -130,7 +170,4 @@ public static class GearSharedItems
             .Where(g => g.Count() >= minPlayers)
             .OrderBy(g => g.Key, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.Select(c => c.Bucket).OrderByDescending(b => b).ElementAt(minPlayers - 1));
-
-    private static Dictionary<string, double> LoreStats<T>(IEnumerable<GearSeen<T>> seen, Func<T, Dictionary<string, double>?> stats, int minPlayers)
-        => GearStatistics.PlayerMedians(seen.Select(s => (s.Player, s.Hours, (IReadOnlyDictionary<string, double>?)stats(s.Item))), minPlayers);
 }

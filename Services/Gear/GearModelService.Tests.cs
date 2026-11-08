@@ -47,10 +47,46 @@ public class GearModelServiceTests
         result.Curve.Should().NotBeNull();
         result.Curve!.SlopePer10Pct.Should().BePositive("the rate rises with the tool fortune");
         result.Pieces.Should().Contain(p => p.Slot == GearSnapshot.Tool).And.Contain(p => p.Slot == GearPieceCatalog.PetSlot);
-        result.Recommended!.Basis.Should().Be(GearBuildRecommender.BasisCurve);
-        result.Recommended.CoinsPerHour.Should().BeLessThanOrEqualTo(result.LateGame!.CoinsPerHour, "the published cohort rate is the cap");
+        result.Recommended!.Basis.Should().Be(GearBuildRecommender.BasisCohort);
+        result.Recommended.CoinsPerHour.Should().Be(result.LateGame!.CoinsPerHour, "the build stands for the late game cohort");
         result.Effects.Should().ContainSingle(e => e.Changes.Single().Component == "tool.enchants.harvesting");
         result.Formula.EffectCount.Should().BeGreaterThan(0);
+    }
+
+    private static ObservedGear WheatGear(int harvesting, int cultivating, long cultivated, double fortune)
+    {
+        var gear = TestGear(harvesting: harvesting, toolFortune: fortune);
+        var tool = gear.Slots[GearSnapshot.Tool];
+        tool.Enchants["cultivating"] = cultivating;
+        tool.Counters["farmed_cultivating"] = cultivated;
+        return gear;
+    }
+
+    /// <summary>
+    /// Regression (live Wheat Farming): the catalog stripped the top players' own upgrades (their enchant levels and
+    /// counters differ), so the recommended build scored below the late game threshold and got the curve's low rate.
+    /// </summary>
+    [Test]
+    public void Wheat_TheTopPlayersUpgradesAreKept_TheBuildGetsTheCohortRate()
+    {
+        var inputs = Enumerable.Range(1, 8).Select(i => Obs(i, WheatGear(3, 1, 1_000, 100), 2, 1000 * i)).ToList();
+        inputs.Add(Obs(9, WheatGear(6, 10, 100_000_000, 300), 3, 20_000));
+        inputs.Add(Obs(10, WheatGear(5, 9, 50_000_000, 280), 3, 22_000));
+
+        var result = GearModelService.Compute(Wheat, inputs, Now);
+
+        var top = result.Pieces.Where(p => p.Slot == GearSnapshot.Tool).OrderByDescending(p => p.ScoreContribution).First();
+        top.Item!.Enchants.Should().BeEquivalentTo(new Dictionary<string, int> { ["harvesting"] = 5, ["cultivating"] = 9 },
+            "the lower of the two top players' levels");
+        top.Item.Counters["farmed_cultivating"].Should().Be(50_000_000);
+        top.Item.Stats["Farming Fortune"].Should().Be(280);
+        var endgame = result.Recommended!;
+        endgame.Pieces[GearSnapshot.Tool].Should().Be(top.Id);
+        endgame.Score.Should().BeGreaterThanOrEqualTo(result.LateGame!.ScoreFrom, "tool 280 + Fermento 75 + Elephant 150");
+        endgame.Score.Should().Be(500, "505, 2 significant digits");
+        endgame.CoinsPerHour.Should().Be(result.LateGame.CoinsPerHour).And.Be(21_000);
+        endgame.Basis.Should().Be(GearBuildRecommender.BasisCohort);
+        endgame.Extrapolated.Should().BeFalse();
     }
 
     [Test]

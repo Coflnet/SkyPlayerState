@@ -203,7 +203,7 @@ public class GearModelService
         var build = GearBuildRecommender.Recommend(catalog, scorer);
         if (build == null)
             return null;
-        var rate = GearBuildRecommender.Rate(build.Score, curve, rare, lateGame?.CoinsPerHour, lateGame?.CoinsPerHour, scorer.Formula, options);
+        var rate = GearBuildRecommender.Rate(build.Score, curve, rare, lateGame?.CoinsPerHour, scorer.Formula, options);
         return rate == null || !double.IsFinite(rate.CoinsPerHour) ? null : GearModelPublisher.Recommended(build, rate, distribution);
     }
 

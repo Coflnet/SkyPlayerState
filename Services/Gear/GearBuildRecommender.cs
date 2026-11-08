@@ -13,11 +13,12 @@ public sealed record GearRecommendedRate(double CoinsPerHour, bool Extrapolated,
 
 /// <summary>
 /// Composes the recommended endgame build from the published catalog only (pure): per item slot the entry with the
-/// highest own score contribution (the tool always, other slots only with a positive contribution), then, for every set
-/// bonus whose members the catalog has, the same build with the set's best members in their slots. Each candidate gets
-/// the pet that scores best with exactly its items (pet perks can depend on the tool and armor), and the candidate with
-/// the highest exact score (the scorer over the combined pieces, effects included) wins, so a full set replaces a mix
-/// only when its bonus makes it score higher.
+/// highest own score contribution, then, for every set bonus whose members the catalog has, the same build with the
+/// set's best members in their slots. Each candidate gets the pet that scores best with exactly its items (pet perks can
+/// depend on the tool and armor), and the candidate with the highest exact score (the scorer over the combined pieces,
+/// effects included) wins, so a full set replaces a mix only when its bonus makes it score higher. Every slot the
+/// catalog has pieces for is filled: where no piece adds score, with the slot's most used piece (most players, then the
+/// higher contribution), so the build has boots and a pet even when they add nothing measurable.
 /// </summary>
 public static class GearBuildRecommender
 {
@@ -38,23 +39,21 @@ public static class GearBuildRecommender
     }
 
     /// <summary>
-    /// The rate at the score: from the curve when there is one (evaluated at most <see cref="GearModelOptions.MaxExtrapolation"/>
-    /// beyond the observed range, flagged extrapolated beyond it, and never above <paramref name="capPerHour"/>, rounded to
-    /// 2 significant digits when that cap binds), else the cohort's published rate; null without either. The cap is the
-    /// late game cohort's published rate at every cohort size: it is public already, so a capped rate reveals nothing new
-    /// (a percentile of the players' rates can land exactly on one player's rate).
+    /// The build's rate: the late game cohort's published rate whenever there is a cohort (basis "cohort": the measured
+    /// rate of the top builds, never below or above it); otherwise the curve at the score, read at most
+    /// <see cref="GearModelOptions.MaxExtrapolation"/> beyond the observed range and flagged extrapolated beyond it
+    /// (basis "curve"); null without either.
     /// </summary>
-    public static GearRecommendedRate? Rate(double score, GearCurveModel? curve, double rareCoinsPerHour, double? capPerHour,
+    public static GearRecommendedRate? Rate(double score, GearCurveModel? curve, double rareCoinsPerHour,
         double? cohortCoinsPerHour, GearScoreFormula formula, GearModelOptions options)
     {
+        if (cohortCoinsPerHour is { } cohortRate)
+            return new GearRecommendedRate(cohortRate, false, false, BasisCohort);
         if (curve == null)
-            return cohortCoinsPerHour is { } cohortRate ? new GearRecommendedRate(cohortRate, false, false, BasisCohort) : null;
+            return null;
         var limit = formula.Extend(curve.ScoreMax, options.MaxExtrapolation);
         var rate = curve.PredictCommon(Math.Min(score, limit)) + rareCoinsPerHour;
-        var extrapolated = score > curve.ScoreMax;
-        if (capPerHour is not { } cap || rate <= cap)
-            return new GearRecommendedRate(Math.Round(rate), extrapolated, false, BasisCurve);
-        return new GearRecommendedRate(GearModelPublisher.RoundSignificant(cap, 2), extrapolated, true, BasisCurve);
+        return new GearRecommendedRate(Math.Round(rate), score > curve.ScoreMax, false, BasisCurve);
     }
 
     private static Dictionary<string, GearCatalogEntry> BestMix(IReadOnlyList<GearCatalogEntry> items)
@@ -63,8 +62,7 @@ public static class GearBuildRecommender
         foreach (var slot in items.GroupBy(e => e.Slot, StringComparer.Ordinal))
         {
             var best = Best(slot);
-            if (best.OwnContribution > 0 || slot.Key == GearSnapshot.Tool)
-                result[slot.Key] = best;
+            result[slot.Key] = best.OwnContribution > 0 ? best : MostUsed(slot);
         }
         return result;
     }
@@ -86,20 +84,28 @@ public static class GearBuildRecommender
         }
     }
 
-    /// <summary>The candidate with the pet that adds the most score to it (no pet when none adds anything).</summary>
+    /// <summary>The candidate with the pet that adds the most score to it; the most used pet when none adds anything.</summary>
     private static (IReadOnlyDictionary<string, GearCatalogEntry> Entries, double Score) WithBestPet(
         Dictionary<string, GearCatalogEntry> items, IReadOnlyList<GearCatalogEntry> pets, GearScorer scorer)
     {
-        (IReadOnlyDictionary<string, GearCatalogEntry> Entries, double Score) best = (items, scorer.Score(Gear(items)));
-        foreach (var pet in pets)
-        {
-            var withPet = new Dictionary<string, GearCatalogEntry>(items, StringComparer.Ordinal) { [GearPieceCatalog.PetSlot] = pet };
-            var score = scorer.Score(Gear(withPet));
-            if (score > best.Score + 1e-9)
-                best = (withPet, score);
-        }
-        return best;
+        if (pets.Count == 0)
+            return (items, scorer.Score(Gear(items)));
+        var withoutPet = scorer.Score(Gear(items));
+        var scored = pets.Select(pet => (Entries: With(items, pet), Pet: pet)).Select(c => (c.Entries, c.Pet, Score: scorer.Score(Gear(c.Entries)))).ToList();
+        var best = scored.OrderByDescending(c => c.Score).ThenByDescending(c => c.Pet.Players).ThenBy(c => c.Pet.Id, StringComparer.Ordinal).First();
+        if (best.Score > withoutPet + 1e-9)
+            return (best.Entries, best.Score);
+        var mostUsedId = MostUsed(pets).Id;
+        var mostUsed = scored.Single(c => c.Pet.Id == mostUsedId);
+        return (mostUsed.Entries, mostUsed.Score);
     }
+
+    private static Dictionary<string, GearCatalogEntry> With(Dictionary<string, GearCatalogEntry> items, GearCatalogEntry pet)
+        => new(items, StringComparer.Ordinal) { [GearPieceCatalog.PetSlot] = pet };
+
+    /// <summary>The entry the most players use; ties: the higher contribution, then the id.</summary>
+    private static GearCatalogEntry MostUsed(IEnumerable<GearCatalogEntry> entries)
+        => entries.OrderByDescending(e => e.Players).ThenByDescending(e => e.Contribution).ThenBy(e => e.Id, StringComparer.Ordinal).First();
 
     private static GearCatalogEntry Best(IEnumerable<GearCatalogEntry> entries)
         => entries.OrderByDescending(e => e.OwnContribution).ThenByDescending(e => e.Players).ThenBy(e => e.Id, StringComparer.Ordinal).First();

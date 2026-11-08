@@ -39,14 +39,15 @@ public class GearPieceCatalogTests
 
         var tools = Tools(catalog);
 
-        tools.Select(t => t.Piece!.Enchants.GetValueOrDefault("harvesting")).Should().Equal(6, 5, 0);
+        tools.Select(t => t.Piece!.Enchants.GetValueOrDefault("harvesting")).Should().Equal(6, 5, 3);
         tools.Select(t => t.Players).Should().Equal(2, 2, 2);
         tools[2].Piece!.Reforge.Should().Be("blessed", "the merged players share the reforge");
+        tools[2].Piece!.Enchants["harvesting"].Should().Be(3, "the highest level both merged players (4 and 3) reach");
         tools.Select(t => t.Id).Should().OnlyHaveUniqueItems();
     }
 
     [Test]
-    public void ModifiersOfFewerThanTwoPlayers_AreStripped()
+    public void ModifiersOfFewerThanTwoPlayers_AreStripped_NumericOnesTheHighestTwoReach()
     {
         var gemmed = TestGear();
         gemmed.Slots[GearSnapshot.Tool].Gems["PERIDOT_0"] = "FINE_PERIDOT_GEM";
@@ -63,8 +64,36 @@ public class GearPieceCatalogTests
         tool.Piece.Enchants["harvesting"].Should().Be(6, "players 1 and 2");
     }
 
+    /// <summary>Regression: modifiers fewer than 2 players shared exactly were stripped, so the top players' upgrades vanished.</summary>
     [Test]
-    public void LoreStats_AreMediansOverPlayers_TheContributionIsScoredFromThem()
+    public void NumericModifiers_TheHighestValueTwoPlayersReach()
+    {
+        GearObservationInput Player(int player, int harvesting, int? potatoBooks, bool recombobulated, string rarity, long cultivated)
+        {
+            var gear = TestGear(harvesting: harvesting);
+            var tool = gear.Slots[GearSnapshot.Tool];
+            tool.HotPotatoCount = potatoBooks;
+            tool.Recombobulated = recombobulated;
+            tool.Rarity = rarity;
+            tool.Enchants["cultivating"] = harvesting + 3;
+            tool.Counters["farmed_cultivating"] = cultivated;
+            tool.Gems["PERIDOT_0"] = $"TEST_GEM_{player}";
+            return Obs(player, gear, 1, 1000);
+        }
+
+        var tool = Tools(Catalog(Player(1, 6, 15, true, "MYTHIC", 50_000_000), Player(2, 5, 10, true, "LEGENDARY", 20_000_000),
+            Player(3, 4, null, false, "EPIC", 1_000_000))).Single();
+
+        tool.Piece!.Enchants.Should().BeEquivalentTo(new Dictionary<string, int> { ["harvesting"] = 5, ["cultivating"] = 8 });
+        tool.Piece.HotPotatoCount.Should().Be(10);
+        tool.Piece.Recombobulated.Should().BeTrue();
+        tool.Piece.Rarity.Should().Be("LEGENDARY");
+        tool.Piece.Counters["farmed_cultivating"].Should().Be(20_000_000);
+        tool.Piece.Gems.Should().BeEmpty("gems are categorical: no gem is shared");
+    }
+
+    [Test]
+    public void LoreStats_TheHighestTwoPlayersReach_TheContributionIsScoredFromThem()
     {
         var tool = Tools(Catalog(Obs(1, TestGear(harvesting: 1, toolFortune: 100), 1, 1000), Obs(2, TestGear(harvesting: 2, toolFortune: 200), 1, 1000),
             Obs(3, TestGear(harvesting: 3, toolFortune: 300), 1, 1000))).Single();
