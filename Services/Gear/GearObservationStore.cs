@@ -18,7 +18,7 @@ public interface IGearObservationStore
     Task DeletePlayer(string playerKey);
 }
 
-/// <summary>Read side of the gear observation tables, for the setup derivation (<see cref="GearClusterService"/>).</summary>
+/// <summary>Read side of the gear observation tables, for the gear model derivation (<see cref="GearModelService"/>).</summary>
 public interface IGearObservationReader
 {
     /// <summary>The observations of one task week (partition), newest first, at most <paramref name="limit"/>.</summary>

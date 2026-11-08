@@ -20,6 +20,7 @@ public static class GearCategories
     };
 
     private static readonly Lazy<HashSet<string>> CombatTasks = new(LoadCombatTasks);
+    private static readonly Lazy<Dictionary<string, IReadOnlyCollection<string>>> TaskLocations = new(LoadLocations);
 
     /// <summary>The bound profile's id, <see cref="GearModifierTable.Other"/> for unbound tasks, null without a task.</summary>
     public static string? ForTask(string? task)
@@ -36,6 +37,21 @@ public static class GearCategories
     /// Unbound tasks ("other") only get a combat tool when this holds.
     /// </summary>
     public static bool IsCombatTask(string? task) => !string.IsNullOrEmpty(task) && CombatTasks.Value.Contains(task);
+
+    /// <summary>The declared locations of a method task (its detection signature), empty for unknown tasks.</summary>
+    public static IReadOnlyCollection<string> LocationsOf(string? task)
+        => task != null && TaskLocations.Value.TryGetValue(task, out var locations) ? locations : Array.Empty<string>();
+
+    private static Dictionary<string, IReadOnlyCollection<string>> LoadLocations()
+    {
+        var result = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var task in new TaskRegistry().Tasks.OfType<MethodTask>())
+        {
+            var signature = task.GetDetectionSignature();
+            result.TryAdd(signature.MethodName, signature.Locations?.ToList() ?? new List<string>());
+        }
+        return result;
+    }
 
     private static HashSet<string> LoadCombatTasks()
     {

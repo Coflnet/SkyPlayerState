@@ -6,35 +6,34 @@ using Coflnet.Sky.PlayerState.Models;
 
 namespace Coflnet.Sky.PlayerState.Services.Gear;
 
-/// <summary>A modifier change measured over players, unrounded (see <see cref="GearClusterPublisher"/>).</summary>
+/// <summary>A modifier change measured over players, unrounded (see <see cref="GearModelPublisher"/>).</summary>
 public record MeasuredGearEffect(string Id, IReadOnlyList<GearKeyChange> Changes, int Players, int Pairs, double Ratio);
 
 /// <summary>
 /// Within-player paired deltas (pure). A player's observations of one task, in time order, form periods: runs of the
-/// same finest setup key (L3, L2 for combat categories; unkeyed observations are skipped). Two ADJACENT periods with at
-/// least <see cref="GearClusterOptions.MinHoursPerSide"/> each give the ratio of the player's common rates (after /
+/// same change key (<see cref="GearChangeKeys"/>; unkeyed observations are skipped). Two ADJACENT periods with at
+/// least <see cref="GearModelOptions.MinHoursPerSide"/> each give the ratio of the player's common rates (after /
 /// before, each side from its own period only), which measures the change without the skill difference between players.
 /// An A → B → A sequence gives A → B and B → A.
 /// Changes are aggregated by what differs (so "harvesting 5 -&gt; 6" pools players with otherwise different setups) in a
 /// canonical direction (an inverse change counts with the inverted ratio); counters never count as a change. Each player
 /// counts once per change (geometric mean of their ratios); the published ratio is the median over at least
-/// <see cref="GearClusterOptions.MinPlayers"/> players.
+/// <see cref="GearModelOptions.MinPlayers"/> players.
 /// </summary>
 public static class GearModifierEffects
 {
-    private sealed record Period(GearSetupKey Key, double Hours, double Common)
+    private sealed record Period(GearChangeKey Key, double Hours, double Common)
     {
         public double Rate => Common / Hours;
     }
 
     private sealed record Transition(string Player, string Id, List<GearKeyChange> Changes, double Ratio);
 
-    public static List<MeasuredGearEffect> Derive(IEnumerable<GearClusterInput> inputs, string? category, GearClusterOptions? options = null)
+    public static List<MeasuredGearEffect> Derive(IEnumerable<GearObservationInput> inputs, GearModelOptions? options = null)
     {
-        options ??= GearClusterOptions.Default;
-        var index = GearSetupKeys.FinestLevel(category) - 1;
+        options ??= GearModelOptions.Default;
         var transitions = inputs.GroupBy(i => i.Player, StringComparer.Ordinal)
-            .SelectMany(g => PlayerTransitions(g.Key, g, index, options.MinHoursPerSide))
+            .SelectMany(g => PlayerTransitions(g.Key, g, options.MinHoursPerSide))
             .ToList();
         return transitions.GroupBy(t => t.Id, StringComparer.Ordinal)
             .Select(Aggregate)
@@ -51,9 +50,9 @@ public static class GearModifierEffects
         return new MeasuredGearEffect(group.Key, group.First().Changes, perPlayer.Count, group.Count(), GearStatistics.Median(perPlayer));
     }
 
-    private static IEnumerable<Transition> PlayerTransitions(string player, IEnumerable<GearClusterInput> observations, int index, double minHours)
+    private static IEnumerable<Transition> PlayerTransitions(string player, IEnumerable<GearObservationInput> observations, double minHours)
     {
-        var periods = Periods(observations, index);
+        var periods = Periods(observations);
         for (var i = 1; i < periods.Count; i++)
         {
             var (before, after) = (periods[i - 1], periods[i]);
@@ -66,12 +65,12 @@ public static class GearModifierEffects
     }
 
     /// <summary>Runs of the same key in time order, each with its own hours and common coins.</summary>
-    private static List<Period> Periods(IEnumerable<GearClusterInput> observations, int index)
+    private static List<Period> Periods(IEnumerable<GearObservationInput> observations)
     {
         var periods = new List<Period>();
         foreach (var observation in observations.OrderBy(o => o.Observation.FoldedAt))
         {
-            var key = observation.Keys[index];
+            var key = observation.ChangeKey;
             if (key == null)
                 continue;
             var last = periods.Count > 0 ? periods[^1] : null;
@@ -86,7 +85,7 @@ public static class GearModifierEffects
     }
 
     /// <summary>The parts that differ, by component name; earned counters (<c>*.counters.*</c>) are not a change.</summary>
-    public static List<GearKeyChange> Diff(GearSetupKey before, GearSetupKey after)
+    public static List<GearKeyChange> Diff(GearChangeKey before, GearChangeKey after)
         => before.Parts.Keys.Union(after.Parts.Keys)
             .Where(k => !k.Contains(".counters.", StringComparison.Ordinal))
             .OrderBy(k => k, StringComparer.Ordinal)

@@ -43,10 +43,10 @@ public class TaskGearControllerTests
     }
 
     private static TaskGearController Controller(GearSetupService setups, InMemoryGearReader? reader = null)
-        => new(setups, Clusters(setups, reader));
+        => new(setups, Models(setups, reader));
 
-    private static GearClusterService Clusters(GearSetupService setups, InMemoryGearReader? reader = null)
-        => new(reader ?? new InMemoryGearReader(), Registry, setups, NullLogger<GearClusterService>.Instance);
+    private static GearModelService Models(GearSetupService setups, InMemoryGearReader? reader = null)
+        => new(reader ?? new InMemoryGearReader(), Registry, setups, NullLogger<GearModelService>.Instance);
 
     [Test]
     public async Task Service_EstimatesEveryBoundTask()
@@ -154,105 +154,134 @@ public class TaskGearControllerTests
     }
 
     [Test]
-    public async Task GetClusters_UnknownOrHiddenTask_Is404TaskNotFound()
+    public async Task GetModel_UnknownOrHiddenTask_Is404TaskNotFound()
     {
         var controller = Controller(MakeService(GearFixtures.All()));
 
-        Slug(await controller.GetClusters("Not A Task", CancellationToken.None)).Should().Be("task_not_found");
-        Slug(await controller.GetClusters("Bazaar Purchases", CancellationToken.None)).Should().Be("task_not_found");
+        Slug(await controller.GetModel("Not A Task", CancellationToken.None)).Should().Be("task_not_found");
+        Slug(await controller.GetModel("Bazaar Purchases", CancellationToken.None)).Should().Be("task_not_found");
     }
 
     [Test]
-    public async Task GetClusters_NothingMeasured_ReturnsTheLabelledEstimatesAsFallback()
+    public async Task GetModel_NothingMeasured_ReturnsTheFormulaAndTheLabelledEstimatesAsFallback()
     {
-        var result = (await Controller(MakeService(GearFixtures.All())).GetClusters("wheat farming", CancellationToken.None)).Value!;
+        var result = (await Controller(MakeService(GearFixtures.All())).GetModel("wheat farming", CancellationToken.None)).Value!;
 
         result.TaskName.Should().Be("Wheat Farming");
         result.Category.Should().Be(GearModifierTable.Farming);
-        result.Clusters.Should().BeEmpty();
         result.ComputedAt.Should().BeNull("no derivation ran yet");
+        result.Distribution.Should().BeNull();
+        result.LateGame.Should().BeNull();
+        result.Curve.Should().BeNull();
+        result.Pieces.Should().BeEmpty();
+        result.RecommendedEndgame.Should().BeNull();
+        result.ScoreFormula.Weights.Should().ContainKeys("Farming Fortune", "Wheat Fortune");
         result.Estimates.Should().NotBeNull();
         result.Estimates!.Baseline.Basis.Should().Be(GearSetupBasis.Estimate);
         result.Estimates.Setups.Should().NotBeEmpty().And.OnlyContain(s => s.Basis == GearSetupBasis.Estimate);
     }
 
     [Test]
-    public async Task GetClusters_Measured_ResponseShape()
+    public async Task GetModel_Measured_ResponseShape()
     {
         var setups = MakeService(GearFixtures.All());
         var reader = new InMemoryGearReader();
-        var gear = GearClusterTestData.TestGear();
-        var other = GearClusterTestData.TestGear();
-        other.Slots["tool"].Stats["Farming Fortune"] = 256;
-        other.Slots["tool"].HotPotatoCount = 10; // lore stats are not part of the fingerprint, the potato books are
-        reader.Add(GearClusterTestData.Obs(1, gear, 1, 10_000), GearClusterTestData.Obs(2, other, 1, 14_000));
-        var clusters = Clusters(setups, reader);
-        await clusters.Refresh("Wheat Farming", GearClusterTestData.Now);
+        // five players, tool Farming Fortune 150 .. 250 (other harvesting levels, so other fingerprints: lore stats are
+        // not part of a fingerprint); Fermento set (+75) and a level 100 Elephant (+150) on top
+        var rates = new[] { 10_000, 11_000, 12_000, 13_000, 15_000 };
+        reader.Add(rates.Select((rate, i) => GearModelTestData.Obs(i + 1, GearModelTestData.TestGear(harvesting: i + 1, toolFortune: 150 + 25 * i), 1, rate)).ToArray());
+        var models = Models(setups, reader);
+        await models.Refresh("Wheat Farming", GearModelTestData.Now);
 
-        var result = (await new TaskGearController(setups, clusters).GetClusters("Wheat Farming", CancellationToken.None)).Value!;
+        var result = (await new TaskGearController(setups, models).GetModel("Wheat Farming", CancellationToken.None)).Value!;
         var json = JsonNode.Parse(JsonSerializer.Serialize(result, new JsonSerializerOptions(JsonSerializerDefaults.Web)))!;
 
         json["taskName"]!.GetValue<string>().Should().Be("Wheat Farming");
-        json["computedAt"]!.GetValue<System.DateTime>().Should().Be(GearClusterTestData.Now);
+        json["computedAt"]!.GetValue<System.DateTime>().Should().Be(GearModelTestData.Now);
         json["windowWeeks"]!.GetValue<int>().Should().Be(13);
         json["minPlayers"]!.GetValue<int>().Should().Be(2);
-        json["minHours"]!.GetValue<double>().Should().Be(1);
-        var all = json["clusters"]!.AsArray();
-        all.Select(c => c!["level"]!.GetValue<int>()).Should().BeEquivalentTo([1, 2, 3], "nested levels of the same two players");
-        var cluster = all.Single(c => c!["level"]!.GetValue<int>() == 3)!;
-        cluster["basis"]!.GetValue<string>().Should().Be("measured");
-        cluster["players"]!.GetValue<int>().Should().Be(2);
-        cluster["coinsPerHour"]!.GetValue<double>().Should().Be(12_000);
-        cluster["rounded"]!.GetValue<bool>().Should().BeTrue();
-        cluster["commonP25"].Should().BeNull();
-        cluster["observations"]!.GetValue<int>().Should().Be(2);
-        cluster["observationsLabel"]!.GetValue<string>().Should().Be("2+");
-        cluster["hours"]!.GetValue<double>().Should().Be(2);
-        cluster["parentKey"]!.GetValue<string>().Should().StartWith("L2|");
-        cluster["includesChildren"]!.GetValue<bool>().Should().BeFalse();
-        all.Single(c => c!["level"]!.GetValue<int>() == 1)!["includesChildren"]!.GetValue<bool>().Should().BeTrue();
-        cluster["slots"]!["tool"]!["tag"]!.GetValue<string>().Should().Be("THEORETICAL_HOE_WHEAT_3");
-        // regression: one player's exact lore stat was published; now the median of both players, rounded (175, 256 -> 215.5)
-        cluster["slots"]!["tool"]!["stats"]!["Farming Fortune"]!.GetValue<double>().Should().Be(220);
-        cluster["pet"]!["type"]!.GetValue<string>().Should().Be("ELEPHANT");
+        json["scoreFormula"]!["kind"]!.GetValue<string>().Should().Be("weighted-sum");
+        var distribution = json["distribution"]!;
+        distribution["players"]!.GetValue<int>().Should().Be(5);
+        distribution["scoreP50"]!.GetValue<double>().Should().Be(420, "tool 200 + Fermento 75 + Elephant 150 = 425, 2 significant digits");
+        distribution["rounded"]!.GetValue<bool>().Should().BeFalse();
+        var lateGame = json["lateGame"]!;
+        lateGame["widened"]!.GetValue<bool>().Should().BeTrue("the P90 holds one player, widened to the next build");
+        lateGame["playersLabel"]!.GetValue<string>().Should().Be("2+");
+        lateGame["coinsPerHour"]!.GetValue<double>().Should().Be(14_000, "the median of the top two players' rates");
+        lateGame["commonP25"].Should().BeNull();
+        lateGame["confidence"]!.GetValue<string>().Should().Be("low");
+        var curve = json["curve"]!;
+        curve["players"]!.GetValue<int>().Should().Be(5);
+        curve["points"]!.AsArray().Select(p => p!["scorePercentile"]!.GetValue<int>()).Should().Equal(10, 25, 50, 75, 90);
+        curve["slopePer10Pct"]!.GetValue<double>().Should().BePositive();
+        var tool = json["pieces"]!.AsArray().Single(p => p!["slot"]!.GetValue<string>() == "tool")!;
+        tool["item"]!["tag"]!.GetValue<string>().Should().Be("THEORETICAL_HOE_WHEAT_3");
+        tool["item"]!["stats"]!["Farming Fortune"]!.GetValue<double>().Should().Be(200, "the median over the players");
+        tool["item"]!["enchants"]!.AsObject().Should().BeEmpty("every harvesting level belongs to one player");
+        tool["players"]!.GetValue<int>().Should().Be(5);
+        var helmet = json["pieces"]!.AsArray().Single(p => p!["slot"]!.GetValue<string>() == "helmet")!;
+        helmet["effects"]!.AsArray().Single()!["id"]!.GetValue<string>().Should().Be("set-fermento");
+        var endgame = json["recommendedEndgame"]!;
+        endgame["basis"]!.GetValue<string>().Should().Be("curve");
+        endgame["score"]!.GetValue<double>().Should().Be(420);
+        endgame["extrapolated"]!.GetValue<bool>().Should().BeFalse();
+        endgame["pieces"]!["tool"]!.GetValue<string>().Should().Be(tool["id"]!.GetValue<string>());
+        endgame["pieces"]!["helmet"]!.GetValue<string>().Should().Be(helmet["id"]!.GetValue<string>(), "the full Fermento set adds 75");
+        endgame["effects"]!.AsArray().Select(e => e!.GetValue<string>()).Should().BeEquivalentTo(["set-fermento", "pet-elephant-trunk-efficiency"]);
         json["modifierEffects"]!.AsArray().Should().BeEmpty();
         json["estimates"]!["setups"]![0]!["basis"]!.GetValue<string>().Should().Be("estimate");
     }
 
+    [Test]
+    public async Task GetClusters_TheOldRoute_ReturnsTheSameModel()
+    {
+        var controller = Controller(MakeService(GearFixtures.All()));
+
+#pragma warning disable CS0618 // the obsolete route is what this test covers
+        var old = (await controller.GetClusters("Wheat Farming", CancellationToken.None)).Value!;
+        Slug(await controller.GetClusters("Not A Task", CancellationToken.None)).Should().Be("task_not_found");
+#pragma warning restore CS0618
+        var current = (await controller.GetModel("Wheat Farming", CancellationToken.None)).Value!;
+
+        old.Should().BeEquivalentTo(current);
+    }
+
     /// <summary>Regression: the empty response before the first derivation was cached for 5 minutes.</summary>
     [Test]
-    public async Task GetClusters_BeforeTheFirstDerivation_IsNotCacheable()
+    public async Task GetModel_BeforeTheFirstDerivation_IsNotCacheable()
     {
         var setups = MakeService(GearFixtures.All());
         var reader = new InMemoryGearReader();
-        var clusters = Clusters(setups, reader);
-        TaskGearController Controller() => new(setups, clusters)
+        var models = Models(setups, reader);
+        TaskGearController Controller() => new(setups, models)
         {
             ControllerContext = new ControllerContext { HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext() }
         };
 
         var before = Controller();
-        await before.GetClusters("Wheat Farming", CancellationToken.None);
+        await before.GetModel("Wheat Farming", CancellationToken.None);
         before.Response.Headers.CacheControl.ToString().Should().Be("no-cache");
 
-        await clusters.Refresh("Wheat Farming", GearClusterTestData.Now);
+        await models.Refresh("Wheat Farming", GearModelTestData.Now);
         var after = Controller();
-        await after.GetClusters("Wheat Farming", CancellationToken.None);
+        await after.GetModel("Wheat Farming", CancellationToken.None);
         after.Response.Headers.CacheControl.ToString().Should().NotContain("no-cache");
     }
 
-    [Test]
-    public void GearClustersRoute_IsAbsolute_AndOutranksThePlayerIdRoutes()
+    [TestCase(nameof(TaskGearController.GetModel), "/Task/gear-model/{taskName}")]
+    [TestCase(nameof(TaskGearController.GetClusters), "/Task/gear-clusters/{taskName}")]
+    public void GearModelRoutes_AreAbsolute_AndOutrankThePlayerIdRoutes(string action, string expected)
     {
-        var template = typeof(TaskGearController).GetMethod(nameof(TaskGearController.GetClusters))!
+        var template = typeof(TaskGearController).GetMethod(action)!
             .GetCustomAttribute<HttpGetAttribute>()!.Template!;
-        string Template(System.Type controller, string action) => controller.GetMethod(action)!
+        string Template(System.Type controller, string name) => controller.GetMethod(name)!
             .GetCustomAttribute<HttpGetAttribute>()!.Template ?? "";
-        var clusters = RoutePrecedence.ComputeInbound(TemplateParser.Parse(template.TrimStart('/')));
+        var model = RoutePrecedence.ComputeInbound(TemplateParser.Parse(template.TrimStart('/')));
         var playerResult = RoutePrecedence.ComputeInbound(TemplateParser.Parse("Task/" + Template(typeof(TaskController), nameof(TaskController.GetResults))));
 
-        template.Should().Be("/Task/gear-clusters/{taskName}");
-        clusters.Should().BeLessThan(playerResult);
+        template.Should().Be(expected);
+        model.Should().BeLessThan(playerResult);
     }
 
     private static string? Slug<T>(ActionResult<T> result) =>

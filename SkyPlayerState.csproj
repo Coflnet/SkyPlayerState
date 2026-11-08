@@ -24,6 +24,8 @@
     <!-- Researched gear setups (Tasks/Gear/GearProfileCatalog.cs): every json file dropped into this folder is
          embedded and loaded; the catalog tests validate each one. Schema: Services/Tasks/Gear/profiles/README.md. -->
     <EmbeddedResource Include="Services\Tasks\Gear\profiles\*.json" LogicalName="Coflnet.Sky.PlayerState.Tasks.Gear.profiles.%(Filename).json" />
+    <!-- Special gear effects counted into the gear score (Services/Gear/GearEffectTable.cs), from the effects research dossier. -->
+    <EmbeddedResource Include="Services\Gear\gear-effects.json" LogicalName="Coflnet.Sky.PlayerState.Services.Gear.gear-effects.json" />
   </ItemGroup>
 
   <ItemGroup>

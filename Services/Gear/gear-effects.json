@@ -1,0 +1,585 @@
+{
+  "note": "Special effects of gear and pets that are not lore stat lines, counted into the gear score (GearEffectTable). Source: research-gear-effects.md (2026-11-08). Only rows with a numeric value that does not depend on a skill level, collection, counter, mob type or a short buff window. Pet values are at level 'atLevel' (default 100), linear in the level; of several entries with the same pet, mode, stats and target pieces the highest matching minRarity wins. Set tiers are the value per worn piece count (index 0 = 1 piece). mode multiply: value is the fraction added (0.2 = x1.2) to the build totals of the stats, or to the stats of 'pieceTags' only. zones: island or zone names as SkyblockZones knows them, matched against the task's locations. ALL VALUES AND THE SELECTION ARE TUNABLE in the data review.",
+  "effects": [
+    {
+      "id": "set-tater",
+      "kind": "set",
+      "tags": [
+        "MELON_HELMET",
+        "MELON_CHESTPLATE",
+        "MELON_LEGGINGS",
+        "MELON_BOOTS"
+      ],
+      "tiers": [
+        0,
+        10,
+        20,
+        30
+      ],
+      "stats": [
+        "Farming Fortune"
+      ],
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Tater_Armor"
+    },
+    {
+      "id": "set-cropie",
+      "kind": "set",
+      "tags": [
+        "CROPIE_HELMET",
+        "CROPIE_CHESTPLATE",
+        "CROPIE_LEGGINGS",
+        "CROPIE_BOOTS"
+      ],
+      "tiers": [
+        0,
+        15,
+        30,
+        45
+      ],
+      "stats": [
+        "Farming Fortune"
+      ],
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Cropie_Armor"
+    },
+    {
+      "id": "set-squash",
+      "kind": "set",
+      "tags": [
+        "SQUASH_HELMET",
+        "SQUASH_CHESTPLATE",
+        "SQUASH_LEGGINGS",
+        "SQUASH_BOOTS"
+      ],
+      "tiers": [
+        0,
+        20,
+        40,
+        60
+      ],
+      "stats": [
+        "Farming Fortune"
+      ],
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Squash_Armor"
+    },
+    {
+      "id": "set-fermento",
+      "kind": "set",
+      "tags": [
+        "FERMENTO_HELMET",
+        "FERMENTO_CHESTPLATE",
+        "FERMENTO_LEGGINGS",
+        "FERMENTO_BOOTS"
+      ],
+      "tiers": [
+        0,
+        25,
+        50,
+        75
+      ],
+      "stats": [
+        "Farming Fortune"
+      ],
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Fermento_Armor"
+    },
+    {
+      "id": "set-helianthus",
+      "kind": "set",
+      "tags": [
+        "HELIANTHUS_HELMET",
+        "HELIANTHUS_CHESTPLATE",
+        "HELIANTHUS_LEGGINGS",
+        "HELIANTHUS_BOOTS"
+      ],
+      "tiers": [
+        0,
+        25,
+        50,
+        75
+      ],
+      "stats": [
+        "Farming Fortune"
+      ],
+      "confidence": "low",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Helianthus_Armor"
+    },
+    {
+      "id": "set-glossy-mineral",
+      "kind": "set",
+      "tags": [
+        "GLOSSY_MINERAL_HELMET",
+        "GLOSSY_MINERAL_CHESTPLATE",
+        "GLOSSY_MINERAL_LEGGINGS",
+        "GLOSSY_MINERAL_BOOTS"
+      ],
+      "tiers": [
+        150,
+        300,
+        450,
+        600
+      ],
+      "stats": [
+        "Mining Spread"
+      ],
+      "confidence": "med",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Glossy_Mineral_Armor",
+      "note": "Mining Spread on ores and blocks; tier to piece count mapping inferred by the dossier"
+    },
+    {
+      "id": "set-magma-lord",
+      "kind": "set",
+      "tags": [
+        "MAGMA_LORD_HELMET",
+        "MAGMA_LORD_CHESTPLATE",
+        "MAGMA_LORD_LEGGINGS",
+        "MAGMA_LORD_BOOTS",
+        "MAGMA_LORD_GAUNTLET"
+      ],
+      "tiers": [
+        0,
+        0,
+        0,
+        1,
+        1.5
+      ],
+      "stats": [
+        "Sea Creature Chance"
+      ],
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Magma_Lord_Armor",
+      "note": "Lord's Blessing: 4 pieces +1, 5 pieces (with the Magma Lord Necklace) +1.5 (5 piece mapping: med)"
+    },
+    {
+      "id": "set-superior-dragon",
+      "kind": "set",
+      "mode": "multiply",
+      "tags": [
+        "SUPERIOR_DRAGON_HELMET",
+        "SUPERIOR_DRAGON_CHESTPLATE",
+        "SUPERIOR_DRAGON_LEGGINGS",
+        "SUPERIOR_DRAGON_BOOTS"
+      ],
+      "tiers": [
+        0,
+        0,
+        0,
+        0.05
+      ],
+      "stats": [
+        "Damage",
+        "Strength",
+        "Crit Damage"
+      ],
+      "confidence": "high",
+      "source": "https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO/blob/master/items/SUPERIOR_DRAGON_CHESTPLATE.json",
+      "note": "Superior Blood: +5% all combat stats"
+    },
+    {
+      "id": "pet-elephant-trunk-efficiency",
+      "kind": "pet",
+      "petType": "ELEPHANT",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Farming Fortune"
+      ],
+      "value": 150,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Elephant_Pet"
+    },
+    {
+      "id": "pet-goblin-grunt-work",
+      "kind": "pet",
+      "petType": "GOBLIN",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Mining Speed"
+      ],
+      "value": 250,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Goblin_Pet",
+      "category": "mining-ore",
+      "note": "when mining ores"
+    },
+    {
+      "id": "pet-goblin-fetid-thief",
+      "kind": "pet",
+      "petType": "GOBLIN",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Mining Spread"
+      ],
+      "value": 100,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Goblin_Pet",
+      "zones": [
+        "Mines of Divan"
+      ]
+    },
+    {
+      "id": "pet-scatha-drill-infusion-epic",
+      "kind": "pet",
+      "petType": "SCATHA",
+      "minRarity": "EPIC",
+      "stats": [
+        "Gemstone Fortune"
+      ],
+      "value": 100,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Scatha_Pet",
+      "toolType": "DRILL"
+    },
+    {
+      "id": "pet-scatha-drill-infusion-legendary",
+      "kind": "pet",
+      "petType": "SCATHA",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Gemstone Fortune"
+      ],
+      "value": 125,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Scatha_Pet",
+      "toolType": "DRILL"
+    },
+    {
+      "id": "pet-bal-furnace-epic",
+      "kind": "pet",
+      "petType": "BAL",
+      "minRarity": "EPIC",
+      "stats": [
+        "Pristine"
+      ],
+      "value": 2,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Bal_Pet",
+      "zones": [
+        "Magma Fields"
+      ]
+    },
+    {
+      "id": "pet-bal-furnace-legendary",
+      "kind": "pet",
+      "petType": "BAL",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Pristine"
+      ],
+      "value": 3,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Bal_Pet",
+      "zones": [
+        "Magma Fields"
+      ]
+    },
+    {
+      "id": "pet-silverfish-dexterity",
+      "kind": "pet",
+      "petType": "SILVERFISH",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Mining Speed"
+      ],
+      "value": 150,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Silverfish_Pet"
+    },
+    {
+      "id": "pet-glacite-golem-iceborn",
+      "kind": "pet",
+      "petType": "GLACITE_GOLEM",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Mining Fortune"
+      ],
+      "value": 100,
+      "confidence": "med",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Glacite_Golem_Pet",
+      "zones": [
+        "Glacite Mineshafts"
+      ]
+    },
+    {
+      "id": "pet-kuudra-fortune",
+      "kind": "pet",
+      "petType": "KUUDRA",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Mining Fortune"
+      ],
+      "value": 100,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Kuudra_Pet",
+      "zones": [
+        "Crimson Isle"
+      ]
+    },
+    {
+      "id": "pet-kuudra-trophy-bait",
+      "kind": "pet",
+      "petType": "KUUDRA",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Trophy Chance"
+      ],
+      "value": 20,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Kuudra_Pet",
+      "zones": [
+        "Crimson Isle"
+      ]
+    },
+    {
+      "id": "pet-flying-fish-quick-reel-rare",
+      "kind": "pet",
+      "petType": "FLYING_FISH",
+      "minRarity": "RARE",
+      "stats": [
+        "Fishing Speed"
+      ],
+      "value": 60,
+      "confidence": "high",
+      "source": "https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO/blob/master/items/FLYING_FISH;4.json"
+    },
+    {
+      "id": "pet-flying-fish-quick-reel-epic",
+      "kind": "pet",
+      "petType": "FLYING_FISH",
+      "minRarity": "EPIC",
+      "stats": [
+        "Fishing Speed"
+      ],
+      "value": 75,
+      "confidence": "high",
+      "source": "https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO/blob/master/items/FLYING_FISH;4.json"
+    },
+    {
+      "id": "pet-flying-fish-quick-reel-legendary",
+      "kind": "pet",
+      "petType": "FLYING_FISH",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Fishing Speed"
+      ],
+      "value": 80,
+      "confidence": "high",
+      "source": "https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO/blob/master/items/FLYING_FISH;4.json"
+    },
+    {
+      "id": "pet-flying-fish-deep-sea-diver",
+      "kind": "pet",
+      "petType": "FLYING_FISH",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Sea Creature Chance",
+        "Fishing Speed",
+        "Double Hook Chance",
+        "Trophy Chance"
+      ],
+      "value": 0.2,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Flying_Fish_Pet",
+      "mode": "multiply",
+      "pieceTags": [
+        "DIVER_HELMET",
+        "DIVER_CHESTPLATE",
+        "DIVER_LEGGINGS",
+        "DIVER_BOOTS"
+      ],
+      "note": "+20% stats of Diver armor (Abyssal armor not modelled)"
+    },
+    {
+      "id": "pet-flying-fish-magmatic-diver",
+      "kind": "pet",
+      "petType": "FLYING_FISH",
+      "minRarity": "MYTHIC",
+      "stats": [
+        "Sea Creature Chance",
+        "Fishing Speed",
+        "Double Hook Chance",
+        "Trophy Chance"
+      ],
+      "value": 0.2,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Flying_Fish_Pet",
+      "mode": "multiply",
+      "pieceTags": [
+        "MAGMA_LORD_HELMET",
+        "MAGMA_LORD_CHESTPLATE",
+        "MAGMA_LORD_LEGGINGS",
+        "MAGMA_LORD_BOOTS"
+      ],
+      "note": "+20% stats of the Magma Lord armor pieces (armor only, not the necklace)"
+    },
+    {
+      "id": "pet-baby-yeti-cold-breeze-rare",
+      "kind": "pet",
+      "petType": "BABY_YETI",
+      "minRarity": "RARE",
+      "stats": [
+        "Sea Creature Chance",
+        "Fishing Speed",
+        "Double Hook Chance",
+        "Trophy Chance",
+        "Damage",
+        "Strength",
+        "Crit Damage"
+      ],
+      "value": 0.1,
+      "confidence": "med",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Baby_Yeti_Pet",
+      "mode": "multiply",
+      "zones": [
+        "Jerry"
+      ],
+      "note": "x1.1 total fishing and combat stats on Jerry's Workshop; base of the percentage unspecified"
+    },
+    {
+      "id": "pet-baby-yeti-cold-breeze-legendary",
+      "kind": "pet",
+      "petType": "BABY_YETI",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Sea Creature Chance",
+        "Fishing Speed",
+        "Double Hook Chance",
+        "Trophy Chance",
+        "Damage",
+        "Strength",
+        "Crit Damage"
+      ],
+      "value": 0.2,
+      "confidence": "med",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Baby_Yeti_Pet",
+      "mode": "multiply",
+      "zones": [
+        "Jerry"
+      ],
+      "note": "x1.2 total fishing and combat stats on Jerry's Workshop; base of the percentage unspecified"
+    },
+    {
+      "id": "pet-dolphin-echolocation",
+      "kind": "pet",
+      "petType": "DOLPHIN",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Sea Creature Chance"
+      ],
+      "value": 10,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Dolphin_Pet"
+    },
+    {
+      "id": "pet-reindeer-infused",
+      "kind": "pet",
+      "petType": "REINDEER",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Fishing Speed"
+      ],
+      "value": 75,
+      "confidence": "med",
+      "source": "https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO/blob/master/items/REINDEER;4.json",
+      "zones": [
+        "Jerry"
+      ]
+    },
+    {
+      "id": "pet-penguin-subzero-hero",
+      "kind": "pet",
+      "petType": "PENGUIN",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Fishing Speed"
+      ],
+      "value": 75,
+      "confidence": "med",
+      "source": "https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO/blob/master/items/PENGUIN;4.json",
+      "zones": [
+        "Glacite Tunnels"
+      ]
+    },
+    {
+      "id": "pet-spinosaurus-adaptive-predator-fs",
+      "kind": "pet",
+      "petType": "SPINOSAURUS",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Fishing Speed"
+      ],
+      "value": 25,
+      "confidence": "med",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Spinosaurus_Pet",
+      "note": "+50% of the pet's base stats (FS 50)"
+    },
+    {
+      "id": "pet-spinosaurus-adaptive-predator-scc",
+      "kind": "pet",
+      "petType": "SPINOSAURUS",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Sea Creature Chance"
+      ],
+      "value": 2.5,
+      "confidence": "med",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Spinosaurus_Pet",
+      "note": "+50% of the pet's base stats (SCC 5)"
+    },
+    {
+      "id": "pet-spinosaurus-adaptive-predator-trophy",
+      "kind": "pet",
+      "petType": "SPINOSAURUS",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Trophy Chance"
+      ],
+      "value": 2.5,
+      "confidence": "med",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Spinosaurus_Pet",
+      "note": "+50% of the pet's base stats (Trophy 5)"
+    },
+    {
+      "id": "pet-monkey-treeborn-common",
+      "kind": "pet",
+      "petType": "MONKEY",
+      "minRarity": "COMMON",
+      "stats": [
+        "Foraging Fortune"
+      ],
+      "value": 40,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Monkey_Pet",
+      "note": "Common +40 to Legendary +60; the rarities between use the Common value (lower bound)"
+    },
+    {
+      "id": "pet-monkey-treeborn-legendary",
+      "kind": "pet",
+      "petType": "MONKEY",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Foraging Fortune"
+      ],
+      "value": 60,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Monkey_Pet"
+    },
+    {
+      "id": "pet-ender-dragon-superior",
+      "kind": "pet",
+      "petType": "ENDER_DRAGON",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Damage",
+        "Strength",
+        "Crit Damage"
+      ],
+      "value": 0.1,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Ender_Dragon_Pet",
+      "mode": "multiply",
+      "note": "Superior: +10% all combat stats"
+    }
+  ]
+}

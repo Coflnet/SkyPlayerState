@@ -14,19 +14,20 @@ using Microsoft.Extensions.Logging;
 
 namespace Coflnet.Sky.PlayerState.Services.Gear;
 
-/// <summary>The public measured setups of one task as of one derivation.</summary>
-public sealed record MeasuredTaskGear(string TaskName, string Category, DateTime ComputedAt,
-    List<GearCluster> Clusters, List<GearModifierEffect> Effects);
+/// <summary>The public gear model of one task as of one derivation (everything already privacy rounded).</summary>
+public sealed record MeasuredTaskGear(string TaskName, string Category, DateTime ComputedAt, GearScoreFormulaInfo Formula,
+    GearScoreSummary? Distribution, GearLateGame? LateGame, GearRateCurve? Curve, List<GearCatalogPiece> Pieces,
+    GearRecommendedBuild? Recommended, List<GearModifierEffect> Effects);
 
 /// <summary>
-/// Measured gear setups per task: loads the last <see cref="WindowWeeks"/> weeks of a task's observations as slim rows
+/// The measured gear model per task: loads the last <see cref="WindowWeeks"/> weeks of a task's observations as slim rows
 /// (strings and flag sets interned, stats only of "base+gear" rows) and their gear (fingerprint rows are immutable, so
-/// they are kept in a size limited LRU cache), computes each row's setup keys once (cached per fingerprint, flags and
-/// category), derives the clusters and modifier effects
-/// (<see cref="GearClustering"/>, <see cref="GearModifierEffects"/>) and keeps the public result in memory. Refreshed
-/// hourly by <see cref="GearClusterRefresher"/>; every pod derives its own copy.
+/// they are kept in a size limited LRU cache), and derives (<see cref="Compute"/>) the gear score distribution over
+/// player-builds, the late game cohort, the rate curve, the piece catalog, the recommended endgame build and the
+/// modifier effects; keeps the public result in memory. Refreshed hourly by <see cref="GearModelRefresher"/>; every pod
+/// derives its own copy.
 /// </summary>
-public class GearClusterService
+public class GearModelService
 {
     public const int WindowWeeks = 13;
     /// <summary>Most observations read per task (newest first), bounding memory for very popular tasks.</summary>
@@ -37,19 +38,19 @@ public class GearClusterService
     private readonly IGearObservationReader reader;
     private readonly TaskRegistry registry;
     private readonly GearSetupService setups;
-    private readonly ILogger<GearClusterService> logger;
-    private readonly GearClusterOptions options;
+    private readonly ILogger<GearModelService> logger;
+    private readonly GearModelOptions options;
     private readonly ConcurrentDictionary<string, MeasuredTaskGear> results = new(StringComparer.OrdinalIgnoreCase);
     private readonly MemoryCache gearCache;
     private static readonly MemoryCacheEntryOptions GearEntry = new() { Size = 1 };
 
-    public GearClusterService(IGearObservationReader reader, TaskRegistry registry, GearSetupService setups,
-        ILogger<GearClusterService> logger) : this(reader, registry, setups, logger, GearClusterOptions.Default)
+    public GearModelService(IGearObservationReader reader, TaskRegistry registry, GearSetupService setups,
+        ILogger<GearModelService> logger) : this(reader, registry, setups, logger, GearModelOptions.Default)
     {
     }
 
-    internal GearClusterService(IGearObservationReader reader, TaskRegistry registry, GearSetupService setups,
-        ILogger<GearClusterService> logger, GearClusterOptions options, int gearCacheSize = DefaultGearCacheSize)
+    internal GearModelService(IGearObservationReader reader, TaskRegistry registry, GearSetupService setups,
+        ILogger<GearModelService> logger, GearModelOptions options, int gearCacheSize = DefaultGearCacheSize)
     {
         gearCache = new MemoryCache(new MemoryCacheOptions { SizeLimit = gearCacheSize });
         this.reader = reader;
@@ -66,26 +67,38 @@ public class GearClusterService
     /// <summary>The last derivation of the task, null before the first one.</summary>
     public MeasuredTaskGear? GetMeasured(string taskName) => results.GetValueOrDefault(taskName);
 
-    /// <summary>The endpoint response: measured clusters plus the curated estimates; null for an unknown task.</summary>
-    public async Task<TaskGearClusters?> GetResponse(string taskName, CancellationToken cancellationToken = default)
+    /// <summary>The endpoint response: the measured model plus the curated estimates; null for an unknown task.</summary>
+    public async Task<TaskGearModel?> GetResponse(string taskName, CancellationToken cancellationToken = default)
     {
         var name = CanonicalTaskName(taskName);
         if (name == null)
             return null;
         var measured = GetMeasured(name);
-        return new TaskGearClusters
+        var category = measured?.Category ?? GearCategories.ForTask(name) ?? GearModifierTable.Other;
+        return new TaskGearModel
         {
             TaskName = name,
-            Category = measured?.Category ?? GearCategories.ForTask(name) ?? GearModifierTable.Other,
+            Category = category,
             ComputedAt = measured?.ComputedAt,
             WindowWeeks = WindowWeeks,
             MinPlayers = options.MinPlayers,
             MinHours = options.MinHours,
-            Clusters = measured?.Clusters ?? new(),
+            ScoreFormula = measured?.Formula ?? FormulaInfo(name, category),
+            Distribution = measured?.Distribution,
+            LateGame = measured?.LateGame,
+            Curve = measured?.Curve,
+            Pieces = measured?.Pieces ?? new(),
+            RecommendedEndgame = measured?.Recommended,
             ModifierEffects = measured?.Effects ?? new(),
             Estimates = await TryEstimates(name, cancellationToken)
         };
     }
+
+    private static GearScoreFormulaInfo FormulaInfo(string task, string category)
+        => FormulaInfo(GearScorer.For(task, category));
+
+    private static GearScoreFormulaInfo FormulaInfo(GearScorer? scorer)
+        => scorer == null ? GearModelPublisher.NoFormula() : GearModelPublisher.Formula(scorer.Formula, scorer.Effects.Count);
 
     private async Task<TaskGearSetups?> TryEstimates(string taskName, CancellationToken cancellationToken)
     {
@@ -95,7 +108,7 @@ public class GearClusterService
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            logger.LogWarning(e, "Gear setup estimates of {Task} failed, returning the measured clusters only", taskName);
+            logger.LogWarning(e, "Gear setup estimates of {Task} failed, returning the measured model only", taskName);
             return null;
         }
     }
@@ -113,7 +126,7 @@ public class GearClusterService
             }
             if (++failures < MaxConsecutiveFailures)
                 continue;
-            logger.LogWarning("Gear cluster refresh stopped after {Failures} failed tasks in a row", failures);
+            logger.LogWarning("Gear model refresh stopped after {Failures} failed tasks in a row", failures);
             return;
         }
     }
@@ -125,9 +138,10 @@ public class GearClusterService
             await Refresh(task, DateTime.UtcNow, cancellationToken);
             return true;
         }
-        catch (Exception e) when (e is not OperationCanceledException)
+        catch (Exception e) when (!cancellationToken.IsCancellationRequested)
         {
-            logger.LogWarning("Gear clusters of {Task} could not be derived: {Error}", task, e.Message);
+            // a store timeout surfaces as an OperationCanceledException too: only shutdown may end the cycle
+            logger.LogWarning("Gear model of {Task} could not be derived: {Error}", task, e.Message);
             return false;
         }
     }
@@ -142,24 +156,62 @@ public class GearClusterService
 
     /// <summary>
     /// Derives the public result (pure). Observations filtered with another category (the task's binding changed since)
-    /// are left out: their pieces were narrowed to other modifiers.
+    /// are left out: their pieces were narrowed to other modifiers. A task without a score formula only gets its
+    /// modifier effects.
     /// </summary>
-    public static MeasuredTaskGear Compute(string task, IReadOnlyList<GearClusterInput> inputs, DateTime now, GearClusterOptions? options = null)
+    public static MeasuredTaskGear Compute(string task, IReadOnlyList<GearObservationInput> inputs, DateTime now,
+        GearModelOptions? options = null, GearEffectTable? effects = null)
     {
-        options ??= GearClusterOptions.Default;
+        options ??= GearModelOptions.Default;
         var category = GearCategories.ForTask(task) ?? GearModifierTable.Other;
         var matching = inputs.Where(i => i.Observation.Category == category).ToList();
-        var clusters = GearClusterPublisher.Clusters(GearClustering.Derive(matching, options), options);
-        var effects = GearModifierEffects.Derive(matching, category, options)
-            .Select(e => GearClusterPublisher.Effect(e, options)).OfType<GearModifierEffect>().ToList();
-        return new MeasuredTaskGear(task, category, now, clusters, effects);
+        var modifierEffects = GearModifierEffects.Derive(matching, options)
+            .Select(e => GearModelPublisher.Effect(e, options)).OfType<GearModifierEffect>().ToList();
+        var scorer = GearScorer.For(task, category, effects);
+        if (scorer == null)
+            return new MeasuredTaskGear(task, category, now, GearModelPublisher.NoFormula(), null, null, null, new(), null, modifierEffects);
+        return Scored(task, category, now, matching, scorer, modifierEffects, options);
     }
 
-    private async Task<List<GearClusterInput>> Load(string task, DateTime now, CancellationToken cancellationToken)
+    private static MeasuredTaskGear Scored(string task, string category, DateTime now, List<GearObservationInput> matching,
+        GearScorer scorer, List<GearModifierEffect> modifierEffects, GearModelOptions options)
+    {
+        var builds = GearPlayerBuilds.From(matching, scorer);
+        var distribution = GearScoreDistribution.Of(builds, options);
+        var cohort = distribution == null ? null : GearLateGameCohort.Select(distribution, options);
+        var lateGame = cohort == null ? null : GearModelPublisher.LateGame(cohort, options);
+        var rare = distribution == null ? 0 : distribution.Builds.Sum(b => b.Rare) / distribution.Hours;
+        var (curve, publishedCurve) = Curve(distribution, rare, scorer, options);
+        var catalog = GearPieceCatalog.Build(builds, scorer, distribution, options.MinPlayers);
+        var recommended = Recommended(catalog, scorer, curve, rare, lateGame, distribution, options);
+        return new MeasuredTaskGear(task, category, now, FormulaInfo(scorer),
+            distribution == null ? null : GearModelPublisher.Distribution(distribution), lateGame, publishedCurve,
+            catalog.Select(GearModelPublisher.Piece).ToList(), recommended, modifierEffects);
+    }
+
+    /// <summary>The fitted curve and its public form; both null when it cannot be fit or a published value is not finite.</summary>
+    private static (GearCurveModel?, GearRateCurve?) Curve(GearScoreDistribution? distribution, double rare, GearScorer scorer, GearModelOptions options)
+    {
+        var curve = distribution == null ? null : GearCurveFit.Fit(distribution.Builds, options);
+        var published = curve == null ? null : GearModelPublisher.Curve(curve, distribution!, rare, scorer.Formula);
+        return published == null ? (null, null) : (curve, published);
+    }
+
+    private static GearRecommendedBuild? Recommended(List<GearCatalogEntry> catalog, GearScorer scorer, GearCurveModel? curve,
+        double rare, GearLateGame? lateGame, GearScoreDistribution? distribution, GearModelOptions options)
+    {
+        var build = GearBuildRecommender.Recommend(catalog, scorer);
+        if (build == null)
+            return null;
+        var rate = GearBuildRecommender.Rate(build.Score, curve, rare, lateGame?.CoinsPerHour, lateGame?.CoinsPerHour, scorer.Formula, options);
+        return rate == null || !double.IsFinite(rate.CoinsPerHour) ? null : GearModelPublisher.Recommended(build, rate, distribution);
+    }
+
+    private async Task<List<GearObservationInput>> Load(string task, DateTime now, CancellationToken cancellationToken)
     {
         var rows = await ReadWindow(task, now, cancellationToken);
         var gear = await GearOf(rows.Select(o => o.GearFingerprint), cancellationToken);
-        var keys = new GearSetupKeyCache();
+        var keys = new GearChangeKeyCache();
         return rows.Where(o => gear.ContainsKey(o.GearFingerprint))
             .Select(o => keys.Input(o, gear[o.GearFingerprint]))
             .ToList();
@@ -205,20 +257,6 @@ public class GearClusterService
     }
 }
 
-/// <summary>Setup keys per (fingerprint, flags, category) within one derivation: rows with the same gear share one key array.</summary>
-internal sealed class GearSetupKeyCache
-{
-    private readonly Dictionary<(string Fingerprint, string Flags, string Category), GearSetupKey?[]> keys = new();
-
-    public GearClusterInput Input(GearObservationRow row, ObservedGear gear)
-    {
-        var id = (row.GearFingerprint, string.Join(",", row.Flags.Order(StringComparer.Ordinal)), row.Category);
-        if (!keys.TryGetValue(id, out var cached))
-            keys[id] = cached = GearSetupKeys.For(row, gear);
-        return new GearClusterInput(row, gear, cached);
-    }
-}
-
 /// <summary>Shares the repeated strings and flag sets of a task's rows and drops the stats the derivation does not use.</summary>
 internal sealed class GearRowInterner
 {
@@ -255,21 +293,21 @@ internal sealed class GearRowInterner
 }
 
 /// <summary>
-/// Derives the measured gear setups shortly after startup and then hourly (<see cref="GearClusterService.RefreshAll"/>).
-/// Disabled with <c>GEAR:CLUSTERS=false</c>.
+/// Derives the gear models shortly after startup and then hourly (<see cref="GearModelService.RefreshAll"/>).
+/// Disabled with <c>GEAR:CLUSTERS=false</c> (the flag keeps its name from the earlier setup clusters).
 /// </summary>
-public class GearClusterRefresher : BackgroundService
+public class GearModelRefresher : BackgroundService
 {
     public static readonly TimeSpan Interval = TimeSpan.FromHours(1);
     private static readonly TimeSpan StartDelay = TimeSpan.FromMinutes(2);
 
-    private readonly GearClusterService clusters;
+    private readonly GearModelService models;
     private readonly IConfiguration config;
-    private readonly ILogger<GearClusterRefresher> logger;
+    private readonly ILogger<GearModelRefresher> logger;
 
-    public GearClusterRefresher(GearClusterService clusters, IConfiguration config, ILogger<GearClusterRefresher> logger)
+    public GearModelRefresher(GearModelService models, IConfiguration config, ILogger<GearModelRefresher> logger)
     {
-        this.clusters = clusters;
+        this.models = models;
         this.config = config;
         this.logger = logger;
     }
@@ -284,11 +322,12 @@ public class GearClusterRefresher : BackgroundService
         {
             try
             {
-                await clusters.RefreshAll(stoppingToken);
+                await models.RefreshAll(stoppingToken);
             }
-            catch (Exception e) when (e is not OperationCanceledException)
+            catch (Exception e) when (!stoppingToken.IsCancellationRequested)
             {
-                logger.LogError(e, "Gear cluster refresh failed");
+                // includes an OperationCanceledException of a store timeout: only shutdown ends the loop
+                logger.LogError(e, "Gear model refresh failed");
             }
         } while (await Wait(Interval, stoppingToken));
     }

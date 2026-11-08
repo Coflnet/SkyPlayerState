@@ -177,9 +177,9 @@ public class Startup
         services.AddSingleton<Tasks.TaskBackfillService>();
         services.AddSingleton<Tasks.TaskExecutionService>();
         services.AddSingleton<Tasks.Gear.GearSetupService>();
-        // measured gear setups derived hourly from the observations (GET /Task/gear-clusters/{task})
-        services.AddSingleton<Services.Gear.GearClusterService>();
-        services.AddHostedService<Services.Gear.GearClusterRefresher>();
+        // measured gear model derived hourly from the observations (GET /Task/gear-model/{task})
+        services.AddSingleton<Services.Gear.GearModelService>();
+        services.AddHostedService<Services.Gear.GearModelRefresher>();
         services.AddHostedService<Tasks.TaskAggregateFlusher>();
         services.AddHostedService<Tasks.CopperValueRefresher>();
         // export the fold/estimate spans (and the existing consumer spans) to jaeger.

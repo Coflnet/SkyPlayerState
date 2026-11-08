@@ -6,7 +6,7 @@ using AwesomeAssertions;
 using Cassandra;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
-using static Coflnet.Sky.PlayerState.Services.Gear.GearClusterTestData;
+using static Coflnet.Sky.PlayerState.Services.Gear.GearModelTestData;
 
 namespace Coflnet.Sky.PlayerState.Services.Gear;
 
@@ -26,7 +26,7 @@ public class GearObservationStoreIntegrationTests
         return (parts[0], parts.Length > 1 ? int.Parse(parts[1]) : 9042);
     }
 
-    private static GearObservation ToObservation(GearClusterInput input)
+    private static GearObservation ToObservation(GearObservationInput input)
     {
         var row = input.Observation;
         return new GearObservation
@@ -50,7 +50,7 @@ public class GearObservationStoreIntegrationTests
     }
 
     [Test]
-    public async Task Store_WritesAndPagesBack_AndTheServiceDerivesClusters()
+    public async Task Store_WritesAndPagesBack_AndTheServiceDerivesTheModel()
     {
         if (Target() is not var (host, port))
         {
@@ -103,11 +103,10 @@ public class GearObservationStoreIntegrationTests
         gear.Keys.Should().BeEquivalentTo([Fingerprint(full), Fingerprint(lower)]);
         GearFingerprint.ToJson(gear[Fingerprint(full)]).Should().Be(GearFingerprint.ToJson(full));
 
-        var service = new GearClusterService(store, new Tasks.TaskRegistry(), null!, NullLogger<GearClusterService>.Instance);
+        var service = new GearModelService(store, new Tasks.TaskRegistry(), null!, NullLogger<GearModelService>.Instance);
         var result = await service.Refresh(Wheat, Now);
-        var l2 = result.Clusters.Single(c => c.Level == GearSetupKeys.WithPet);
-        l2.Players.Should().Be(5, "players 1-4 this week and player 5 last week");
-        result.Clusters.Where(c => c.Level == GearSetupKeys.WithModifiers).Should().HaveCount(2, "harvesting 6 (players 1, 3, 5) and 5 (players 2, 4)");
+        result.Distribution!.Players.Should().Be(5, "players 1-4 this week and player 5 last week");
+        result.Pieces.Where(p => p.Slot == "tool").Should().HaveCount(2, "harvesting 6 (players 1, 3, 5) and 5 (players 2, 4)");
 
         await store.DeletePlayer(Player(5));
         (await store.ReadWeek(Wheat, week.AddDays(-7), 1000, CancellationToken.None)).Should().BeEmpty("the deletion found the row by its index");

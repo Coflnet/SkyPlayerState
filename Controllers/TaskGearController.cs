@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,8 +12,9 @@ using Microsoft.AspNetCore.Mvc;
 namespace Coflnet.Sky.PlayerState.Controllers;
 
 /// <summary>
-/// Gear setups per task, community data only: measured setups (<c>/Task/gear-clusters/{taskName}</c>) and the researched
-/// setups (baseline, budget, mid, endgame) with estimated coins/hour (<c>/Task/gear-setups</c>).
+/// Gear setups per task, community data only: the measured gear model (<c>/Task/gear-model/{taskName}</c>, also served
+/// at the older <c>/Task/gear-clusters/{taskName}</c>) and the researched setups (baseline, budget, mid, endgame) with
+/// estimated coins/hour (<c>/Task/gear-setups</c>).
 /// </summary>
 [ApiController]
 [Route("Task/gear-setups")]
@@ -22,12 +24,12 @@ public class TaskGearController : ControllerBase
     internal const string NoGearSetups = "gear_setups_not_found";
 
     private readonly GearSetupService gearSetups;
-    private readonly GearClusterService gearClusters;
+    private readonly GearModelService gearModels;
 
-    public TaskGearController(GearSetupService gearSetups, GearClusterService gearClusters)
+    public TaskGearController(GearSetupService gearSetups, GearModelService gearModels)
     {
         this.gearSetups = gearSetups;
-        this.gearClusters = gearClusters;
+        this.gearModels = gearModels;
     }
 
     /// <summary>
@@ -61,23 +63,40 @@ public class TaskGearController : ControllerBase
     }
 
     /// <summary>
-    /// Measured gear setups of one task (as in /Task/estimates): up to 12 clusters of observed sessions, each from at
-    /// least 2 distinct players and 1 hour (rounded to 2 significant digits with exactly 2 players), the measured
-    /// effects of modifier changes, and the researched setups with their modelled estimates as the fallback (basis
-    /// "estimate"). Derived hourly; never contains player data. 404 with slug task_not_found for an unknown task.
-    /// Before the first derivation after a restart (computedAt null) the response is not cacheable (no-cache).
+    /// Measured gear model of one task (as in /Task/estimates): the gear score distribution over player-builds, the late
+    /// game cohort (90th score percentile, widened to 2 players, never below the 75th), the rate curve over the score,
+    /// the piece catalog with score contributions, the recommended "maximum achievable" endgame build, the measured
+    /// modifier effects, and the researched setups with their modelled estimates as the fallback (basis "estimate").
+    /// Every number comes from at least 2 distinct players (rounded to 2 significant digits below 5); never contains
+    /// player data. Derived hourly. 404 with slug task_not_found for an unknown task. Before the first derivation after
+    /// a restart (computedAt null) the response is not cacheable (no-cache).
     /// </summary>
+    [HttpGet("/Task/gear-model/{taskName}")]
+    [ResponseCache(Duration = 300)]
+    [ProducesResponseType(typeof(TaskGearModel), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public Task<ActionResult<TaskGearModel>> GetModel(string taskName, CancellationToken cancellationToken)
+        => Model(taskName, cancellationToken);
+
+    /// <summary>
+    /// The route of the earlier measured setup clusters, kept for clients that still call it: it returns the same
+    /// <see cref="TaskGearModel"/> as /Task/gear-model/{taskName} (the clusters are gone). Use /Task/gear-model.
+    /// </summary>
+    [Obsolete("Use GET /Task/gear-model/{taskName}; this route returns the same TaskGearModel.")]
     [HttpGet("/Task/gear-clusters/{taskName}")]
     [ResponseCache(Duration = 300)]
-    [ProducesResponseType(typeof(TaskGearClusters), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(TaskGearModel), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<TaskGearClusters>> GetClusters(string taskName, CancellationToken cancellationToken)
+    public Task<ActionResult<TaskGearModel>> GetClusters(string taskName, CancellationToken cancellationToken)
+        => Model(taskName, cancellationToken);
+
+    private async Task<ActionResult<TaskGearModel>> Model(string taskName, CancellationToken cancellationToken)
     {
-        var clusters = await gearClusters.GetResponse(taskName, cancellationToken);
-        if (clusters == null)
+        var model = await gearModels.GetResponse(taskName, cancellationToken);
+        if (model == null)
             return NotFound(new ErrorResponse { Slug = TaskNotFound, Message = $"No task named '{taskName}' is registered." });
-        if (clusters.ComputedAt == null && Response != null)
+        if (model.ComputedAt == null && Response != null)
             Response.Headers.CacheControl = "no-cache";
-        return clusters;
+        return model;
     }
 }
