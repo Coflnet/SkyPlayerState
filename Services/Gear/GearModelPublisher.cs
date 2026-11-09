@@ -53,12 +53,19 @@ public static class GearModelPublisher
         };
     }
 
-    public static GearLateGame LateGame(GearCohort cohort, GearModelOptions options)
+    /// <summary>
+    /// The cohort's rates (median common over players, pooled rare) shrunk toward <paramref name="prior"/>
+    /// (<see cref="GearLateGamePrior.Shrink"/>); the common percentiles are shrunk with the same weight and target and
+    /// widened to hold the published common rate, so the headline never lies outside its own range.
+    /// </summary>
+    public static GearLateGame LateGame(GearCohort cohort, GearLateGamePrior prior, GearModelOptions options)
     {
         var rates = cohort.Members.Select(m => m.CommonPerHour).OrderBy(r => r).ToList();
         var rounded = cohort.Players < ExactFromPlayers;
-        var common = Rate(GearStatistics.Median(rates), rounded);
-        var rare = Rate(cohort.Members.Sum(m => m.Rare) / cohort.Hours, rounded);
+        var shrunk = prior.Shrink(GearStatistics.Median(rates), cohort.Members.Sum(m => m.Rare) / cohort.Hours, cohort.Hours, options);
+        var common = Rate(shrunk.Common, rounded);
+        var rare = Rate(shrunk.Rare, rounded);
+        double Percentile(double p) => prior.ShrinkCommon(GearStatistics.Percentile(rates, p), cohort.Hours, options);
         return new GearLateGame
         {
             ScoreFrom = RoundScore(cohort.ScoreFrom),
@@ -69,8 +76,8 @@ public static class GearModelPublisher
             CommonCoinsPerHour = common,
             RareCoinsPerHour = rare,
             CoinsPerHour = common + rare,
-            CommonP25 = rounded ? null : Math.Round(GearStatistics.Percentile(rates, 0.25)),
-            CommonP75 = rounded ? null : Math.Round(GearStatistics.Percentile(rates, 0.75)),
+            CommonP25 = rounded ? null : Math.Min(Math.Round(Percentile(0.25)), common),
+            CommonP75 = rounded ? null : Math.Max(Math.Round(Percentile(0.75)), common),
             Confidence = GearStatistics.Confidence(cohort.Players, GearStatistics.Variation(rates)),
             Rounded = rounded,
             StatMedians = GearSharedItems.StatMedians(cohort.Members.SelectMany(m => m.Observations), options.MinPlayers)

@@ -66,8 +66,9 @@ public sealed record GearCohort(double ScoreFrom, bool Widened, IReadOnlyList<Ge
 
 /// <summary>
 /// Selects the late game cohort (pure): the player-builds with a score at or above the P90 of the distribution, widened
-/// downward by score (one build score at a time, a single descending sweep) until they hold k distinct players and the
-/// minimum hours, but never below the P75: if that is not enough there is no late game cohort. A build needs
+/// downward by score (one build score at a time, a single descending sweep) until they hold
+/// <see cref="GearModelOptions.LateGameMinPlayers"/> distinct players and <see cref="GearModelOptions.LateGameMinHours"/>,
+/// but never below the P75: if that is not enough there is no late game cohort. A build needs
 /// <see cref="MinBuildHours"/> to count. A player counts once: their counting builds at or above the threshold are pooled.
 /// </summary>
 public static class GearLateGameCohort
@@ -98,7 +99,7 @@ public static class GearLateGameCohort
             }
         }
 
-        public bool Qualifies(GearModelOptions options) => players.Count >= options.MinPlayers && hours >= options.MinHours;
+        public bool Qualifies(GearModelOptions options) => players.Count >= options.LateGameMinPlayers && hours >= options.LateGameMinHours;
 
         public GearCohort Cohort(double threshold, bool widened) => new(threshold, widened, sorted.Take(Taken)
             .GroupBy(b => b.Player, StringComparer.Ordinal)
@@ -122,5 +123,76 @@ public static class GearLateGameCohort
                 return sweep.Cohort(threshold, true);
         }
         return null;
+    }
+}
+
+/// <summary>
+/// What a typical player of the task earns (unrounded): the median over the distribution's players of each player's
+/// common coins per hour (pooled over their eligible builds) and the rare coins pooled over all eligible builds (rare
+/// drops are too lumpy for a per-player median, as in the late game cohort).
+/// </summary>
+public sealed record GearRatePrior(double Common, double Rare)
+{
+    public double Total => Common + Rare;
+
+    public static GearRatePrior Of(GearScoreDistribution distribution)
+    {
+        var perPlayer = distribution.Builds.GroupBy(b => b.Player, StringComparer.Ordinal)
+            .Select(g => g.Sum(b => b.Common) / g.Sum(b => b.Hours))
+            .ToList();
+        var rare = distribution.Hours > 0 ? distribution.Builds.Sum(b => b.Rare) / distribution.Hours : 0;
+        return new GearRatePrior(GearStatistics.Median(perPlayer), rare);
+    }
+}
+
+/// <summary>A late game rate after <see cref="GearLateGamePrior.Shrink"/>, unrounded.</summary>
+public sealed record GearShrunkRate(double Common, double Rare, bool Floored);
+
+/// <summary>
+/// What the late game rate is shrunk toward (<paramref name="Target"/>) and never published below (<paramref name="Floor"/>,
+/// the all-player <see cref="GearRatePrior"/>). With a curve the target's common rate is the curve at the cohort's median
+/// score (its rare rate the all-player one): the all-player median as target pulled the endgame below the curve-read budget
+/// and mid builds, which then were not shown. Without a curve the target is the floor.
+/// </summary>
+public sealed record GearLateGamePrior(GearRatePrior Target, GearRatePrior Floor)
+{
+    public static GearLateGamePrior Of(GearScoreDistribution distribution, GearCohort? cohort, GearCurveModel? curve)
+    {
+        var floor = GearRatePrior.Of(distribution);
+        if (curve == null || cohort == null)
+            return new GearLateGamePrior(floor, floor);
+        return new GearLateGamePrior(new GearRatePrior(curve.PredictCommon(MedianScore(cohort)), floor.Rare), floor);
+    }
+
+    /// <summary>The median over the cohort's players of each player's hours weighted score.</summary>
+    public static double MedianScore(GearCohort cohort)
+        => GearStatistics.Median(cohort.Members.Select(m => m.Builds.Sum(b => b.Score * b.Hours) / m.Hours).ToList());
+
+    /// <summary>
+    /// The cohort's weight: hours / (hours + <see cref="GearModelOptions.LateGamePriorHours"/>); 1 (no shrinkage) when
+    /// that is 0.
+    /// </summary>
+    public static double Weight(double hours, GearModelOptions options)
+        => options.LateGamePriorHours <= 0 ? 1 : hours / (hours + options.LateGamePriorHours);
+
+    /// <summary>
+    /// Each part is w × cohort + (1 − w) × target. With <see cref="GearModelOptions.LateGameFloorAtPrior"/> a total below
+    /// the floor's is the floor: the players with the best gear are never published as earning less than the typical player.
+    /// </summary>
+    public GearShrunkRate Shrink(double common, double rare, double hours, GearModelOptions options)
+    {
+        var weight = Weight(hours, options);
+        var shrunkCommon = weight * common + (1 - weight) * Target.Common;
+        var shrunkRare = weight * rare + (1 - weight) * Target.Rare;
+        if (options.LateGameFloorAtPrior && shrunkCommon + shrunkRare < Floor.Total)
+            return new GearShrunkRate(Floor.Common, Floor.Rare, true);
+        return new GearShrunkRate(shrunkCommon, shrunkRare, false);
+    }
+
+    /// <summary>A common rate (a percentile of the cohort) shrunk with the same weight and target.</summary>
+    public double ShrinkCommon(double common, double hours, GearModelOptions options)
+    {
+        var weight = Weight(hours, options);
+        return weight * common + (1 - weight) * Target.Common;
     }
 }

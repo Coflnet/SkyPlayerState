@@ -73,7 +73,9 @@ public class GearModelServiceTests
         inputs.Add(Obs(9, WheatGear(6, 10, 100_000_000, 300), 3, 20_000));
         inputs.Add(Obs(10, WheatGear(5, 9, 50_000_000, 280), 3, 22_000));
 
-        var result = GearModelService.Compute(Wheat, inputs, Now);
+        // the two top players as the cohort, unshrunk: the test covers the catalog, the cohort rules have their own tests
+        var twoPlayerCohort = GearModelOptions.Default with { LateGameMinPlayers = 2, LateGameMinHours = 1, LateGamePriorHours = 0 };
+        var result = GearModelService.Compute(Wheat, inputs, Now, twoPlayerCohort);
 
         var top = result.Pieces.Where(p => p.Slot == GearSnapshot.Tool).OrderByDescending(p => p.ScoreContribution).First();
         top.Item!.Enchants.Should().BeEquivalentTo(new Dictionary<string, int> { ["harvesting"] = 5, ["cultivating"] = 9 },

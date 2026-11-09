@@ -11,8 +11,22 @@ public sealed record GearModelOptions
     public double MinHoursPerSide { get; init; } = 1;
     /// <summary>The late game cohort starts at this score percentile ...</summary>
     public double LateGamePercentile { get; init; } = 0.9;
-    /// <summary>... and is widened down to at most this one to reach <see cref="MinPlayers"/>.</summary>
+    /// <summary>... and is widened down to at most this one to reach <see cref="LateGameMinPlayers"/> and <see cref="LateGameMinHours"/>.</summary>
     public double LateGameFloorPercentile { get; init; } = 0.75;
+    /// <summary>
+    /// Distinct players the late game cohort needs. Stricter than <see cref="MinPlayers"/>: cohorts of 2 players over 1 h
+    /// swung by 4x between two hourly derivations (Wheat 18 -> 4.4M/h, live check 2026-11-09).
+    /// </summary>
+    public int LateGameMinPlayers { get; init; } = 3;
+    /// <summary>Play time the late game cohort needs, summed over its counting builds.</summary>
+    public double LateGameMinHours { get; init; } = 2;
+    /// <summary>
+    /// Shrinkage of the late game rate toward its prior (<see cref="GearLateGamePrior"/>): the cohort's weight is
+    /// hours / (hours + this), so a cohort of 3 h counts half, one of 27 h 90 %; 0 turns the shrinkage off. TUNABLE.
+    /// </summary>
+    public double LateGamePriorHours { get; init; } = 3;
+    /// <summary>Whether the late game rate is never published below the all-player prior (<see cref="GearLateGamePrior.Floor"/>).</summary>
+    public bool LateGameFloorAtPrior { get; init; } = true;
     /// <summary>Distinct players and play time the rate curve needs.</summary>
     public int CurveMinPlayers { get; init; } = 5;
     public double CurveMinHours { get; init; } = 3;

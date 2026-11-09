@@ -45,8 +45,17 @@ public class TaskGearControllerTests
     private static TaskGearController Controller(GearSetupService setups, InMemoryGearReader? reader = null)
         => new(setups, Models(setups, reader));
 
-    private static GearModelService Models(GearSetupService setups, InMemoryGearReader? reader = null)
-        => new(reader ?? new InMemoryGearReader(), Registry, setups, NullLogger<GearModelService>.Instance);
+    private static GearModelService Models(GearSetupService setups, InMemoryGearReader? reader = null, GearModelOptions? options = null)
+        => new(reader ?? new InMemoryGearReader(), Registry, setups, NullLogger<GearModelService>.Instance, options ?? GearModelOptions.Default);
+
+    /// <summary>
+    /// Five players give every part of the model under the rules before 2026-11-09 (late game cohort of 2 players and
+    /// 1 h without shrinkage, curve from 5 players): the response shape test keeps them so it can stay this small.
+    /// </summary>
+    private static readonly GearModelOptions FivePlayerModel = GearModelOptions.Default with
+    {
+        LateGameMinPlayers = 2, LateGameMinHours = 1, LateGamePriorHours = 0, CurveMinPlayers = 5
+    };
 
     [Test]
     public async Task Service_EstimatesEveryBoundTask()
@@ -190,7 +199,7 @@ public class TaskGearControllerTests
         // not part of a fingerprint); Fermento set (+75) and a level 100 Elephant (+150) on top
         var rates = new[] { 10_000, 11_000, 12_000, 13_000, 15_000 };
         reader.Add(rates.Select((rate, i) => GearModelTestData.Obs(i + 1, GearModelTestData.TestGear(harvesting: i + 1, toolFortune: 150 + 25 * i), 1, rate)).ToArray());
-        var models = Models(setups, reader);
+        var models = Models(setups, reader, FivePlayerModel);
         await models.Refresh("Wheat Farming", GearModelTestData.Now);
 
         var result = (await new TaskGearController(setups, models).GetModel("Wheat Farming", CancellationToken.None)).Value!;
