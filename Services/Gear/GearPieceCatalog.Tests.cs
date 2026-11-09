@@ -214,4 +214,75 @@ public class GearPieceCatalogTests
         published.Rounded.Should().BeTrue();
         published.UsedAtScorePercentile.Should().BeNull("below 5 players");
     }
+
+    private static readonly GearScorer FishingScorer = GearScorer.For("Water Fishing", GearModifierTable.FishingWater)!;
+
+    private static GearObservationInput FishingObs(int player, string? tier, int level = 100)
+    {
+        var gear = TestGear(pet: "FLYING_FISH", petTier: tier, petLevel: level, armor: "TEST_PLAIN", equipment: false);
+        gear.Slots[GearSnapshot.Tool] = new GearPiece { Tag = "TEST_ROD", ItemType = "FISHING ROD" };
+        return Obs(player, gear, 1, 1000, category: GearModifierTable.FishingWater);
+    }
+
+    private static GearCatalogEntry FishingPet(params GearObservationInput[] inputs)
+    {
+        var builds = GearPlayerBuilds.From(inputs, FishingScorer);
+        return GearPieceCatalog.Build(builds, FishingScorer, null, 2).Single(e => e.Slot == GearPieceCatalog.PetSlot);
+    }
+
+    /// <summary>Regression: pets whose rarity was not shared were published without one and scored 0.</summary>
+    [Test]
+    public void Pets_LegendaryAndEpic_ArePublishedEpic_WithTheEpicPerk()
+    {
+        var pet = FishingPet(FishingObs(1, "LEGENDARY"), FishingObs(2, "EPIC"));
+
+        pet.Pet!.Tier.Should().Be("EPIC");
+        pet.Contribution.Should().Be(75, "Quick Reel at Epic");
+    }
+
+    /// <summary>
+    /// Regression: a pet seen without a tier (tab list) was published without one and scored 0. The unknown sightings
+    /// (level 80) form a variant of their own: without the filled tier it is published tierless.
+    /// </summary>
+    [Test]
+    public void Pets_UnknownTier_TakesThePlayersOwnKnownTier()
+    {
+        var catalog = GearPieceCatalog.Build(GearPlayerBuilds.From([FishingObs(1, "LEGENDARY"), FishingObs(2, "LEGENDARY"),
+            FishingObs(1, null, 80), FishingObs(2, null, 80)], FishingScorer), FishingScorer, null, 2);
+
+        var pets = catalog.Where(e => e.Slot == GearPieceCatalog.PetSlot).ToList();
+        pets.Should().Contain(e => e.Pet!.Level == 80 && e.Pet.Tier == "LEGENDARY" && e.Contribution == 64, "Quick Reel 80 at level 80");
+        pets.Should().OnlyContain(e => e.Pet!.Tier == "LEGENDARY");
+    }
+
+    [Test]
+    public void TierFiller_OwnTierFirst_ThenTheTypesLowestKnownTier()
+    {
+        GearSeen<GearPet> Seen(int player, string type, string? tier) => new(new GearPet { Type = type, Tier = tier, Level = 100 }, 1, Player(player));
+        var fill = GearSharedItems.TierFiller([Seen(1, "FLYING_FISH", "LEGENDARY"), Seen(1, "FLYING_FISH", "EPIC"), Seen(2, "FLYING_FISH", "EPIC"),
+            Seen(3, "FLYING_FISH", null), Seen(1, "ELEPHANT", "LEGENDARY"), Seen(2, "ELEPHANT", null)], 2);
+        string? Filled(int player, string type) => fill(new GearPet { Type = type, Level = 100 }, Player(player)).Tier;
+
+        Filled(1, "FLYING_FISH").Should().Be("LEGENDARY", "player 1's highest known tier");
+        Filled(3, "FLYING_FISH").Should().Be("EPIC", "the lowest tier of the two players known with one");
+        Filled(2, "ELEPHANT").Should().BeNull("only one player is known with a tier");
+        fill(new GearPet { Type = "FLYING_FISH", Tier = "RARE", Level = 1 }, Player(1)).Tier.Should().Be("RARE", "a known tier stays");
+    }
+
+    [Test]
+    public void Pets_UnknownTier_OfAPlayerNeverSeenWithOne_TakesTheTypesLowestKnownTier()
+    {
+        var catalog = GearPieceCatalog.Build(GearPlayerBuilds.From([FishingObs(1, "LEGENDARY"), FishingObs(2, "EPIC"),
+            FishingObs(3, null, 50), FishingObs(4, null, 50)], FishingScorer), FishingScorer, null, 2);
+
+        catalog.Where(e => e.Slot == GearPieceCatalog.PetSlot).Should().OnlyContain(e => e.Pet!.Tier == "EPIC" && e.Contribution > 0);
+    }
+
+    [Test]
+    public void Pets_UnknownTier_StaysUnknown_WhenFewerThanTwoPlayersShowATier()
+    {
+        var pet = FishingPet(FishingObs(1, "LEGENDARY"), FishingObs(2, null), FishingObs(3, null));
+
+        pet.Pet!.Tier.Should().BeNull("one player's tier would be published otherwise");
+    }
 }

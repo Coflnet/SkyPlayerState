@@ -19,7 +19,8 @@ public sealed record GearSeen<T>(T Item, double Hours, string Player);
 /// share (the most shared value wins);</item>
 /// <item>lore stats are each player's hours weighted mean, then the highest value at least k players reach;</item>
 /// <item>the pet likewise: the type of at least k players; tier and level as one combination at least k of them reach
-/// together (each player's highest counts, like the counters); the held item when k players share it.</item>
+/// together (each player's highest counts, like the counters); the held item when k players share it; its lore stats from
+/// a pet of at least the published tier. Unknown tiers are filled in first where they can be told (<see cref="TierFiller"/>).</item>
 /// </list>
 /// Values are unrounded; the publisher rounds below 5 players.
 /// </summary>
@@ -98,7 +99,36 @@ public static class GearSharedItems
             Tier = tier,
             Level = level,
             HeldItem = Shared(same, p => p.HeldItem, minPlayers) as string,
-            Stats = ReachedStats(same, p => p.Stats, minPlayers)
+            Stats = ReachedStats(AtLeastTier(same, tier), p => p.Stats, minPlayers)
+        };
+    }
+
+    /// <summary>The sightings of a pet of at least the tier, all of them without a tier.</summary>
+    private static List<GearSeen<GearPet>> AtLeastTier(List<GearSeen<GearPet>> pets, string? tier)
+        => tier == null ? pets : pets.Where(p => GearRarities.Rank(p.Item.Tier) >= GearRarities.Rank(tier)).ToList();
+
+    /// <summary>
+    /// Fills in unknown pet tiers (a pet known only from the tab list has none) where they can be told, so such pets are
+    /// published with a rarity (and score their perks) instead of without one (scoring 0): a pet of unknown tier takes the
+    /// highest tier the same player's pet of that type is seen with; a player never seen with a tier for the type takes
+    /// the type's lowest known tier when at least k players are seen with one (all of them reach that tier, so it shows
+    /// nothing of one player; it is a lower bound of the known players, an assumption for the unknown one). Otherwise the
+    /// tier stays unknown.
+    /// </summary>
+    public static Func<GearPet, string, GearPet> TierFiller(IReadOnlyList<GearSeen<GearPet>> pets, int minPlayers)
+    {
+        var known = pets.Where(p => GearRarities.Rank(p.Item.Tier) >= 0).ToList();
+        var playerTier = known.GroupBy(p => (p.Player, p.Item.Type))
+            .ToDictionary(g => g.Key, g => g.MaxBy(p => GearRarities.Rank(p.Item.Tier))!.Item.Tier!);
+        var typeFloor = known.GroupBy(p => p.Item.Type, StringComparer.Ordinal)
+            .Where(g => Players(g) >= minPlayers)
+            .ToDictionary(g => g.Key, g => g.MinBy(p => GearRarities.Rank(p.Item.Tier))!.Item.Tier!, StringComparer.Ordinal);
+        return (pet, player) =>
+        {
+            if (GearRarities.Rank(pet.Tier) >= 0)
+                return pet;
+            var tier = playerTier.GetValueOrDefault((player, pet.Type)) ?? typeFloor.GetValueOrDefault(pet.Type);
+            return tier == null ? pet : new GearPet(pet) { Tier = tier.ToUpperInvariant() };
         };
     }
 

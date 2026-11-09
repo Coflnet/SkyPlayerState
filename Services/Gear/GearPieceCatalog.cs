@@ -27,6 +27,7 @@ public sealed record GearCatalogEntry(string Id, string Slot, GearPiece? Piece, 
 /// only the modifiers k of them share (<see cref="GearSharedItems"/>); groups that end up with the same published piece
 /// are merged into one entry;</item>
 /// <item>lore stats are medians over players, the contribution is scored from them;</item>
+/// <item>a pet of unknown tier gets the tier its player or the type's known players show (<see cref="GearSharedItems.TierFiller"/>);</item>
 /// <item>a pet's contribution is scored on top of the task's most common published tool and armor (the entry of each
 /// slot with the most players), so perks that depend on them (a drill, a set's stats) count.</item>
 /// </list>
@@ -62,9 +63,13 @@ public static class GearPieceCatalog
         return Merged(groups, group => PieceEntry(slot, group, context));
     }
 
+    /// <summary>Pets grouped by type and variant after their unknown tiers are filled in (<see cref="GearSharedItems.TierFiller"/>).</summary>
     private static IEnumerable<GearCatalogEntry> PetEntries(IReadOnlyList<GearPlayerBuild> builds, ObservedGear baseGear, Context context)
     {
-        var sightings = builds.Where(b => b.Gear.Pet != null).Select(b => new Sighting<GearPet>(b.Gear.Pet!, b));
+        var seen = builds.Where(b => b.Gear.Pet != null).Select(b => new Sighting<GearPet>(b.Gear.Pet!, b)).ToList();
+        var fill = GearSharedItems.TierFiller(seen.Select(s => s.Seen).ToList(), context.MinPlayers);
+        // a variant's player count (and the published tier) may include players whose tier is assumed, see TierFiller
+        var sightings = seen.Select(s => s with { Item = fill(s.Item, s.Build.Player) });
         var groups = sightings.GroupBy(s => s.Item.Type, StringComparer.Ordinal)
             .SelectMany(type => Variants(type.ToList(), s => PetKey(s.Item), context.MinPlayers));
         return Merged(groups, group => PetEntry(group, baseGear, context));
