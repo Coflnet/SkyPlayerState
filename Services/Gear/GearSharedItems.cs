@@ -17,7 +17,8 @@ public sealed record GearSeen<T>(T Item, double Hours, string Player);
 /// piece is a minimum that k players have at least, so the top players' upgrades are kept;</item>
 /// <item>categorical modifiers (reforge, each gem slot and part) are shown only with a value at least k distinct players
 /// share (the most shared value wins);</item>
-/// <item>lore stats are each player's hours weighted mean, then the highest value at least k players reach;</item>
+/// <item>lore stats are the per-stat minimum over the k best players' instances (<see cref="InstanceStats{T}"/>): every value
+/// is one k players reach, and none is above a real piece's;</item>
 /// <item>the pet likewise: the type of at least k players; tier and level as one combination at least k of them reach
 /// together (each player's highest counts, like the counters); the held item when k players share it; its lore stats from
 /// a pet of at least the published tier. Unknown tiers are filled in first where they can be told (<see cref="TierFiller"/>).</item>
@@ -26,7 +27,8 @@ public sealed record GearSeen<T>(T Item, double Hours, string Player);
 /// </summary>
 public static class GearSharedItems
 {
-    public static GearPiece? SharedPiece(IReadOnlyList<GearSeen<GearPiece>> seen, int minPlayers)
+    /// <param name="rank">Orders lore stat sets (higher is better), see <see cref="InstanceStats{T}"/>; the sum of the values by default.</param>
+    public static GearPiece? SharedPiece(IReadOnlyList<GearSeen<GearPiece>> seen, int minPlayers, Func<IReadOnlyDictionary<string, double>, double>? rank = null)
     {
         if (Shared(seen, p => p.Tag, minPlayers) is not string tag)
             return null;
@@ -45,7 +47,7 @@ public static class GearSharedItems
             Parts = SharedEntries(same, p => p.Parts, minPlayers),
             Applied = ReachedEntries(same, p => p.Applied, minPlayers),
             Counters = ReachedCounters(same, minPlayers),
-            Stats = ReachedStats(same, p => p.Stats, minPlayers)
+            Stats = InstanceStats(same, p => p.Stats, minPlayers, rank ?? SumOf)
         };
     }
 
@@ -73,21 +75,48 @@ public static class GearSharedItems
     }
 
     /// <summary>
-    /// Per stat: each player's hours weighted mean, then the highest value at least k players reach (consistent with the
-    /// reached modifiers: a published piece is what at least k players have at least).
+    /// Lore stats bounded by real pieces and reached by k players: per player the instance (stat set) they used the most
+    /// hours (ties: the higher rank), the k best of these by <paramref name="rank"/> (ties: the higher sum, then the player),
+    /// then per stat the minimum over those k instances (a stat one of them lacks is left out). Every value is one all k
+    /// players have at least, and no stat is above what a real piece has. Stats were the k-th highest per stat before, each
+    /// from another player, which published pieces nobody has (Crit Damage 260 on Wise Wither, which has none); one
+    /// player's whole instance would show that player's exact stats. Sightings without lore stats do not count; empty
+    /// below k players with lore stats.
     /// </summary>
-    private static Dictionary<string, double> ReachedStats<T>(IEnumerable<GearSeen<T>> seen, Func<T, Dictionary<string, double>?> stats, int minPlayers)
-        => seen.Where(s => s.Hours > 0)
-            .SelectMany(s => (stats(s.Item) ?? new()).Select(v => (s.Player, Name: v.Key, v.Value, s.Hours)))
-            .GroupBy(v => (v.Player, v.Name))
-            .Select(g => (g.Key.Player, g.Key.Name, Mean: g.Sum(v => v.Value * v.Hours) / g.Sum(v => v.Hours)))
-            .GroupBy(v => v.Name, StringComparer.Ordinal)
-            .Select(g => (Name: g.Key, Value: KthHighest(g.Select(v => (v.Player, v.Mean)), minPlayers)))
-            .Where(v => v.Value != null)
-            .OrderBy(v => v.Name, StringComparer.Ordinal)
-            .ToDictionary(v => v.Name, v => v.Value!.Value, StringComparer.Ordinal);
+    public static Dictionary<string, double> InstanceStats<T>(IEnumerable<GearSeen<T>> seen, Func<T, Dictionary<string, double>?> stats,
+        int minPlayers, Func<IReadOnlyDictionary<string, double>, double> rank)
+    {
+        var perPlayer = seen.Where(s => s.Hours > 0 && stats(s.Item) is { Count: > 0 })
+            .GroupBy(s => s.Player, StringComparer.Ordinal)
+            .Select(g => (Player: g.Key, Stats: MostUsed(g.ToList(), stats, rank)))
+            .OrderByDescending(p => rank(p.Stats)).ThenByDescending(p => SumOf(p.Stats)).ThenBy(p => p.Player, StringComparer.Ordinal)
+            .ToList();
+        if (perPlayer.Count < minPlayers)
+            return new Dictionary<string, double>(StringComparer.Ordinal);
+        return PerStatMinimum(perPlayer.Take(minPlayers).Select(p => p.Stats).ToList());
+    }
 
-    public static GearPet? SharedPet(IReadOnlyList<GearSeen<GearPet>> pets, int minPlayers)
+    /// <summary>Per stat all instances have: the lowest value.</summary>
+    private static Dictionary<string, double> PerStatMinimum(List<Dictionary<string, double>> instances)
+        => instances[0].Keys.Where(name => instances.All(i => i.ContainsKey(name)))
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToDictionary(name => name, name => instances.Min(i => i[name]), StringComparer.Ordinal);
+
+    /// <summary>The player's stat set with the most hours (identical sets pooled), ties: the higher rank.</summary>
+    private static Dictionary<string, double> MostUsed<T>(List<GearSeen<T>> sightings, Func<T, Dictionary<string, double>?> stats,
+        Func<IReadOnlyDictionary<string, double>, double> rank)
+        => sightings.GroupBy(s => StatsKey(stats(s.Item)!), StringComparer.Ordinal)
+            .Select(g => (Stats: stats(g.First().Item)!, Hours: g.Sum(s => s.Hours)))
+            .OrderByDescending(g => g.Hours).ThenByDescending(g => rank(g.Stats)).ThenBy(g => StatsKey(g.Stats), StringComparer.Ordinal)
+            .First().Stats;
+
+    private static string StatsKey(Dictionary<string, double> stats)
+        => string.Join(";", stats.OrderBy(v => v.Key, StringComparer.Ordinal).Select(v => $"{v.Key}={v.Value.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}"));
+
+    private static double SumOf(IReadOnlyDictionary<string, double> stats) => stats.Values.Sum();
+
+    /// <param name="rank">Orders lore stat sets, see <see cref="SharedPiece"/>.</param>
+    public static GearPet? SharedPet(IReadOnlyList<GearSeen<GearPet>> pets, int minPlayers, Func<IReadOnlyDictionary<string, double>, double>? rank = null)
     {
         if (Shared(pets, p => p.Type, minPlayers) is not string type)
             return null;
@@ -99,7 +128,7 @@ public static class GearSharedItems
             Tier = tier,
             Level = level,
             HeldItem = Shared(same, p => p.HeldItem, minPlayers) as string,
-            Stats = ReachedStats(AtLeastTier(same, tier), p => p.Stats, minPlayers)
+            Stats = InstanceStats(AtLeastTier(same, tier), p => p.Stats, minPlayers, rank ?? SumOf)
         };
     }
 

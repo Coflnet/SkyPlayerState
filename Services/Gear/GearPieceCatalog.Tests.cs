@@ -285,4 +285,40 @@ public class GearPieceCatalogTests
 
         pet.Pet!.Tier.Should().BeNull("one player's tier would be published otherwise");
     }
+
+    /// <summary>
+    /// Regression: each lore stat was the k-th highest of its own, picked from different players, so the published piece
+    /// was one nobody had (Wise Wither with Crit Damage 260 and Intelligence 2500); publishing one player's whole instance
+    /// instead would show that player's exact stats (player 3 alone has Crit Damage 260).
+    /// </summary>
+    [Test]
+    public void LoreStats_EveryValueIsReachedByTwoPlayers_AndBoundedByRealPieces()
+    {
+        var players = new (double Intelligence, double CritDamage)[] { (2500, 0), (600, 0), (400, 260), (400, 250) };
+        GearObservationInput Helmet(int player)
+        {
+            var gear = TestGear(armor: "TEST_PLAIN", pet: null, equipment: false, harvesting: player);
+            var (intelligence, critDamage) = players[player - 1];
+            gear.Slots[GearSnapshot.Helmet] = new GearPiece
+            {
+                Tag = "WISE_WITHER_HELMET", ItemType = "HELMET",
+                Stats = new() { ["Intelligence"] = intelligence, ["Crit Damage"] = critDamage }
+            };
+            return Obs(player, gear, 1, 1000);
+        }
+
+        var stats = Catalog(Helmet(1), Helmet(2), Helmet(3), Helmet(4)).Single(e => e.Tag == "WISE_WITHER_HELMET").Piece!.Stats;
+
+        AssertReachedByTwo(stats, "Intelligence", players.Select(p => p.Intelligence));
+        AssertReachedByTwo(stats, "Crit Damage", players.Select(p => p.CritDamage));
+        stats["Crit Damage"].Should().NotBe(260, "only player 3 has it");
+    }
+
+    private static void AssertReachedByTwo(Dictionary<string, double> stats, string name, IEnumerable<double> values)
+    {
+        var all = values.OrderByDescending(v => v).ToList();
+        stats[name].Should().BeLessThanOrEqualTo(all[1], $"{name} must not exceed the second highest value");
+        all.Count(v => v >= stats[name]).Should().BeGreaterThanOrEqualTo(2, $"two players reach the published {name}");
+        all.Count(v => v == stats[name]).Should().NotBe(1, $"{name} must not be a value only one player has");
+    }
 }

@@ -18,7 +18,9 @@ public sealed record GearRecommendedRate(double CoinsPerHour, bool Extrapolated,
 /// depend on the tool and armor), and the candidate with the highest exact score (the scorer over the combined pieces,
 /// effects included) wins, so a full set replaces a mix only when its bonus makes it score higher. Every slot the
 /// catalog has pieces for is filled: where no piece adds score, with the slot's most used piece (most players, then the
-/// higher contribution), so the build has boots and a pet even when they add nothing measurable.
+/// higher contribution), so the build has boots and a pet even when they add nothing measurable. A formula with branches
+/// (dungeon melee or mage) also gets the per-slot best of each branch as a candidate: a mix of the best melee boots and the
+/// best mage helmet adds up to neither branch.
 /// </summary>
 public static class GearBuildRecommender
 {
@@ -29,10 +31,10 @@ public static class GearBuildRecommender
     {
         var items = catalog.Where(e => e.Pet == null).ToList();
         var pets = catalog.Where(e => e.Pet != null).ToList();
-        var mix = BestMix(items);
-        if (mix.Count == 0 && pets.Count == 0)
+        var mixes = Mixes(items, scorer).ToList();
+        if (mixes[0].Count == 0 && pets.Count == 0)
             return null;
-        var best = Candidates(items, mix, scorer)
+        var best = mixes.SelectMany(mix => Candidates(items, mix, scorer))
             .Select(c => WithBestPet(c, pets, scorer))
             .Aggregate((a, b) => b.Score > a.Score + 1e-9 ? b : a);
         return new GearRecommendation(best.Entries, best.Score, scorer.Active(Gear(best.Entries)));
@@ -57,13 +59,24 @@ public static class GearBuildRecommender
         return new GearRecommendedRate(Math.Round(rate), score > curve.ScoreMax, curve.IsCappedAt(readAt), BasisCurve);
     }
 
-    private static Dictionary<string, GearCatalogEntry> BestMix(IReadOnlyList<GearCatalogEntry> items)
+    /// <summary>The per-slot best by own contribution, then for a formula with branches the per-slot best of each branch.</summary>
+    private static IEnumerable<Dictionary<string, GearCatalogEntry>> Mixes(IReadOnlyList<GearCatalogEntry> items, GearScorer scorer)
+    {
+        yield return BestMix(items, e => e.OwnContribution);
+        var branches = scorer.Formula.Branches;
+        if (branches.Count < 2)
+            yield break;
+        foreach (var branch in branches)
+            yield return BestMix(items, e => scorer.PieceContribution(e.Slot, e.Piece!, branch));
+    }
+
+    private static Dictionary<string, GearCatalogEntry> BestMix(IReadOnlyList<GearCatalogEntry> items, Func<GearCatalogEntry, double> contribution)
     {
         var result = new Dictionary<string, GearCatalogEntry>(StringComparer.Ordinal);
         foreach (var slot in items.GroupBy(e => e.Slot, StringComparer.Ordinal))
         {
-            var best = Best(slot);
-            result[slot.Key] = best.OwnContribution > 0 ? best : MostUsed(slot);
+            var best = slot.OrderByDescending(contribution).ThenByDescending(e => e.Players).ThenBy(e => e.Id, StringComparer.Ordinal).First();
+            result[slot.Key] = contribution(best) > 0 ? best : MostUsed(slot);
         }
         return result;
     }

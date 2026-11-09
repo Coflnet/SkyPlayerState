@@ -27,10 +27,20 @@ public static class GearModelPublisher
     {
         Kind = formula.Kind,
         Weights = formula.Weights.ToDictionary(w => w.Key, w => w.Value, StringComparer.Ordinal),
-        Expression = formula.IsLog
-            ? "ln((5 + Damage) × (1 + Strength / 100) × (1 + Crit Damage / 100))"
-            : string.Join(" + ", formula.Weights.Select(w => $"{w.Value.ToString(CultureInfo.InvariantCulture)} × {w.Key}")),
+        Expression = Expression(formula),
         EffectCount = effectCount
+    };
+
+    private const string MeleeExpression = "ln((5 + Damage) × (1 + Strength / 100) × (1 + Crit Damage / 100))";
+    private static readonly string MageExpression = string.Create(CultureInfo.InvariantCulture,
+        $"ln({GearScoreFormula.MageBase} × {GearScoreFormula.MageIntelligenceScaling} × Intelligence / 100 × (1 + Ability Damage / 100))");
+
+    private static string Expression(GearScoreFormula formula) => formula.Kind switch
+    {
+        GearScoreFormula.DamageProduct => MeleeExpression,
+        GearScoreFormula.MageProduct => MageExpression,
+        GearScoreFormula.DamageOrMage => $"max({MeleeExpression}, {MageExpression} if Intelligence > 0)",
+        _ => string.Join(" + ", formula.Weights.Select(w => $"{w.Value.ToString(CultureInfo.InvariantCulture)} × {w.Key}"))
     };
 
     public static GearScoreSummary Distribution(GearScoreDistribution distribution)

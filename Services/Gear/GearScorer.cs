@@ -35,10 +35,21 @@ public sealed class GearScorer
     public double Score(ObservedGear gear) => Formula.Score(Totals(gear));
 
     /// <summary>The score of the piece worn alone minus the empty build's (the piece's own share, set tier 1 included).</summary>
-    public double PieceContribution(string slot, GearPiece piece) => Score(Single(slot, piece)) - Formula.Empty;
+    public double PieceContribution(string slot, GearPiece piece) => Contribution(Totals(Single(slot, piece)));
+
+    /// <summary>
+    /// The piece's contribution to one branch of the formula (<see cref="GearScoreFormula.Branches"/>), only to order a
+    /// slot's pieces for that branch: the mage branch's empty build is ln 0 (floored), so its values are not comparable to
+    /// the formula's.
+    /// </summary>
+    public double PieceContribution(string slot, GearPiece piece, GearScoreFormula branch)
+        => branch.Score(Totals(Single(slot, piece))) - branch.Empty;
 
     /// <summary>The pet's lore stats plus its perks, as a score above the empty build.</summary>
-    public double PetContribution(GearPet pet) => Score(new ObservedGear { Pet = pet }) - Formula.Empty;
+    public double PetContribution(GearPet pet) => Contribution(Totals(new ObservedGear { Pet = pet }));
+
+    /// <summary>Stat totals as a score above the empty build.</summary>
+    public double Contribution(IReadOnlyDictionary<string, double> totals) => Formula.Score(totals) - Formula.Empty;
 
     /// <summary>
     /// The piece's share of the full set bonuses it belongs to (the full tier split evenly over the tiers, minus what
@@ -48,10 +59,10 @@ public sealed class GearScorer
     {
         var gear = Single(slot, piece);
         var totals = Totals(gear);
-        var before = Formula.Score(totals);
+        var before = new Dictionary<string, double>(totals, StringComparer.Ordinal);
         foreach (var effect in SetsOf(piece.Tag))
             Apply(totals, effect, SetShareAmount(effect));
-        return Formula.Score(totals) - before;
+        return Formula.Score(totals) - Formula.Score(before);
     }
 
     public IEnumerable<GearEffect> SetsOf(string tag)

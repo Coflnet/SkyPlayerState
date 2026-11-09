@@ -26,7 +26,8 @@ public sealed record GearCatalogEntry(string Id, string Slot, GearPiece? Piece, 
 /// <item>the sightings of the remaining variants, when they hold at least k players, are published as one piece with
 /// only the modifiers k of them share (<see cref="GearSharedItems"/>); groups that end up with the same published piece
 /// are merged into one entry;</item>
-/// <item>lore stats are medians over players, the contribution is scored from them;</item>
+/// <item>lore stats are the per-stat minimum over the k best players' most used instances
+/// (<see cref="GearSharedItems.InstanceStats{T}"/>), the contribution is scored from them;</item>
 /// <item>a pet of unknown tier gets the tier its player or the type's known players show (<see cref="GearSharedItems.TierFiller"/>);</item>
 /// <item>a pet's contribution is scored on top of the task's most common published tool and armor (the entry of each
 /// slot with the most players), so perks that depend on them (a drill, a set's stats) count.</item>
@@ -108,7 +109,7 @@ public static class GearPieceCatalog
 
     private static GearCatalogEntry? PieceEntry(string slot, List<Sighting<GearPiece>> group, Context context)
     {
-        var piece = GearSharedItems.SharedPiece(group.Select(s => s.Seen).ToList(), context.MinPlayers);
+        var piece = GearSharedItems.SharedPiece(group.Select(s => s.Seen).ToList(), context.MinPlayers, context.Scorer.Contribution);
         if (piece == null)
             return null;
         var scorer = context.Scorer;
@@ -119,7 +120,7 @@ public static class GearPieceCatalog
 
     private static GearCatalogEntry? PetEntry(List<Sighting<GearPet>> group, ObservedGear baseGear, Context context)
     {
-        var pet = GearSharedItems.SharedPet(group.Select(s => s.Seen).ToList(), context.MinPlayers);
+        var pet = GearSharedItems.SharedPet(group.Select(s => s.Seen).ToList(), context.MinPlayers, context.Scorer.Contribution);
         if (pet == null)
             return null;
         var scorer = context.Scorer;

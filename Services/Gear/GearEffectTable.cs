@@ -45,6 +45,8 @@ public sealed record GearEffect
     public List<string>? Zones { get; init; }
     /// <summary>Only when the build's tool has this lore item type (e.g. DRILL).</summary>
     public string? ToolType { get; init; }
+    /// <summary>Only for mining tasks of these block kinds (<see cref="Gear.MiningBlocks"/> ids: ore, dwarven-metal, block).</summary>
+    public List<string>? MiningBlocks { get; init; }
     public string Confidence { get; init; } = "";
     public string Source { get; init; } = "";
     public string? Note { get; init; }
@@ -52,10 +54,11 @@ public sealed record GearEffect
     public bool IsMultiplier => Mode == Multiply;
 }
 
-/// <summary>The task an effect's conditions are checked against.</summary>
-public sealed record GearTaskContext(string Task, string Category, IReadOnlyCollection<string> Locations)
+/// <summary>The task an effect's conditions are checked against; <paramref name="MiningBlock"/> is the task's block kind id, if any.</summary>
+public sealed record GearTaskContext(string Task, string Category, IReadOnlyCollection<string> Locations, string? MiningBlock = null)
 {
-    public static GearTaskContext For(string task, string category) => new(task, category, GearCategories.LocationsOf(task));
+    public static GearTaskContext For(string task, string category)
+        => new(task, category, GearCategories.LocationsOf(task), MiningBlocks.ForTask(task)?.Id);
 }
 
 /// <summary>
@@ -94,10 +97,11 @@ public sealed class GearEffectTable
         return new GearEffectTable(file.Effects);
     }
 
-    /// <summary>The effects whose category and zone conditions the task meets.</summary>
+    /// <summary>The effects whose category, zone and block kind conditions the task meets.</summary>
     public IReadOnlyList<GearEffect> For(GearTaskContext context)
         => Effects.Where(e => e.Category == null || e.Category == context.Category)
             .Where(e => e.Zones == null || InZones(e.Zones, context.Locations))
+            .Where(e => e.MiningBlocks == null || context.MiningBlock != null && e.MiningBlocks.Contains(context.MiningBlock))
             .ToList();
 
     /// <summary>
@@ -132,6 +136,8 @@ public sealed class GearEffectTable
             return $"unknown mode {effect.Mode}";
         if (effect.Stats.Count == 0)
             return "no stats";
+        if (effect.MiningBlocks?.FirstOrDefault(b => Gear.MiningBlocks.Of(b) == null) is { } block)
+            return $"unknown mining block kind {block}";
         return KindProblem(effect);
     }
 

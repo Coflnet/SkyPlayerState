@@ -1,5 +1,5 @@
 {
-  "note": "Special effects of gear and pets that are not lore stat lines, counted into the gear score (GearEffectTable). Source: research-gear-effects.md (2026-11-08). Only rows with a numeric value that does not depend on a skill level, collection, counter, mob type or a short buff window. Pet values are at level 'atLevel' (default 100), linear in the level; of several entries with the same pet, mode, stats and target pieces the highest matching minRarity wins. Set tiers are the value per worn piece count (index 0 = 1 piece). mode multiply: value is the fraction added (0.2 = x1.2) to the build totals of the stats, or to the stats of 'pieceTags' only. zones: island or zone names as SkyblockZones knows them, matched against the task's locations. ALL VALUES AND THE SELECTION ARE TUNABLE in the data review.",
+  "note": "Special effects of gear and pets that are not lore stat lines, counted into the gear score (GearEffectTable). Source: research-gear-effects.md (2026-11-08). Only rows with a numeric value that does not depend on a skill level, collection, counter, mob type or a short buff window. Pet values are at level 'atLevel' (default 100), linear in the level; of several entries with the same pet, mode, stats and target pieces the highest matching minRarity wins. Set tiers are the value per worn piece count (index 0 = 1 piece). mode multiply: value is the fraction added (0.2 = x1.2) to the build totals of the stats, or to the stats of 'pieceTags' only. zones: island or zone names as SkyblockZones knows them, matched against the task's locations. ALL VALUES AND THE SELECTION ARE TUNABLE in the data review. miningBlocks: only for mining tasks of these block kinds (MiningBlocks: ore, dwarven-metal, block). Effects that scale with the Farming level assume level 60 (the scorer does not know a player's level: the optimal setup is assumed).",
   "effects": [
     {
       "id": "set-tater",
@@ -124,9 +124,39 @@
       "stats": [
         "Mining Spread"
       ],
-      "confidence": "med",
+      "confidence": "high",
       "source": "https://hypixelskyblock.minecraft.wiki/w/Glossy_Mineral_Armor",
-      "note": "Mining Spread on ores and blocks; tier to piece count mapping inferred by the dossier"
+      "note": "Glossy Mineralworks: +150/300/450/600 Mining Spread on Ores and Blocks for 1-4 pieces (research-gear-effects-2.md); not on dwarven metals or gemstones",
+      "miningBlocks": [
+        "ore",
+        "block"
+      ]
+    },
+    {
+      "id": "set-mineral",
+      "kind": "set",
+      "tags": [
+        "MINERAL_HELMET",
+        "MINERAL_CHESTPLATE",
+        "MINERAL_LEGGINGS",
+        "MINERAL_BOOTS"
+      ],
+      "tiers": [
+        100,
+        200,
+        300,
+        400
+      ],
+      "stats": [
+        "Mining Spread"
+      ],
+      "miningBlocks": [
+        "ore",
+        "block"
+      ],
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Mineral_Armor",
+      "note": "Mineralworks: +100/200/300/400 Mining Spread on Ores and Blocks for 1-4 pieces (research-gear-effects-2.md); the armor's Block Fortune is a lore stat"
     },
     {
       "id": "set-magma-lord",
@@ -188,6 +218,20 @@
       "value": 150,
       "confidence": "high",
       "source": "https://hypixelskyblock.minecraft.wiki/w/Elephant_Pet"
+    },
+    {
+      "id": "pet-rose-dragon-garden-power",
+      "kind": "pet",
+      "petType": "ROSE_DRAGON",
+      "minRarity": "LEGENDARY",
+      "stats": [
+        "Farming Fortune"
+      ],
+      "value": 180,
+      "atLevel": 200,
+      "confidence": "med",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Rose_Dragon_Pet",
+      "note": "Garden Power 1.52 (level 101) to 3 (level 200) Farming Fortune per Farming level, at Farming 60 (the farming level is not known to the scorer: the optimal setup is assumed): 180 at level 200, linear in the level (1.515 at 101)"
     },
     {
       "id": "pet-goblin-grunt-work",
@@ -365,7 +409,8 @@
       ],
       "value": 80,
       "confidence": "high",
-      "source": "https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO/blob/master/items/FLYING_FISH;4.json"
+      "source": "https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO/blob/master/items/FLYING_FISH;4.json",
+      "note": "Legendary and Mythic +80 (the highest matching minRarity row wins); Quick Reel is ability text ('Grants +80 Fishing Speed'), not a 'Name: value' lore line, so LoreStats never counts it twice"
     },
     {
       "id": "pet-flying-fish-deep-sea-diver",
@@ -428,7 +473,7 @@
         "Crit Damage"
       ],
       "value": 0.1,
-      "confidence": "med",
+      "confidence": "low",
       "source": "https://hypixelskyblock.minecraft.wiki/w/Baby_Yeti_Pet",
       "mode": "multiply",
       "zones": [
@@ -437,10 +482,10 @@
       "note": "x1.1 total fishing and combat stats on Jerry's Workshop; base of the percentage unspecified"
     },
     {
-      "id": "pet-baby-yeti-cold-breeze-legendary",
+      "id": "pet-baby-yeti-cold-breeze-epic",
       "kind": "pet",
       "petType": "BABY_YETI",
-      "minRarity": "LEGENDARY",
+      "minRarity": "EPIC",
       "stats": [
         "Sea Creature Chance",
         "Fishing Speed",
@@ -451,13 +496,13 @@
         "Crit Damage"
       ],
       "value": 0.2,
-      "confidence": "med",
+      "confidence": "low",
       "source": "https://hypixelskyblock.minecraft.wiki/w/Baby_Yeti_Pet",
       "mode": "multiply",
       "zones": [
         "Jerry"
       ],
-      "note": "x1.2 total fishing and combat stats on Jerry's Workshop; base of the percentage unspecified"
+      "note": "x1.2 from Epic (Rare x1.1, wiki after the 0.24.3 rework, 2026-03-31) on Jerry's Workshop; which stats and which base the percentage applies to is not stated: an assumption"
     },
     {
       "id": "pet-dolphin-echolocation",
@@ -551,7 +596,31 @@
       "value": 40,
       "confidence": "high",
       "source": "https://hypixelskyblock.minecraft.wiki/w/Monkey_Pet",
-      "note": "Common +40 to Legendary +60; the rarities between use the Common value (lower bound)"
+      "note": "Treeborn +40 Common, +50 Uncommon and Rare, +60 Epic and Legendary (wiki); the highest matching minRarity row wins"
+    },
+    {
+      "id": "pet-monkey-treeborn-uncommon",
+      "kind": "pet",
+      "petType": "MONKEY",
+      "minRarity": "UNCOMMON",
+      "stats": [
+        "Foraging Fortune"
+      ],
+      "value": 50,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Monkey_Pet"
+    },
+    {
+      "id": "pet-monkey-treeborn-epic",
+      "kind": "pet",
+      "petType": "MONKEY",
+      "minRarity": "EPIC",
+      "stats": [
+        "Foraging Fortune"
+      ],
+      "value": 60,
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Monkey_Pet"
     },
     {
       "id": "pet-monkey-treeborn-legendary",
@@ -580,6 +649,24 @@
       "source": "https://hypixelskyblock.minecraft.wiki/w/Ender_Dragon_Pet",
       "mode": "multiply",
       "note": "Superior: +10% all combat stats"
+    },
+    {
+      "id": "equipment-ranchers-boots-garden",
+      "kind": "equipment",
+      "tags": [
+        "RANCHERS_BOOTS"
+      ],
+      "stats": [
+        "Farming Fortune"
+      ],
+      "value": 60,
+      "category": "farming",
+      "zones": [
+        "Garden"
+      ],
+      "confidence": "med",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Rancher%27s_Boots",
+      "note": "+1 Farming Fortune per Farming level on The Garden (ability text, not a lore stat line), at Farming 60: the farming level is not known to the scorer, the optimal setup is assumed"
     }
   ]
 }
