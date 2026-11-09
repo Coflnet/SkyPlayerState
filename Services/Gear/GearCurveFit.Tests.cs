@@ -47,15 +47,15 @@ public class GearCurveFitTests
     [Test]
     public void TooFewPlayersOrHours_NoCurve()
     {
-        Fit(OnTheCurve(4)).Should().BeNull("4 players are below 5");
-        Fit(OnTheCurve(5, hours: 0.5)).Should().BeNull("2.5 hours are below 3");
-        Fit(OnTheCurve(5)).Should().NotBeNull();
+        Fit(OnTheCurve(7)).Should().BeNull("7 players are below 8");
+        Fit(OnTheCurve(8, hours: 0.25)).Should().BeNull("2 hours are below 3");
+        Fit(OnTheCurve(8)).Should().NotBeNull();
     }
 
     [Test]
     public void SameScoreForEveryone_NoCurve()
     {
-        Fit(Enumerable.Range(1, 6).Select(i => Obs(i, ScoreGear(500), 1, 1000 * i))).Should().BeNull("no slope can be read");
+        Fit(Enumerable.Range(1, 8).Select(i => Obs(i, ScoreGear(500), 1, 1000 * i))).Should().BeNull("no slope can be read");
     }
 
     [Test]
@@ -100,9 +100,9 @@ public class GearCurveFitTests
     [Test]
     public void AProlificPlayer_HasOneVote()
     {
-        // five players with 10 hours each on the curve; player 6 has 40 one-hour builds with a falling rate
-        var inputs = Enumerable.Range(1, 5).Select(i => Obs(i, ScoreGear(200 * i), 10, Rate(200 * i)))
-            .Concat(Enumerable.Range(0, 40).Select(i => Obs(6, ScoreGear(100 + 25 * i), 1, 100_000 / (1 + i))));
+        // seven players with 10 hours each on the curve; player 8 has 40 one-hour builds with a falling rate
+        var inputs = Enumerable.Range(1, 7).Select(i => Obs(i, ScoreGear(150 * i), 10, Rate(150 * i)))
+            .Concat(Enumerable.Range(0, 40).Select(i => Obs(8, ScoreGear(100 + 25 * i), 1, 100_000 / (1 + i))));
 
         Fit(inputs)!.Slope.Should().BeApproximately(0.002, 0.0004);
     }
@@ -110,7 +110,7 @@ public class GearCurveFitTests
     [Test]
     public void AFallingCurve_IsNotPublished()
     {
-        Fit(Enumerable.Range(1, 6).Select(i => Obs(i, ScoreGear(100 * i), 1, 10_000 - 1000 * i))).Should().BeNull("the slope must not be negative");
+        Fit(Enumerable.Range(1, 8).Select(i => Obs(i, ScoreGear(100 * i), 1, 10_000 - 1000 * i))).Should().BeNull("the slope must not be negative");
     }
 
     [Test]
@@ -133,5 +133,54 @@ public class GearCurveFitTests
         published.Points[2].CoinsPerHour.Should().Be(Math.Round(Rate(500)) + 100, "plus the pooled rare drops");
         published.SlopePer10Pct.Should().Be(Math.Round((Math.Exp(0.002 * 50) - 1) * 100, 1), "+10 % of the median score 500");
         published.ScoreMax.Should().Be(800);
+    }
+
+    /// <summary>Regression: a steep curve of few players read absurd rates at the top (Sven 172.7M/h at the P90).</summary>
+    [Test]
+    public void Predictions_AreCappedAtTheThirdHighestPlayerRate_Rounded()
+    {
+        var curve = Fit(OnTheCurve(10))!;
+
+        curve.CommonCap.Should().Be(5000, "the third highest player's 4953, 2 significant digits, is below 3 x the median");
+        curve.PredictCommon(1000).Should().Be(5000, "no single player's exact rate is published");
+        curve.PredictCommon(5000).Should().Be(5000);
+        curve.IsCappedAt(5000).Should().BeTrue();
+        curve.IsCappedAt(500).Should().BeFalse();
+    }
+
+    [Test]
+    public void Cap_CanBeTurnedOff()
+    {
+        var curve = GearCurveFit.Fit(Builds([.. OnTheCurve(10)]), Options with { CurveCapEnabled = false })!;
+
+        curve.CommonCap.Should().Be(double.PositiveInfinity);
+        curve.PredictCommon(1000).Should().BeApproximately(Rate(1000), 1e-6);
+    }
+
+    [Test]
+    public void Predictions_AreCappedAtThreeTimesTheMedianPlayer()
+    {
+        // seven players at about 1000 / h, three at 50 000 / h: the median player earns 1005.5
+        var inputs = Enumerable.Range(1, 7).Select(i => Obs(i, ScoreGear(100 * i), 1, 1000 + i)).ToList();
+        inputs.AddRange(Enumerable.Range(8, 3).Select(i => Obs(i, ScoreGear(100 * i), 1, 50_000)));
+
+        var curve = Fit(inputs)!;
+
+        curve.CommonCap.Should().Be(3000, "3 x 1005.5, 2 significant digits");
+        curve.Slope.Should().BePositive();
+        curve.PredictCommon(1e7).Should().Be(3000, "the three 50 000 players do not set the cap");
+    }
+
+    [Test]
+    public void RecommendedRate_FromTheCurve_IsCappedAndFlagged()
+    {
+        var curve = Fit(OnTheCurve(10))!;
+
+        var rate = GearBuildRecommender.Rate(1000, curve, 100, null, PlainScorer.Formula, Options)!;
+
+        rate.CoinsPerHour.Should().Be(5100, "the cap 5000 plus the rare 100");
+        rate.Capped.Should().BeTrue();
+        rate.Basis.Should().Be(GearBuildRecommender.BasisCurve);
+        GearBuildRecommender.Rate(500, curve, 100, null, PlainScorer.Formula, Options)!.Capped.Should().BeFalse();
     }
 }

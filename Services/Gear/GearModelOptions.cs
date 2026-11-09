@@ -27,14 +27,29 @@ public sealed record GearModelOptions
     public double LateGamePriorHours { get; init; } = 3;
     /// <summary>Whether the late game rate is never published below the all-player prior (<see cref="GearLateGamePrior.Floor"/>).</summary>
     public bool LateGameFloorAtPrior { get; init; } = true;
-    /// <summary>Distinct players and play time the rate curve needs.</summary>
-    public int CurveMinPlayers { get; init; } = 5;
+    /// <summary>
+    /// Distinct players and play time the rate curve needs. 8 players: curves of 5 to 6 players predicted absurd rates at
+    /// the P90 (Sven 172.7M/h with 6 players, live check 2026-11-09).
+    /// </summary>
+    public int CurveMinPlayers { get; init; } = 8;
     public double CurveMinHours { get; init; } = 3;
     /// <summary>Hours weight of one player-build in the curve fit is capped here, so one long grinder cannot dominate the slope.</summary>
     public double CurveMaxWeightHours { get; init; } = 10;
     /// <summary>Above this many player-builds the curve is fit on <see cref="CurveBins"/> score bins (median per bin).</summary>
     public int CurveMaxPairwisePoints { get; init; } = 300;
     public int CurveBins { get; init; } = 50;
+    /// <summary>Whether curve predictions are capped (<see cref="GearCurveModel.CommonCap"/>); false turns the cap off by config.</summary>
+    public bool CurveCapEnabled { get; init; } = true;
+    /// <summary>
+    /// A curve prediction (common coins per hour) is capped at this multiple of the median player's common rate, and at
+    /// the highest common rate <see cref="CurveCapPlayers"/> players reach (<see cref="GearCurveModel.CommonCap"/>). TUNABLE.
+    /// </summary>
+    public double CurveMaxMedianMultiple { get; init; } = 3;
+    /// <summary>
+    /// The cap's top rate is the one this many players reach (3, not k = 2: where the cap binds, the published rate would
+    /// otherwise be the second best player's exact rate); the cap is also rounded to 2 significant digits.
+    /// </summary>
+    public int CurveCapPlayers { get; init; } = 3;
     /// <summary>The recommended build's rate is never read from the curve further than this fraction beyond the observed score range.</summary>
     public double MaxExtrapolation { get; init; } = 0.2;
 

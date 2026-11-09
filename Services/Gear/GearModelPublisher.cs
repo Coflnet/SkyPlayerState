@@ -86,7 +86,7 @@ public static class GearModelPublisher
     }
 
     /// <summary>
-    /// The curve has at least 5 players (<see cref="GearModelOptions.CurveMinPlayers"/>), so its rates are exact. Null when
+    /// The curve has at least 8 players (<see cref="GearModelOptions.CurveMinPlayers"/>), so its rates are exact. Null when
     /// any published value is not finite (the curve is then not used at all).
     /// </summary>
     public static GearRateCurve? Curve(GearCurveModel curve, GearScoreDistribution distribution, double rarePerHour, GearScoreFormula formula)

@@ -42,7 +42,8 @@ public static class GearBuildRecommender
     /// The build's rate: the late game cohort's published rate whenever there is a cohort (basis "cohort": the measured
     /// rate of the top builds, never below or above it); otherwise the curve at the score, read at most
     /// <see cref="GearModelOptions.MaxExtrapolation"/> beyond the observed range and flagged extrapolated beyond it
-    /// (basis "curve"); null without either.
+    /// (basis "curve"), capped like every curve prediction (<see cref="GearCurveModel.CommonCap"/>, flagged capped); null
+    /// without either.
     /// </summary>
     public static GearRecommendedRate? Rate(double score, GearCurveModel? curve, double rareCoinsPerHour,
         double? cohortCoinsPerHour, GearScoreFormula formula, GearModelOptions options)
@@ -51,9 +52,9 @@ public static class GearBuildRecommender
             return new GearRecommendedRate(cohortRate, false, false, BasisCohort);
         if (curve == null)
             return null;
-        var limit = formula.Extend(curve.ScoreMax, options.MaxExtrapolation);
-        var rate = curve.PredictCommon(Math.Min(score, limit)) + rareCoinsPerHour;
-        return new GearRecommendedRate(Math.Round(rate), score > curve.ScoreMax, false, BasisCurve);
+        var readAt = Math.Min(score, formula.Extend(curve.ScoreMax, options.MaxExtrapolation));
+        var rate = curve.PredictCommon(readAt) + rareCoinsPerHour;
+        return new GearRecommendedRate(Math.Round(rate), score > curve.ScoreMax, curve.IsCappedAt(readAt), BasisCurve);
     }
 
     private static Dictionary<string, GearCatalogEntry> BestMix(IReadOnlyList<GearCatalogEntry> items)

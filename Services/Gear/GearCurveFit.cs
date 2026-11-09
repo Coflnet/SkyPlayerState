@@ -4,15 +4,24 @@ using System.Linq;
 
 namespace Coflnet.Sky.PlayerState.Services.Gear;
 
-/// <summary>A fitted ln(common rate) = Intercept + Slope × score, unrounded.</summary>
-public sealed record GearCurveModel(double Intercept, double Slope, double ScoreMin, double ScoreMax, int Players, double Hours, string Method)
+/// <summary>
+/// A fitted ln(common rate) = Intercept + Slope × score, unrounded. Predictions never exceed <see cref="CommonCap"/>
+/// (see <see cref="GearCurveFit"/>): an exponential read at the top scores of a few players runs away.
+/// </summary>
+public sealed record GearCurveModel(double Intercept, double Slope, double ScoreMin, double ScoreMax, int Players, double Hours, string Method,
+    double CommonCap = double.PositiveInfinity)
 {
     public const string TheilSen = "theil-sen";
     public const string Binned = "binned-theil-sen";
     /// <summary>Exponents are capped here so a prediction never overflows to infinity.</summary>
     private const double MaxExponent = 700;
 
-    public double PredictCommon(double score) => Math.Exp(Math.Min(MaxExponent, Intercept + Slope * score));
+    public double PredictCommon(double score) => Math.Min(CommonCap, Uncapped(score));
+
+    /// <summary>True when the curve at the score is above <see cref="CommonCap"/>, so the prediction is the cap.</summary>
+    public bool IsCappedAt(double score) => Uncapped(score) > CommonCap;
+
+    private double Uncapped(double score) => Math.Exp(Math.Min(MaxExponent, Intercept + Slope * score));
 }
 
 /// <summary>
@@ -25,7 +34,10 @@ public sealed record GearCurveModel(double Intercept, double Slope, double Score
 /// fit runs on score bins of the points. Needs <see cref="GearModelOptions.CurveMinPlayers"/> distinct players and
 /// <see cref="GearModelOptions.CurveMinHours"/>; null otherwise, when no slope can be read, or when the slope is
 /// negative or not finite. The observed range is the k-th lowest and k-th highest player score, so at least k players
-/// reach each bound.
+/// reach each bound. Predictions are capped (<see cref="GearCurveModel.CommonCap"/>, unless
+/// <see cref="GearModelOptions.CurveCapEnabled"/> is off) at the highest per-player common rate
+/// <see cref="GearModelOptions.CurveCapPlayers"/> players reach and at <see cref="GearModelOptions.CurveMaxMedianMultiple"/>
+/// times the median player's rate, rounded to 2 significant digits, so a binding cap never publishes one player's rate.
 /// </summary>
 public static class GearCurveFit
 {
@@ -50,7 +62,24 @@ public static class GearCurveFit
         if (!double.IsFinite(intercept))
             return null;
         var (min, max) = Range(usable, options.MinPlayers);
-        return new GearCurveModel(intercept, value, min, max, players, hours, binned ? GearCurveModel.Binned : GearCurveModel.TheilSen);
+        return new GearCurveModel(intercept, value, min, max, players, hours, binned ? GearCurveModel.Binned : GearCurveModel.TheilSen,
+            CommonCap(usable, options));
+    }
+
+    /// <summary>
+    /// The lower of the highest per-player common rate <see cref="GearModelOptions.CurveCapPlayers"/> players reach and the
+    /// median player's rate times the multiple, rounded to 2 significant digits; no cap when it is turned off.
+    /// </summary>
+    private static double CommonCap(List<GearPlayerBuild> builds, GearModelOptions options)
+    {
+        if (!options.CurveCapEnabled)
+            return double.PositiveInfinity;
+        var perPlayer = builds.GroupBy(b => b.Player, StringComparer.Ordinal)
+            .Select(g => (Player: g.Key, Rate: g.Sum(b => b.Common) / g.Sum(b => b.Hours)))
+            .ToList();
+        var highest = GearSharedItems.KthHighest(perPlayer, options.CurveCapPlayers) ?? double.PositiveInfinity;
+        var median = GearStatistics.Median(perPlayer.Select(p => p.Rate).ToList());
+        return GearModelPublisher.RoundSignificant(Math.Min(highest, options.CurveMaxMedianMultiple * median), 2);
     }
 
     /// <summary>One point per player and score decile, the player's capped hours split over their points by hours.</summary>
