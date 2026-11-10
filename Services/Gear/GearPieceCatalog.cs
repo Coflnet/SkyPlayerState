@@ -28,7 +28,9 @@ public sealed record GearCatalogEntry(string Id, string Slot, GearPiece? Piece, 
 /// are merged into one entry;</item>
 /// <item>lore stats are the per-stat minimum over the k best players' most used instances
 /// (<see cref="GearSharedItems.InstanceStats{T}"/>), the contribution is scored from them;</item>
-/// <item>a pet of unknown tier gets the tier its player or the type's known players show (<see cref="GearSharedItems.TierFiller"/>);</item>
+/// <item>a pet of unknown tier gets the tier its stats fit, its player or the type's known players show
+/// (<see cref="GearSharedItems.TierFiller"/>); a pet without lore stats (tab list) gets its player's stats
+/// (<see cref="GearPetFill"/>), a published pet without any those of similar pets of k players, else it is not published;</item>
 /// <item>a pet's contribution is scored on top of the task's most common published tool and armor (the entry of each
 /// slot with the most players), so perks that depend on them (a drill, a set's stats) count.</item>
 /// </list>
@@ -64,16 +66,25 @@ public static class GearPieceCatalog
         return Merged(groups, group => PieceEntry(slot, group, context));
     }
 
-    /// <summary>Pets grouped by type and variant after their unknown tiers are filled in (<see cref="GearSharedItems.TierFiller"/>).</summary>
+    /// <summary>
+    /// Pets grouped by type and variant after their unknown tiers (<see cref="GearSharedItems.TierFiller"/>), then their
+    /// players' stats (<see cref="GearPetFill.StatFiller"/>) are filled in.
+    /// </summary>
     private static IEnumerable<GearCatalogEntry> PetEntries(IReadOnlyList<GearPlayerBuild> builds, ObservedGear baseGear, Context context)
     {
         var seen = builds.Where(b => b.Gear.Pet != null).Select(b => new Sighting<GearPet>(b.Gear.Pet!, b)).ToList();
-        var fill = GearSharedItems.TierFiller(seen.Select(s => s.Seen).ToList(), context.MinPlayers);
+        var fillTier = GearSharedItems.TierFiller(seen.Select(s => s.Seen).ToList(), context.MinPlayers);
         // a variant's player count (and the published tier) may include players whose tier is assumed, see TierFiller
-        var sightings = seen.Select(s => s with { Item = fill(s.Item, s.Build.Player) });
+        var tiered = seen.Select(s => s with { Item = fillTier(s.Item, s.Build.Player) }).ToList();
+        var fillStats = GearPetFill.StatFiller(tiered.Select(s => s.Seen).ToList());
+        var sightings = seen.Zip(tiered, (before, after) => after with
+        {
+            Item = fillStats(after.Item, after.Build.Player, GearPetFill.HeldItemKnown(before.Item))
+        }).ToList();
+        var all = sightings.Select(s => s.Seen).ToList();
         var groups = sightings.GroupBy(s => s.Item.Type, StringComparer.Ordinal)
             .SelectMany(type => Variants(type.ToList(), s => PetKey(s.Item), context.MinPlayers));
-        return Merged(groups, group => PetEntry(group, baseGear, context));
+        return Merged(groups, group => PetEntry(group, all, baseGear, context));
     }
 
     /// <summary>
@@ -118,10 +129,19 @@ public static class GearPieceCatalog
             scorer.SetShare(slot, piece), UsedAt(group, context), PieceEffects(slot, piece, scorer));
     }
 
-    private static GearCatalogEntry? PetEntry(List<Sighting<GearPet>> group, ObservedGear baseGear, Context context)
+    /// <summary>
+    /// The group's shared pet with its stats (<see cref="FillStats"/>). Not published when its stats are still unseen while
+    /// its type has stats (<see cref="GearPetFill.StatsUnseen"/>): it would score 0 and, as the most used pet, sat in
+    /// recommended endgames.
+    /// </summary>
+    private static GearCatalogEntry? PetEntry(List<Sighting<GearPet>> group, IReadOnlyList<GearSeen<GearPet>> all, ObservedGear baseGear, Context context)
     {
-        var pet = GearSharedItems.SharedPet(group.Select(s => s.Seen).ToList(), context.MinPlayers, context.Scorer.Contribution);
+        var groupSeen = group.Select(s => s.Seen).ToList();
+        var pet = GearSharedItems.SharedPet(groupSeen, context.MinPlayers, context.Scorer.Contribution);
         if (pet == null)
+            return null;
+        FillStats(pet, groupSeen, all, context);
+        if (GearPetFill.StatsUnseen(pet, all))
             return null;
         var scorer = context.Scorer;
         var withPet = new ObservedGear { Slots = baseGear.Slots, Pet = pet };
@@ -129,6 +149,22 @@ public static class GearPieceCatalog
             .Select(a => new GearEntryEffect(a.Effect, a.Amount, false)).ToList();
         return new GearCatalogEntry($"{PetSlot}:{PetKey(pet)}", PetSlot, null, pet, Players(group),
             scorer.Score(withPet) - scorer.Score(baseGear), 0, UsedAt(group, context), effects);
+    }
+
+    /// <summary>
+    /// A shared pet without stats of its own takes those of similar sightings with the same held item
+    /// (<see cref="GearPetFill.SimilarStats"/>); one without a held item, when no sighting of its type without one has
+    /// stats at all, the group's minimum over all held items (<see cref="GearSharedItems.AnyHeldItemStats"/>). The held
+    /// item fallback came first and published a pet without one at a Relic's 150 next to plain pets at 90 (review 2026-11-10).
+    /// </summary>
+    private static void FillStats(GearPet pet, List<GearSeen<GearPet>> group, IReadOnlyList<GearSeen<GearPet>> all, Context context)
+    {
+        if (GearPetFill.HasStats(pet))
+            return;
+        pet.Stats = GearPetFill.SimilarStats(pet, all, context.MinPlayers, context.Scorer.Contribution);
+        if (GearPetFill.HasStats(pet) || pet.HeldItem != null || GearPetFill.AnyStatsWithoutHeldItem(pet, all))
+            return;
+        pet.Stats = GearSharedItems.AnyHeldItemStats(pet, group, context.MinPlayers, context.Scorer.Contribution);
     }
 
     /// <summary>Per tool and armor slot the published entry with the most players: the build pets are scored with.</summary>

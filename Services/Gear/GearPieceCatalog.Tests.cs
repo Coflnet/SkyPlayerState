@@ -286,6 +286,173 @@ public class GearPieceCatalogTests
         pet.Pet!.Tier.Should().BeNull("one player's tier would be published otherwise");
     }
 
+    private static GearSeen<GearPet> Scatha(int player, string? tier, double fortune, double speed) => new(new GearPet
+    {
+        Type = "SCATHA", Tier = tier, Level = 100, HeldItem = "HEPHAESTUS_RELIC",
+        Stats = new() { ["Mining Fortune"] = fortune, ["Mining Speed"] = speed }
+    }, 1, Player(player));
+
+    /// <summary>Regression: a pet of unknown tier took the type's lowest tier but kept its stats (Coal's Rare Scatha with the Legendary's 190 Mining Fortune).</summary>
+    [Test]
+    public void TierFiller_UnknownTierWithStats_TakesTheTierItsStatsFit()
+    {
+        GearSeen<GearPet>[] known = [Scatha(1, "LEGENDARY", 190, 150), Scatha(2, "LEGENDARY", 188, 148), Scatha(3, "RARE", 95, 75), Scatha(4, "RARE", 95, 75)];
+        var fill = GearSharedItems.TierFiller(known, 2);
+        string? Filled(double fortune, double speed) => fill(Scatha(5, null, fortune, speed).Item, Player(5)).Tier;
+
+        Filled(190, 150).Should().Be("LEGENDARY", "the floor was RARE");
+        Filled(96, 74).Should().Be("RARE");
+        Filled(140, 110).Should().BeNull("the stats contradict both known tiers");
+        fill(new GearPet { Type = "SCATHA", Level = 100, HeldItem = "HEPHAESTUS_RELIC" }, Player(5)).Tier.Should().Be("RARE", "without stats: the floor");
+        GearSharedItems.TierFiller([known[0], known[2], known[3]], 2)(Scatha(5, null, 190, 150).Item, Player(5)).Tier
+            .Should().BeNull("one player is known with Legendary, and Rare would contradict the stats");
+    }
+
+    /// <summary>Regression (review 2026-11-10): stats that fit no tier dropped the player's own known tier.</summary>
+    [Test]
+    public void TierFiller_StatsFittingNoTier_KeepThePlayersOwnTier()
+    {
+        var fill = GearSharedItems.TierFiller([Scatha(1, "LEGENDARY", 190, 150), Scatha(2, "LEGENDARY", 188, 148),
+            Scatha(3, "RARE", 95, 75), Scatha(4, "RARE", 95, 75)], 2);
+
+        fill(Scatha(1, null, 140, 110).Item, Player(1)).Tier.Should().Be("LEGENDARY", "player 1 is seen with a Legendary");
+        fill(Scatha(5, null, 140, 110).Item, Player(5)).Tier.Should().BeNull("player 5 has no tier of their own");
+    }
+
+    [Test]
+    public void Pets_UnknownTierWithLegendaryStats_AreNotPublishedAsRare()
+    {
+        var gemScorer = GearScorer.For("Gemstone Mining", GearModifierTable.MiningGem)!;
+        GearObservationInput Mining(GearSeen<GearPet> pet)
+        {
+            var gear = new ObservedGear
+            {
+                Slots = new() { [GearSnapshot.Tool] = new() { Tag = "TEST_DRILL", ItemType = "DRILL" }, [GearSnapshot.Helmet] = Armor("TEST_PLAIN", GearSnapshot.Helmet) },
+                Pet = pet.Item
+            };
+            return new GearObservationInput(Obs(1, gear, 1, 1000, category: GearModifierTable.MiningGem).Observation with { PlayerKey = pet.Player }, gear);
+        }
+        var inputs = new[] { Scatha(1, "LEGENDARY", 190, 150), Scatha(2, "LEGENDARY", 190, 150), Scatha(3, "RARE", 95, 75),
+            Scatha(4, "RARE", 95, 75), Scatha(5, null, 190, 150), Scatha(6, null, 190, 150) }.Select(Mining).ToArray();
+
+        var pets = GearPieceCatalog.Build(GearPlayerBuilds.From(inputs, gemScorer), gemScorer, null, 2).Where(e => e.Pet != null).ToList();
+
+        pets.Single(e => e.Pet!.Tier == "RARE").Pet!.Stats["Mining Fortune"].Should().Be(95);
+        pets.Single(e => e.Pet!.Tier == "LEGENDARY").Players.Should().Be(4, "players 5 and 6 fit the Legendary");
+    }
+
+    private static GearObservationInput PetObs(int player, string? tier, int level = 100, string? held = null, double? fortune = null)
+    {
+        var gear = TestGear(pet: null, armor: "TEST_PLAIN", equipment: false);
+        gear.Pet = new GearPet
+        {
+            Type = "MOOSHROOM_COW", Tier = tier, Level = level, HeldItem = held,
+            Stats = fortune is { } value ? new() { ["Farming Fortune"] = value } : new()
+        };
+        return Obs(player, gear, 1, 1000);
+    }
+
+    private static List<GearPet> Pets(params GearObservationInput[] inputs)
+        => Catalog(inputs).Where(e => e.Pet != null).Select(e => e.Pet!).ToList();
+
+    [Test]
+    public void Pets_AGroupMixingStatlessAndStatCarryingSightings_HasTheStats()
+    {
+        var pets = Pets(PetObs(1, "LEGENDARY", fortune: 100), PetObs(2, "LEGENDARY", fortune: 100), PetObs(3, "LEGENDARY"), PetObs(4, "LEGENDARY"));
+
+        pets.Should().ContainSingle().Which.Stats.Should().BeEquivalentTo(new Dictionary<string, double> { ["Farming Fortune"] = 100 });
+    }
+
+    /// <summary>Regression: pets named by the tab list (no stats, tier or held item) were published with empty stats, scoring 0 (Mooshroom 0 vs 160).</summary>
+    [Test]
+    public void Pets_TabListSightings_TakeTheirPlayersStatsAndHeldItem()
+    {
+        var pets = Pets(PetObs(1, "LEGENDARY", held: "GREEN_BANDANA", fortune: 160), PetObs(2, "LEGENDARY", held: "GREEN_BANDANA", fortune: 160),
+            PetObs(1, null), PetObs(2, null));
+
+        pets.Should().ContainSingle().Which.HeldItem.Should().Be("GREEN_BANDANA");
+        pets.Single().Stats["Farming Fortune"].Should().Be(160);
+    }
+
+    /// <summary>Regression: a held item's bonus must not reach a pet without one; tab list pets whose stats nobody shares are left out.</summary>
+    [Test]
+    public void Pets_WithoutSeenStats_DoNotTakeAHeldItemsStats_AndAreLeftOut()
+    {
+        var pets = Pets(PetObs(1, "LEGENDARY", held: "GREEN_BANDANA", fortune: 160), PetObs(2, "LEGENDARY", held: "GREEN_BANDANA", fortune: 160),
+            PetObs(3, null), PetObs(4, null));
+
+        pets.Should().ContainSingle("players 3 and 4's pet was published with empty stats, scoring 0").Which.HeldItem.Should().Be("GREEN_BANDANA");
+    }
+
+    [Test]
+    public void Pets_WithoutStats_TakeThoseOfSimilarPetsWithoutAHeldItem_AtMostAtTheirLevel()
+    {
+        var pets = Pets(PetObs(1, "LEGENDARY", held: "GREEN_BANDANA", fortune: 160), PetObs(2, "LEGENDARY", held: "GREEN_BANDANA", fortune: 160),
+            PetObs(3, "LEGENDARY", 80, fortune: 80), PetObs(4, "LEGENDARY", 80, fortune: 80), PetObs(5, null, 90), PetObs(6, null, 90));
+
+        pets.Single(p => p.Level == 90).Stats["Farming Fortune"].Should().Be(80, "the level 80 pets without a held item, not the Bandana's 160");
+    }
+
+    /// <summary>Regression (review 2026-11-10): a type whose players all hold different items was left out of the catalog.</summary>
+    [Test]
+    public void Pets_AllWithDifferentHeldItems_ArePublishedWithTheMinimumOverThem()
+    {
+        var pets = Pets(PetObs(1, "LEGENDARY", held: "GREEN_BANDANA", fortune: 160), PetObs(2, "LEGENDARY", held: "TEST_RELIC", fortune: 150),
+            PetObs(3, "LEGENDARY", held: "TEST_TEXTBOOK", fortune: 140));
+
+        var pet = pets.Should().ContainSingle().Which;
+        pet.HeldItem.Should().BeNull("no held item is shared by two players");
+        pet.Stats["Farming Fortune"].Should().Be(150, "the lower of the two best players' 160 and 150");
+    }
+
+    /// <summary>
+    /// Regression (review 2026-11-10): the all-held-items fallback came before the pets without one and published the
+    /// level 100 pet without a held item at the Relic's 150, next to plain pets at 90 and 100.
+    /// </summary>
+    [Test]
+    public void Pets_WithoutAHeldItem_PreferPlainPetsOverTheHeldItemFallback()
+    {
+        var pets = Pets(PetObs(1, "LEGENDARY", held: "GREEN_BANDANA", fortune: 160), PetObs(2, "LEGENDARY", held: "TEST_RELIC", fortune: 150),
+            PetObs(3, "LEGENDARY", fortune: 100), PetObs(4, "LEGENDARY", 90, fortune: 90), PetObs(5, "LEGENDARY", 90, fortune: 90));
+
+        var top = pets.Single(p => p.Level == 100);
+        top.HeldItem.Should().BeNull();
+        top.Stats["Farming Fortune"].Should().Be(90, "the plain pets at levels 100 and 90, not 150");
+    }
+
+    /// <summary>Regression (review 2026-11-10): a Pets menu sighting without a held item (none) took the player's Bandana and its stats.</summary>
+    [Test]
+    public void StatFiller_TakesAHeldItem_OnlyWhereTheSightingDidNotShowOne()
+    {
+        GearSeen<GearPet> Seen(string? held, double fortune) => new(new GearPet
+        {
+            Type = "MOOSHROOM_COW", Tier = "LEGENDARY", Level = 100, HeldItem = held, Stats = new() { ["Farming Fortune"] = fortune }
+        }, 1, Player(1));
+        var statless = new GearPet { Type = "MOOSHROOM_COW", Tier = "LEGENDARY", Level = 100 };
+
+        var bandanaOnly = GearPetFill.StatFiller([Seen("GREEN_BANDANA", 160)]);
+        var withPlain = GearPetFill.StatFiller([Seen("GREEN_BANDANA", 160), Seen(null, 100)]);
+
+        bandanaOnly(statless, Player(1), true).Should().BeSameAs(statless, "the Pets menu showed no held item: none");
+        withPlain(statless, Player(1), true).Stats["Farming Fortune"].Should().Be(100, "the player's pet without a held item");
+        withPlain(statless, Player(1), true).HeldItem.Should().BeNull();
+        var tab = bandanaOnly(statless, Player(1), false);
+        tab.HeldItem.Should().Be("GREEN_BANDANA", "the tab list names no held item: unknown");
+        tab.Stats["Farming Fortune"].Should().Be(160);
+    }
+
+    /// <summary>Regression: the merged rest of a type's variants took its stats from held items it was published without (150 of a Relic).</summary>
+    [Test]
+    public void Pets_PublishedWithoutAHeldItem_TakeStatsOnlyFromPetsWithoutOne()
+    {
+        var pets = Pets(PetObs(1, "LEGENDARY", held: "GREEN_BANDANA", fortune: 160), PetObs(2, "LEGENDARY", held: "TEST_RELIC", fortune: 150),
+            PetObs(3, "LEGENDARY", fortune: 100), PetObs(4, "LEGENDARY", fortune: 100));
+
+        var pet = pets.Should().ContainSingle().Which;
+        pet.HeldItem.Should().BeNull();
+        pet.Stats["Farming Fortune"].Should().Be(100);
+    }
+
     /// <summary>
     /// Regression: each lore stat was the k-th highest of its own, picked from different players, so the published piece
     /// was one nobody had (Wise Wither with Crit Damage 260 and Intelligence 2500); publishing one player's whole instance
