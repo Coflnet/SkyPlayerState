@@ -160,10 +160,11 @@ public class GearLateGameCohortTests
             Obs(3, ScoreGear(1), 1, 1), Obs(4, ScoreGear(2), 1, 1), Obs(5, ScoreGear(3), 1, 1), Obs(6, ScoreGear(4), 1, 1),
             Obs(7, ScoreGear(5), 1, 1), Obs(8, ScoreGear(6), 1, 1));
         var distribution = GearScoreDistribution.Of(builds, Options)!;
-        var unshrunk = TwoPlayers with { LateGamePriorHours = 0 };
+        // the cohort's own pooled drops, uncapped: only player 1 has rare drops, the cap and the task's rate (GearRareRateTests) would hide them
+        var unshrunk = TwoPlayers with { LateGamePriorHours = 0, RareCapPlayers = 0, LateGameRareFromTask = false };
         var cohort = GearLateGameCohort.Select(distribution, unshrunk)!;
 
-        var published = GearModelPublisher.LateGame(cohort, GearLateGamePrior.Of(distribution, cohort, null), unshrunk);
+        var published = GearModelPublisher.LateGame(cohort, GearLateGamePrior.Of(distribution, cohort, null, unshrunk), unshrunk);
 
         published.Players.Should().Be(2);
         published.PlayersLabel.Should().Be("2+");
@@ -181,7 +182,8 @@ public class GearLateGameCohortTests
         var builds = Builds(Obs(1, ScoreGear(1), 1, 1000), Obs(1, ScoreGear(2), 3, 3000), Obs(2, ScoreGear(3), 1, 4000, rarePerHour: 8000),
             Obs(3, ScoreGear(4), 2, 9000));
 
-        var prior = GearRatePrior.Of(GearScoreDistribution.Of(builds, Options)!);
+        // uncapped: only player 2 has rare drops, the cap (GearRareRateTests) would take them out
+        var prior = GearRatePrior.Of(GearScoreDistribution.Of(builds, Options)!, Options with { RareCapPlayers = 0 });
 
         prior.Common.Should().Be(4000, "players at 2500 (10 000 over 4 h), 4000 and 9000");
         prior.Rare.Should().Be(8000.0 / 7, "8000 rare coins over 7 hours");
@@ -225,7 +227,7 @@ public class GearLateGameCohortTests
         var distribution = GearScoreDistribution.Of(builds, Options)!;
         var cohort = GearLateGameCohort.Select(distribution, Options)!;
 
-        var published = GearModelPublisher.LateGame(cohort, GearLateGamePrior.Of(distribution, cohort, null), Options);
+        var published = GearModelPublisher.LateGame(cohort, GearLateGamePrior.Of(distribution, cohort, null, Options), Options);
 
         cohort.Players.Should().Be(3);
         published.CommonCoinsPerHour.Should().Be(5500, "halfway between the cohort's 10 000 and the median player's 1000");
@@ -247,7 +249,7 @@ public class GearLateGameCohortTests
         var cohort = GearLateGameCohort.Select(distribution, Options)!;
         var curve = new GearCurveModel(Math.Log(1000), 0.02, 10, 90, 9, 9, GearCurveModel.TheilSen);
 
-        var prior = GearLateGamePrior.Of(distribution, cohort, curve);
+        var prior = GearLateGamePrior.Of(distribution, cohort, curve, Options);
 
         GearLateGamePrior.MedianScore(cohort).Should().Be(80);
         prior.Target.Common.Should().BeApproximately(1000 * Math.Exp(1.6), 1e-6, "the curve at score 80");
@@ -265,7 +267,7 @@ public class GearLateGameCohortTests
         var distribution = GearScoreDistribution.Of(builds, Options)!;
         var cohort = GearLateGameCohort.Select(distribution, Options)!;
 
-        var published = GearModelPublisher.LateGame(cohort, GearLateGamePrior.Of(distribution, cohort, null), Options);
+        var published = GearModelPublisher.LateGame(cohort, GearLateGamePrior.Of(distribution, cohort, null, Options), Options);
 
         cohort.Players.Should().Be(5);
         published.CommonCoinsPerHour.Should().Be(9125, "5 h weigh 5 / 8: 0.625 x 14 000 + 0.375 x 1000");
@@ -280,7 +282,7 @@ public class GearLateGameCohortTests
         var distribution = GearScoreDistribution.Of(builds, Options)!;
         var cohort = GearLateGameCohort.Select(distribution, Options)!;
 
-        var published = GearModelPublisher.LateGame(cohort, GearLateGamePrior.Of(distribution, cohort, null), Options);
+        var published = GearModelPublisher.LateGame(cohort, GearLateGamePrior.Of(distribution, cohort, null, Options), Options);
 
         published.CommonCoinsPerHour.Should().Be(1000, "the cohort is below the typical player");
         published.CommonP25.Should().BeLessThanOrEqualTo(1000);

@@ -112,7 +112,10 @@ public class GearLateGame
     public double Hours { get; set; }
     /// <summary>Median over players of each player's pooled common coins/hour.</summary>
     public double CommonCoinsPerHour { get; set; }
-    /// <summary>Rare drop value per hour, pooled (all rare coins / all hours).</summary>
+    /// <summary>
+    /// Rare drop value per hour: the task's pooled rare rate (each player's at most the rare rate a few players of the task
+    /// reach) scaled by the cohort's common rate over the task's (at most the curve cap's multiple), shrunk like the common rate.
+    /// </summary>
     public double RareCoinsPerHour { get; set; }
     public double CoinsPerHour { get; set; }
     /// <summary>25th / 75th percentile of the players' common rates; null below 5 players.</summary>
@@ -134,7 +137,7 @@ public class GearRateCurve
     public int Players { get; set; }
     /// <summary>Percent change of the rate for +10 % score (of the underlying stat value for the log scale, at the median score otherwise).</summary>
     public double SlopePer10Pct { get; set; }
-    /// <summary>Pooled rare drop value per hour of the task, added to every point.</summary>
+    /// <summary>Pooled rare drop value per hour of the task (each player's at most the rare rate a few players reach), added to every point.</summary>
     public double RareCoinsPerHour { get; set; }
     /// <summary>The predicted rate at the distribution's score percentiles 10, 25, 50, 75 and 90.</summary>
     public List<GearCurvePoint> Points { get; set; } = new();

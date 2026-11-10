@@ -28,6 +28,19 @@ public sealed record GearModelOptions
     /// <summary>Whether the late game rate is never published below the all-player prior (<see cref="GearLateGamePrior.Floor"/>).</summary>
     public bool LateGameFloorAtPrior { get; init; } = true;
     /// <summary>
+    /// Each player's rare coins count at most at the per-player rare rate this many players reach (<see cref="GearRareRate"/>),
+    /// in the curve, the late game cohort and its prior; fewer players with rare drops give no rare rate. 3, not k = 2,
+    /// like <see cref="CurveCapPlayers"/>: with 2, two lucky drops still counted in full. 0 turns the cap off (the plain
+    /// pooled rate). TUNABLE.
+    /// </summary>
+    public int RareCapPlayers { get; init; } = 3;
+    /// <summary>
+    /// Whether the late game cohort's rare rate is the task's capped rare rate scaled by the cohort's common rate over the
+    /// task's pooled one (1 .. <see cref="CurveMaxMedianMultiple"/>, which the scale reuses; <see cref="GearLateGamePrior.CohortRare"/>)
+    /// instead of the cohort's own drops; false uses the cohort's own (capped) drops. TUNABLE.
+    /// </summary>
+    public bool LateGameRareFromTask { get; init; } = true;
+    /// <summary>
     /// Distinct players and play time the rate curve needs. 8 players: curves of 5 to 6 players predicted absurd rates at
     /// the P90 (Sven 172.7M/h with 6 players, live check 2026-11-09).
     /// </summary>
@@ -42,7 +55,8 @@ public sealed record GearModelOptions
     public bool CurveCapEnabled { get; init; } = true;
     /// <summary>
     /// A curve prediction (common coins per hour) is capped at this multiple of the median player's common rate, and at
-    /// the highest common rate <see cref="CurveCapPlayers"/> players reach (<see cref="GearCurveModel.CommonCap"/>). TUNABLE.
+    /// the highest common rate <see cref="CurveCapPlayers"/> players reach (<see cref="GearCurveModel.CommonCap"/>). Also
+    /// the most the late game's rare rate is scaled up (<see cref="GearLateGamePrior.RareScale"/>). TUNABLE.
     /// </summary>
     public double CurveMaxMedianMultiple { get; init; } = 3;
     /// <summary>

@@ -179,9 +179,10 @@ public class GearModelService
         var builds = GearPlayerBuilds.From(matching, scorer);
         var distribution = GearScoreDistribution.Of(builds, options);
         var cohort = distribution == null ? null : GearLateGameCohort.Select(distribution, options);
-        var rare = distribution == null ? 0 : distribution.Builds.Sum(b => b.Rare) / distribution.Hours;
+        var rareRate = distribution == null ? null : GearRareRate.Of(distribution.Builds, options);
+        var rare = rareRate?.PerHour(distribution!.Builds) ?? 0;
         var (curve, publishedCurve) = Curve(distribution, rare, scorer, options);
-        var lateGame = cohort == null ? null : GearModelPublisher.LateGame(cohort, GearLateGamePrior.Of(distribution!, cohort, curve), options);
+        var lateGame = cohort == null ? null : GearModelPublisher.LateGame(cohort, GearLateGamePrior.Of(distribution!, cohort, curve, rareRate!), options);
         var catalog = GearPieceCatalog.Build(builds, scorer, distribution, options.MinPlayers);
         var recommended = Recommended(catalog, scorer, curve, rare, lateGame, distribution, options);
         return new MeasuredTaskGear(task, category, now, FormulaInfo(scorer),

@@ -129,19 +129,21 @@ public static class GearLateGameCohort
 /// <summary>
 /// What a typical player of the task earns (unrounded): the median over the distribution's players of each player's
 /// common coins per hour (pooled over their eligible builds) and the rare coins pooled over all eligible builds (rare
-/// drops are too lumpy for a per-player median, as in the late game cohort).
+/// drops are too lumpy for a per-player median), each player's capped (<see cref="GearRareRate"/>).
 /// </summary>
 public sealed record GearRatePrior(double Common, double Rare)
 {
     public double Total => Common + Rare;
 
-    public static GearRatePrior Of(GearScoreDistribution distribution)
+    public static GearRatePrior Of(GearScoreDistribution distribution, GearModelOptions options)
+        => Of(distribution, GearRareRate.Of(distribution.Builds, options));
+
+    public static GearRatePrior Of(GearScoreDistribution distribution, GearRareRate rare)
     {
         var perPlayer = distribution.Builds.GroupBy(b => b.Player, StringComparer.Ordinal)
             .Select(g => g.Sum(b => b.Common) / g.Sum(b => b.Hours))
             .ToList();
-        var rare = distribution.Hours > 0 ? distribution.Builds.Sum(b => b.Rare) / distribution.Hours : 0;
-        return new GearRatePrior(GearStatistics.Median(perPlayer), rare);
+        return new GearRatePrior(GearStatistics.Median(perPlayer), rare.PerHour(distribution.Builds));
     }
 }
 
@@ -152,16 +154,54 @@ public sealed record GearShrunkRate(double Common, double Rare, bool Floored);
 /// What the late game rate is shrunk toward (<paramref name="Target"/>) and never published below (<paramref name="Floor"/>,
 /// the all-player <see cref="GearRatePrior"/>). With a curve the target's common rate is the curve at the cohort's median
 /// score (its rare rate the all-player one): the all-player median as target pulled the endgame below the curve-read budget
-/// and mid builds, which then were not shown. Without a curve the target is the floor.
+/// and mid builds, which then were not shown. Without a curve the target is the floor. <see cref="RareRate"/> is the task's
+/// rare cap and <see cref="PooledCommon"/> its pooled common rate (both read by <see cref="Of"/>; a prior built with the
+/// constructor is uncapped and has no pooled common rate, so its <see cref="RareScale"/> is 1).
 /// </summary>
 public sealed record GearLateGamePrior(GearRatePrior Target, GearRatePrior Floor)
 {
-    public static GearLateGamePrior Of(GearScoreDistribution distribution, GearCohort? cohort, GearCurveModel? curve)
+    public GearRareRate RareRate { get; init; } = GearRareRate.Uncapped;
+    /// <summary>All common coins / all hours of the distribution's builds: pooled like <see cref="GearRatePrior.Rare"/>.</summary>
+    public double PooledCommon { get; init; }
+
+    public static GearLateGamePrior Of(GearScoreDistribution distribution, GearCohort? cohort, GearCurveModel? curve, GearModelOptions options)
+        => Of(distribution, cohort, curve, GearRareRate.Of(distribution.Builds, options));
+
+    /// <summary>The prior with the task's rare cap already read (<see cref="GearRareRate.Of"/>).</summary>
+    public static GearLateGamePrior Of(GearScoreDistribution distribution, GearCohort? cohort, GearCurveModel? curve, GearRareRate rareRate)
     {
-        var floor = GearRatePrior.Of(distribution);
-        if (curve == null || cohort == null)
-            return new GearLateGamePrior(floor, floor);
-        return new GearLateGamePrior(new GearRatePrior(curve.PredictCommon(MedianScore(cohort)), floor.Rare), floor);
+        var floor = GearRatePrior.Of(distribution, rareRate);
+        var target = curve == null || cohort == null ? floor : new GearRatePrior(curve.PredictCommon(MedianScore(cohort)), floor.Rare);
+        var pooledCommon = distribution.Hours > 0 ? distribution.Builds.Sum(b => b.Common) / distribution.Hours : 0;
+        return new GearLateGamePrior(target, floor) { RareRate = rareRate, PooledCommon = pooledCommon };
+    }
+
+    /// <summary>
+    /// The cohort's rare rate. By default the task's capped rare rate (<see cref="Floor"/>) scaled by the cohort's common
+    /// rate over the task's (<see cref="RareScale"/>): the cohort's own pooled drops, capped at the task's per-player cap,
+    /// still let one lucky drop through when short lucky sessions set the cap (a 300M F7 drop published about 31M/h at a
+    /// weight of 0.8, review 2026-11-10). With <see cref="GearModelOptions.LateGameRareFromTask"/> off: the cohort's rare
+    /// coins, each player's capped by <see cref="RareRate"/>, over its hours.
+    /// </summary>
+    public double CohortRare(GearCohort cohort, double cohortCommon, GearModelOptions options)
+    {
+        if (!options.LateGameRareFromTask)
+            return RareRate.PerHour(cohort.Members.SelectMany(m => m.Builds));
+        return Floor.Rare * RareScale(cohortCommon, options);
+    }
+
+    /// <summary>
+    /// The cohort's common rate over <see cref="PooledCommon"/>, clamped to 1 .. <see cref="GearModelOptions.CurveMaxMedianMultiple"/>
+    /// (the curve cap's multiple, reused). Both rates are pooled over hours, like the rare rate it scales: against the
+    /// per-player median a cohort holding most of the hours counted its advantage twice (8400 rare/h published for a
+    /// cohort earning 3000, review 2026-11-10). 1 without a positive pooled rate or with a non finite ratio.
+    /// </summary>
+    public double RareScale(double cohortCommon, GearModelOptions options)
+    {
+        var ratio = cohortCommon / PooledCommon;
+        if (!(PooledCommon > 0) || !double.IsFinite(ratio))
+            return 1;
+        return Math.Clamp(ratio, 1, Math.Max(1, options.CurveMaxMedianMultiple));
     }
 
     /// <summary>The median over the cohort's players of each player's hours weighted score.</summary>

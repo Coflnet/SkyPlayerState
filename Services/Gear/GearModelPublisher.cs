@@ -64,7 +64,7 @@ public static class GearModelPublisher
     }
 
     /// <summary>
-    /// The cohort's rates (median common over players, pooled rare) shrunk toward <paramref name="prior"/>
+    /// The cohort's rates (median common over players, the rare rate of <see cref="GearLateGamePrior.CohortRare"/>) shrunk toward <paramref name="prior"/>
     /// (<see cref="GearLateGamePrior.Shrink"/>); the common percentiles are shrunk with the same weight and target and
     /// widened to hold the published common rate, so the headline never lies outside its own range.
     /// </summary>
@@ -72,7 +72,8 @@ public static class GearModelPublisher
     {
         var rates = cohort.Members.Select(m => m.CommonPerHour).OrderBy(r => r).ToList();
         var rounded = cohort.Players < ExactFromPlayers;
-        var shrunk = prior.Shrink(GearStatistics.Median(rates), cohort.Members.Sum(m => m.Rare) / cohort.Hours, cohort.Hours, options);
+        var median = GearStatistics.Median(rates);
+        var shrunk = prior.Shrink(median, prior.CohortRare(cohort, median, options), cohort.Hours, options);
         var common = Rate(shrunk.Common, rounded);
         var rare = Rate(shrunk.Rare, rounded);
         double Percentile(double p) => prior.ShrinkCommon(GearStatistics.Percentile(rates, p), cohort.Hours, options);
