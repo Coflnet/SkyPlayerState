@@ -1419,6 +1419,24 @@ public class TaskClassifierTests
         => NameAtPriced("Forest", new() { { "ENCHANTED_GOLD", 40 }, { "ANCIENT_CLAW", 20 }, { "GRIFFIN_FEATHER", 2 }, { "LOG", 12 } },
             new() { { "ENCHANTED_GOLD", 15_000 }, { "ANCIENT_CLAW", 400_000 }, { "GRIFFIN_FEATHER", 20_000 }, { "LOG", 5 } }).Should().Be("Diana");
 
+    /// <summary>
+    /// Regression: any Crystal Hollows session holding a Divan Fragment became Crystal Nucleus (selected by its outcome,
+    /// 46M/h). The fragment alone is no evidence of a nucleus run, the zone is.
+    /// </summary>
+    [TestCase("Mines of Divan")]
+    [TestCase("Jungle")]
+    [TestCase("Precursor Remnants")]
+    [TestCase("Goblin Holdout")]
+    public void DivanFragmentOutsideTheNucleus_IsNotCrystalNucleus(string zone)
+    {
+        NameAt(zone, new() { { "DIVAN_FRAGMENT", 1 }, { "HARD_STONE", 400 }, { "TREASURITE", 2 } }).Should().NotBe("Crystal Nucleus");
+        NameAt(zone, new() { { "DIVAN_FRAGMENT", 1 } }).Should().NotBe("Crystal Nucleus");
+    }
+
+    [Test]
+    public void DivanFragmentAtTheNucleus_IsCrystalNucleus()
+        => NameAt("Crystal Nucleus", new() { { "DIVAN_FRAGMENT", 1 }, { "HARD_STONE", 40 } }).Should().Be("Crystal Nucleus");
+
     [Test]
     [TestCase("Crystal Hollows", "RUBY", "Ruby Mining")]
     [TestCase("Mines of Divan", "RUBY", "Ruby Mining")]

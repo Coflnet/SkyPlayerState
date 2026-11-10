@@ -147,19 +147,25 @@ public class UnknownLocationTask : MethodTask
 /// </summary>
 public class ForgeClaimsTask : MethodTask
 {
+    /// <summary>
+    /// Items only the Forge makes. Another task counts them as loot only when its formula lists them as a drop (see
+    /// <see cref="TaskPeriodFolder.FilterOwnedItems"/>), anywhere else they were forged or bought.
+    /// </summary>
+    internal static readonly IReadOnlySet<string> Outputs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "PERFECT_PLATE", "UMBER_PLATE", "TUNGSTEN_PLATE", "MITHRIL_PLATE", "GOLDEN_PLATE", "UMBER_KEY", "TUNGSTEN_KEY", "SKELETON_KEY",
+        "REFINED_MITHRIL", "REFINED_TITANIUM", "REFINED_UMBER", "REFINED_TUNGSTEN", "REFINED_DIAMOND", "MITHRIL_DRILL_ENGINE",
+        "TITANIUM_DRILL_ENGINE", "RUBY_POLISHED_DRILL_ENGINE", "SAPPHIRE_POLISHED_DRILL_ENGINE", "AMBER_POLISHED_DRILL_ENGINE",
+        "FUEL_TANK", "GEMSTONE_MIXTURE"
+    };
+
     protected override bool Hidden => true;
     protected override string MethodName => "Forge Claims";
     protected override string Category => "Tracking";
     // Forged items are often booked a zone later (Rampart's Quarry, The Lift, Dwarven Base Camp, ... ~2B unclassified
     // 2026-10-10), so the island matches too, but there only with a forge-only output.
     protected override HashSet<string> Locations => ["The Forge", "Forge Basin", "Dwarven Mines"];
-    protected override HashSet<string> DetectionItems =>
-    [
-        "PERFECT_PLATE", "UMBER_PLATE", "TUNGSTEN_PLATE", "MITHRIL_PLATE", "GOLDEN_PLATE", "UMBER_KEY", "TUNGSTEN_KEY", "SKELETON_KEY",
-        "REFINED_MITHRIL", "REFINED_TITANIUM", "REFINED_UMBER", "REFINED_TUNGSTEN", "REFINED_DIAMOND", "MITHRIL_DRILL_ENGINE",
-        "TITANIUM_DRILL_ENGINE", "RUBY_POLISHED_DRILL_ENGINE", "SAPPHIRE_POLISHED_DRILL_ENGINE", "AMBER_POLISHED_DRILL_ENGINE",
-        "FUEL_TANK", "GEMSTONE_MIXTURE"
-    ];
+    protected override HashSet<string> DetectionItems => [.. Outputs];
     // At the Forge itself the zone alone is the evidence (an empty set means location-only).
     protected override Dictionary<string, HashSet<string>> ZoneDetectionItems =>
         new() { ["The Forge"] = [], ["Forge Basin"] = [] };

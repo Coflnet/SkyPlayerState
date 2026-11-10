@@ -115,6 +115,70 @@ public class TaskPeriodFolderTests
         owned.Should().NotContainKey("KISMET_FEATHER");
     }
 
+    /// <summary>
+    /// Regression: forge outputs (78% of Mithril Mining's rare pool) counted as drops of the task around the claim, and the
+    /// first fix dropped the keys and plates frozen corpses really drop in a Glacite Mineshaft.
+    /// </summary>
+    [Test]
+    public void FilterOwnedItems_ForgeOutputs_AreLootOnlyOfATaskThatDropsThem()
+    {
+        var items = new Dictionary<string, int>
+        {
+            { "MITHRIL_ORE", 3000 }, { "MITHRIL_PLATE", 1 }, { "TUNGSTEN_KEY", 1 }, { "SKELETON_KEY", 1 }, { "UMBER_PLATE", 1 },
+            { "REFINED_UMBER", 2 }, { "PERFECT_PLATE", 1 }
+        };
+
+        TaskPeriodFolder.FilterOwnedItems(items, new MithrilMiningTask()).Keys.Should().BeEquivalentTo(new[] { "MITHRIL_ORE" });
+        // corpse loot: keys, plates, Skeleton Key, refined umber; a Perfect Plate only comes from the Forge
+        TaskPeriodFolder.FilterOwnedItems(items, new GlaciteMineshaftTask()).Keys.Should().BeEquivalentTo(new[]
+            { "MITHRIL_ORE", "MITHRIL_PLATE", "TUNGSTEN_KEY", "SKELETON_KEY", "UMBER_PLATE", "REFINED_UMBER" });
+        TaskPeriodFolder.FilterOwnedItems(items, new ForgeClaimsTask()).Should().HaveCount(7, "the forge's own accounting task keeps them");
+    }
+
+    [Test]
+    public void FilterOwnedItems_GemstoneMixture_IsCrystalNucleusLoot()
+    {
+        var items = new Dictionary<string, int> { { "GEMSTONE_MIXTURE", 1 }, { "DIVAN_FRAGMENT", 1 } };
+
+        TaskPeriodFolder.FilterOwnedItems(items, new NucleusMiningTask()).Should().ContainKey("GEMSTONE_MIXTURE");
+        TaskPeriodFolder.FilterOwnedItems(items, new RubyMiningTask()).Should().NotContainKey("GEMSTONE_MIXTURE");
+    }
+
+    /// <summary>Regression: Summoning Eyes bought during a dragon session counted as dragon loot.</summary>
+    [Test]
+    public void FilterOwnedItems_InputBoughtInTheSamePeriod_IsNotLoot()
+    {
+        var bought = new Dictionary<string, int>
+        {
+            { PseudoItems.BAZAAR_PURCHASE, 4_800_000 }, { "SUMMONING_EYE", 4 }, { "STRONG_FRAGMENT", 8 }
+        };
+
+        TaskPeriodFolder.FilterOwnedItems(bought, new EnderDragonTask()).Keys.Should().BeEquivalentTo(new[] { "STRONG_FRAGMENT" });
+        TaskPeriodFolder.FilterOwnedItems(new() { { "SUMMONING_EYE", 4 }, { "STRONG_FRAGMENT", 8 } }, new EnderDragonTask())
+            .Should().ContainKey("SUMMONING_EYE", "without purchase evidence the eyes may be Zealot drops of the same session");
+    }
+
+    /// <summary>Regression: a corpse-droppable key (rare drop) bought for a mineshaft counted as loot, cancelling its cost.</summary>
+    [Test]
+    public void FilterOwnedItems_KeyBoughtForAMineshaft_IsNotLoot()
+    {
+        var bought = new Dictionary<string, int> { { PseudoItems.BAZAAR_PURCHASE, 2_000_000 }, { "UMBER_KEY", 1 }, { "REFINED_UMBER", 2 } };
+
+        TaskPeriodFolder.FilterOwnedItems(bought, new GlaciteMineshaftTask()).Should().NotContainKey("UMBER_KEY")
+            .And.ContainKey("REFINED_UMBER");
+        TaskPeriodFolder.FilterOwnedItems(new() { { "UMBER_KEY", 1 } }, new GlaciteMineshaftTask())
+            .Should().ContainKey("UMBER_KEY", "without purchase evidence the key is a corpse drop");
+    }
+
+    [Test]
+    public void FilterOwnedItems_BoughtSomething_KeepsTheTasksOwnDropsAmongItsInputs()
+    {
+        var items = new Dictionary<string, int> { { PseudoItems.BAZAAR_PURCHASE, 1_000_000 }, { "CONTROL_SWITCH", 2 } };
+
+        TaskPeriodFolder.FilterOwnedItems(items, new AutomatonTask()).Should().Contain("CONTROL_SWITCH", 2,
+            "the parts are Automaton drops (formula) as well as the apparatus' ingredients");
+    }
+
     // ── SplitRareAndCommon ──
 
     [Test]
@@ -158,6 +222,105 @@ public class TaskPeriodFolderTests
         var (_, _, itemValue) = TaskPeriodFolder.SplitRareAndCommon(owned, PriceOf, _ => false);
 
         itemValue.Should().Be(100 * 20 - 2_000_000);
+    }
+}
+
+/// <summary>
+/// Regression: hand-ins, used Skeleton Keys and crafted Automaton parts were dropped as unexplained negatives. They are
+/// costs only with full value rates: the switch-off AFK check compares the net value and would drop exactly the sessions
+/// that paid them (every Vanguard session, -28M key).
+/// </summary>
+[NonParallelizable]
+public class TaskPeriodFolderFullValueCostTests
+{
+    [TearDown]
+    public void Reset() => TaskRateOptions.FullValueRates = false;
+
+    private static readonly Dictionary<string, int> HandIns = new()
+    {
+        { "WHEAT", -640 }, { "ENCHANTED_POTATO", -32 }, { "OVERCLOCKER_3000", 1 }, { PseudoItems.COPPER, 50 }
+    };
+
+    private static readonly Dictionary<string, int> ApparatusCraft = new()
+    {
+        { "PRECURSOR_APPARATUS", 1 }, { "CONTROL_SWITCH", -1 }, { "ELECTRON_TRANSMITTER", -1 }, { "FTX_3070", -1 },
+        { "ROBOTRON_REFLECTOR", -1 }, { "SUPERLITE_MOTOR", -1 }, { "SYNTHETIC_HEART", -1 }
+    };
+
+    private static readonly Dictionary<string, int> VanguardCorpse = new() { { "SKELETON_KEY", -1 }, { "GLACITE_JEWEL", 3 } };
+
+    [Test]
+    public void SwitchOn_GardenVisitorHandIns_AreCosts()
+    {
+        TaskRateOptions.FullValueRates = true;
+
+        TaskPeriodFolder.FilterOwnedItems(HandIns, new GardenVisitorsTask()).Should()
+            .Contain("WHEAT", -640).And.Contain("ENCHANTED_POTATO", -32).And.Contain("OVERCLOCKER_3000", 1);
+        TaskPeriodFolder.FilterOwnedItems(HandIns, new WheatFarmingTask()).Should().NotContainKey("WHEAT", "only the visitor task pays with any item");
+    }
+
+    [Test]
+    public void SwitchOn_UsedSkeletonKeyAndCraftedParts_AreCosts()
+    {
+        TaskRateOptions.FullValueRates = true;
+
+        TaskPeriodFolder.FilterOwnedItems(VanguardCorpse, new GlaciteMineshaftTask()).Should().Contain("SKELETON_KEY", -1);
+        TaskPeriodFolder.FilterOwnedItems(ApparatusCraft, new AutomatonTask()).Should().BeEquivalentTo(ApparatusCraft);
+    }
+
+    [Test]
+    public void SwitchOff_NewCostsAreDropped_AsBefore()
+    {
+        TaskPeriodFolder.FilterOwnedItems(HandIns, new GardenVisitorsTask()).Keys
+            .Should().BeEquivalentTo(new[] { "OVERCLOCKER_3000", PseudoItems.COPPER });
+        TaskPeriodFolder.FilterOwnedItems(VanguardCorpse, new GlaciteMineshaftTask()).Should().NotContainKey("SKELETON_KEY");
+        TaskPeriodFolder.FilterOwnedItems(ApparatusCraft, new AutomatonTask()).Keys.Should().BeEquivalentTo(new[] { "PRECURSOR_APPARATUS" });
+    }
+
+    [Test]
+    public void SwitchOff_DeclaredCostsStillCount()
+        => TaskPeriodFolder.FilterOwnedItems(new() { { "TUNGSTEN_KEY", -1 }, { "GLACITE_JEWEL", 3 } }, new GlaciteMineshaftTask())
+            .Should().Contain("TUNGSTEN_KEY", -1);
+
+    /// <summary>
+    /// The switch-off AFK check on the net value: a Vanguard session whose loot is worth less than its key would be dropped
+    /// as AFK if the key counted. Off it does not count, on the check uses the gross gains.
+    /// </summary>
+    [TestCase(false)]
+    [TestCase(true)]
+    public void VanguardSession_IsNotDroppedAsAfk(bool fullValueRates)
+    {
+        TaskRateOptions.FullValueRates = fullValueRates;
+        var prices = new Dictionary<string, double> { ["GLACITE_JEWEL"] = 1_000_000, ["SKELETON_KEY"] = 28_000_000 };
+        var task = new GlaciteMineshaftTask();
+        var bucket = new BucketAggregate { WSeconds = 10 * 3600, ItemCounts = new() { ["GLACITE_JEWEL"] = 100 } };
+        var owned = TaskPeriodFolder.FilterOwnedItems(VanguardCorpse, task);
+        var counts = owned.ToDictionary(e => e.Key, e => (double)e.Value);
+        var net = counts.Sum(e => prices[e.Key] * e.Value);
+
+        TaskPeriodFolder.IsAfk(task, bucket, counts, net, 0.25, prices).Should().BeFalse();
+    }
+
+    /// <summary>The personal view lists the new costs under the same switch.</summary>
+    [Test]
+    public void IsConsumedCost_FollowsTheSwitch_ForTheNewCostsOnly()
+    {
+        var task = new GlaciteMineshaftTask();
+        var costTags = task.KeepableCostTags();
+
+        task.IsConsumedCost("SKELETON_KEY", -1, costTags).Should().BeFalse();
+        task.IsConsumedCost("UMBER_KEY", -1, costTags).Should().BeTrue();
+        TaskRateOptions.FullValueRates = true;
+        task.IsConsumedCost("SKELETON_KEY", -1, costTags).Should().BeTrue();
+    }
+
+    /// <summary>The Automaton parts' cost must not make a consumed part a classification signal.</summary>
+    [Test]
+    public void AutomatonPartCosts_AreNoClassificationSignal()
+    {
+        TaskRateOptions.FullValueRates = true;
+
+        new AutomatonTask().GetDetectionSignature().CountsAsSignal("CONTROL_SWITCH", -1).Should().BeFalse();
     }
 }
 

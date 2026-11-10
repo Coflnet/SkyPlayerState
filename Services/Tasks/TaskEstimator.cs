@@ -34,6 +34,9 @@ public class TaskEstimator
     private const double SaturationFloor = 0.75;
     private const double PriceDriftClampLow = 0.25;
     private const double PriceDriftClampHigh = 4;
+    // rare pool evidence gate (TaskRateOptions.FullValueRates only): counted in full from this many distinct players with
+    // rare coins, with fewer scaled by their share of it
+    internal const int RarePoolMinContributors = 3;
     // best spot candidacy: enough distinct players, enough decayed time, and a real share of the task's time
     internal const int BestZoneMinPlayers = 3;
     internal const double BestZoneMinSeconds = 20 * 60;
@@ -453,6 +456,7 @@ public class TaskEstimator
             foreach (var (tag, count) in agg.ItemCounts)
                 merged.ItemCounts[tag] = merged.ItemCounts.GetValueOrDefault(tag) + count;
             merged.Contributors.UnionWith(agg.Contributors);
+            merged.RareContributors.UnionWith(agg.RareContributors);
         }
         return merged;
     }
@@ -471,9 +475,12 @@ public class TaskEstimator
     internal static double RateFromAggregate(MethodTask task, BucketAggregate agg, Dictionary<string, double> prices)
         => RateParts(task, agg, prices).Rate;
 
-    /// <summary>The components <see cref="RateFromAggregate"/> sums, exposed for the read-only aggregate endpoint.</summary>
+    /// <summary>
+    /// The components <see cref="RateFromAggregate"/> sums, exposed for the read-only aggregate endpoint.
+    /// <see cref="ScaledRareCoins"/> is the drift scaled pool; the rate counts it times <see cref="RareEvidenceScale"/>.
+    /// </summary>
     internal record AggregateRateParts(double Rate, double LiveItemValue, double FormulaCost, double DriftScale,
-        double ScaledResidualCoins, double ScaledRareCoins);
+        double ScaledResidualCoins, double ScaledRareCoins, double RareEvidenceScale = 1);
 
     internal static AggregateRateParts RateParts(MethodTask task, BucketAggregate agg, Dictionary<string, double> prices)
     {
@@ -485,8 +492,25 @@ public class TaskEstimator
         var driftScale = DriftScale(MarketValue(agg.ItemCounts, prices), agg.RefItemValue, agg.ItemRefValue, agg.LegacyRefValue);
         var residual = agg.ResidualCoins * driftScale;
         var rare = agg.RareCoins * driftScale;
-        var rate = (liveItemValue - cost + residual + rare) / hours;
-        return new AggregateRateParts(rate, liveItemValue, cost, driftScale, residual, rare);
+        var evidence = RareEvidenceScale(agg.RareContributors.Count);
+        var rate = (liveItemValue - cost + residual + rare * evidence) / hours;
+        return new AggregateRateParts(rate, liveItemValue, cost, driftScale, residual, rare, evidence);
+    }
+
+    /// <summary>
+    /// Share of an aggregate's rare pool its rate counts. With <see cref="TaskRateOptions.FullValueRates"/> off always 1:
+    /// there the price drift floor already damps the pool. On, the pool counts in full once
+    /// <see cref="RarePoolMinContributors"/> distinct players found rare drops, however few hours they played (a well
+    /// attended short task such as a Kuudra tier keeps its rare drops); with fewer it counts n / 3, so one player's
+    /// single outlier adds a third of its value. Not a per player cap: every drop stays in the pool, the gate only asks
+    /// for evidence that the rate is not one player's luck. Rows written before rare players were stored add none, so
+    /// the switch is flipped only once every row of the 8 day window carries them.
+    /// </summary>
+    internal static double RareEvidenceScale(int rareContributors)
+    {
+        if (!TaskRateOptions.FullValueRates)
+            return 1;
+        return Math.Min(1.0, (double)rareContributors / RarePoolMinContributors);
     }
 
     /// <summary>
@@ -579,8 +603,9 @@ public class TaskEstimator
             return drops;
         }
         var hours = wSeconds / 3600.0;
-        // pseudo tags (purchase evidence, dungeon runs, costs) are accounting signal, never drops shown to users
-        foreach (var (tag, count) in itemCounts.Where(e => !PseudoItems.IsPseudo(e.Key)).OrderByDescending(e => e.Value).Take(PublishedDropLimit))
+        // pseudo tags (purchase evidence, dungeon runs, costs) are accounting signal, never drops shown to users; consumed
+        // items (negative counts: hand-ins, keys, eyes) are costs, not drops at a negative rate
+        foreach (var (tag, count) in itemCounts.Where(e => e.Value > 0 && !PseudoItems.IsPseudo(e.Key)).OrderByDescending(e => e.Value).Take(PublishedDropLimit))
         {
             var price = prices?.GetValueOrDefault(tag) ?? 0;
             var rate = count / hours;
@@ -602,8 +627,15 @@ public static class TaskRateOptions
     /// <summary>
     /// Full value rates (TASKS:FULL_VALUE_RATES), off by default. On: price drift against the market value of
     /// exactly the stored counts (the rare and residual pools count in full), cost pseudo tags (chest costs)
-    /// subtracted when a rate is read, and the AFK check on gross gains. These belong together: the costs buy the
-    /// loot in the rare pool. Flip it together with the per player rare cap, not before.
+    /// subtracted when a rate is read, the AFK check on gross gains, consumed items as costs where a task declares them
+    /// for full value only (<see cref="MethodTask.IsConsumedCost"/>), and the rare pool evidence gate
+    /// (<see cref="TaskEstimator.RareEvidenceScale"/>). These belong together: the costs buy the loot in the rare pool,
+    /// and the gate keeps one lucky drop on a thin task from setting its rate.
+    /// Flip it only ~8 days after the deploy that started storing rare players per aggregate row
+    /// (<see cref="TaskBucketAggregateRow.RarePlayers"/>): older rows add no rare players, so their rare pools would be
+    /// under-counted. The full value costs are only folded while on, so they too need ~8 days to fill the window.
+    /// Flipping it back off leaves the folded full value costs in the stored rows, priced until they age out (~8 days for
+    /// day rows, a 7 day half life for player rows).
     /// Off: the origin/main drift, costs valued at 0 and the origin/main AFK check.
     /// </summary>
     public static bool FullValueRates { get; set; }

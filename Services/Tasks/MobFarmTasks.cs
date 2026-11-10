@@ -305,6 +305,9 @@ public class AutomatonTask : MethodTask
     protected override string ActionUnit => "kills";
     protected override HashSet<string> Locations => ["Precursor Remnants", "Lost Precursor City", "Crystal Hollows"];
     protected override HashSet<string> DetectionItems => ["CONTROL_SWITCH", "ELECTRON_TRANSMITTER", "FTX_3070", "ROBOTRON_REFLECTOR", "SUPERLITE_MOTOR", "SYNTHETIC_HEART"];
+    // Crafting a Precursor Apparatus consumes one of each part: counted as a cost (full value rates only), the apparatus no
+    // longer books the parts' value a second time (the parts were already counted when they dropped).
+    protected override HashSet<string> FullValueCostItems => DetectionItems;
     protected override List<MethodDrop> FormulaDrops =>
     [
         new("CONTROL_SWITCH", 3), new("ELECTRON_TRANSMITTER", 3), new("FTX_3070", 3),

@@ -24,6 +24,17 @@ public class TaskEstimationTests
         drops.Select(d => d.ItemTag).Should().Equal("ENCHANTED_COAL");
     }
 
+    /// <summary>Regression: consumed items (Garden Visitor hand-ins, used keys) were published as drops at a negative rate.</summary>
+    [Test]
+    public void BuildDrops_NeverListsConsumedItems()
+    {
+        var counts = new Dictionary<string, double> { ["WHEAT"] = -640, ["SKELETON_KEY"] = -1, ["OVERCLOCKER_3000"] = 2 };
+
+        var drops = TaskEstimator.BuildDrops(new GardenVisitorsTask(), counts, 3600, new Dictionary<string, double> { ["WHEAT"] = 6 });
+
+        drops.Select(d => d.ItemTag).Should().Equal("OVERCLOCKER_3000");
+    }
+
     [Test]
     public async Task ServerEstimate_NeverListsPseudoItemsAsDrops()
     {

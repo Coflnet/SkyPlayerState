@@ -23,6 +23,16 @@ public class TaskDataResetsTests
         TaskDataResets.IsBeforeReset(null, cutoff.AddDays(-30)).Should().BeFalse();
     }
 
+    /// <summary>Regression: the Crystal Nucleus aggregate holds every Divan Fragment session of the Crystal Hollows (46M/h).</summary>
+    [Test]
+    public void CrystalNucleus_DataFromBeforeTheZoneFix_IsReset()
+    {
+        var cutoff = TaskDataResets.CrystalNucleusCutoff;
+        cutoff.Should().BeAfter(new DateTime(2026, 11, 10, 0, 0, 0, DateTimeKind.Utc), "after the polluted data");
+        TaskDataResets.IsBeforeReset("Crystal Nucleus", cutoff.AddSeconds(-1)).Should().BeTrue();
+        TaskDataResets.IsBeforeReset("Crystal Nucleus", cutoff).Should().BeFalse();
+    }
+
     [Test]
     public void Diana_IsReset_AndItsFormulaMatchesTheObservedEventRate()
     {

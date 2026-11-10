@@ -28,7 +28,9 @@ public class TaskCatalogRegistrationTests
         // location-only catch-alls whose personal view would otherwise swallow a whole island - see CoverageGapTasks.cs
         "CrimsonIsleMobsTask", "DungeonChestClaimsTask", "KuudraChestClaimsTask",
         // sink for Galatea contest rewards no foraging/hunting task earned: a contest cannot be done on its own (LateReward)
-        "GalateaContestsTask"
+        "GalateaContestsTask",
+        // no measured rate until a nucleus claim can be attributed to its run - see NucleusMiningTask
+        "NucleusMiningTask"
     ];
 
     private static readonly string[] ExpectedRegisteredTaskNames =

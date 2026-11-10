@@ -37,6 +37,11 @@ public class BucketAggregate
     public bool LegacyRefValue;
     public Dictionary<string, double> ItemCounts = new();
     public HashSet<string> Contributors = new();
+    /// <summary>
+    /// Distinct players whose folded periods added to <see cref="RareCoins"/>. Rows written before this was stored
+    /// add none, so it can only undercount (see <see cref="TaskEstimator.RareEvidenceScale"/>).
+    /// </summary>
+    public HashSet<string> RareContributors = new();
 
     /// <summary>Distinct players that contributed data to this task+bucket.</summary>
     public int ContributorCount => Contributors.Count;
@@ -105,6 +110,7 @@ public class TaskAggregateService
         public readonly ConcurrentDictionary<string, double> ItemCounts = new();
         public readonly ConcurrentDictionary<string, double> ItemRefValues = new();
         public readonly HashSet<string> Players = new();
+        public readonly HashSet<string> RarePlayers = new();
         public readonly List<string> TraceIds = new();
         public readonly object gate = new();
     }
@@ -165,6 +171,8 @@ public class TaskAggregateService
             delta.WPeriods += 1;
             if (playerUuid != null)
                 delta.Players.Add(playerUuid);
+            if (playerUuid != null && rareCoins > 0)
+                delta.RarePlayers.Add(playerUuid);
             foreach (var (tag, count) in weightedItemCounts)
                 delta.ItemCounts.AddOrUpdate(tag, count, (_, prev) => prev + count);
             AddRefValues(delta, weightedItemRefValues);
@@ -271,6 +279,7 @@ public class TaskAggregateService
                 ItemCounts = new Dictionary<string, double>(delta.ItemCounts),
                 ItemRefValues = delta.RefUnknown ? null : new Dictionary<string, double>(delta.ItemRefValues),
                 Players = new HashSet<string>(delta.Players),
+                RarePlayers = new HashSet<string>(delta.RarePlayers),
                 LastFoldTraceIds = delta.TraceIds.ToList()
             };
         }
@@ -324,6 +333,8 @@ public class TaskAggregateService
             AddInto(row.ItemCounts, existing.ItemCounts);
         if (existing.Players != null)
             row.Players.UnionWith(existing.Players);
+        if (existing.RarePlayers != null)
+            (row.RarePlayers ??= new()).UnionWith(existing.RarePlayers);
     }
 
     private static void TrimRow(TaskBucketAggregateRow row, int limit, TrimRules rules)
@@ -521,6 +532,8 @@ public class TaskAggregateService
                 agg.ItemCounts[tag] = agg.ItemCounts.GetValueOrDefault(tag) + count * weight;
         if (row.Players != null)
             agg.Contributors.UnionWith(row.Players);
+        if (row.RarePlayers != null)
+            agg.RareContributors.UnionWith(row.RarePlayers);
     }
 
     /// <summary>Merge-reads the zone rows of the last 8 days with the same 7 day half life decay. A failure keeps the previous zone snapshot.</summary>
@@ -651,6 +664,7 @@ public class TaskAggregateService
         var created = new Table<TaskBucketAggregateRow>(session, mapping);
         await created.CreateIfNotExistsAsync();
         await AddColumnIfMissing("task_bucket_aggregates", "itemrefvalues", "map<text, double>");
+        await AddColumnIfMissing("task_bucket_aggregates", "rareplayers", "set<text>");
 
         var playerMapping = new MappingConfiguration().Define(new Map<TaskPlayerStatRow>()
             .TableName("task_player_stats")
@@ -707,6 +721,8 @@ public class TaskBucketAggregateRow
     /// <summary>fold time coin value of each stored item count; null on rows written before it existed</summary>
     public Dictionary<string, double> ItemRefValues { get; set; } = new();
     public HashSet<string> Players { get; set; } = new();
+    /// <summary>players whose periods added rare coins; null on rows written before it existed</summary>
+    public HashSet<string> RarePlayers { get; set; } = new();
     public List<string> LastFoldTraceIds { get; set; } = new();
 }
 

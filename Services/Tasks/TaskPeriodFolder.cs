@@ -445,19 +445,61 @@ public class TaskPeriodFolder
     /// reaches the aggregates/player stats - keep (a) any <see cref="PseudoItems.IsCost"/> tag
     /// regardless of sign (already negative by construction) and (b) a negative count of a real item
     /// tag <paramref name="methodTask"/> declares in its own <see cref="MethodTask.FormulaCostsForTest"/>
-    /// or <see cref="MethodTask.ObservedCostItemsForTest"/> (e.g. KISMET_FEATHER on a Catacombs floor). Any other negative count (not a declared cost) is
-    /// dropped, same as before this change.
+    /// or <see cref="MethodTask.ObservedCostItemsForTest"/> (e.g. KISMET_FEATHER on a Catacombs floor), or any negative count
+    /// of a task whose consumed items are all costs (Garden Visitors hand-ins). Any other negative count is dropped.
+    /// Two kinds of gains are not loot of the task either: a Forge-only output the task's formula does not list as a
+    /// drop (<see cref="IsForeignForgeOutput"/>) or Crystal Nucleus loot outside that task (<see cref="IsForeignNucleusLoot"/>),
+    /// and an input of the task bought in the same period (<see cref="IsBoughtInput"/>).
     /// </summary>
     internal static Dictionary<string, int> FilterOwnedItems(Dictionary<string, int> itemsCollected, MethodTask methodTask)
     {
-        var formulaCostTags = methodTask?.KeepableCostTags() ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var costTags = methodTask?.KeepableCostTags() ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         // purchase evidence (coins spent) is accounting of the purchase task, not an item the activity earned
         var dropPurchases = methodTask != null && !methodTask.GetDetectionSignature().IsPurchaseSink;
+        var boughtSomething = dropPurchases && itemsCollected.Any(e => e.Value > 0 && PseudoItems.IsPurchase(e.Key));
         return new Dictionary<string, int>(itemsCollected
             .Where(e => !(dropPurchases && PseudoItems.IsPurchase(e.Key)))
-            .Where(e => e.Value > 0 || PseudoItems.IsCost(e.Key) || (e.Value < 0 && formulaCostTags.Contains(e.Key)))
+            .Where(e => IsOwnedCount(e.Key, e.Value, methodTask, costTags, boughtSomething))
             .ToDictionary(e => e.Key, e => e.Value));
     }
+
+    private static bool IsOwnedCount(string tag, int count, MethodTask task, HashSet<string> costTags, bool boughtSomething)
+    {
+        if (PseudoItems.IsCost(tag))
+            return true;
+        if (count <= 0)
+            return task?.IsConsumedCost(tag, count, costTags) ?? false;
+        if (task == null)
+            return true;
+        return !IsForeignForgeOutput(tag, task) && !IsForeignNucleusLoot(tag, task)
+            && !IsBoughtInput(tag, task, costTags, boughtSomething);
+    }
+
+    /// <summary>
+    /// A Forge-only output (<see cref="ForgeClaimsTask.Outputs"/>, e.g. a Mithril Plate or a Tungsten Key) in a task whose
+    /// formula does not list it as a drop: it was claimed at the Forge or bought and booked into the session around it
+    /// (production 2026-11-10: 78% of Mithril Mining's rare pool). The Forge Claims task lists none of them as drops,
+    /// but it is hidden and only absorbs these periods, so it keeps them.
+    /// </summary>
+    internal static bool IsForeignForgeOutput(string tag, MethodTask task)
+        => task is not ForgeClaimsTask && ForgeClaimsTask.Outputs.Contains(tag) && !task.ProducesItem(tag);
+
+    /// <summary>
+    /// Loot only the Crystal Nucleus loot bundle gives (<see cref="NucleusMiningTask.BundleOnlyLoot"/>) in another task: a
+    /// claim at the nucleus takes a minute or two, below the classifier's 3 minute minimum, so its fragment merges into
+    /// the next Crystal Hollows session and would add a 1.3M Divan Fragment to that task's rare pool.
+    /// </summary>
+    internal static bool IsForeignNucleusLoot(string tag, MethodTask task)
+        => task is not NucleusMiningTask && NucleusMiningTask.BundleOnlyLoot.Contains(tag);
+
+    /// <summary>
+    /// A gain of an item the task consumes (its declared cost tags: Summoning Eyes at the dragon, keys in a mineshaft) in a
+    /// period with purchase evidence, when the task does not regularly drop it (<see cref="MethodTask.DropsByFormula"/>):
+    /// the input was bought to be used, the purchase discount (<see cref="PurchaseDiscount"/>) just did not catch it.
+    /// A rare drop (<see cref="MethodTask.RareDrops"/>, corpse keys in a mineshaft) does not outweigh the purchase.
+    /// </summary>
+    private static bool IsBoughtInput(string tag, MethodTask task, HashSet<string> costTags, bool boughtSomething)
+        => boughtSomething && costTags.Contains(tag) && !task.DropsByFormula(tag);
 
     private async Task<double> GetCumulativeMinutes(string playerUuid, string task)
     {

@@ -273,8 +273,25 @@ public class UmberMiningTask : BaseMiningTask
 // ── Special Mining ──
 public class NucleusMiningTask : BaseMiningTask
 {
+    /// <summary>Items only the nucleus loot bundle gives (Divan Fragment, a 1.96% roll): never loot of another task.</summary>
+    internal static readonly IReadOnlySet<string> BundleOnlyLoot = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DIVAN_FRAGMENT" };
+
     protected override string MethodName => "Crystal Nucleus";
-    protected override HashSet<string> Locations => ["Crystal Nucleus", "Crystal Hollows"];
+    // Hidden: no measured rate is published. With the whole Crystal Hollows listed, any session holding a Divan Fragment
+    // (a 1.96% roll of the loot bundle) became a nucleus run: selected by its outcome, 46M/h (production 2026-11-10).
+    // Limited to the zone, the session is cut when the player enters the nucleus, and the 1-3 minute claim visit is below
+    // the classifier's 3 minute minimum, so it merges into the next session: no period covers the run (crystal hunting
+    // across the Hollows, ended by the claim), and the few that classify here are just the zone visit, which would
+    // climb back to ~46M/h. No signal ties the claim to its run: placed crystals are negative counts, which
+    // TaskSessionService strips before classifying (only gains classify). The bundle-only loot is dropped from the
+    // session the claim merges into (TaskPeriodFolder.IsForeignNucleusLoot).
+    // TODO: publish again once the claim (loot bundle chat line) can be attributed to the run that earned it, e.g. like
+    // LateRewardAttribution, with a run-length MinimumPeriodDuration. Until then it absorbs nucleus periods so they do
+    // not inflate other Crystal Hollows tasks; its data is reset (TaskDataResets).
+    protected override bool Hidden => true;
+    protected override HashSet<string> Locations => ["Crystal Nucleus"];
+    // part of the loot bundle; a Forge output, so it needs to be named here to count as this task's loot
+    protected override HashSet<string> RareDrops => ["GEMSTONE_MIXTURE"];
     // Nucleus treasure stash yields Divan Fragments (for Divan's Alloy) + fine gemstones.
     protected override HashSet<string> DetectionItems => ["DIVAN_FRAGMENT"];
     protected override List<MethodDrop> FormulaDrops => [new("DIVAN_FRAGMENT", 0.3)];
@@ -621,6 +638,14 @@ public class GlaciteMineshaftTask : BaseMiningTask
     ];
     // Opening a corpse consumes its key, so keys show as negative counts.
     protected override List<MethodDrop> FormulaCosts => [new("UMBER_KEY", 1.24), new("TUNGSTEN_KEY", 1.27)];
+    // A Vanguard corpse consumes a Skeleton Key (forged, ~28M); no measured rate, so it only counts when observed, and only
+    // with full value rates (the switch-off AFK check on net value would drop every Vanguard session).
+    protected override HashSet<string> FullValueCostItems => ["SKELETON_KEY"];
+    // Frozen corpses also drop these Forge items (wiki "Frozen Corpse": keys 0.67% from Lapis, plates 0.4-0.8% and Skeleton
+    // Keys 0.34% from Umber/Tungsten, up to 13.9% keys, 10.6% Mithril Plates, 5.4% plates, 1.8% Skeleton Keys from
+    // Vanguard). No corpses-per-hour rate to turn that into a formula drop, so they are only marked as loot here.
+    protected override HashSet<string> RareDrops =>
+        ["UMBER_KEY", "TUNGSTEN_KEY", "SKELETON_KEY", "MITHRIL_PLATE", "UMBER_PLATE", "TUNGSTEN_PLATE"];
     // The pickaxe or drill is the player's choice; nothing here is required beyond the zone's own access.
     protected override List<RequiredItem> RequiredItems => [];
     protected override string HowTo =>

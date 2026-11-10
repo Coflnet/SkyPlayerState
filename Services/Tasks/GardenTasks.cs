@@ -308,6 +308,9 @@ public class GardenVisitorsTask : MethodTask
     ];
     protected override bool ExcludeShardItems => true;
     protected override int Priority => -1;
+    // the crops and items handed in to a visitor pay for its rewards; they were dropped as unexplained negatives
+    // (counted with full value rates only, see MethodTask.FullValueCostItems)
+    protected override bool ConsumedItemsAreCosts => true;
     protected override string Category => "Garden";
     protected override string ActionUnit => "visitors";
     // a new visitor arrives roughly every 15 minutes (faster while farming, approximate): a period of

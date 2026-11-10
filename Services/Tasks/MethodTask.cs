@@ -74,6 +74,24 @@ public abstract class MethodTask : ProfitTask
     /// </summary>
     protected virtual HashSet<string> ObservedCostItems => [];
     /// <summary>
+    /// Like <see cref="ObservedCostItems"/>, but only kept with <see cref="TaskRateOptions.FullValueRates"/>: there the AFK
+    /// check compares gross gains, while the switch-off check compares the net value and would drop exactly the sessions
+    /// that paid the cost. Never a classification signal (not part of <see cref="KeepableCostTags"/>).
+    /// </summary>
+    protected virtual HashSet<string> FullValueCostItems => [];
+    /// <summary>
+    /// When true, EVERY consumed item (negative count) of this task's periods is a cost, not just the declared
+    /// <see cref="ObservedCostItems"/>/<see cref="FormulaCosts"/>: for tasks whose inputs are not a fixed set,
+    /// e.g. Garden Visitors, where any crop or item a visitor asks for is handed in. Only with
+    /// <see cref="TaskRateOptions.FullValueRates"/>, see <see cref="FullValueCostItems"/>.
+    /// </summary>
+    protected virtual bool ConsumedItemsAreCosts => false;
+    /// <summary>
+    /// Items this task can drop besides its <see cref="FormulaDrops"/>, for drops without a usable rate (rare corpse
+    /// loot). See <see cref="ProducesItem"/>.
+    /// </summary>
+    protected virtual HashSet<string> RareDrops => [];
+    /// <summary>
     /// When true, periods with any SHARD_ item are excluded.
     /// Used for non-hunting fishing variants.
     /// </summary>
@@ -317,6 +335,33 @@ public abstract class MethodTask : ProfitTask
     /// </summary>
     internal HashSet<string> KeepableCostTags()
         => new(FormulaCosts.Select(c => c.ItemTag).Concat(ObservedCostItems), StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// True when <paramref name="count"/> of <paramref name="tag"/> is a consumed item this task pays for: a negative count
+    /// of a <see cref="KeepableCostTags"/> tag, or, with <see cref="TaskRateOptions.FullValueRates"/>, of a
+    /// <see cref="FullValueCostItems"/> tag or of any item when <see cref="ConsumedItemsAreCosts"/>.
+    /// <paramref name="costTags"/> is <see cref="KeepableCostTags"/>, passed in so a caller looping over items builds it once.
+    /// </summary>
+    internal bool IsConsumedCost(string tag, long count, HashSet<string> costTags)
+    {
+        if (count >= 0)
+            return false;
+        if (costTags.Contains(tag))
+            return true;
+        return TaskRateOptions.FullValueRates && (ConsumedItemsAreCosts || FullValueCostItems.Contains(tag));
+    }
+
+    /// <summary>
+    /// True when <paramref name="tag"/> is one of this task's <see cref="FormulaDrops"/> or <see cref="RareDrops"/>: an item
+    /// the task yields. Detection and evidence items are not enough, they also list what a task consumes or what only
+    /// marks its zone (placed Summoning Eyes at the dragon).
+    /// </summary>
+    internal bool ProducesItem(string tag)
+        => RareDrops.Contains(tag) || DropsByFormula(tag);
+
+    /// <summary>True when <paramref name="tag"/> is one of this task's <see cref="FormulaDrops"/>, a regular drop.</summary>
+    internal bool DropsByFormula(string tag)
+        => FormulaDrops.Any(d => string.Equals(d.ItemTag, tag, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Tie break priority when multiple tasks match the same location and items,
@@ -602,7 +647,7 @@ public abstract class MethodTask : ProfitTask
         // never as a negative-rate "drop".
         var formulaCostTags = KeepableCostTags();
         var items = allItems.Where(i => !PseudoItems.IsPseudo(i.Key) && i.Value > 0).OrderByDescending(i => i.Value);
-        var costItems = allItems.Where(i => PseudoItems.IsCost(i.Key) || (i.Value < 0 && formulaCostTags.Contains(i.Key))).ToList();
+        var costItems = allItems.Where(i => PseudoItems.IsCost(i.Key) || IsConsumedCost(i.Key, i.Value, formulaCostTags)).ToList();
 
         var fmt = parameters.Formatter;
         var formattedDuration = fmt.FormatTime(TimeSpan.FromHours(totalHours));
