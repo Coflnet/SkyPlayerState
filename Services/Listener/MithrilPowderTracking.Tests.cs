@@ -7,6 +7,14 @@ namespace Coflnet.Sky.PlayerState.Services;
 
 public class MithrilPowderTrackingTests
 {
+    private static readonly System.DateTime T0 = new(2026, 11, 10, 12, 0, 0, System.DateTimeKind.Utc);
+
+    private static MockedUpdateArgs ArgsAt(System.DateTime receivedAt) => new()
+    {
+        currentState = new StateObject(),
+        msg = new UpdateMessage { ReceivedAt = receivedAt }
+    };
+
     [Test]
     public void ParseMithrilPowderFromTab_LabelFormat_ReturnsAmount()
     {
@@ -24,11 +32,9 @@ public class MithrilPowderTrackingTests
     [Test]
     public void TrackMithrilPowder_Increase_TracksCollectedDiff()
     {
-        var args = new MockedUpdateArgs
-        {
-            currentState = new StateObject()
-        };
+        var args = ArgsAt(T0.AddMinutes(5));
         args.currentState.ExtractedInfo.MithrilPowder = 1000;
+        args.currentState.ExtractedInfo.PowderSeenAt = T0;
 
         CollectionListener.TrackMithrilPowder(args, 1125);
 
@@ -39,11 +45,9 @@ public class MithrilPowderTrackingTests
     [Test]
     public void TrackMithrilPowder_Decrease_DoesNotTrackNegativeDiff()
     {
-        var args = new MockedUpdateArgs
-        {
-            currentState = new StateObject()
-        };
+        var args = ArgsAt(T0.AddMinutes(5));
         args.currentState.ExtractedInfo.MithrilPowder = 1200;
+        args.currentState.ExtractedInfo.PowderSeenAt = T0;
         args.currentState.ItemsCollectedRecently["MITHRIL_POWDER"] = 50;
 
         CollectionListener.TrackMithrilPowder(args, 1000);

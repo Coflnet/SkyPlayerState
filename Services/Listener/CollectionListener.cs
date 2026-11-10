@@ -13,7 +13,6 @@ namespace Coflnet.Sky.PlayerState.Services;
 
 public class CollectionListener : UpdateListener
 {
-    private const string MithrilPowderTag = "MITHRIL_POWDER";
     private Dictionary<string, string> NametoTagLookup;
     // Clean item prices are global (identical for every player), so fetching the
     // full sniper + bazaar price lists per location change was the main processing
@@ -55,9 +54,9 @@ public class CollectionListener : UpdateListener
             // alpha network items are free: book nothing. Their uuids are not registered either: the alpha inventory
             // is a copy of the main one (those uuids are known already) and free Toy Box items would only evict real
             // ones from the bounded known set. The first main view after switching back is a fresh baseline.
-            if (args.msg.Kind == Models.UpdateMessage.UpdateKind.Tab
-                && ParseMithrilPowderFromTab(args.msg.Tab) is { } powder && powder >= 0)
-                args.currentState.ExtractedInfo.MithrilPowder = powder;
+            // powder readings on alpha only forget the baselines (see PowderTracker.Track)
+            if (args.msg.Kind == Models.UpdateMessage.UpdateKind.Tab)
+                HandleTab(args);
             return;
         }
         if (args.msg.Kind == Models.UpdateMessage.UpdateKind.INVENTORY)
@@ -110,51 +109,22 @@ public class CollectionListener : UpdateListener
         }
     }
 
-    private static void HandleTab(UpdateArgs args)
-    {
-        var mithrilPowder = ParseMithrilPowderFromTab(args.msg.Tab);
-        if (!mithrilPowder.HasValue)
-            return;
+    private void HandleTab(UpdateArgs args)
+        => PowderTracker.Track(args, PowderTab.Parse(args.msg.Tab), TabProfile(args), Logger);
 
-        TrackMithrilPowder(args, mithrilPowder.Value);
-    }
+    /// <summary>The upload's own "Profile: Banana" line, so the listener order does not matter; else the known profile.</summary>
+    private static string? TabProfile(UpdateArgs args)
+        => ProfileSwitchListener.ParseTabProfileName(args.msg.Tab ?? []) ?? args.currentState.ExtractedInfo.CurrentProfileName;
 
     internal static int? ParseMithrilPowderFromTab(IEnumerable<string>? tab)
+        => PowderTab.Parse(tab).TryGetValue(PowderTab.MithrilTag, out var amount) ? amount : null;
+
+    /// <summary>A Mithril Powder reading outside the tab list (the Heart of the Mountain menu).</summary>
+    internal static void TrackMithrilPowder(UpdateArgs args, int currentMithrilPowder, ILogger? logger = null)
     {
-        if (tab == null)
-            return null;
-
-        foreach (var rawLine in tab)
-        {
-            var line = StripFormatting(rawLine);
-            if (string.IsNullOrWhiteSpace(line) || !line.Contains("Mithril Powder", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var labelMatch = Regex.Match(line, @"Mithril Powder\s*:\s*([\d,]+)", RegexOptions.IgnoreCase);
-            if (labelMatch.Success && TryParseNumber(labelMatch.Groups[1].Value, out var byLabel))
-                return byLabel;
-
-            var reverseMatch = Regex.Match(line, @"([\d,]+)\s*Mithril Powder", RegexOptions.IgnoreCase);
-            if (reverseMatch.Success && TryParseNumber(reverseMatch.Groups[1].Value, out var byReverse))
-                return byReverse;
-        }
-
-        return null;
-    }
-
-    internal static void TrackMithrilPowder(UpdateArgs args, int currentMithrilPowder)
-    {
-        if (currentMithrilPowder < 0)
-            return;
-
-        var previousMithrilPowder = args.currentState.ExtractedInfo.MithrilPowder;
-        if (previousMithrilPowder > 0 && currentMithrilPowder > previousMithrilPowder)
-        {
-            var diff = currentMithrilPowder - previousMithrilPowder;
-            Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, MithrilPowderTag, diff);
-        }
-
-        args.currentState.ExtractedInfo.MithrilPowder = currentMithrilPowder;
+        var amounts = new Dictionary<string, int> { { PowderTab.MithrilTag, currentMithrilPowder } };
+        PowderTracker.Track(args, amounts, args.currentState.ExtractedInfo.CurrentProfileName,
+            logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
     }
 
     /// <summary>

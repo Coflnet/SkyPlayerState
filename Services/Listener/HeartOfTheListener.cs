@@ -34,7 +34,7 @@ public class HeartOfTheListener : UpdateListener
 
         var mithrilPowder = ParseMithrilPowderFromHeartOfThe(args.msg.Chest);
         if (mithrilPowder.HasValue)
-            CollectionListener.TrackMithrilPowder(args, mithrilPowder.Value);
+            CollectionListener.TrackMithrilPowder(args, mithrilPowder.Value, Logger);
     }
 
     internal static int? ParseMithrilPowderFromHeartOfThe(ChestView? chest)

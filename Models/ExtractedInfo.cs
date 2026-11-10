@@ -261,6 +261,10 @@ public class ExtractedInfo
             VoteCount = extractedInfo.PlayerElectionVote.VoteCount
         };
         MithrilPowder = extractedInfo.MithrilPowder;
+        GemstonePowder = extractedInfo.GemstonePowder;
+        GlacitePowder = extractedInfo.GlacitePowder;
+        PowderProfile = extractedInfo.PowderProfile;
+        PowderSeenAt = extractedInfo.PowderSeenAt;
         CurrentTask = extractedInfo.CurrentTask;
         CurrentTaskSince = extractedInfo.CurrentTaskSince;
         ClaimedTask = extractedInfo.ClaimedTask;
@@ -479,6 +483,21 @@ public class ExtractedInfo
     /// <summary>The pet named by the tab list's Pet widget (" [Lvl 100] Elephant"); its tier is only known when it matches a Pets menu entry.</summary>
     [Key(79)]
     public GearPet? LivePet { get; set; }
+    /// <summary>Gemstone Powder last read from the tab list's Powders widget, the baseline for booking gains (0 = never seen).</summary>
+    [Key(80)]
+    public int GemstonePowder { get; set; }
+    /// <summary>Glacite Powder last read from the tab list's Powders widget, the baseline for booking gains (0 = never seen).</summary>
+    [Key(81)]
+    public int GlacitePowder { get; set; }
+    /// <summary>
+    /// Profile name the powder baselines were read on. A reading on another profile resets all three baselines, so a
+    /// profile switch is never booked as a powder gain.
+    /// </summary>
+    [Key(82)]
+    public string? PowderProfile { get; set; }
+    /// <summary>Message time of the last powder reading; gains over an older or unknown (default) baseline are not booked.</summary>
+    [Key(83)]
+    public DateTime PowderSeenAt { get; set; }
 }
 
 /// <summary>
