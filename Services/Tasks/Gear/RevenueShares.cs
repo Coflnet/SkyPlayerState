@@ -8,7 +8,8 @@ namespace Coflnet.Sky.PlayerState.Tasks.Gear;
 /// net of costs, so the shares must be too): Bulk is common drops minus the recipe cost they need (scales with the
 /// bulk factor), Rare the magic find affected drops, Throughput the unitemized coins minus consumed items such as
 /// keys or bait (scales with actions per hour). Taken from the merged all-bucket aggregate, so it holds even
-/// when the bucket-3 community estimate has no drop list. Itemized is false without observed revenue;
+/// when the community estimate publishes no drop list (fewer than 3 contributors). Itemized is false without
+/// observed revenue;
 /// NetPositive is false when the aggregate nets nothing or a loss, so no setup can be scaled from it.
 /// </summary>
 public readonly record struct RevenueShares(double Bulk, double Rare, double Throughput, bool Itemized, bool NetPositive = true)

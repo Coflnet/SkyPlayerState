@@ -64,7 +64,7 @@ public class TaskController : ControllerBase
 
     /// <summary>
     /// Community-only estimates for every public (non hidden) method task, best coins per hour first. No player
-    /// state is involved: every task is estimated for an average player of unknown stats (stat bucket 3, see
+    /// state is involved: every task is estimated from the tracked data of all players (all stat buckets, see
     /// <see cref="TaskEstimator.EstimateCommunity"/>), so personal fields are zero/empty and TraceId is null.
     /// Cached for ~2 minutes (response cache) on top of the estimator's own 60 second in-memory cache.
     /// </summary>

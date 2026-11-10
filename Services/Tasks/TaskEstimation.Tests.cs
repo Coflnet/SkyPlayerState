@@ -441,3 +441,185 @@ public class TaskEstimationTests
             "converting to Gemstone Mixture at these gem prices is a net loss versus just selling the raw Sludge Juice");
     }
 }
+
+/// <summary>
+/// Regression: the public (no player) rate came from stat bucket 3, "unknown stats", which only held a few low hours.
+/// Mithril Mining published 1.36M/h from 5 hours there while 900 hours in the other buckets made about 3M/h.
+/// </summary>
+public class TaskEstimatorCommunityTests
+{
+    private const string Task = "Mithril Mining";
+    private static readonly Dictionary<string, double> Prices = new() { ["MITHRIL_ORE"] = 1000 };
+
+    private static BucketAggregate Bucket(double hours, double orePerHour, string playerPrefix) => new()
+    {
+        WSeconds = hours * 3600, WPeriods = hours * 6,
+        ItemCounts = new() { ["MITHRIL_ORE"] = hours * orePerHour },
+        RefItemValue = hours * orePerHour * 1000,
+        Contributors = Enumerable.Range(0, 3).Select(i => playerPrefix + i).ToHashSet()
+    };
+
+    private static TaskEstimator MakeEstimator() => MakeEstimator(new()
+    {
+        [(Task, (byte)1)] = Bucket(450, 3000, "b1-"),
+        [(Task, (byte)2)] = Bucket(450, 3000, "b2-"),
+        [(Task, StatScoreService.UnknownBucket)] = Bucket(5, 380, "b3-")
+    });
+
+    private static TaskEstimator MakeEstimator(Dictionary<(string task, byte bucket), BucketAggregate> snapshot)
+    {
+        var registry = new TaskRegistry();
+        var session = new Moq.Mock<global::Cassandra.ISession>().Object;
+        var aggregates = new TaskAggregateService(session, NullLogger<TaskAggregateService>.Instance);
+        aggregates.SetSnapshotForTest(snapshot);
+        return new TaskEstimator(registry, aggregates, new StatScoreService(null, NullLogger<StatScoreService>.Instance),
+            new TaskActivityService(new Moq.Mock<StackExchange.Redis.IConnectionMultiplexer>().Object, registry,
+                NullLogger<TaskActivityService>.Instance),
+            new CoinValueRegistry(session, NullLogger<CoinValueRegistry>.Instance), NullLogger<TaskEstimator>.Instance);
+    }
+
+    [Test]
+    public async Task EstimateCommunity_UsesTheGlobalRateAndHours_NotTheSparseUnknownBucket()
+    {
+        var estimates = await MakeEstimator().EstimateCommunity(Prices, default);
+        var mithril = estimates.Single(e => e.TaskName == Task);
+
+        var globalRate = (900 * 3000 + 5 * 380) * 1000.0 / 905;
+        mithril.CoinsPerHour.Should().BeApproximately(globalRate, globalRate * 0.01);
+        mithril.CommunityTrackedHours.Should().BeApproximately(905, 1e-6);
+        mithril.Source.Should().Be("global");
+        mithril.StatBucket.Should().Be(StatScoreService.UnknownBucket);
+        mithril.Drops.Single(d => d.ItemTag == "MITHRIL_ORE").RatePerHour.Should().BeApproximately((900 * 3000 + 5 * 380) / 905.0, 1e-6);
+    }
+
+    /// <summary>Regression: a logged-in player whose stats did not resolve still got the sparse unknown bucket.</summary>
+    [Test]
+    public async Task EstimateAll_PlayerWithUnknownStats_UsesTheGlobalRateToo()
+    {
+        var state = new Coflnet.Sky.PlayerState.Models.StateObject();
+        state.McInfo.Uuid = Guid.NewGuid();
+
+        var estimates = await MakeEstimator().EstimateAll(state, Prices);
+        var mithril = estimates.Single(e => e.TaskName == Task);
+
+        var globalRate = (900 * 3000 + 5 * 380) * 1000.0 / 905;
+        mithril.StatBucket.Should().Be(StatScoreService.UnknownBucket);
+        mithril.CoinsPerHour.Should().BeApproximately(globalRate, globalRate * 0.01);
+        mithril.CommunityTrackedHours.Should().BeApproximately(905, 1e-6);
+    }
+}
+
+/// <summary>Regression: the drop list was published from one or two players' data, while rate and hours need 3.</summary>
+public class TaskEstimatorDropPrivacyTests
+{
+    private const string Task = "Mithril Mining";
+    private static readonly Dictionary<string, double> Prices = new() { ["MITHRIL_ORE"] = 1000, ["TITANIUM_ORE"] = 5000 };
+
+    private static async Task<List<TaskDropRate>> CommunityDrops(int contributors)
+    {
+        var bucket = new BucketAggregate
+        {
+            WSeconds = 36000, WPeriods = 60,
+            ItemCounts = new() { ["MITHRIL_ORE"] = 30_000, ["PRIVATE_DROP"] = 3 },
+            Contributors = Enumerable.Range(0, contributors).Select(i => "p" + i).ToHashSet()
+        };
+        var registry = new TaskRegistry();
+        var session = new Moq.Mock<global::Cassandra.ISession>().Object;
+        var aggregates = new TaskAggregateService(session, NullLogger<TaskAggregateService>.Instance);
+        aggregates.SetSnapshotForTest(new() { [(Task, (byte)1)] = bucket });
+        var estimator = new TaskEstimator(registry, aggregates, new StatScoreService(null, NullLogger<StatScoreService>.Instance),
+            new TaskActivityService(new Moq.Mock<StackExchange.Redis.IConnectionMultiplexer>().Object, registry,
+                NullLogger<TaskActivityService>.Instance),
+            new CoinValueRegistry(session, NullLogger<CoinValueRegistry>.Instance), NullLogger<TaskEstimator>.Instance);
+        var estimates = await estimator.EstimateCommunity(Prices, default);
+        return estimates.Single(e => e.TaskName == Task).Drops;
+    }
+
+    [Test]
+    public async Task TwoContributors_PublishTheFormulaDrops()
+    {
+        var drops = await CommunityDrops(2);
+
+        drops.Select(d => d.ItemTag).Should().BeEquivalentTo(new[] { "MITHRIL_ORE", "TITANIUM_ORE" });
+        drops.Should().NotContain(d => d.ItemTag == "PRIVATE_DROP");
+    }
+
+    [Test]
+    public async Task ThreeContributors_PublishTheAggregatesDrops()
+        => (await CommunityDrops(3)).Should().Contain(d => d.ItemTag == "PRIVATE_DROP");
+
+    [Test]
+    public void PublishableAggregate_GatesStatBucketsToo()
+    {
+        var two = new BucketAggregate { Contributors = ["a", "b"] };
+        var three = new BucketAggregate { Contributors = ["a", "b", "c"] };
+
+        TaskEstimator.PublishableAggregate(two).Should().BeNull();
+        TaskEstimator.PublishableAggregate(three).Should().BeSameAs(three);
+        TaskEstimator.PublishableAggregate(null).Should().BeNull();
+    }
+}
+
+/// <summary>
+/// Regression: rates read from stored counts valued every tag at its market price, so costs (DUNGEON_CHEST_COST) and
+/// powder were worth 0. M6 lost -7.4M/h of chest cost, M7 -16.4M/h. Costs only count with full value rates (they
+/// buy the rare pool's loot), powder always.
+/// </summary>
+[NonParallelizable]
+public class TaskRateCostValuationTests
+{
+    private static readonly Dictionary<string, double> Prices = new() { ["ESSENCE_WITHER"] = 2000 };
+
+    [TearDown]
+    public void Reset()
+    {
+        TaskRateOptions.FullValueRates = false;
+        CoinValueRegistry.ResetOverridesForTest();
+    }
+
+    private static BucketAggregate M6(bool withChestCost) => new()
+    {
+        WSeconds = 119.6 * 3600,
+        ItemCounts = withChestCost
+            ? new() { ["ESSENCE_WITHER"] = 500_000, ["DUNGEON_CHEST_COST"] = -888_000_000 }
+            : new() { ["ESSENCE_WITHER"] = 500_000 }
+    };
+
+    [Test]
+    public void FullValue_AggregateRate_SubtractsTheChestCost()
+    {
+        TaskRateOptions.FullValueRates = true;
+        var withCost = TaskEstimator.RateFromAggregate(new M6Task(), M6(true), Prices);
+        var without = TaskEstimator.RateFromAggregate(new M6Task(), M6(false), Prices);
+
+        (without - withCost).Should().BeApproximately(888_000_000 / 119.6, 1);
+        (without - withCost).Should().BeApproximately(7.42e6, 0.01e6);
+    }
+
+    [Test]
+    public void SwitchOff_AggregateRate_IgnoresTheChestCost_LikeOriginMain()
+        => TaskEstimator.RateFromAggregate(new M6Task(), M6(true), Prices)
+            .Should().Be(TaskEstimator.RateFromAggregate(new M6Task(), M6(false), Prices));
+
+    [Test]
+    public void FullValue_PlayerStatRate_SubtractsTheChestCost()
+    {
+        TaskRateOptions.FullValueRates = true;
+        var row = new TaskPlayerStatRow
+        {
+            WSeconds = 3600, ItemCounts = new() { ["ESSENCE_WITHER"] = 1000, ["DUNGEON_CHEST_COST"] = -500_000 }
+        };
+
+        TaskEstimator.RateFromPlayerStat(null, row, Prices, 1).Should().BeApproximately(2_000_000 - 500_000, 1e-6);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void AggregateRate_ValuesPowderAtItsOverride(bool fullValueRates)
+    {
+        TaskRateOptions.FullValueRates = fullValueRates;
+        var agg = new BucketAggregate { WSeconds = 3600, ItemCounts = new() { ["MITHRIL_POWDER"] = 100_000 } };
+
+        TaskEstimator.RateFromAggregate(null, agg, Prices).Should().BeApproximately(100_000 * 0.2, 1e-6);
+    }
+}

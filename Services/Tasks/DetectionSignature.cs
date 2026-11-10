@@ -34,6 +34,10 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 /// Per-zone replacement of <see cref="DetectionItems"/> (see MethodTask.ZoneDetectionItems): in a zone
 /// matching one of the keys the period needs one of THESE items, whatever DetectionItems lists.
 /// </param>
+/// <param name="ExcludedZones">
+/// Zones never matched even though <see cref="Locations"/> covers them (see MethodTask.ExcludedZones), e.g. the
+/// Glacite Tunnels for a task listing the whole Dwarven Mines island.
+/// </param>
 /// <param name="ZoneExcludedItems">
 /// Per-zone veto (see MethodTask.ZoneExcludedItems): in a zone matching one of the keys, a period
 /// holding a positive count of any of these items is never attributed to this task.
@@ -53,8 +57,12 @@ public record DetectionSignature(
     Dictionary<string, HashSet<string>> ZoneDetectionItems = null,
     Dictionary<string, HashSet<string>> ZoneExcludedItems = null,
     bool Hidden = false,
-    HashSet<string> CostItems = null)
+    HashSet<string> CostItems = null,
+    HashSet<string> ExcludedZones = null)
 {
+    /// <summary>True when <paramref name="zone"/> is in <see cref="Locations"/> and not in <see cref="ExcludedZones"/>.</summary>
+    public bool MatchesZone(string zone) => SkyblockZones.Matches(Locations, zone, ExcludedZones);
+
     /// <summary>
     /// True for the hidden Bazaar/Auction purchase accounting tasks: their only detection items are
     /// purchase pseudo tags. They classify purchase-only periods but must never displace a real task.

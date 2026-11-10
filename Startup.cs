@@ -171,6 +171,7 @@ public class Startup
         services.AddSingleton<Tasks.TaskActivityService>();
         services.AddSingleton<Tasks.StatScoreService>();
         services.AddSingleton<Tasks.TaskAggregateService>();
+        Tasks.TaskRateOptions.FullValueRates = Configuration.GetValue<bool>("TASKS:FULL_VALUE_RATES");
         services.AddSingleton<Tasks.TaskPeriodFolder>();
         services.AddSingleton<Tasks.TaskEstimator>();
         services.AddSingleton<Tasks.TaskPriceService>();

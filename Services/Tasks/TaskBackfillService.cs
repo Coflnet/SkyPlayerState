@@ -33,7 +33,8 @@ public class TaskBackfillService
 
     /// <summary>
     /// Backfill from the location aggregates for the given locations.
-    /// Idempotent per (task) since it writes to a single backfill instance row.
+    /// Writes under its own instance id (<see cref="TaskAggregateService.BackfillInstanceId"/>), never into a live
+    /// pod's rows. Not idempotent: a second run on the same day adds to that day's backfill row again.
     /// Returns the number of task aggregates seeded.
     /// </summary>
     public async Task<int> Backfill(IEnumerable<string> locations, int days = 7)
@@ -60,7 +61,7 @@ public class TaskBackfillService
                 // group the location's item aggregates by the task their items detect
                 var itemsAtLocation = aggregates.Select(a => a.ItemTag).ToHashSet();
                 var matchingTasks = signatures.Where(s =>
-                    (s.Locations.Count == 0 || SkyblockZones.Matches(s.Locations, location))
+                    (s.Locations.Count == 0 || s.MatchesZone(location))
                     && (s.DetectionItems.Count == 0 || s.DetectionItems.Overlaps(itemsAtLocation))).ToList();
                 foreach (var sig in matchingTasks)
                 {
@@ -73,10 +74,11 @@ public class TaskBackfillService
                         continue;
                     var itemCounts = relevant.GroupBy(a => a.ItemTag)
                         .ToDictionary(g => g.Key, g => (double)g.Sum(a => a.TotalItems));
-                    // approximate price for the ref value; drift correction handles staleness at read
+                    // approximate price for the ref value; no per item market values, so the new drift mode skips it
                     double refValue = itemCounts.Sum(e => coinValues.Value(e.Key, null) * e.Value);
                     taskAggregates.AddContribution(sig.MethodName, StatScoreService.UnknownBucket,
-                        $"backfill:{location}", totalHours * 3600, itemCounts, 0, 0, refValue, null);
+                        $"backfill:{location}", totalHours * 3600, itemCounts, 0, 0, refValue, null, null,
+                        TaskAggregateService.BackfillInstanceId);
                     seeded++;
                 }
             }

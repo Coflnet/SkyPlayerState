@@ -146,6 +146,8 @@ public class CoalMiningTask : BaseMiningTask
     protected override string MethodName => "Coal Mining";
     // Crystal Hollows is left out: coal there is lava fishing/powder mining junk. Only the Magma Fields route is back.
     protected override HashSet<string> Locations => ["Dwarven Mines", "Coal Mine", "Gold Mine", "Magma Fields"];
+    // coal ore in the Glacite Tunnels is mined along with the tunnel ores: those sessions are tunnel mining
+    protected override HashSet<string> ExcludedZones => [.. SkyblockZones.GlaciteTunnelZones];
     protected override HashSet<string> DetectionItems => ["COAL", "ENCHANTED_COAL"];
     // Lava fishing junk (coal included) stays with Magma Core Fishing, worm membranes with Scatha tunnel mining and Yog
     // kills (coal lands in those periods too) with Yog and Bal.
@@ -157,7 +159,7 @@ public class CoalMiningTask : BaseMiningTask
     protected override string Where => "Magma Fields";
     protected override string HowTo =>
         "Mine coal in the Magma Fields in the Crystal Hollows, on a long route of instamined coal and hard stone, "
-        + "and sell the Enchanted Coal on the Bazaar. Coal ore in the Dwarven Mines or Glacite Tunnels works too.";
+        + "and sell the Enchanted Coal on the Bazaar. Coal ore in the Dwarven Mines works too.";
     protected override double ActionsPerHour => 4000;
 }
 public class DiamondMiningTask : BaseMiningTask
@@ -490,6 +492,9 @@ public class MithrilMiningTask : BaseMiningTask
     protected override string MethodName => "Mithril Mining";
     protected override HashSet<string> Locations =>
         ["Rampart's Quarry", "Royal Mines", "Cliffside Veins", "Lava Springs", "Upper Mines", "Divan's Gateway", "Dwarven Mines"];
+    // the island includes the Glacite Tunnels and The Forge: there Mithril and Titanium out-valued the Glacite
+    // tasks and pulled tunnel and corpse loot into this task
+    protected override HashSet<string> ExcludedZones => [.. SkyblockZones.GlaciteAndForgeZones];
     // TITANIUM_ORE/ENCHANTED_TITANIUM: Titanium is a chance replacement of Mithril blocks (needs
     // Breaking Power 5), boosted by the Titanium Insanium perk - not a separate mining method.
     protected override HashSet<string> DetectionItems => ["MITHRIL_ORE", "ENCHANTED_MITHRIL", "TITANIUM_ORE", "ENCHANTED_TITANIUM"];
@@ -566,7 +571,7 @@ public class GlaciteMineshaftTask : BaseMiningTask
     // The tunnels are listed for hard-stone-only periods: 310 such periods 2026-10-11, 44 of their 49 players were
     // hunting shafts in the same hours.
     protected override HashSet<string> Locations => ["Glacite Mineshafts", "Dwarven Base Camp", "Glacite Tunnels", "Great Glacite Lake"];
-    // Beats Mithril Mining, which still matches the zone through the Dwarven Mines island (titanium-only shafts).
+    // Beats any other task that matches the zone through the Dwarven Mines island (Mithril Mining excludes it now).
     protected override int Priority => 1;
     protected override HashSet<string> DetectionItems =>
     [
@@ -585,10 +590,10 @@ public class GlaciteMineshaftTask : BaseMiningTask
     // Loot is often booked right after leaving the shaft, but keys/refined/plates are forged at the camp too and
     // ore there is plain tunnel mining (Glacite/Tungsten/Umber Mining keep it). In the tunnels only hard stone (and the
     // glossy gemstone it rarely drops) counts as the shaft hunt; a period with any tunnel ore or gem stays with its ore task.
+    // Mithril and Titanium are not tunnel ores: Mithril Mining excludes the tunnels, so they stay with the shaft hunt.
     private static readonly string[] TunnelOwned =
     [
-        "GLACITE", "ENCHANTED_GLACITE", "TUNGSTEN", "ENCHANTED_TUNGSTEN", "UMBER", "ENCHANTED_UMBER", "MITHRIL_ORE",
-        "ENCHANTED_MITHRIL", "TITANIUM_ORE", "ENCHANTED_TITANIUM",
+        "GLACITE", "ENCHANTED_GLACITE", "TUNGSTEN", "ENCHANTED_TUNGSTEN", "UMBER", "ENCHANTED_UMBER",
         .. Gems.SelectMany(g => GemQualities.Select(q => $"{q}_{g}_GEM"))
     ];
     private static readonly string[] TunnelHardStone = ["HARD_STONE", "ENCHANTED_HARD_STONE", "GLOSSY_GEMSTONE"];
@@ -600,10 +605,7 @@ public class GlaciteMineshaftTask : BaseMiningTask
     };
     protected override Dictionary<string, HashSet<string>> ZoneExcludedItems => new()
     {
-        ["Dwarven Base Camp"] =
-        [
-            "GLACITE", "ENCHANTED_GLACITE", "TUNGSTEN", "ENCHANTED_TUNGSTEN", "UMBER", "ENCHANTED_UMBER", "MITHRIL_ORE", "TITANIUM_ORE"
-        ],
+        ["Dwarven Base Camp"] = ["GLACITE", "ENCHANTED_GLACITE", "TUNGSTEN", "ENCHANTED_TUNGSTEN", "UMBER", "ENCHANTED_UMBER"],
         ["Glacite Tunnels"] = [.. TunnelOwned],
         ["Great Glacite Lake"] = [.. TunnelOwned]
     };

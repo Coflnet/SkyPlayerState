@@ -22,7 +22,8 @@ public class CoinValueRegistry
     private Table<ResourceCoinValue> overrideTable;
     private readonly ISession session;
     private readonly ILogger<CoinValueRegistry> logger;
-    private Dictionary<string, double> cachedOverrides;
+    // shared, so the static read time valuation (TaskEstimator.UnitValue) sees what the singleton loaded
+    private static volatile Dictionary<string, double> cachedOverrides;
     private DateTime overridesFetchedAt = DateTime.MinValue;
     private readonly SemaphoreSlim refreshLock = new(1, 1);
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(10);
@@ -54,22 +55,37 @@ public class CoinValueRegistry
     /// </summary>
     public double Value(string tag, Dictionary<string, double> marketPrices)
     {
-        // Pseudo tags (PseudoItems) are accounting signal, not real resources - route them here
-        // first so an EVIDENCE tag (bazaar/auction purchase) never counts as unpriced (it has a
-        // defined value of 0, it is simply not a resource being sold) and a COST tag gets its
-        // defined value of 1/unit instead of falling through to the real price lookup below.
-        if (PseudoItems.TryGetCoinValue(tag, out var pseudoValue))
-            return pseudoValue;
-        if (tag == PseudoItems.COPPER)
-            return CopperValue.Current;
-        var overrides = cachedOverrides;
-        if (overrides != null && overrides.TryGetValue(tag, out var overrideValue))
-            return overrideValue;
+        if (TryGetNonMarketValue(tag, out var nonMarketValue))
+            return nonMarketValue;
         if (marketPrices != null && marketPrices.TryGetValue(tag, out var marketPrice) && marketPrice > 0)
             return marketPrice;
         UnpricedCounter.WithLabels(tag).Inc();
         return 0;
     }
+
+    /// <summary>
+    /// The value <see cref="Value"/> resolves before any market price: a pseudo tag, copper or an override
+    /// (powder; the seed values until the override table loaded). False for a plain market item; never counts as
+    /// unpriced.
+    /// </summary>
+    public static bool TryGetNonMarketValue(string tag, out double value)
+    {
+        // Pseudo tags (PseudoItems) are accounting signal, not real resources - route them here
+        // first so an EVIDENCE tag (bazaar/auction purchase) never counts as unpriced (it has a
+        // defined value of 0, it is simply not a resource being sold) and a COST tag gets its
+        // defined value of 1/unit instead of falling through to the real price lookup.
+        if (PseudoItems.TryGetCoinValue(tag, out value))
+            return true;
+        if (tag == PseudoItems.COPPER)
+        {
+            value = CopperValue.Current;
+            return true;
+        }
+        return (cachedOverrides ?? SeedValues).TryGetValue(tag, out value);
+    }
+
+    /// <summary><see cref="TryGetNonMarketValue"/> as a nullable, null for a plain market item.</summary>
+    public static double? NonMarketValueOrNull(string tag) => TryGetNonMarketValue(tag, out var value) ? value : null;
 
     /// <summary>
     /// Refreshes the override cache if it is stale. Call before batch valuations;
@@ -101,6 +117,9 @@ public class CoinValueRegistry
             refreshLock.Release();
         }
     }
+
+    /// <summary>Drops the shared override cache, so tests fall back to the seed values again.</summary>
+    internal static void ResetOverridesForTest() => cachedOverrides = null;
 
     /// <summary>Test-only accessor for the unpriced-resource counter's current value for a tag.</summary>
     internal static double UnpricedCounterValueForTest(string tag) => UnpricedCounter.WithLabels(tag).Value;

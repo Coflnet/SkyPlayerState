@@ -37,6 +37,8 @@ public abstract class MethodTask : ProfitTask
     /// <summary>Public accessor for the registry/tests - see <see cref="Hidden"/>.</summary>
     public bool IsHidden => Hidden;
     protected virtual HashSet<string> Locations => [];
+    /// <summary>Zones never matched even though <see cref="Locations"/> covers them (e.g. via their island).</summary>
+    protected virtual HashSet<string> ExcludedZones => [];
     /// <summary>
     /// Items that must be present to attribute a period to this method.
     /// If empty, matching is location-only (plus shard flags).
@@ -145,7 +147,7 @@ public abstract class MethodTask : ProfitTask
     {
         if (FormulaCosts.Count == 0 || hours <= 0 || itemCounts == null || itemCounts.Count == 0)
             return 0;
-        var reference = FormulaDrops.FirstOrDefault(d => d.RatePerHour > 0 && itemCounts.ContainsKey(d.ItemTag));
+        var reference = CostReferenceDrop(itemCounts);
         if (reference == null)
             return 0;
         var scale = (itemCounts[reference.ItemTag] / hours) / reference.RatePerHour;
@@ -154,6 +156,16 @@ public abstract class MethodTask : ProfitTask
         return FormulaCosts.Where(c => !IsObservedCost(itemCounts, c.ItemTag))
             .Sum(c => priceOf(c.ItemTag) * c.RatePerHour) * scale * hours;
     }
+
+    /// <summary>
+    /// The drop <see cref="ScaledFormulaCost"/> scales the costs by in <paramref name="itemCounts"/>, null for a task
+    /// without <see cref="FormulaCosts"/>. Row trimming must never drop it, or the cost would vanish.
+    /// </summary>
+    internal string CostReferenceTag(Dictionary<string, double> itemCounts)
+        => FormulaCosts.Count == 0 || itemCounts == null ? null : CostReferenceDrop(itemCounts)?.ItemTag;
+
+    private MethodDrop CostReferenceDrop(Dictionary<string, double> itemCounts)
+        => FormulaDrops.FirstOrDefault(d => d.RatePerHour > 0 && itemCounts.ContainsKey(d.ItemTag));
 
     private static bool IsObservedCost(Dictionary<string, double> itemCounts, string tag)
         => itemCounts.TryGetValue(tag, out var count) && count < 0;
@@ -424,7 +436,9 @@ public abstract class MethodTask : ProfitTask
     /// Exposes the same rules <see cref="FindMatchingPeriods"/> applies.
     /// </summary>
     public DetectionSignature GetDetectionSignature() => new(
-        MethodName, Locations, DetectionItems, RequireShardItems, ExcludeShardItems, Priority, Category, DerivedFrom, MinLocationOnlyItems, EvidenceItems, Fallback, ZoneDetectionItems, ZoneExcludedItems, Hidden, KeepableCostTags());
+        MethodName, Locations, DetectionItems, RequireShardItems, ExcludeShardItems, Priority, Category, DerivedFrom,
+        MinLocationOnlyItems, EvidenceItems, Fallback, ZoneDetectionItems, ZoneExcludedItems, Hidden, KeepableCostTags(),
+        ExcludedZones);
 
     /// <summary>
     /// Estimated multipliers from the declared effects, used to seed the
@@ -525,7 +539,7 @@ public abstract class MethodTask : ProfitTask
     {
         var signature = GetDetectionSignature();
         IEnumerable<KeyValuePair<string, Period[]>> zones = Locations.Count > 0
-            ? parameters.LocationProfit.Where(lp => SkyblockZones.Matches(Locations, lp.Key))
+            ? parameters.LocationProfit.Where(lp => SkyblockZones.Matches(Locations, lp.Key, ExcludedZones))
             : parameters.LocationProfit;
         IEnumerable<Period> candidates = zones.SelectMany(lp => lp.Value
             .Where(p => !signature.IsExcludedAt(lp.Key, p.ItemsCollected?.Where(i => i.Value > 0).Select(i => i.Key) ?? []))

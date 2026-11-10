@@ -134,9 +134,11 @@ public class TaskEstimator
 
     /// <summary>
     /// The no-player path: <see cref="EstimateAll"/> with a null state. Without a state no stat factor resolves, so
-    /// every task lands in <see cref="StatScoreService.UnknownBucket"/> (3): the bucket prior multiplier is neutral
-    /// (1.0), the personal tier is skipped (no uuid, no personal rows) and the result is the stat-bucket-3 /
-    /// global / formula blend, i.e. what an average player of unknown stats gets. The saturation penalty still
+    /// every task reports <see cref="StatScoreService.UnknownBucket"/> (3), the personal tier is skipped (no uuid,
+    /// no personal rows) and the rate, tracked hours and drops come from the global (all buckets) aggregate blended
+    /// with the formula, as for any player of unknown stats. Bucket 3 itself is not used: few players have unknown
+    /// stats, so it held a few hours of unrepresentative data that the community rate was then shrunk toward. The
+    /// saturation penalty still
     /// applies (it counts all current doers, since nobody is excluded). The trace id is cleared, it belongs
     /// to the computing request and the result is shared between callers.
     /// </summary>
@@ -227,23 +229,27 @@ public class TaskEstimator
         // tier 2a: global (all buckets merged) with min-contributor gating
         var globalAgg = MergeBuckets(snapshot, name);
         var globalContributors = globalAgg?.Contributors.Count ?? 0;
-        double hG = 0, rG = 0;
+        double hG = 0, rG = 0, globalHours = 0;
         if (globalAgg != null && globalContributors >= MinContributors)
         {
-            hG = Math.Min(globalAgg.WSeconds / 3600.0, GlobalHoursCap);
+            globalHours = globalAgg.WSeconds / 3600.0;
+            hG = Math.Min(globalHours, GlobalHoursCap);
             rG = RateFromAggregate(task, globalAgg, prices);
         }
         var rGlobalStar = (hG * rG + GlobalPseudoHours * rFormula) / (hG + GlobalPseudoHours);
 
-        // tier 2b: stat bucket, shrunk toward the stat-adjusted global
-        var bucketAgg = snapshot.GetValueOrDefault((name, bucket));
+        // tier 2b: stat bucket, shrunk toward the stat-adjusted global. Unknown stats (no player, or a player whose
+        // stats did not resolve) would land in the sparse "unknown" bucket, so they use the global tier as is.
+        var useGlobal = bucket == StatScoreService.UnknownBucket;
+        var bucketAgg = useGlobal ? null : snapshot.GetValueOrDefault((name, bucket));
         double hB = 0, rB = 0;
         if (bucketAgg != null && bucketAgg.Contributors.Count >= MinContributors)
         {
             hB = bucketAgg.WSeconds / 3600.0;
             rB = RateFromAggregate(task, bucketAgg, prices);
         }
-        var rBucketStar = (hB * rB + BucketPseudoHours * mB * rGlobalStar) / (hB + BucketPseudoHours);
+        var rBucketStar = useGlobal ? rGlobalStar
+            : (hB * rB + BucketPseudoHours * mB * rGlobalStar) / (hB + BucketPseudoHours);
 
         // tier 1: personal, blended by the confidence ramp
         double personalMinutes = 0, rPersonal = 0;
@@ -283,7 +289,8 @@ public class TaskEstimator
         span?.SetTag("saturation", saturation);
         span?.SetTag("source", source);
 
-        var (dropCounts, dropSeconds) = DropSource(p > 0.5 && personal != null, personal, bucketAgg);
+        var dropAgg = PublishableAggregate(useGlobal ? globalAgg : bucketAgg);
+        var (dropCounts, dropSeconds) = DropSource(p > 0.5 && personal != null, personal, dropAgg);
 
         var bestZones = RankBestZones(zones);
         var bestZone = bestZones.FirstOrDefault();
@@ -302,7 +309,8 @@ public class TaskEstimator
             CoinsPerHour = displayed,
             RawCoinsPerHour = estimate,
             PersonalTrackedMinutes = personalMinutes,
-            CommunityTrackedHours = hB > 0 ? hB : hG,
+            // the hours behind the rate shown: all of them, the 500 h cap only limits the global tier's pull against the formula
+            CommunityTrackedHours = hB > 0 ? hB : globalHours,
             Contributors = globalContributors,
             CurrentDoers = doers,
             DoersChange20m = deltas.GetValueOrDefault(name),
@@ -371,6 +379,13 @@ public class TaskEstimator
         return result;
     }
 
+    /// <summary>
+    /// The aggregate when enough players contributed to publish its drops, like the rate itself; null otherwise, so a
+    /// player's own drops are never shown to others (the drop list then falls back to the formula drops).
+    /// </summary>
+    internal static BucketAggregate PublishableAggregate(BucketAggregate agg)
+        => agg != null && agg.Contributors.Count >= MinContributors ? agg : null;
+
     /// <summary>Counts and the hours basis they belong to: personal counts use the personal row's seconds.</summary>
     internal static (Dictionary<string, double> counts, double wSeconds) DropSource(bool usePersonal, TaskPlayerStatRow personal, BucketAggregate bucketAgg)
         => usePersonal && personal != null
@@ -433,6 +448,8 @@ public class TaskEstimator
             merged.RareCoins += agg.RareCoins;
             merged.WPeriods += agg.WPeriods;
             merged.RefItemValue += agg.RefItemValue;
+            merged.ItemRefValue += agg.ItemRefValue;
+            merged.LegacyRefValue |= agg.LegacyRefValue;
             foreach (var (tag, count) in agg.ItemCounts)
                 merged.ItemCounts[tag] = merged.ItemCounts.GetValueOrDefault(tag) + count;
             merged.Contributors.UnionWith(agg.Contributors);
@@ -463,14 +480,13 @@ public class TaskEstimator
         if (agg == null || agg.WSeconds <= 0)
             return new AggregateRateParts(0, 0, 0, 1, 0, 0);
         var hours = agg.WSeconds / 3600.0;
-        double liveItemValue = agg.ItemCounts.Sum(e => (prices?.GetValueOrDefault(e.Key) ?? 0) * e.Value);
-        var cost = task?.ScaledFormulaCost(agg.ItemCounts, hours, tag => prices?.GetValueOrDefault(tag) ?? 0) ?? 0;
-        var driftScale = agg.RefItemValue > 0 && liveItemValue > 0
-            ? Math.Clamp(liveItemValue / agg.RefItemValue, PriceDriftClampLow, PriceDriftClampHigh)
-            : 1;
+        var liveItemValue = LiveValue(agg.ItemCounts, prices);
+        var cost = task?.ScaledFormulaCost(agg.ItemCounts, hours, tag => UnitValue(tag, prices)) ?? 0;
+        var driftScale = DriftScale(MarketValue(agg.ItemCounts, prices), agg.RefItemValue, agg.ItemRefValue, agg.LegacyRefValue);
         var residual = agg.ResidualCoins * driftScale;
         var rare = agg.RareCoins * driftScale;
-        return new AggregateRateParts((liveItemValue - cost + residual + rare) / hours, liveItemValue, cost, driftScale, residual, rare);
+        var rate = (liveItemValue - cost + residual + rare) / hours;
+        return new AggregateRateParts(rate, liveItemValue, cost, driftScale, residual, rare);
     }
 
     /// <summary>
@@ -479,22 +495,68 @@ public class TaskEstimator
     /// shared bucket aggregate. Item counts are decayed the same as their coin value so the cost -
     /// computed from those same decayed counts - is discounted by the identical staleness factor.
     /// </summary>
-    internal static double RateFromPlayerStat(MethodTask task, TaskPlayerStatRow row, Dictionary<string, double> prices, double decay)
+    internal static double RateFromPlayerStat(MethodTask task, TaskPlayerStatRow row, Dictionary<string, double> prices,
+        double decay)
     {
         var wSeconds = row.WSeconds * decay;
         if (wSeconds <= 0)
             return 0;
         var hours = wSeconds / 3600.0;
         var decayedCounts = (row.ItemCounts ?? new()).ToDictionary(e => e.Key, e => e.Value * decay);
-        double liveItemValue = decayedCounts.Sum(e => (prices?.GetValueOrDefault(e.Key) ?? 0) * e.Value);
-        var cost = task?.ScaledFormulaCost(decayedCounts, hours, tag => prices?.GetValueOrDefault(tag) ?? 0) ?? 0;
-        var refValue = row.RefItemValue * decay;
-        var driftScale = refValue > 0 && liveItemValue > 0
-            ? Math.Clamp(liveItemValue / refValue, PriceDriftClampLow, PriceDriftClampHigh)
-            : 1;
+        var liveItemValue = LiveValue(decayedCounts, prices);
+        var cost = task?.ScaledFormulaCost(decayedCounts, hours, tag => UnitValue(tag, prices)) ?? 0;
+        var legacy = TaskAggregateService.IsLegacyRef(row.ItemCounts, row.ItemRefValues);
+        var itemRefValue = (row.ItemRefValues?.Values.Sum() ?? 0) * decay;
+        var driftScale = DriftScale(MarketValue(decayedCounts, prices), row.RefItemValue * decay, itemRefValue, legacy);
         var pools = (row.ResidualCoins + row.RareCoins) * decay * driftScale;
         return (liveItemValue - cost + pools) / hours;
     }
+
+    /// <summary>
+    /// Price drift of the stored counts, scaling the rare and residual pools: their live market value over a fold
+    /// time reference, clamped. With <see cref="TaskRateOptions.FullValueRates"/> off the reference is the whole
+    /// fold time value (<see cref="BucketAggregate.RefItemValue"/>, rare drops included, so the floor usually
+    /// applies). On, it is the market value of exactly the stored counts, and legacy data gets no drift.
+    /// </summary>
+    internal static double DriftScale(double liveMarketValue, double refItemValue, double itemRefValue, bool legacyRef)
+    {
+        if (!TaskRateOptions.FullValueRates)
+            return ClampedRatio(liveMarketValue, refItemValue);
+        return legacyRef ? 1 : ClampedRatio(liveMarketValue, itemRefValue);
+    }
+
+    private static double ClampedRatio(double live, double reference)
+        => reference > 0 && live > 0 ? Math.Clamp(live / reference, PriceDriftClampLow, PriceDriftClampHigh) : 1;
+
+    /// <summary>Market price of a tag, 0 for tags without one (costs, powder). Drift only ever looks at these.</summary>
+    internal static double LivePrice(string tag, Dictionary<string, double> prices) => prices?.GetValueOrDefault(tag) ?? 0;
+
+    /// <summary>
+    /// Coin value of one unit when a rate is read, in <see cref="CoinValueRegistry.Value"/>'s order: a pseudo tag
+    /// (chest cost), copper or an override (powder) first, then the market price. Cost tags count only with
+    /// <see cref="TaskRateOptions.FullValueRates"/>, before that they stay at their (absent) market price.
+    /// </summary>
+    internal static double UnitValue(string tag, Dictionary<string, double> prices)
+    {
+        if (PseudoItems.IsCost(tag) && !TaskRateOptions.FullValueRates)
+            return LivePrice(tag, prices);
+        return CoinValueRegistry.TryGetNonMarketValue(tag, out var value) ? value : LivePrice(tag, prices);
+    }
+
+    /// <summary>Coin value of the counts at <see cref="UnitValue"/>, costs (negative counts) included.</summary>
+    internal static double LiveValue(Dictionary<string, double> counts, Dictionary<string, double> prices)
+        => counts.Sum(e => UnitValue(e.Key, prices) * e.Value);
+
+    /// <summary>Market value of the counts, the side of the price drift ratio that can drift.</summary>
+    internal static double MarketValue(Dictionary<string, double> counts, Dictionary<string, double> prices)
+        => counts.Sum(e => LivePrice(e.Key, prices) * e.Value);
+
+    /// <summary>Market value of each count, the fold time drift reference of the new mode.</summary>
+    internal static Dictionary<string, double> ItemValues(Dictionary<string, double> counts, Dictionary<string, double> prices)
+        => counts.ToDictionary(e => e.Key, e => LivePrice(e.Key, prices) * e.Value);
+
+    /// <summary>Most drops listed per task in the public breakdown.</summary>
+    internal const int PublishedDropLimit = 20;
 
     internal static List<TaskDropRate> BuildDrops(MethodTask task, Dictionary<string, double> itemCounts, double wSeconds, Dictionary<string, double> prices)
     {
@@ -503,7 +565,7 @@ public class TaskEstimator
         // declared FormulaDrops as the breakdown instead of returning nothing.
         if (itemCounts == null || itemCounts.Count == 0 || wSeconds <= 0)
         {
-            foreach (var drop in task.FormulaDropsForTest.OrderByDescending(d => d.RatePerHour * (prices?.GetValueOrDefault(d.ItemTag) ?? 0)).Take(12))
+            foreach (var drop in task.FormulaDropsForTest.OrderByDescending(d => d.RatePerHour * (prices?.GetValueOrDefault(d.ItemTag) ?? 0)).Take(PublishedDropLimit))
             {
                 var price = prices?.GetValueOrDefault(drop.ItemTag) ?? 0;
                 drops.Add(new TaskDropRate
@@ -518,7 +580,7 @@ public class TaskEstimator
         }
         var hours = wSeconds / 3600.0;
         // pseudo tags (purchase evidence, dungeon runs, costs) are accounting signal, never drops shown to users
-        foreach (var (tag, count) in itemCounts.Where(e => !PseudoItems.IsPseudo(e.Key)).OrderByDescending(e => e.Value).Take(12))
+        foreach (var (tag, count) in itemCounts.Where(e => !PseudoItems.IsPseudo(e.Key)).OrderByDescending(e => e.Value).Take(PublishedDropLimit))
         {
             var price = prices?.GetValueOrDefault(tag) ?? 0;
             var rate = count / hours;
@@ -532,4 +594,17 @@ public class TaskEstimator
         }
         return drops;
     }
+}
+
+/// <summary>Switches of the task rate math, set from configuration at startup.</summary>
+public static class TaskRateOptions
+{
+    /// <summary>
+    /// Full value rates (TASKS:FULL_VALUE_RATES), off by default. On: price drift against the market value of
+    /// exactly the stored counts (the rare and residual pools count in full), cost pseudo tags (chest costs)
+    /// subtracted when a rate is read, and the AFK check on gross gains. These belong together: the costs buy the
+    /// loot in the rare pool. Flip it together with the per player rare cap, not before.
+    /// Off: the origin/main drift, costs valued at 0 and the origin/main AFK check.
+    /// </summary>
+    public static bool FullValueRates { get; set; }
 }

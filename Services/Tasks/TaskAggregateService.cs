@@ -23,8 +23,18 @@ public class BucketAggregate
     public double ResidualCoins;
     public double RareCoins;
     public double WPeriods;
-    /// <summary>coin value of the item counts at fold time, used to scale the coin pools for price drift</summary>
+    /// <summary>
+    /// Coin value of each period's items at fold time, rare drops and later trimmed items included. The price drift
+    /// reference while <see cref="TaskRateOptions.FullValueRates"/> is off.
+    /// </summary>
     public double RefItemValue;
+    /// <summary>Market value at fold time of exactly the stored item counts, the drift reference of the new mode.</summary>
+    public double ItemRefValue;
+    /// <summary>
+    /// True when a merged row has no complete per item fold values (written before they existed, or by the
+    /// backfill), so <see cref="ItemRefValue"/> does not describe the counts and the new mode applies no drift.
+    /// </summary>
+    public bool LegacyRefValue;
     public Dictionary<string, double> ItemCounts = new();
     public HashSet<string> Contributors = new();
 
@@ -64,7 +74,8 @@ public class TaskAggregateService
     private const int MergePageSize = 5000;
 
     // pending deltas accumulated in memory, flushed to cassandra periodically
-    private readonly ConcurrentDictionary<(string task, byte bucket), PendingDelta> pending = new();
+    // instance null is this instance; the backfill writes under its own
+    private readonly ConcurrentDictionary<(string task, byte bucket, string instance), PendingDelta> pending = new();
     private readonly ConcurrentDictionary<(string task, string zone), PendingZoneDelta> pendingZones = new();
     private readonly SemaphoreSlim flushLock = new(1, 1);
 
@@ -75,16 +86,24 @@ public class TaskAggregateService
     private readonly SemaphoreSlim mergeLock = new(1, 1);
     private int warmupKicked;
 
-    public TaskAggregateService(ISession session, ILogger<TaskAggregateService> logger)
+    private readonly TaskRegistry registry;
+    /// <summary>Instance id of the rows the backfill writes, so it never mixes into a live instance's rows.</summary>
+    internal const string BackfillInstanceId = "backfill";
+
+    public TaskAggregateService(ISession session, ILogger<TaskAggregateService> logger, TaskRegistry registry = null)
     {
         this.session = session;
         this.logger = logger;
+        this.registry = registry;
     }
 
     private class PendingDelta
     {
         public double WSeconds, ResidualCoins, RareCoins, WPeriods, RefItemValue;
+        /// <summary>set when a contribution came without per item fold values (backfill)</summary>
+        public bool RefUnknown;
         public readonly ConcurrentDictionary<string, double> ItemCounts = new();
+        public readonly ConcurrentDictionary<string, double> ItemRefValues = new();
         public readonly HashSet<string> Players = new();
         public readonly List<string> TraceIds = new();
         public readonly object gate = new();
@@ -126,28 +145,44 @@ public class TaskAggregateService
     }
 
     /// <summary>
-    /// Fold one classified, filtered period contribution into the shared aggregate.
-    /// Amounts are already weighted by the ramp.
+    /// Fold one classified, filtered period contribution into the shared aggregate. Amounts are already weighted
+    /// by the ramp. <paramref name="refItemValue"/> is the period's whole item value at fold time (see
+    /// <see cref="BucketAggregate.RefItemValue"/>), <paramref name="weightedItemRefValues"/> the fold time market value
+    /// of each of <paramref name="weightedItemCounts"/>, null when unknown. <paramref name="instance"/> overrides this
+    /// instance's row (the backfill).
     /// </summary>
     public void AddContribution(string task, byte bucket, string playerUuid, double wSeconds,
         Dictionary<string, double> weightedItemCounts, double residualCoins, double rareCoins,
-        double refItemValue, string traceId)
+        double refItemValue, Dictionary<string, double> weightedItemRefValues, string traceId, string instance = null)
     {
-        var delta = pending.GetOrAdd((task, bucket), _ => new PendingDelta());
+        var delta = pending.GetOrAdd((task, bucket, instance), _ => new PendingDelta());
         lock (delta.gate)
         {
             delta.WSeconds += wSeconds;
             delta.ResidualCoins += residualCoins;
             delta.RareCoins += rareCoins;
-            delta.WPeriods += 1;
             delta.RefItemValue += refItemValue;
+            delta.WPeriods += 1;
             if (playerUuid != null)
                 delta.Players.Add(playerUuid);
             foreach (var (tag, count) in weightedItemCounts)
                 delta.ItemCounts.AddOrUpdate(tag, count, (_, prev) => prev + count);
+            AddRefValues(delta, weightedItemRefValues);
             if (traceId != null && delta.TraceIds.Count < 5)
                 delta.TraceIds.Add(traceId);
         }
+    }
+
+    /// <summary>Adds per item fold values to the delta, or marks its reference unknown when there are none. Under its gate.</summary>
+    private static void AddRefValues(PendingDelta delta, Dictionary<string, double> weightedItemRefValues)
+    {
+        if (weightedItemRefValues == null)
+        {
+            delta.RefUnknown = true;
+            return;
+        }
+        foreach (var (tag, value) in weightedItemRefValues)
+            delta.ItemRefValues.AddOrUpdate(tag, value, (_, prev) => prev + value);
     }
 
     /// <summary>The not yet flushed contribution of one task over all buckets (wSeconds, item counts), for tests.</summary>
@@ -155,7 +190,7 @@ public class TaskAggregateService
     {
         var seconds = 0.0;
         var items = new Dictionary<string, double>();
-        foreach (var ((name, _), delta) in pending.Where(p => p.Key.task == task))
+        foreach (var (_, delta) in pending.Where(p => p.Key.task == task))
             lock (delta.gate)
             {
                 seconds += delta.WSeconds;
@@ -189,65 +224,133 @@ public class TaskAggregateService
 
     private async Task FlushBuckets()
     {
+        if (table == null)
+            await Setup();
+        var dayBucket = DateTime.UtcNow.Date;
+        foreach (var key in pending.Keys.ToList())
         {
-            if (table == null)
-                await Setup();
-            var dayBucket = DateTime.UtcNow.Date;
-            var keys = pending.Keys.ToList();
-            foreach (var key in keys)
+            if (!pending.TryRemove(key, out var delta))
+                continue;
+            var row = ToRow(key, delta, dayBucket);
+            try
             {
-                if (!pending.TryRemove(key, out var delta))
-                    continue;
-                TaskBucketAggregateRow row;
-                lock (delta.gate)
-                {
-                    row = new TaskBucketAggregateRow
-                    {
-                        DayBucket = dayBucket,
-                        TaskName = key.task,
-                        Bucket = key.bucket,
-                        InstanceId = instanceId,
-                        WSeconds = delta.WSeconds,
-                        ResidualCoins = delta.ResidualCoins,
-                        RareCoins = delta.RareCoins,
-                        WPeriods = delta.WPeriods,
-                        RefItemValue = delta.RefItemValue,
-                        ItemCounts = new Dictionary<string, double>(delta.ItemCounts),
-                        Players = new HashSet<string>(delta.Players),
-                        LastFoldTraceIds = delta.TraceIds.ToList()
-                    };
-                }
-                try
-                {
-                    // read existing own row for today and add to it (single writer, no race)
-                    var bucketInt = (int)key.bucket;
-                    var existing = (await table!.Where(r =>
-                        r.DayBucket == dayBucket && r.TaskName == key.task && r.Bucket == bucketInt && r.InstanceId == instanceId)
-                        .ExecuteAsync()).FirstOrDefault();
-                    if (existing != null)
-                    {
-                        row.WSeconds += existing.WSeconds;
-                        row.ResidualCoins += existing.ResidualCoins;
-                        row.RareCoins += existing.RareCoins;
-                        row.WPeriods += existing.WPeriods;
-                        row.RefItemValue += existing.RefItemValue;
-                        if (existing.ItemCounts != null)
-                            foreach (var (tag, count) in existing.ItemCounts)
-                                row.ItemCounts[tag] = row.ItemCounts.GetValueOrDefault(tag) + count;
-                        if (existing.Players != null)
-                            row.Players.UnionWith(existing.Players);
-                    }
-                    // keep every cost plus the top 12 items to bound row size
-                    if (row.ItemCounts.Count > 12)
-                        row.ItemCounts = KeepCostsAndTop(row.ItemCounts, 12);
-                    await table!.Insert(row).SetTTL(TTL_SECONDS).ExecuteAsync();
-                }
-                catch (Exception e)
-                {
-                    logger.LogError(e, "failed to flush aggregate {task}/{bucket}", key.task, key.bucket);
-                }
+                // read existing own row for today and add to it (single writer, no race)
+                var bucketInt = (int)key.bucket;
+                var rowInstance = row.InstanceId;
+                var existing = (await table!.Where(r =>
+                    r.DayBucket == dayBucket && r.TaskName == key.task && r.Bucket == bucketInt && r.InstanceId == rowInstance)
+                    .ExecuteAsync()).FirstOrDefault();
+                MergeIntoRow(row, existing, RowItemLimit, TrimRules.For(registry?.GetByName(key.task) as MethodTask));
+                await table!.Insert(row).SetTTL(TTL_SECONDS).ExecuteAsync();
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "failed to flush aggregate {task}/{bucket}", key.task, key.bucket);
             }
         }
+    }
+
+    /// <summary>Items kept per day row besides the costs, bounds the row size.</summary>
+    internal const int RowItemLimit = 20;
+
+    private TaskBucketAggregateRow ToRow((string task, byte bucket, string instance) key, PendingDelta delta, DateTime dayBucket)
+    {
+        lock (delta.gate)
+        {
+            return new TaskBucketAggregateRow
+            {
+                DayBucket = dayBucket,
+                TaskName = key.task,
+                Bucket = key.bucket,
+                InstanceId = key.instance ?? instanceId,
+                WSeconds = delta.WSeconds,
+                ResidualCoins = delta.ResidualCoins,
+                RareCoins = delta.RareCoins,
+                WPeriods = delta.WPeriods,
+                RefItemValue = delta.RefItemValue,
+                ItemCounts = new Dictionary<string, double>(delta.ItemCounts),
+                ItemRefValues = delta.RefUnknown ? null : new Dictionary<string, double>(delta.ItemRefValues),
+                Players = new HashSet<string>(delta.Players),
+                LastFoldTraceIds = delta.TraceIds.ToList()
+            };
+        }
+    }
+
+    /// <summary>The not yet flushed row of one task and bucket, as <see cref="FlushBuckets"/> would build it, for tests.</summary>
+    internal TaskBucketAggregateRow PendingRowForTest(string task, byte bucket, string instance = null)
+        => pending.TryGetValue((task, bucket, instance), out var delta)
+            ? ToRow((task, bucket, instance), delta, DateTime.UtcNow.Date)
+            : null;
+
+    /// <summary>
+    /// Adds this instance's <paramref name="existing"/> row of the day to the flushed <paramref name="row"/> and
+    /// trims it. A row with per item fold values keeps the costs plus the <paramref name="limit"/> most valuable
+    /// items and their values. A row without them (written before they existed, or by the backfill) stays without
+    /// them and is trimmed by count. <see cref="TaskBucketAggregateRow.RefItemValue"/> is only summed, as before.
+    /// </summary>
+    internal static void MergeIntoRow(TaskBucketAggregateRow row, TaskBucketAggregateRow existing, int limit,
+        TrimRules rules = null)
+    {
+        rules ??= TrimRules.None;
+        var refKnown = row.ItemRefValues != null
+            && (existing == null || !IsLegacyRef(existing.ItemCounts, existing.ItemRefValues));
+        if (existing != null)
+            AddExisting(row, existing);
+        if (!refKnown)
+        {
+            TrimLegacyRow(row, limit, rules);
+            return;
+        }
+        if (existing?.ItemRefValues != null)
+            AddInto(row.ItemRefValues, existing.ItemRefValues);
+        TrimRow(row, limit, rules);
+    }
+
+    private static void TrimLegacyRow(TaskBucketAggregateRow row, int limit, TrimRules rules)
+    {
+        row.ItemRefValues = null;
+        if (row.ItemCounts.Count > limit)
+            row.ItemCounts = KeepCostsAndTop(row.ItemCounts, limit, keepTag: rules.KeepTagOf(row.ItemCounts));
+    }
+
+    private static void AddExisting(TaskBucketAggregateRow row, TaskBucketAggregateRow existing)
+    {
+        row.WSeconds += existing.WSeconds;
+        row.ResidualCoins += existing.ResidualCoins;
+        row.RareCoins += existing.RareCoins;
+        row.WPeriods += existing.WPeriods;
+        row.RefItemValue += existing.RefItemValue;
+        if (existing.ItemCounts != null)
+            AddInto(row.ItemCounts, existing.ItemCounts);
+        if (existing.Players != null)
+            row.Players.UnionWith(existing.Players);
+    }
+
+    private static void TrimRow(TaskBucketAggregateRow row, int limit, TrimRules rules)
+    {
+        if (row.ItemCounts.Count > limit)
+            row.ItemCounts = KeepCostsAndTop(row.ItemCounts, limit,
+                rules.RankValue(row.ItemCounts, row.ItemRefValues), rules.KeepTagOf(row.ItemCounts));
+        row.ItemRefValues = row.ItemCounts.Keys.ToDictionary(tag => tag, tag => row.ItemRefValues.GetValueOrDefault(tag));
+    }
+
+    private static void AddInto(Dictionary<string, double> target, Dictionary<string, double> source)
+    {
+        foreach (var (tag, value) in source)
+            target[tag] = target.GetValueOrDefault(tag) + value;
+    }
+
+    /// <summary>
+    /// True for a row without complete per item fold values: written before they existed or by the backfill, or a
+    /// count without a value. Such values do not describe the counts, so they can not be a drift reference.
+    /// </summary>
+    internal static bool IsLegacyRef(Dictionary<string, double> itemCounts, Dictionary<string, double> itemRefValues)
+    {
+        if (itemCounts == null || itemCounts.Count == 0)
+            return false;
+        if (itemRefValues == null || itemRefValues.Count == 0)
+            return itemCounts.Values.Any(c => c != 0);
+        return itemCounts.Keys.Any(tag => !itemRefValues.ContainsKey(tag));
     }
 
     /// <summary>Same single writer day-row pattern as the bucket rows, for the per (task, zone) "best spot" data.</summary>
@@ -312,12 +415,18 @@ public class TaskAggregateService
     public Dictionary<string, Dictionary<string, ZoneAggregate>> GetZoneSnapshot() => zoneSnapshot;
 
     /// <summary>
-    /// Keeps every negative entry (costs, bounded by the declared cost tags) plus the
-    /// <paramref name="limit"/> highest positive entries.
+    /// Keeps every negative entry (costs, bounded by the declared cost tags) plus <paramref name="limit"/> positive
+    /// entries: <paramref name="keepTag"/> first, then the highest <paramref name="valueOf"/>, ties by count.
+    /// Ranking by count alone let cheap bulk blocks (cobblestone, hard stone) push out the valuable low count drops.
     /// </summary>
-    internal static Dictionary<string, double> KeepCostsAndTop(Dictionary<string, double> counts, int limit)
+    internal static Dictionary<string, double> KeepCostsAndTop(Dictionary<string, double> counts, int limit,
+        Func<string, double> valueOf = null, string keepTag = null)
         => counts.Where(e => e.Value < 0)
-            .Concat(counts.Where(e => e.Value >= 0).OrderByDescending(e => e.Value).Take(limit))
+            .Concat(counts.Where(e => e.Value >= 0)
+                .OrderByDescending(e => e.Key == keepTag)
+                .ThenByDescending(e => valueOf?.Invoke(e.Key) ?? 0)
+                .ThenByDescending(e => e.Value)
+                .Take(limit))
             .ToDictionary(e => e.Key, e => e.Value);
 
     /// <summary>False until the first merge finished: before that <see cref="GetSnapshot"/> is empty and estimates are formula-only.</summary>
@@ -377,16 +486,7 @@ public class TaskAggregateService
                         agg = new BucketAggregate { TaskName = row.TaskName, Bucket = (byte)row.Bucket };
                         merged[key] = agg;
                     }
-                    agg.WSeconds += row.WSeconds * weight;
-                    agg.ResidualCoins += row.ResidualCoins * weight;
-                    agg.RareCoins += row.RareCoins * weight;
-                    agg.WPeriods += row.WPeriods * weight;
-                    agg.RefItemValue += row.RefItemValue * weight;
-                    if (row.ItemCounts != null)
-                        foreach (var (tag, count) in row.ItemCounts)
-                            agg.ItemCounts[tag] = agg.ItemCounts.GetValueOrDefault(tag) + count * weight;
-                    if (row.Players != null)
-                        agg.Contributors.UnionWith(row.Players);
+                    AddRow(agg, row, weight);
                 }
             }
             snapshot = merged;
@@ -404,6 +504,23 @@ public class TaskAggregateService
         {
             mergeLock.Release();
         }
+    }
+
+    /// <summary>Adds one day row, scaled by its decay <paramref name="weight"/>, to the merged aggregate.</summary>
+    internal static void AddRow(BucketAggregate agg, TaskBucketAggregateRow row, double weight)
+    {
+        agg.WSeconds += row.WSeconds * weight;
+        agg.ResidualCoins += row.ResidualCoins * weight;
+        agg.RareCoins += row.RareCoins * weight;
+        agg.WPeriods += row.WPeriods * weight;
+        agg.RefItemValue += row.RefItemValue * weight;
+        agg.ItemRefValue += (row.ItemRefValues?.Values.Sum() ?? 0) * weight;
+        agg.LegacyRefValue |= IsLegacyRef(row.ItemCounts, row.ItemRefValues);
+        if (row.ItemCounts != null)
+            foreach (var (tag, count) in row.ItemCounts)
+                agg.ItemCounts[tag] = agg.ItemCounts.GetValueOrDefault(tag) + count * weight;
+        if (row.Players != null)
+            agg.Contributors.UnionWith(row.Players);
     }
 
     /// <summary>Merge-reads the zone rows of the last 8 days with the same 7 day half life decay. A failure keeps the previous zone snapshot.</summary>
@@ -531,15 +648,46 @@ public class TaskAggregateService
             .ClusteringKey(r => r.TaskName)
             .ClusteringKey(r => r.Bucket)
             .ClusteringKey(r => r.InstanceId));
-        table = new Table<TaskBucketAggregateRow>(session, mapping);
-        await table.CreateIfNotExistsAsync();
+        var created = new Table<TaskBucketAggregateRow>(session, mapping);
+        await created.CreateIfNotExistsAsync();
+        await AddColumnIfMissing("task_bucket_aggregates", "itemrefvalues", "map<text, double>");
 
         var playerMapping = new MappingConfiguration().Define(new Map<TaskPlayerStatRow>()
             .TableName("task_player_stats")
             .PartitionKey(r => r.PlayerUuid)
             .ClusteringKey(r => r.TaskName));
-        playerTable = new Table<TaskPlayerStatRow>(session, playerMapping);
-        await playerTable.CreateIfNotExistsAsync();
+        var createdPlayers = new Table<TaskPlayerStatRow>(session, playerMapping);
+        await createdPlayers.CreateIfNotExistsAsync();
+        await AddColumnIfMissing("task_player_stats", "itemrefvalues", "map<text, double>");
+        table = created;
+        playerTable = createdPlayers;
+    }
+
+    /// <summary>
+    /// Adds a column that tables created before it existed lack. Pods start at the same time, so a
+    /// concurrent add of the same column by another pod is not an error.
+    /// </summary>
+    private async Task AddColumnIfMissing(string tableName, string column, string type)
+    {
+        if (await HasColumn(tableName, column))
+            return;
+        try
+        {
+            await session.ExecuteAsync(new SimpleStatement($"ALTER TABLE {tableName} ADD {column} {type};"));
+        }
+        catch (InvalidQueryException)
+        {
+            if (!await HasColumn(tableName, column))
+                throw;
+        }
+    }
+
+    private async Task<bool> HasColumn(string tableName, string column)
+    {
+        var rows = await session.ExecuteAsync(new SimpleStatement(
+            "SELECT column_name FROM system_schema.columns WHERE keyspace_name = ? AND table_name = ? AND column_name = ?;",
+            session.Keyspace, tableName, column));
+        return rows.FirstOrDefault() != null;
     }
 }
 
@@ -556,6 +704,8 @@ public class TaskBucketAggregateRow
     public double WPeriods { get; set; }
     public double RefItemValue { get; set; }
     public Dictionary<string, double> ItemCounts { get; set; } = new();
+    /// <summary>fold time coin value of each stored item count; null on rows written before it existed</summary>
+    public Dictionary<string, double> ItemRefValues { get; set; } = new();
     public HashSet<string> Players { get; set; } = new();
     public List<string> LastFoldTraceIds { get; set; } = new();
 }
@@ -591,7 +741,28 @@ public class TaskPlayerStatRow
     public double RareCoins { get; set; }
     public double RefItemValue { get; set; }
     public Dictionary<string, double> ItemCounts { get; set; } = new();
+    /// <summary>decayed fold time coin value of each stored item count; null on rows written before it existed</summary>
+    public Dictionary<string, double> ItemRefValues { get; set; }
     /// <summary>decayed cumulative minutes on the task, drives the personal blend ramp</summary>
     public double CumulativeMinutes { get; set; }
     public DateTime LastFold { get; set; }
+}
+
+/// <summary>
+/// What trimming a row needs besides the row: the value of non market tags (powder, pseudo tags, see
+/// <see cref="CoinValueRegistry.TryGetNonMarketValue"/>), which the market priced reference values at 0, and the
+/// task's <see cref="MethodTask.CostReferenceTag"/>, which is never dropped.
+/// </summary>
+internal record TrimRules(Func<string, double?> NonMarketUnitValue, Func<Dictionary<string, double>, string> KeepTagOf)
+{
+    public static readonly TrimRules None = new(CoinValueRegistry.NonMarketValueOrNull, _ => null);
+
+    public static TrimRules For(MethodTask task)
+        => task == null ? None : new(CoinValueRegistry.NonMarketValueOrNull, task.CostReferenceTag);
+
+    /// <summary>Rank of each stored item: its non market value when it has one, else its fold value.</summary>
+    public Func<string, double> RankValue(Dictionary<string, double> counts, Dictionary<string, double> refValues)
+        => tag => NonMarketUnitValue?.Invoke(tag) is { } unit
+            ? unit * counts.GetValueOrDefault(tag)
+            : refValues?.GetValueOrDefault(tag) ?? 0;
 }

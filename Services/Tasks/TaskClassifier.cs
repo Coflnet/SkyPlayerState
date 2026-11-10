@@ -139,8 +139,9 @@ public class TaskClassifier
                 // the zone map resolves most island-level Locations against the sub-zone the
                 // scoreboard actually reports; a fresh tab-reported island additionally resolves
                 // zones the static map leaves ambiguous/unmapped (e.g. "Dragon's Lair").
-                var locationMatches = SkyblockZones.Matches(sig.Locations, location)
+                var locationMatches = sig.MatchesZone(location)
                     || (currentIslandIsFresh && SkyblockZones.IslandOf(location) == null
+                        && !SkyblockZones.IsExcluded(sig.ExcludedZones, location)
                         && sig.Locations.Contains(currentIsland));
                 if (!locationMatches)
                     continue;

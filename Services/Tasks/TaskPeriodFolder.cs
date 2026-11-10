@@ -141,19 +141,13 @@ public class TaskPeriodFolder
                 }
             }
 
-            // AFK contamination: coin rate far below the community rate for the task. Compared on the common
-            // rate only (item value minus cost, no rare EV pools): a rare-heavy task whose pool is inflated
-            // would otherwise drop every normal session as AFK and keep only the lucky ones.
-            if (!lateReward && bucketAgg != null && bucketAgg.WSeconds / 3600.0 >= WinsorMinBucketHours)
+            // AFK contamination: coin rate far below the community rate for the task, compared without the rare
+            // EV pools (see IsAfk)
+            if (!lateReward && IsAfk(methodTask, bucketAgg, commonCounts, commonValue, hours, prices))
             {
-                var bucketRate = EstimateCommonBucketRate(methodTask, bucketAgg, prices);
-                var thisRate = commonValue / hours;
-                if (bucketRate > 0 && thisRate < AfkFactor * bucketRate)
-                {
-                    span?.SetTag("dropped", "afk");
-                    FoldMetrics.Record(task, FoldMetrics.Afk, minutes * 60, itemValue);
-                    return;
-                }
+                span?.SetTag("dropped", "afk");
+                FoldMetrics.Record(task, FoldMetrics.Afk, minutes * 60, itemValue);
+                return;
             }
 
             var seconds = minutes * 60;
@@ -162,8 +156,10 @@ public class TaskPeriodFolder
 
             var weightedItemCounts = commonCounts.ToDictionary(c => c.Key, c => c.Value * weight);
             var residual = 0.0; // reserved for value not covered by tracked items (currently all items tracked)
-            aggregates.AddContribution(task, bucket, period.PlayerUuid, seconds * weight,
-                weightedItemCounts, residual * weight, rareCoins * weight, itemValue * weight, span?.TraceId.ToString());
+            // two drift references: the whole item value (used today) and the market value of exactly the stored counts
+            aggregates.AddContribution(task, bucket, period.PlayerUuid, seconds * weight, weightedItemCounts,
+                residual * weight, rareCoins * weight, itemValue * weight,
+                TaskEstimator.ItemValues(weightedItemCounts, prices), span?.TraceId.ToString());
 
             await UpdatePlayerStat(period.PlayerUuid, task, seconds, commonCounts, residual, rareCoins, itemValue, minutes, prices);
 
@@ -240,12 +236,12 @@ public class TaskPeriodFolder
     /// so the derived task gets a real, non-formula estimate too. Reuses the primary's confidence
     /// ramp weight since it is the same physical activity.
     /// <para>
-    /// Stores the GROSS converted value, both as the aggregate's item counts and as its <see
-    /// cref="BucketAggregate.RefItemValue"/> price-drift reference - ingredient cost (e.g. the 16
+    /// Stores the GROSS converted value, both as the aggregate's item counts and as its per item
+    /// price-drift reference (see <see cref="BucketAggregate.RefItemValue"/>) - ingredient cost (e.g. the 16
     /// Fine gems a Gemstone Mixture consumes, via <see cref="MethodTask.FormulaCosts"/>) is netted
     /// exactly once, downstream in <see cref="TaskEstimator.RateFromAggregate"/>/<see
     /// cref="TaskEstimator.RateFromPlayerStat"/>, from these same stored item counts. Keeping
-    /// RefItemValue gross (not net) keeps the price-drift ratio there (live gross / ref gross)
+    /// the reference gross (not net) keeps the price-drift ratio there (live gross / ref gross)
     /// like-for-like - a net reference compared against a live gross re-pricing would understate
     /// drift and wrongly clamp it.
     /// </para>
@@ -267,8 +263,9 @@ public class TaskPeriodFolder
                 var derivedGrossValue = derivedCounts.Sum(c => coinValues.Value(c.Key, prices) * c.Value);
                 var weightedDerivedCounts = derivedCounts.ToDictionary(c => c.Key, c => c.Value * weight);
 
-                aggregates.AddContribution(derivedName, derivedBucket, playerUuid, seconds * weight,
-                    weightedDerivedCounts, 0, 0, derivedGrossValue * weight, span?.TraceId.ToString());
+                aggregates.AddContribution(derivedName, derivedBucket, playerUuid, seconds * weight, weightedDerivedCounts,
+                    0, 0, derivedGrossValue * weight, TaskEstimator.ItemValues(weightedDerivedCounts, prices),
+                    span?.TraceId.ToString());
 
                 await UpdatePlayerStat(playerUuid, derivedName, seconds, derivedCounts, 0, 0, derivedGrossValue, minutes, prices);
                 span?.SetTag($"derived_value_{derivedName}", derivedGrossValue);
@@ -335,24 +332,47 @@ public class TaskPeriodFolder
         if (agg == null || agg.WSeconds <= 0)
             return 0;
         var hours = agg.WSeconds / 3600.0;
-        double itemValue = agg.ItemCounts.Sum(e => (prices?.GetValueOrDefault(e.Key) ?? 0) * e.Value);
-        var cost = task?.ScaledFormulaCost(agg.ItemCounts, hours, tag => prices?.GetValueOrDefault(tag) ?? 0) ?? 0;
+        var itemValue = TaskEstimator.LiveValue(agg.ItemCounts, prices);
+        var cost = task?.ScaledFormulaCost(agg.ItemCounts, hours, tag => TaskEstimator.UnitValue(tag, prices)) ?? 0;
         return (itemValue - cost + agg.ResidualCoins + agg.RareCoins) / hours;
     }
 
     /// <summary>
-    /// Common-only bucket rate for the AFK check: live item value minus formula cost per hour, without the
-    /// residual/rare EV pools (a session that did not hit the rare drop is not AFK because the pool is big).
+    /// True when the session's common rate is below <see cref="AfkFactor"/> of the bucket's, never counting the rare
+    /// EV pools (a rare-heavy task would otherwise drop every normal session and keep only the lucky ones). With
+    /// <see cref="TaskRateOptions.FullValueRates"/> both sides are gross gains (positive counts): a session that paid
+    /// for a chest would otherwise go negative while its loot arrives later as a claim without seconds. Off, the
+    /// session's net <paramref name="commonValue"/> is compared, as before. Only checked against a bucket with
+    /// enough hours.
+    /// </summary>
+    internal static bool IsAfk(MethodTask task, BucketAggregate bucketAgg, Dictionary<string, double> commonCounts,
+        double commonValue, double hours, Dictionary<string, double> prices)
+    {
+        if (bucketAgg == null || bucketAgg.WSeconds / 3600.0 < WinsorMinBucketHours || hours <= 0)
+            return false;
+        var bucketRate = EstimateCommonBucketRate(task, bucketAgg, prices);
+        var sessionValue = TaskRateOptions.FullValueRates ? GrossValue(commonCounts, prices) : commonValue;
+        return bucketRate > 0 && sessionValue / hours < AfkFactor * bucketRate;
+    }
+
+    /// <summary>
+    /// Common bucket rate for the AFK check, without the residual/rare EV pools: with
+    /// <see cref="TaskRateOptions.FullValueRates"/> the gross gains (positive counts) per hour, else the live item
+    /// value minus the formula cost per hour.
     /// </summary>
     internal static double EstimateCommonBucketRate(MethodTask task, BucketAggregate agg, Dictionary<string, double> prices)
     {
         if (agg == null || agg.WSeconds <= 0)
             return 0;
         var hours = agg.WSeconds / 3600.0;
-        double itemValue = agg.ItemCounts.Sum(e => (prices?.GetValueOrDefault(e.Key) ?? 0) * e.Value);
-        var cost = task?.ScaledFormulaCost(agg.ItemCounts, hours, tag => prices?.GetValueOrDefault(tag) ?? 0) ?? 0;
-        return (itemValue - cost) / hours;
+        if (TaskRateOptions.FullValueRates)
+            return GrossValue(agg.ItemCounts, prices) / hours;
+        var cost = task?.ScaledFormulaCost(agg.ItemCounts, hours, tag => TaskEstimator.UnitValue(tag, prices)) ?? 0;
+        return (TaskEstimator.LiveValue(agg.ItemCounts, prices) - cost) / hours;
     }
+
+    private static double GrossValue(Dictionary<string, double> counts, Dictionary<string, double> prices)
+        => counts.Where(e => e.Value > 0).Sum(e => TaskEstimator.UnitValue(e.Key, prices) * e.Value);
 
     /// <summary>Records a dropped outcome for which the owned items were not (or not yet) computed, valuing the filtered raw items.</summary>
     private async Task RecordWithoutOwned(string task, string outcome, double seconds, Period period, MethodTask methodTask, Dictionary<string, double> prices)
@@ -473,14 +493,7 @@ public class TaskPeriodFolder
             row.RareCoins = row.RareCoins * decay + rareCoins;
             row.RefItemValue = row.RefItemValue * decay + itemValue;
             row.CumulativeMinutes = row.CumulativeMinutes * decay + minutes;
-            var counts = row.ItemCounts ?? new();
-            foreach (var key in counts.Keys.ToList())
-                counts[key] *= decay;
-            foreach (var (tag, count) in commonCounts)
-                counts[tag] = counts.GetValueOrDefault(tag) + count;
-            if (counts.Count > 8)
-                counts = TaskAggregateService.KeepCostsAndTop(counts, 8);
-            row.ItemCounts = counts;
+            AddPlayerItems(row, commonCounts, decay, prices, TrimRules.For(registry.GetByName(task) as MethodTask));
             row.LastFold = DateTime.UtcNow;
             await aggregates.UpsertPlayerStat(row);
         }
@@ -488,6 +501,36 @@ public class TaskPeriodFolder
         {
             logger.LogError(e, "failed to update player stat for {player}/{task}", playerUuid, task);
         }
+    }
+
+    /// <summary>Items kept per player row besides the costs.</summary>
+    internal const int PlayerItemLimit = 20;
+
+    /// <summary>
+    /// Decays the row's item counts and their fold time market values, adds the new counts at
+    /// <paramref name="prices"/> and keeps the costs plus the most valuable items (see <see cref="TrimRules"/>).
+    /// A row from before per item values existed gets its old counts valued at today's prices, i.e. no drift for them.
+    /// </summary>
+    internal static void AddPlayerItems(TaskPlayerStatRow row, Dictionary<string, double> commonCounts, double decay,
+        Dictionary<string, double> prices, TrimRules rules = null)
+    {
+        rules ??= TrimRules.None;
+        var stored = row.ItemCounts ?? new();
+        var storedValues = TaskAggregateService.IsLegacyRef(stored, row.ItemRefValues)
+            ? TaskEstimator.ItemValues(stored, prices)
+            : row.ItemRefValues ?? new();
+        var counts = stored.ToDictionary(e => e.Key, e => e.Value * decay);
+        var values = stored.Keys.ToDictionary(tag => tag, tag => storedValues.GetValueOrDefault(tag) * decay);
+        foreach (var (tag, count) in commonCounts)
+        {
+            counts[tag] = counts.GetValueOrDefault(tag) + count;
+            values[tag] = values.GetValueOrDefault(tag) + TaskEstimator.LivePrice(tag, prices) * count;
+        }
+        if (counts.Count > PlayerItemLimit)
+            counts = TaskAggregateService.KeepCostsAndTop(counts, PlayerItemLimit,
+                rules.RankValue(counts, values), rules.KeepTagOf(counts));
+        row.ItemCounts = counts;
+        row.ItemRefValues = counts.Keys.ToDictionary(tag => tag, tag => values[tag]);
     }
 }
 

@@ -115,6 +115,29 @@ public static class SkyblockZones
     public static IEnumerable<string> ZonesOf(string island) =>
         ZoneToIsland.Where(kv => kv.Value == island).Select(kv => kv.Key);
 
+    /// <summary>
+    /// The Glacite Tunnels area of the Dwarven Mines: the tunnels and lake, the mineshafts, the base camp and the
+    /// fossil lab. <see cref="IslandOf"/> still maps them to "Dwarven Mines".
+    /// </summary>
+    public static readonly HashSet<string> GlaciteTunnelZones = new(StringComparer.Ordinal)
+    {
+        "Glacite Tunnels", "Great Glacite Lake", "Glacite Mineshafts", "Dwarven Base Camp", "Fossil Research Center"
+    };
+
+    /// <summary><see cref="GlaciteTunnelZones"/> plus The Forge: Dwarven Mines zones with their own tasks.</summary>
+    public static readonly HashSet<string> GlaciteAndForgeZones =
+        new(GlaciteTunnelZones.Append("The Forge").Append("Forge"), StringComparer.Ordinal);
+
+    /// <summary>
+    /// True when <paramref name="zone"/> (or its <see cref="Canonical"/> form) is one of <paramref name="excludedZones"/>.
+    /// </summary>
+    public static bool IsExcluded(IReadOnlyCollection<string> excludedZones, string zone)
+    {
+        if (excludedZones == null || excludedZones.Count == 0 || zone == null)
+            return false;
+        return excludedZones.Contains(zone) || excludedZones.Contains(Canonical(zone));
+    }
+
     /// <summary>The multi-island group <paramref name="island"/> belongs to (see <see cref="IslandToGroup"/>), or null if it isn't part of one.</summary>
     public static string GroupOf(string island) =>
         island != null && IslandToGroup.TryGetValue(island, out var group) ? group : null;
@@ -142,11 +165,14 @@ public static class SkyblockZones
     /// (e.g. a task listing <c>"The Garden"</c> against a live <c>"The Garden  x3"</c> pest-count
     /// reading), via the zone's parent island (island-level Locations like
     /// <c>["Crystal Hollows"]</c>), or via the island's multi-island group (e.g. <c>["Galatea"]</c>
-    /// matches a zone on either Moonglade or Torrhus - see <see cref="GroupOf"/>).
+    /// matches a zone on either Moonglade or Torrhus - see <see cref="GroupOf"/>). A zone in
+    /// <paramref name="excludedZones"/> never matches, so a task can list a whole island but one area of it.
     /// </summary>
-    public static bool Matches(IReadOnlyCollection<string> taskLocations, string zone)
+    public static bool Matches(IReadOnlyCollection<string> taskLocations, string zone, IReadOnlyCollection<string> excludedZones = null)
     {
         if (taskLocations == null || taskLocations.Count == 0 || zone == null)
+            return false;
+        if (IsExcluded(excludedZones, zone))
             return false;
         if (taskLocations.Contains(zone))
             return true;

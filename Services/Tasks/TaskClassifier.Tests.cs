@@ -1706,6 +1706,131 @@ public class TaskClassifierTests
             new() { { "MITHRIL_ORE", 2 }, { "REFINED_MITHRIL", 5000 } }).Should().Be("Mithril Mining");
     }
 
+    private static readonly Dictionary<string, int> TunnelSession =
+        new() { { "MITHRIL_ORE", 3000 }, { "TITANIUM_ORE", 120 }, { "GLACITE", 2000 } };
+    private static readonly Dictionary<string, double> TunnelPrices =
+        new() { { "MITHRIL_ORE", 10 }, { "TITANIUM_ORE", 400 }, { "GLACITE", 5 } };
+
+    /// <summary>
+    /// Regression: Mithril Mining listed the whole Dwarven Mines island, which includes the Glacite Tunnels. Mithril and
+    /// Titanium out-valued the Glacite in tunnel sessions, so their Glacite and corpse loot was folded into Mithril Mining.
+    /// </summary>
+    [TestCase("Glacite Tunnels")]
+    [TestCase("Great Glacite Lake")]
+    [TestCase("Dwarven Base Camp")]
+    public void MithrilAndTitaniumInTheGlaciteTunnels_AreNotMithrilMining(string zone)
+        => NameAtPriced(zone, TunnelSession, TunnelPrices).Should().NotBe("Mithril Mining").And.Be("Glacite Mining");
+
+    [TestCase("Glacite Mineshafts")]
+    [TestCase("Fossil Research Center")]
+    [TestCase("The Forge")]
+    public void MithrilInOtherGlaciteAndForgeZones_IsNotMithrilMining(string zone)
+        => NameAtPriced(zone, TunnelSession, TunnelPrices).Should().NotBe("Mithril Mining");
+
+    [TestCase("Rampart's Quarry")]
+    [TestCase("Upper Mines")]
+    [TestCase("Far Reserve")]
+    [TestCase("Great Ice Wall")]
+    [TestCase("Dwarven Mines")]
+    public void MithrilInTheDwarvenMinesProper_StaysMithrilMining(string zone)
+        => NameAtPriced(zone, TunnelSession, TunnelPrices).Should().Be("Mithril Mining");
+
+    /// <summary>An unmapped Dwarven Mines zone still reaches Mithril Mining through the fresh tab-list island.</summary>
+    [Test]
+    public void MithrilInAnUnmappedDwarvenMinesZone_MatchesThroughTheTabIsland()
+    {
+        var at = new DateTime(2026, 11, 10, 12, 0, 0);
+        Classifier.Classify("Brand New Dwarven Cave", TunnelSession, 10, prices: TunnelPrices, currentIsland: "Dwarven Mines",
+            currentIslandAt: at, currentLocationSince: at.AddMinutes(-1), currentLocationSeenAt: at.AddMinutes(1))
+            ?.TaskName.Should().Be("Mithril Mining");
+    }
+
+    [Test]
+    public void ExcludedZones_NeverMatch_ThoughTheIslandIsListed()
+    {
+        SkyblockZones.Matches(["Dwarven Mines"], "Glacite Tunnels", SkyblockZones.GlaciteAndForgeZones).Should().BeFalse();
+        SkyblockZones.Matches(["Dwarven Mines"], "Rampart's Quarry", SkyblockZones.GlaciteAndForgeZones).Should().BeTrue();
+        SkyblockZones.Matches(["Dwarven Mines"], "Dwarven Mines", SkyblockZones.GlaciteAndForgeZones).Should().BeTrue();
+        SkyblockZones.IslandOf("Glacite Tunnels").Should().Be("Dwarven Mines");
+    }
+
+    private static readonly Dictionary<string, double> CoalTunnelPrices =
+        new() { { "COAL", 20 }, { "ENCHANTED_COAL", 3000 }, { "GLACITE", 5 }, { "HARD_STONE", 1 } };
+
+    /// <summary>
+    /// Coal ore in the Glacite Tunnels is mined along with the tunnel ores: the session is tunnel mining, not Coal Mining.
+    /// </summary>
+    [TestCase("Glacite Tunnels")]
+    [TestCase("Great Glacite Lake")]
+    public void CoalHeavySessionInTheGlaciteTunnels_IsGlaciteMining(string zone)
+        => NameAtPriced(zone, new() { { "COAL", 3000 }, { "ENCHANTED_COAL", 20 }, { "GLACITE", 800 } }, CoalTunnelPrices)
+            .Should().NotBe("Coal Mining").And.Be("Glacite Mining");
+
+    [Test]
+    public void CoalAndHardStoneInTheGlaciteTunnels_IsTheMineshaftHunt()
+        => NameAtPriced("Glacite Tunnels", new() { { "COAL", 3000 }, { "HARD_STONE", 900 } }, CoalTunnelPrices)
+            .Should().Be("Glacite Mineshafts");
+
+    [Test]
+    public void CoalInTheDwarvenMinesProper_StaysCoalMining()
+        => NameAtPriced("Rampart's Quarry", new() { { "COAL", 3000 }, { "ENCHANTED_COAL", 20 } }, CoalTunnelPrices)
+            .Should().Be("Coal Mining");
+
+    [Test]
+    public void CoalOnlyInTheGlaciteTunnels_IsNotCoalMining()
+        => NameAtPriced("Glacite Tunnels", new() { { "COAL", 3000 } }, CoalTunnelPrices).Should().NotBe("Coal Mining");
+
+    /// <summary>
+    /// Regression: Mithril and Titanium vetoed the shaft hunt in the tunnels while Mithril Mining no longer matches
+    /// there, so a session of them with hard stone and no glacite had no task at all.
+    /// </summary>
+    [Test]
+    public void MithrilTitaniumAndHardStoneInTheTunnels_IsTheMineshaftHunt()
+        => NameAtPriced("Glacite Tunnels", new() { { "MITHRIL_ORE", 2000 }, { "TITANIUM_ORE", 60 }, { "HARD_STONE", 900 } },
+            TunnelPrices).Should().Be("Glacite Mineshafts");
+
+    /// <summary>Known gap: mithril and titanium alone in the tunnels (no hard stone, no tunnel ore) match no task.</summary>
+    [Test]
+    public void MithrilOnlyInTheTunnels_IsUnclassified()
+        => NameAtPriced("Glacite Tunnels", new() { { "MITHRIL_ORE", 3000 }, { "TITANIUM_ORE", 100 } }, TunnelPrices).Should().BeNull();
+
+    [Test]
+    public void MithrilWithCorpseLootAtTheBaseCamp_IsTheMineshaftHunt()
+        => NameAtPriced("Dwarven Base Camp", new() { { "MITHRIL_ORE", 500 }, { "GLACITE_JEWEL", 2 } }, TunnelPrices)
+            .Should().Be("Glacite Mineshafts");
+
+    /// <summary>Raw scoreboard zones carry the area glyph or colour codes; the exclusion compares the canonical name.</summary>
+    [TestCase("\uE067 Glacite Tunnels")]
+    [TestCase("§bGlacite Tunnels")]
+    [TestCase("§7\uE067 §bGreat Glacite Lake")]
+    public void ExcludedZones_MatchTheCanonicalZone(string zone)
+    {
+        zone.Should().NotBe(SkyblockZones.Canonical(zone));
+        SkyblockZones.IsExcluded(SkyblockZones.GlaciteAndForgeZones, zone).Should().BeTrue();
+        SkyblockZones.Matches(["Dwarven Mines"], zone, SkyblockZones.GlaciteAndForgeZones).Should().BeFalse();
+        NameAtPriced(zone, TunnelSession, TunnelPrices).Should().NotBe("Mithril Mining");
+    }
+
+    [Test]
+    public void FindMatchingPeriods_SkipsExcludedZones()
+    {
+        Period At(string zone) => new() { Location = zone, ItemsCollected = new() { { "MITHRIL_ORE", 100 } } };
+        var tunnels = At("Glacite Tunnels");
+        var quarry = At("Rampart's Quarry");
+        var island = At("Dwarven Mines");
+        var parameters = new TaskParams
+        {
+            LocationProfit = new()
+            {
+                ["Glacite Tunnels"] = [tunnels], ["Rampart's Quarry"] = [quarry], ["Dwarven Mines"] = [island]
+            }
+        };
+
+        var matched = new MithrilMiningTask().FindMatchingPeriodsForAggregation(parameters);
+
+        matched.Should().BeEquivalentTo(new[] { quarry, island });
+    }
+
     [Test]
     public void ArbitraryItemsInDwarvenMines_AreNotForgeClaims()
         => NameAt("Rampart's Quarry", new() { { "A_ITEM", 3 }, { "B_ITEM", 3 }, { "C_ITEM", 3 } }).Should().NotBe("Forge Claims");
