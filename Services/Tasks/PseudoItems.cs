@@ -41,6 +41,11 @@ public static class PseudoItems
     public const string AUCTION_PURCHASE = "AUCTION_PURCHASE";
     /// <summary>EVIDENCE tag, +1 per completed dungeon run (from the "The Catacombs - Floor X" chat header). Worth 0 coins.</summary>
     public const string DUNGEON_RUN = "DUNGEON_RUN";
+    /// <summary>
+    /// EVIDENCE tag, +1 per completed Crystal Nucleus run. Only the merged run period carries it (see
+    /// <see cref="NucleusRunRouter"/>), never a raw fragment, so the classifier can never pick the task by itself. Worth 0 coins.
+    /// </summary>
+    public const string NUCLEUS_RUN = "NUCLEUS_RUN";
     public const string DUNGEON_CHEST_COST = "DUNGEON_CHEST_COST";
     /// <summary>
     /// Copper (Garden currency) earned, +N per scoreboard increase. NOT evidence/cost: it is a real currency valued in
@@ -52,7 +57,8 @@ public static class PseudoItems
     {
         BAZAAR_PURCHASE,
         AUCTION_PURCHASE,
-        DUNGEON_RUN
+        DUNGEON_RUN,
+        NUCLEUS_RUN
     };
 
     private static readonly HashSet<string> CostTags = new(StringComparer.OrdinalIgnoreCase)

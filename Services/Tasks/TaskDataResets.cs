@@ -11,8 +11,12 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 public static class TaskDataResets
 {
     /// <summary>
-    /// Crystal Nucleus data before this is ignored. Set to the first full day after the zone fix is deployed. Declared
-    /// before <see cref="Cutoffs"/>: static fields initialize in text order.
+    /// Crystal Nucleus data before this is ignored: it was selected by its Divan Fragment loot, later it was only the
+    /// bare nucleus zone visit; only run periods (<see cref="NucleusRunRouter"/>) count. Declared before
+    /// <see cref="Cutoffs"/>: static fields initialize in text order.
+    /// TODO: set at deploy time to the first full day (00:00 UTC) after the deploy that ships both the chat allowlist
+    /// (SkyBackendForFrontend DefaultChatRegex with the nucleus lines) and this run attribution. The current value is a
+    /// placeholder from hiding the task: left as is, zone-visit data from before that deploy would count.
     /// </summary>
     public static readonly DateTime CrystalNucleusCutoff = new(2026, 11, 11, 0, 0, 0, DateTimeKind.Utc);
 

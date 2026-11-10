@@ -1421,7 +1421,8 @@ public class TaskClassifierTests
 
     /// <summary>
     /// Regression: any Crystal Hollows session holding a Divan Fragment became Crystal Nucleus (selected by its outcome,
-    /// 46M/h). The fragment alone is no evidence of a nucleus run, the zone is.
+    /// 46M/h). The fragment is no evidence of a nucleus run, not even at the nucleus: only the run marker the run
+    /// attribution adds (NucleusRunRouter) is.
     /// </summary>
     [TestCase("Mines of Divan")]
     [TestCase("Jungle")]
@@ -1434,8 +1435,13 @@ public class TaskClassifierTests
     }
 
     [Test]
-    public void DivanFragmentAtTheNucleus_IsCrystalNucleus()
-        => NameAt("Crystal Nucleus", new() { { "DIVAN_FRAGMENT", 1 }, { "HARD_STONE", 40 } }).Should().Be("Crystal Nucleus");
+    public void DivanFragmentAtTheNucleus_IsNotCrystalNucleus()
+        => NameAt("Crystal Nucleus", new() { { "DIVAN_FRAGMENT", 1 }, { "HARD_STONE", 40 } }).Should().NotBe("Crystal Nucleus");
+
+    [TestCase("Crystal Nucleus")]
+    [TestCase("Jungle Temple")]
+    public void RunMarker_IsCrystalNucleus(string zone)
+        => NameAt(zone, new() { { PseudoItems.NUCLEUS_RUN, 1 }, { "DIVAN_FRAGMENT", 1 }, { "HARD_STONE", 40 } }).Should().Be("Crystal Nucleus");
 
     [Test]
     [TestCase("Crystal Hollows", "RUBY", "Ruby Mining")]

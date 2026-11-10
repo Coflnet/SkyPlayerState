@@ -273,29 +273,40 @@ public class UmberMiningTask : BaseMiningTask
 // ── Special Mining ──
 public class NucleusMiningTask : BaseMiningTask
 {
+    /// <summary>The method name, also the DetectedTask of the merged run periods (<see cref="NucleusRunRouter"/>).</summary>
+    public const string TaskName = "Crystal Nucleus";
+
     /// <summary>Items only the nucleus loot bundle gives (Divan Fragment, a 1.96% roll): never loot of another task.</summary>
     internal static readonly IReadOnlySet<string> BundleOnlyLoot = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DIVAN_FRAGMENT" };
 
-    protected override string MethodName => "Crystal Nucleus";
-    // Hidden: no measured rate is published. With the whole Crystal Hollows listed, any session holding a Divan Fragment
-    // (a 1.96% roll of the loot bundle) became a nucleus run: selected by its outcome, 46M/h (production 2026-11-10).
-    // Limited to the zone, the session is cut when the player enters the nucleus, and the 1-3 minute claim visit is below
-    // the classifier's 3 minute minimum, so it merges into the next session: no period covers the run (crystal hunting
-    // across the Hollows, ended by the claim), and the few that classify here are just the zone visit, which would
-    // climb back to ~46M/h. No signal ties the claim to its run: placed crystals are negative counts, which
-    // TaskSessionService strips before classifying (only gains classify). The bundle-only loot is dropped from the
-    // session the claim merges into (TaskPeriodFolder.IsForeignNucleusLoot).
-    // TODO: publish again once the claim (loot bundle chat line) can be attributed to the run that earned it, e.g. like
-    // LateRewardAttribution, with a run-length MinimumPeriodDuration. Until then it absorbs nucleus periods so they do
-    // not inflate other Crystal Hollows tasks; its data is reset (TaskDataResets).
+    protected override string MethodName => TaskName;
+    // A run is the hunt for the five crystals across the whole Crystal Hollows, ended by the loot bundle claim. Its periods
+    // are built from chat run evidence only (NucleusRunTracker, NucleusRunRouter): the run's Hollows sessions are merged
+    // into one period carrying NUCLEUS_RUN, a tag no raw fragment ever has. Detecting on loot instead (the Divan
+    // Fragment, a 1.96% roll of the bundle) selected only the lucky runs: 46M/h (production 2026-11-10).
+    // TODO: unhide once real runs in the logs ("Crystal Nucleus run of ...", CollectionListener.LogNucleusRun) match live
+    // chat, together with TaskDataResets.CrystalNucleusCutoff. Hidden only stops publishing: run periods still fold here.
     protected override bool Hidden => true;
-    protected override HashSet<string> Locations => ["Crystal Nucleus"];
+    protected override HashSet<string> Locations => ["Crystal Hollows"];
+    protected override HashSet<string> DetectionItems => [PseudoItems.NUCLEUS_RUN];
     // part of the loot bundle; a Forge output, so it needs to be named here to count as this task's loot
     protected override HashSet<string> RareDrops => ["GEMSTONE_MIXTURE"];
+    // Run costs as SkyHanni's CrystalNucleusTracker counts them: the Jungle Key opening the Jungle Temple, and the robot
+    // parts (or a Precursor Apparatus) handed to Professor Robot. Kept only when consumed in the run's own sessions.
+    protected override HashSet<string> ObservedCostItems =>
+    [
+        "JUNGLE_KEY", "PRECURSOR_APPARATUS", "CONTROL_SWITCH", "ELECTRON_TRANSMITTER", "FTX_3070",
+        "ROBOTRON_REFLECTOR", "SUPERLITE_MOTOR", "SYNTHETIC_HEART"
+    ];
+    // A claim without a known start is merged with the open session only (at most 30 minutes, often just the minute or
+    // two at the nucleus); a run takes 6-20 minutes (real chat log: first crystal to bundle in 6.5 minutes, the next run
+    // 10 minutes later), so it counts for at least 10.
+    protected override TimeSpan MinimumPeriodDuration => TimeSpan.FromMinutes(10);
     // Nucleus treasure stash yields Divan Fragments (for Divan's Alloy) + fine gemstones.
-    protected override HashSet<string> DetectionItems => ["DIVAN_FRAGMENT"];
     protected override List<MethodDrop> FormulaDrops => [new("DIVAN_FRAGMENT", 0.3)];
-    protected override string HowTo => "Collect crystal fragments and complete Nucleus runs in the Crystal Hollows.";
+    protected override string HowTo =>
+        "Find the five crystals in the Crystal Hollows (Jungle Temple, Goblin Queen's Den, Mines of Divan, Lost Precursor "
+        + "City, Khazad-dûm), place them at the Crystal Nucleus and pick up the loot bundle near the Nucleus Vault.";
     protected override double ActionsPerHour => 600;
 }
 public class SludgeMiningTask : BaseMiningTask

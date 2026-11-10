@@ -322,6 +322,7 @@ public class ExtractedInfo
         LiveStatsAt = extractedInfo.LiveStatsAt;
         BaseStats = extractedInfo.BaseStats == null ? null : new BaseStatsReading(extractedInfo.BaseStats);
         LivePet = extractedInfo.LivePet == null ? null : new GearPet(extractedInfo.LivePet);
+        NucleusRun = extractedInfo.NucleusRun == null ? null : new NucleusRunState(extractedInfo.NucleusRun);
     }
 
     /// <summary>
@@ -498,6 +499,66 @@ public class ExtractedInfo
     /// <summary>Message time of the last powder reading; gains over an older or unknown (default) baseline are not booked.</summary>
     [Key(83)]
     public DateTime PowderSeenAt { get; set; }
+    /// <summary>
+    /// The Crystal Nucleus run in progress and the last claim, see <see cref="Services.NucleusRunTracker"/>. Null until
+    /// the first nucleus chat line.
+    /// </summary>
+    [Key(84)]
+    public NucleusRunState? NucleusRun { get; set; }
+}
+
+/// <summary>
+/// Crystal Nucleus run bookkeeping from chat (see <see cref="Services.NucleusRunTracker"/>): a run starts with the first
+/// crystal found after the previous claim and ends with the loot bundle claim.
+/// </summary>
+[MessagePackObject]
+public class NucleusRunState
+{
+    /// <summary>Message time of the first crystal found of the running run, default while no run is known.</summary>
+    [Key(0)] public DateTime Start { get; set; }
+    /// <summary>Profile name the run was started on, null when it was unknown.</summary>
+    [Key(1)] public string? Profile { get; set; }
+    /// <summary>Last crystal found or placed of the running run, for the gap reset.</summary>
+    [Key(2)] public DateTime LastEvidenceAt { get; set; }
+    /// <summary>Crystals found so far according to the last "CRYSTAL FOUND (n/5)" line.</summary>
+    [Key(3)] public int CrystalsFound { get; set; }
+    /// <summary>Message time of the last loot bundle claim, default when none was seen.</summary>
+    [Key(4)] public DateTime ClaimAt { get; set; }
+    /// <summary>Start of the run the last claim completed, default when the claim had no known start.</summary>
+    [Key(5)] public DateTime ClaimedRunStart { get; set; }
+    /// <summary>
+    /// Crystal Hollows task sessions flushed during the run and not folded yet (see <see cref="Tasks.NucleusRunRouter"/>):
+    /// merged into the run's Crystal Nucleus period on the claim, folded as their own tasks when the run is abandoned.
+    /// Persisted with the rest of the state, capped by <see cref="Tasks.NucleusRunRouter.MaxHeldSessions"/>.
+    /// </summary>
+    [Key(6)] public List<TaskSession>? Held { get; set; }
+    /// <summary>A claim was seen and its run is not closed yet: the bundle loot arrives with the next inventory change.</summary>
+    [Key(7)] public bool ClaimPending { get; set; }
+    /// <summary>
+    /// Processing time of the last claim. Location fragments are stamped with the processing time, the claim's
+    /// <see cref="ClaimAt"/> with the message time; Kafka lag between the two would close the run before its bundle loot.
+    /// </summary>
+    [Key(8)] public DateTime ClaimProcessedAt { get; set; }
+    /// <summary>A fragment after the claim brought loot at the nucleus: the bundle is in, the next fragment closes the run.</summary>
+    [Key(9)] public bool BundleSeen { get; set; }
+    /// <summary>Claims waiting for the close, usually 1 (see NucleusRunTracker.AddPendingClaim).</summary>
+    [Key(10)] public int PendingClaims { get; set; }
+
+    public NucleusRunState() { }
+    public NucleusRunState(NucleusRunState other)
+    {
+        Start = other.Start;
+        Profile = other.Profile;
+        LastEvidenceAt = other.LastEvidenceAt;
+        CrystalsFound = other.CrystalsFound;
+        ClaimAt = other.ClaimAt;
+        ClaimedRunStart = other.ClaimedRunStart;
+        Held = other.Held?.ConvertAll(h => new TaskSession(h));
+        ClaimPending = other.ClaimPending;
+        ClaimProcessedAt = other.ClaimProcessedAt;
+        BundleSeen = other.BundleSeen;
+        PendingClaims = other.PendingClaims;
+    }
 }
 
 /// <summary>

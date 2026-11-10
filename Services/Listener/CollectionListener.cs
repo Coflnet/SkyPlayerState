@@ -1857,28 +1857,68 @@ public class CollectionListener : UpdateListener
                 ItemsCollected = new Dictionary<string, int>(collected)
             };
             var claim = GetActiveClaim(state, now);
-            var flush = args.GetService<Tasks.TaskSessionService>()
+            // a Crystal Nucleus run holds its Crystal Hollows sessions and folds them as one period, see NucleusRunRouter
+            var flushes = new Tasks.NucleusRunRouter(args.GetService<Tasks.TaskSessionService>(), Logger)
                 .Accumulate(state.ExtractedInfo, playerUuid, fragment, claim, cleanPrices ?? cachedCleanPrices, now);
-            if (flush == null)
-                return;
-            if (flush.DetectedTask == null)
-            {
-                PeriodUnclassifiedCounter.Inc();
-                var island = Tasks.TaskSessionService.IslandOfZone(flush.Location) ?? "unknown";
-                PeriodUnclassifiedSecondsCounter.WithLabels(island).Inc(Math.Max(0, (flush.EndTime - flush.StartTime).TotalSeconds));
-                var unclassifiedPrices = cleanPrices ?? cachedCleanPrices;
-                if (unclassifiedPrices != null && flush.ItemsCollected != null)
-                    PeriodUnclassifiedValueCounter.WithLabels(island).Inc(Math.Max(0, ComputeProfit(flush.ItemsCollected, unclassifiedPrices)));
-                return;
-            }
-            PeriodClassifiedCounter.WithLabels(flush.DetectedTask).Inc();
-            var prices = cleanPrices ?? await GetCleanPrices(args);
-            await args.GetService<Tasks.TaskPeriodFolder>().Fold(flush, state, prices);
+            Dictionary<string, double>? prices = cleanPrices;
+            await FoldEach(flushes, async flush => prices = await FoldFlush(args, flush, prices), Logger);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to accumulate/fold task session for {playerId}", args.currentState.PlayerId);
         }
+    }
+
+    /// <summary>
+    /// Folds every period of one flush in order. A failure only loses that period: the others (released Crystal Nucleus
+    /// run sessions, already taken out of the state) are still folded.
+    /// </summary>
+    internal static async Task FoldEach(IEnumerable<TrackedProfitService.Period> flushes,
+        Func<TrackedProfitService.Period, Task> fold, ILogger logger)
+    {
+        foreach (var flush in flushes)
+        {
+            try
+            {
+                await fold(flush);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to fold task session {task} of {player}", flush.DetectedTask, flush.PlayerUuid);
+            }
+        }
+    }
+
+    /// <summary>Folds one flushed session (or counts it as unclassified). Returns the clean prices, fetched at most once.</summary>
+    private async Task<Dictionary<string, double>?> FoldFlush(UpdateArgs args, TrackedProfitService.Period flush, Dictionary<string, double>? cleanPrices)
+    {
+        if (flush.DetectedTask == null)
+        {
+            CountUnclassified(flush, cleanPrices ?? cachedCleanPrices);
+            return cleanPrices;
+        }
+        LogNucleusRun(args, flush);
+        PeriodClassifiedCounter.WithLabels(flush.DetectedTask).Inc();
+        cleanPrices ??= await GetCleanPrices(args);
+        await args.GetService<Tasks.TaskPeriodFolder>().Fold(flush, args.currentState, cleanPrices);
+        return cleanPrices;
+    }
+
+    private static void CountUnclassified(TrackedProfitService.Period flush, Dictionary<string, double>? prices)
+    {
+        PeriodUnclassifiedCounter.Inc();
+        var island = Tasks.TaskSessionService.IslandOfZone(flush.Location) ?? "unknown";
+        PeriodUnclassifiedSecondsCounter.WithLabels(island).Inc(Math.Max(0, (flush.EndTime - flush.StartTime).TotalSeconds));
+        if (prices != null && flush.ItemsCollected != null)
+            PeriodUnclassifiedValueCounter.WithLabels(island).Inc(Math.Max(0, ComputeProfit(flush.ItemsCollected, prices)));
+    }
+
+    private void LogNucleusRun(UpdateArgs args, TrackedProfitService.Period flush)
+    {
+        if (flush.ItemsCollected?.ContainsKey(Tasks.PseudoItems.NUCLEUS_RUN) != true)
+            return;
+        Logger.LogInformation("Crystal Nucleus run of {playerId}: {minutes:F1} minutes of Crystal Hollows sessions ending {end}, {count} item types",
+            args.currentState.PlayerId, (flush.EndTime - flush.StartTime).TotalMinutes, flush.EndTime, flush.ItemsCollected.Count);
     }
 
     /// <summary>Returns the player's claimed task if it is set and not expired, clearing it otherwise.</summary>

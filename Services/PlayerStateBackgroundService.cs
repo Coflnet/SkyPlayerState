@@ -93,6 +93,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
         // registered early so its ordering relative to CollectionListener never matters either way.
         AddHandler<DungeonRewardListener>(UpdateMessage.UpdateKind.INVENTORY | UpdateMessage.UpdateKind.Scoreboard | UpdateMessage.UpdateKind.CHAT);
         AddHandler<ProfileSwitchListener>(UpdateMessage.UpdateKind.CHAT | UpdateMessage.UpdateKind.Tab);
+        AddHandler<NucleusRunListener>(UpdateMessage.UpdateKind.CHAT);
         AddHandler<ProfileAndNameUpdate>(UpdateMessage.UpdateKind.CHAT | UpdateMessage.UpdateKind.INVENTORY);
         AddHandler<BazaarOrderListener>(UpdateMessage.UpdateKind.CHAT);
         AddHandler<TradeLimitsUpdate>(UpdateMessage.UpdateKind.CHAT);

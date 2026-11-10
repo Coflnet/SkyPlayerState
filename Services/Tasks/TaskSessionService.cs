@@ -89,7 +89,7 @@ public class TaskSessionService
     /// <param name="claimedTask">manually claimed task, biases classification tie breaks</param>
     /// <param name="prices">coin values for classification tie breaking, may be null</param>
     /// <param name="now">current time</param>
-    public Period Accumulate(ExtractedInfo info, string playerUuid, Period fragment,
+    public virtual Period Accumulate(ExtractedInfo info, string playerUuid, Period fragment,
         string claimedTask, Dictionary<string, double> prices, DateTime now)
     {
         var session = info.CurrentSession;
@@ -261,7 +261,7 @@ public class TaskSessionService
         return started;
     }
 
-    private static Period BuildPeriod(TaskSession session, string playerUuid) => new()
+    internal static Period BuildPeriod(TaskSession session, string playerUuid) => new()
     {
         PlayerUuid = playerUuid,
         Server = session.Server,

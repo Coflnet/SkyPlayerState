@@ -29,7 +29,7 @@ public class TaskCatalogRegistrationTests
         "CrimsonIsleMobsTask", "DungeonChestClaimsTask", "KuudraChestClaimsTask",
         // sink for Galatea contest rewards no foraging/hunting task earned: a contest cannot be done on its own (LateReward)
         "GalateaContestsTask",
-        // no measured rate until a nucleus claim can be attributed to its run - see NucleusMiningTask
+        // run periods fold, but no rate is published until real runs were checked against live chat - see NucleusMiningTask
         "NucleusMiningTask"
     ];
 
