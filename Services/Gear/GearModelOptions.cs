@@ -35,6 +35,14 @@ public sealed record GearModelOptions
     /// </summary>
     public int RareCapPlayers { get; init; } = 3;
     /// <summary>
+    /// Only players with at least this many eligible hours set the rare cap (<see cref="GearRareRate"/>): per player,
+    /// summed over all their eligible builds and sessions, not per session. The cap still applies to every player, and a
+    /// qualifying player without rare drops counts toward <see cref="RareCapPlayers"/> at 0. A 15 minute session with one drop has a rare rate of hundreds of millions per hour:
+    /// three of them lifted the cap above a long player's 300M drop, which then moved the task's rare rate about 5x
+    /// (review 2026-11-10). Gear evaluations only: the task estimates keep every rare drop. 0 lets every player set it. TUNABLE.
+    /// </summary>
+    public double RareCapMinHours { get; init; } = 1;
+    /// <summary>
     /// Whether the late game cohort's rare rate is the task's capped rare rate scaled by the cohort's common rate over the
     /// task's pooled one (1 .. <see cref="CurveMaxMedianMultiple"/>, which the scale reuses; <see cref="GearLateGamePrior.CohortRare"/>)
     /// instead of the cohort's own drops; false uses the cohort's own (capped) drops. TUNABLE.

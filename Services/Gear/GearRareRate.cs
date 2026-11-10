@@ -12,6 +12,12 @@ namespace Coflnet.Sky.PlayerState.Services.Gear;
 /// k-th highest of the players' rare coins over their hours, like the curve's cap). A drop only one or two players got
 /// counts at most at the third luckiest player's rate, and with fewer players with rare drops there is no rare rate.
 /// The rows carry no drop counts (a row is a whole session with any number of drops), so players are the evidence.
+/// Only qualifying players rank for the cap: at least <see cref="GearModelOptions.RareCapMinHours"/> eligible hours,
+/// summed over all their sessions and builds (short lucky sessions have absurd rates and set it above a long player's
+/// lucky drop). A qualifying player without rare drops still counts toward k (at 0), so fewer than k qualifying players
+/// with rare drops give a cap of 0 and no rare rate. A quantile of the players' rates would not do: most players have
+/// no rare drop at all, so any quantile below the top few is 0. Gear evaluations only; the task estimates
+/// (<see cref="Coflnet.Sky.PlayerState.Tasks.TaskEstimator"/>) keep every rare drop.
 /// </summary>
 public sealed record GearRareRate(double PlayerCap)
 {
@@ -20,12 +26,17 @@ public sealed record GearRareRate(double PlayerCap)
 
     private readonly record struct PlayerRare(string Player, double Hours, double Rare);
 
-    /// <summary>The cap read from the task's builds; uncapped when <see cref="GearModelOptions.RareCapPlayers"/> is 0.</summary>
+    /// <summary>
+    /// The cap read from the task's builds: the k-th highest rare rate of the players with enough hours; uncapped when
+    /// <see cref="GearModelOptions.RareCapPlayers"/> is 0.
+    /// </summary>
     public static GearRareRate Of(IEnumerable<GearPlayerBuild> builds, GearModelOptions options)
     {
         if (options.RareCapPlayers <= 0)
             return Uncapped;
-        var rates = PerPlayer(builds).Select(p => (p.Player, p.Rare / p.Hours));
+        var rates = PerPlayer(builds)
+            .Where(p => p.Hours >= options.RareCapMinHours - 1e-9)
+            .Select(p => (p.Player, p.Rare / p.Hours));
         return new GearRareRate(GearSharedItems.KthHighest(rates, options.RareCapPlayers) ?? 0);
     }
 
