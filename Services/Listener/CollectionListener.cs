@@ -79,8 +79,7 @@ public class CollectionListener : UpdateListener
             for (var i = 0; i < chatBatch.Count; i++)
             {
                 var uploadedLine = chatBatch[i];
-                if (TryParseShardGain(uploadedLine, out var shardTag, out var shardCount, Logger))
-                    TrackItem(args, shardTag, shardCount);
+                TrackShardGain(args, uploadedLine);
                 if (TryParseFossilEssence(uploadedLine, out var essenceCount))
                 {
                     // essence goes to the essence storage, never through inventory or sacks
@@ -90,7 +89,7 @@ public class CollectionListener : UpdateListener
                 else if (char.IsWhiteSpace(uploadedLine.FirstOrDefault()) && uploadedLine.Contains("Fossil Essence"))
                     Logger.LogInformation("Unparsed Fossil Essence line for {playerId}: {line}", args.msg.PlayerId, uploadedLine);
                 if (TryParseNpcShardTrade(history.Concat(chatBatch.Take(i)), uploadedLine,
-                    out shardTag, out var paymentTag))
+                    out var shardTag, out var paymentTag))
                 {
                     TrackItem(args, shardTag, 1);
                     TrackItem(args, paymentTag, -1);
@@ -219,7 +218,7 @@ public class CollectionListener : UpdateListener
         var line = StripFormatting(uploadedLine);
         var match = Regex.Match(line, @"\bgained (a|an|x[\d,]+|[\d,]+x) (.+?) Shards?!", RegexOptions.IgnoreCase);
         if (!match.Success)
-            match = Regex.Match(line, @"\bYou (?:caught|received) (a|an|x[\d,]+|[\d,]+x) (.+?) Shards?(?:!| for\b)",
+            match = Regex.Match(line, @"\bYou (?:caught|received) (a|an|x[\d,]+|[\d,]+x) (.+?) Shards?(?:!| for\b| from\b)",
                 RegexOptions.IgnoreCase);
         if (!match.Success)
         {
@@ -243,6 +242,16 @@ public class CollectionListener : UpdateListener
             return false;
         }
         return true;
+    }
+
+    private void TrackShardGain(UpdateArgs args, string line)
+    {
+        if (!TryParseShardGain(line, out var tag, out var count, Logger))
+            return;
+        TrackItem(args, tag, count);
+        if (StripFormatting(line).StartsWith("LOOT SHARE", StringComparison.Ordinal)
+            && Tasks.SkyblockZones.Canonical(args.currentState.ExtractedInfo.CurrentLocation) == "Critter Safari")
+            TrackItem(args, Tasks.PseudoItems.SAFARI_LOOT_SHARE, count);
     }
 
     private static int ParseShardAmount(string amount)

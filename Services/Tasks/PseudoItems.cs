@@ -41,6 +41,8 @@ public static class PseudoItems
     public const string AUCTION_PURCHASE = "AUCTION_PURCHASE";
     /// <summary>EVIDENCE tag, +1 per completed dungeon run (from the "The Catacombs - Floor X" chat header). Worth 0 coins.</summary>
     public const string DUNGEON_RUN = "DUNGEON_RUN";
+    /// <summary>EVIDENCE tag, increased by the shard count when Safari loot share is observed. Worth 0 coins and never a drop.</summary>
+    public const string SAFARI_LOOT_SHARE = "SAFARI_LOOT_SHARE";
     /// <summary>
     /// EVIDENCE tag, +1 per completed Crystal Nucleus run. Only the merged run period carries it (see
     /// <see cref="NucleusRunRouter"/>), never a raw fragment, so the classifier can never pick the task by itself. Worth 0 coins.
@@ -58,6 +60,7 @@ public static class PseudoItems
         BAZAAR_PURCHASE,
         AUCTION_PURCHASE,
         DUNGEON_RUN,
+        SAFARI_LOOT_SHARE,
         NUCLEUS_RUN
     };
 

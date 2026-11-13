@@ -457,6 +457,7 @@ public class CritterSafariTask : MethodTask
     protected override string Category => "Hunting";
     protected override string ActionUnit => "runs";
     protected override HashSet<string> Locations => ["Critter Safari"];
+    protected override Dictionary<string, HashSet<string>> ZoneExcludedItems => new() { ["Critter Safari"] = [PseudoItems.SAFARI_LOOT_SHARE] };
     // The four biome tasks (CritterSafariBiomeTask) own every period holding one of their shards; what is left (floor
     // drops, shards of no listed critter) stays here. Location-only on purpose: the zone is a dedicated minigame
     // instance, so even a single item is unambiguous and nothing else claims it.

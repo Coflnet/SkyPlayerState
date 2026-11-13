@@ -68,6 +68,24 @@ public class MethodTaskPseudoBreakdownTests
     }
 
     [Test]
+    public async Task SafariLootShareEvidence_IsHiddenFromDrops_AndExcludedFromSoloPeriods()
+    {
+        var period = MakePeriod("Critter Safari", new()
+        {
+            { "SHARD_HIDEONWALL", 7 }, { PseudoItems.SAFARI_LOOT_SHARE, 1 }
+        });
+        var parameters = MakeParams(new() { { "SHARD_HIDEONWALL", 100 }, { PseudoItems.SAFARI_LOOT_SHARE, 1_000_000 } }, period);
+
+        var result = await new CritterSafariPartyTask().Execute(parameters);
+
+        result.Breakdown.Drops.Should().ContainSingle(d => d.ItemTag == "SHARD_HIDEONWALL");
+        result.Breakdown.Costs.Should().BeEmpty();
+        result.Details.Should().NotContain(PseudoItems.SAFARI_LOOT_SHARE);
+        foreach (var task in new MethodTask[] { new CritterSafariTask(), new CritterSafariHauntedTask(), new CritterSafariForestTask(), new CritterSafariCavernTask(), new CritterSafariIcyTask() })
+            task.FindMatchingPeriodsForAggregation(parameters).Should().BeEmpty();
+    }
+
+    [Test]
     public async Task DungeonChestCost_RendersAsACostLine_NotADrop()
     {
         var period = MakePeriod("The Catacombs (M7)", new Dictionary<string, int>

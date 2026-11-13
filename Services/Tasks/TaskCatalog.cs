@@ -232,6 +232,7 @@ internal static class TaskCatalog
         tasks.Add<HideonsunHuntingTask>();
         tasks.Add<TorrhusCanyonHuntingTask>();
         tasks.Add<CritterSafariTask>();
+        tasks.Add<CritterSafariPartyTask>();
         // per-shard and per-method hunts split out of broader tasks (HuntingGapTasks.cs)
         tasks.Add<CritterSafariHauntedTask>();
         tasks.Add<CritterSafariForestTask>();

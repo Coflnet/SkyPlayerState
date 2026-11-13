@@ -151,6 +151,24 @@ public class LotumHuntingTask : CritterHuntingTask
 
 // ── Critter Safari biomes ──
 
+public class CritterSafariPartyTask : MethodTask
+{
+    protected override string MethodName => "Critter Safari Party (Loot Share)";
+    protected override string Category => "Hunting";
+    protected override string ActionUnit => "catches";
+    protected override HashSet<string> Locations => ["Critter Safari"];
+    protected override HashSet<string> DetectionItems => [PseudoItems.SAFARI_LOOT_SHARE];
+    protected override int MinLocationOnlyItems => 1;
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Critter_Safari";
+    protected override string HowTo => HuntingText.Steps(
+        "Reach Hunting 15 and obtain a Safari Ticket from Miria's contests.",
+        "Organize a party and enter the same Critter Safari through the Safari Manager in Torrhus Canyon.",
+        "Spread out across the biomes and throw Critter Capsules at valuable critters; every player in the Safari receives shards from successful catches.",
+        "Collect floor drops along the way and sell your shared shards on the bazaar.");
+    public override string Description =>
+        "Hunt with a party in the Critter Safari and collect shared shards from the group's catches across its four biomes. Every player in the Safari receives a shard when a critter is caught, so coordinating catches can reward the whole group. You need Hunting 15 and a Safari Ticket, then enter through the Safari Manager in Torrhus Canyon.";
+}
+
 /// <summary>
 /// One biome of the Critter Safari. The scoreboard only reports "Critter Safari", so the biome is told apart by the
 /// shards that were caught (the biomes have disjoint critter lists, wiki Critter_Safari); the biome with the most
@@ -162,6 +180,7 @@ public abstract class CritterSafariBiomeTask : MethodTask
     protected override string Category => "Hunting";
     protected override string ActionUnit => "catches";
     protected override HashSet<string> Locations => ["Critter Safari"];
+    protected override Dictionary<string, HashSet<string>> ZoneExcludedItems => new() { ["Critter Safari"] = [PseudoItems.SAFARI_LOOT_SHARE] };
     // a dedicated minigame instance: even a single shard is unambiguous
     protected override int MinLocationOnlyItems => 1;
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Critter_Safari";

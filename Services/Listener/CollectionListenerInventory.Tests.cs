@@ -1981,6 +1981,31 @@ public class CollectionListenerInventoryTests
         state.ItemsCollectedRecently.Should().Contain("SHARD_BLUEBIRD", 2);
     }
 
+    [TestCase("")]
+    [TestCase("Hunting Box")]
+    public async Task SafariLootShareIsNotCountedAgainFromInventoryOrHuntingBox(string viewName)
+    {
+        var state = StateAt("Critter Safari");
+        await ProcessView(state, View(viewName, new()));
+        var args = new MockedUpdateArgs
+        {
+            currentState = state,
+            msg = new UpdateMessage
+            {
+                Kind = UpdateMessage.UpdateKind.CHAT,
+                ChatBatch = ["LOOT SHARE! You received a Bloodbat Shard from TTiagZ catching a Bloodbat!"]
+            }
+        };
+        await new CollectionListener().Process(args);
+
+        await ProcessView(state, View(viewName, new(), StackableItem("SHARD_BLOODBAT", 1)));
+        state.ExtractedInfo.CurrentLocation = "Critter Safari Entrance";
+        await ProcessView(state, View("", new(), StackableItem("SHARD_BLOODBAT", 1)));
+
+        state.ItemsCollectedRecently.Should().Contain("SHARD_BLOODBAT", 1);
+        state.ItemsCollectedRecently.Should().HaveCount(2, "the other entry is the party evidence marker");
+    }
+
     [Test]
     public async Task GainAtSafariEntranceWithoutSafariVisit_IsBooked()
     {

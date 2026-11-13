@@ -84,7 +84,7 @@ public class TaskCatalogRegistrationTests
         "GlaciteMineshaftTask", "GoldMiningTask", "IronMiningTask", "LapisMiningTask", "EmeraldMiningTask",
         "DungBeetleHuntingTask", "HideonsunHuntingTask", "TorrhusCanyonHuntingTask", "LunarMothTrappingTask", "StridersurferTask", "TarantulaSlayerTask",
         // HuntingGapTasks.cs: per-shard hunts split out of Critter Safari, Torrhus Springs, Spirit Cave, Helix/Honeycomb and the fallbacks
-        "CritterSafariHauntedTask", "CritterSafariForestTask", "CritterSafariCavernTask", "CritterSafariIcyTask",
+        "CritterSafariHauntedTask", "CritterSafariForestTask", "CritterSafariCavernTask", "CritterSafariIcyTask", "CritterSafariPartyTask",
         "MangroveHoneyLatheringTask", "FigHoneyLatheringTask", "HelixHoneyLatheringTask", "LotusLilyPadCrittersTask",
         "TewtilHuntingTask", "LotumHuntingTask", "TorrhusSeaCreaturesHuntingTask", "SepialotGoldolotHuntingTask",
         "AntHuntingTask", "ThystHuntingTask", "SoulOfTheAlphaHuntingTask", "DiveGhastHuntingTask", "CinderbatHuntingTask"

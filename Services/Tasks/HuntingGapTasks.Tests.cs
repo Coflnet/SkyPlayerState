@@ -106,7 +106,7 @@ public class HuntingGapTasksTests
         string[] names =
         [
             "Mangrove Honey Lathering", "Fig Honey Lathering", "Helix Honey Lathering", "Lotus Lily Pad Critters", "Tewtil (Hunting)",
-            "Lotum (Hunting)", "Critter Safari: Haunted", "Critter Safari: Forest", "Critter Safari: Cavern", "Critter Safari: Icy",
+            "Lotum (Hunting)", "Critter Safari Party (Loot Share)", "Critter Safari: Haunted", "Critter Safari: Forest", "Critter Safari: Cavern", "Critter Safari: Icy",
             "Torrhus Sea Creatures (Hunting)", "Sepialot and Goldolot (Hunting)", "Ant (Hunting)", "Thyst (Hunting)",
             "Soul of the Alpha (Hunting)", "Dive Ghast (Hunting)", "Cinderbat (Hunting)"
         ];
@@ -215,6 +215,26 @@ public class HuntingGapTasksTests
 
     // ── Critter Safari ──
 
+    [TestCase("SHARD_HIDEONWALL")]
+    [TestCase("SHARD_HIDEONFLOOR")]
+    [TestCase("SHARD_SNOOZLE")]
+    [TestCase("SHARD_WUMPA")]
+    public void SafariLootShare_WinsEvenWithValuableBiomeShards(string shard)
+    {
+        var items = new Dictionary<string, int> { { PseudoItems.SAFARI_LOOT_SHARE, 1 }, { shard, 1000 } };
+        Name("Critter Safari", items).Should().Be("Critter Safari Party (Loot Share)");
+        Name("Critter Safari", items, priced: false).Should().Be("Critter Safari Party (Loot Share)");
+    }
+
+    [Test]
+    public void SafariLootShare_RequiresPositiveEvidenceInTheSafari()
+    {
+        Name("Critter Safari", new() { { PseudoItems.SAFARI_LOOT_SHARE, 1 } }).Should().Be("Critter Safari Party (Loot Share)");
+        Name("Critter Safari", new() { { PseudoItems.SAFARI_LOOT_SHARE, 0 }, { "SHARD_HIDEONWALL", 2 } }).Should().Be("Critter Safari: Haunted");
+        Name("Critter Safari", new() { { PseudoItems.SAFARI_LOOT_SHARE, -1 }, { "ESSENCE_SAFARI", 40 } }).Should().Be("Critter Safari");
+        Name("Critter Safari Entrance", new() { { PseudoItems.SAFARI_LOOT_SHARE, 1 } }).Should().NotBe("Critter Safari Party (Loot Share)");
+    }
+
     [TestCase("SHARD_HIDEONWALL", "Critter Safari: Haunted")]
     [TestCase("SHARD_DOOMSPIRAL", "Critter Safari: Haunted")]
     [TestCase("SHARD_HIDEONFLOOR", "Critter Safari: Forest")]
@@ -238,7 +258,7 @@ public class HuntingGapTasksTests
     [Test]
     public void SafariPeriodWithSeveralBiomes_GoesToTheMostValuableBiome()
     {
-        // shared loot: critters caught by other players in another biome still give their shard
+        // Older periods without explicit loot-share evidence retain their biome attribution.
         var items = new Dictionary<string, int> { { "SHARD_BLOODBAT", 6 }, { "SHARD_HIDEONFLOOR", 1 } };
         Name("Critter Safari", items).Should().Be("Critter Safari: Forest");
         Name("Critter Safari", new() { { "SHARD_BLOODBAT", 6 }, { "SHARD_FLUFFLING", 1 }, { "HELIX_LOG", 100 } }).Should().Be("Critter Safari: Forest");

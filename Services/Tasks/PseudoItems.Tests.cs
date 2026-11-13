@@ -8,6 +8,18 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 public class PseudoItemsTests
 {
     [Test]
+    public void SafariLootShare_IsZeroValueEvidence_EvenWithAMarketPrice()
+    {
+        PseudoItems.IsEvidence(PseudoItems.SAFARI_LOOT_SHARE).Should().BeTrue();
+        PseudoItems.IsPseudo(PseudoItems.SAFARI_LOOT_SHARE).Should().BeTrue();
+        PseudoItems.IsPurchase(PseudoItems.SAFARI_LOOT_SHARE).Should().BeFalse();
+        PseudoItems.TryGetCoinValue(PseudoItems.SAFARI_LOOT_SHARE, out var value).Should().BeTrue();
+        value.Should().Be(0);
+        var registry = new CoinValueRegistry(null!, NullLogger<CoinValueRegistry>.Instance);
+        registry.Value(PseudoItems.SAFARI_LOOT_SHARE, new() { [PseudoItems.SAFARI_LOOT_SHARE] = 1_000_000 }).Should().Be(0);
+    }
+
+    [Test]
     public void TryGetCoinValue_EvidenceTags_AreZero()
     {
         PseudoItems.TryGetCoinValue(PseudoItems.BAZAAR_PURCHASE, out var value).Should().BeTrue();

@@ -3,6 +3,8 @@ using System.Threading.Tasks;
 using Coflnet.Sky.PlayerState.Models;
 using Coflnet.Sky.PlayerState.Tests;
 using NUnit.Framework;
+using AwesomeAssertions;
+using Coflnet.Sky.PlayerState.Tasks;
 
 namespace Coflnet.Sky.PlayerState.Services;
 
@@ -11,6 +13,10 @@ public class ShardCollectionTests
     [TestCase("§a§lCAPTURE! §7You caught a §aAreita§7 and gained a §aAreita Shard§7!", "SHARD_AREITA", 1)]
     [TestCase("You caught x12 Birries Shards!", "SHARD_BIRRIES", 12)]
     [TestCase("LOOT SHARE You received a Chill Shard for assisting Oden.", "SHARD_CHILL", 1)]
+    [TestCase("LOOT SHARE! You received a Bloodbat Shard from TTiagZ catching a Bloodbat!", "SHARD_BLOODBAT", 1)]
+    [TestCase("LOOT SHARE! You received a Billygoat Shard from Serelya catching a Billygoat!", "SHARD_BILLYGOAT", 1)]
+    [TestCase("LOOT SHARE! You received a Hideonfloor Shard from 72Thomas catching a Hideonfloor!", "SHARD_HIDEONFLOOR", 1)]
+    [TestCase("LOOT SHARE! You received a Mantis Shrimp Shard from Someone catching a Mantis Shrimp!", "SHARD_MANTIS_SHRIMP", 1)]
     public void ParsesShardGainMessages(string message, string expectedTag, int expectedCount)
     {
         var parsed = CollectionListener.TryParseShardGain(message, out var tag, out var count);
@@ -65,6 +71,41 @@ public class ShardCollectionTests
         Assert.That(parsed, Is.False);
         Assert.That(tag, Is.Empty);
         Assert.That(count, Is.Zero);
+    }
+
+    [Test]
+    public async Task SafariPartyTracksEachSharedShardAndKeepsMarkerThroughRewardReconciliation()
+    {
+        var args = ChatArgs(
+            "LOOT SHARE! You received a Bloodbat Shard from TTiagZ catching a Bloodbat!",
+            "LOOT SHARE! You received a Billygoat Shard from Serelya catching a Billygoat!",
+            "LOOT SHARE! You received a Hideonfloor Shard from 72Thomas catching a Hideonfloor!",
+            "CAPTURE! You caught a Shyworm and gained a Shyworm Shard!",
+            "SAFARI_SHARD_REWARDS 4\nBloodbat x1\nBillygoat x1\nHideonfloor x1\nShyworm x1");
+        args.currentState.ExtractedInfo.CurrentLocation = "Critter Safari";
+
+        await new CollectionListener().Process(args);
+
+        args.currentState.ItemsCollectedRecently.Should().BeEquivalentTo(new Dictionary<string, int>
+        {
+            ["SHARD_BLOODBAT"] = 1, ["SHARD_BILLYGOAT"] = 1,
+            ["SHARD_HIDEONFLOOR"] = 1, ["SHARD_SHYWORM"] = 1,
+            [PseudoItems.SAFARI_LOOT_SHARE] = 3
+        });
+        new TaskClassifier(new TaskRegistry()).Classify("Critter Safari", args.currentState.ItemsCollectedRecently, 10)
+            ?.TaskName.Should().Be("Critter Safari Party (Loot Share)");
+    }
+
+    [TestCase("CAPTURE! You caught a Shyworm and gained a Shyworm Shard!", "Critter Safari")]
+    [TestCase("LOOT SHARE You received a Chill Shard for assisting Oden.", "Hub")]
+    public async Task CapturesAndNonSafariLootShareDoNotMarkSafariParty(string line, string location)
+    {
+        var args = ChatArgs(line);
+        args.currentState.ExtractedInfo.CurrentLocation = location;
+
+        await new CollectionListener().Process(args);
+
+        args.currentState.ItemsCollectedRecently.Should().NotContainKey(PseudoItems.SAFARI_LOOT_SHARE);
     }
 
     [Test]
