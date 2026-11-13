@@ -97,7 +97,13 @@ public class ChillHuntingTask : BaseHuntingTask
     protected override HashSet<string> DetectionItems => ["SHARD_CHILL"];
     protected override bool Fallback => true;
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Moonglade_Marsh";
-    protected override string HowTo => "Go to the Wyrmgrove Tomb on Moonglade and hunt Chills for their shard.";
+    protected override string HowTo => HuntingText.Steps(
+        "Go to the Wyrmgrove Tomb on Moonglade.",
+        "Chillshots shoot at you from up to 10 blocks away, so close the distance.",
+        "Capture them with a Huntaxe and a Pocket Black Hole, or kill them with a Salt active.",
+        "Leave a Huntrap in the tomb for passive Chill shards.");
+    public override string Description =>
+        "Capture Chillshots, bow-wielding mobs in the Wyrmgrove Tomb on Moonglade, for the Chill shard. They also drop Bones and sometimes a Runeblade Talisman. You need a Huntaxe and a Pocket Black Hole, or a Salt.";
 }
 
 /// <summary>Honeybuzz shard on Torrhus - same pattern as the other "(Hunting)" shard tasks.</summary>
@@ -111,41 +117,53 @@ public class HoneybuzzHuntingTask : BaseHuntingTask
     // players often forage/gather honeycomb in the same window - that task keeps the period
     protected override bool Fallback => true;
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Torrhus_Canyon";
-    protected override string HowTo => "Go to Torrhus Canyon and hunt Honeybuzz for their shard.";
+    protected override string HowTo => HuntingText.Steps(
+        "Warp to Torrhus Canyon and open Honeyhives.",
+        "When a Honeybuzz flies out, lasso it; it cannot be hit normally.",
+        "Keep collecting Honeycomb in between.");
+    public override string Description =>
+        "Half of the Honeyhives you open on Torrhus release a Honeybuzz. Lasso it for its shard and a few Honeycomb.";
 }
 
 /// <summary>
-/// Solar, Ember and Water Snake shards in the Torrhus hot springs. Only the spring zones, not the
+/// Solar, Ember, Water Snake and Dustybit shards in the Torrhus hot springs. Only the spring zones, not the
 /// whole island. Fallback: the Helix foraging and honeycomb tasks (island level on Torrhus) keep any period
-/// they hold items for.
+/// they hold items for. The fished sea creatures (Torrid, Sprawl, ...) are "Torrhus Sea Creatures (Hunting)", the
+/// Sepialot and Goldolot "Sepialot and Goldolot (Hunting)".
 /// </summary>
 public class TorrhusSpringsHuntingTask : BaseHuntingTask
 {
-    protected override string MethodName => "Torrhus Springs (Hunting)";
+    protected override string MethodName => "Spring Critters (Hunting)";
     protected override HashSet<string> Locations => ["Spring Shallows", "Spring Depths", "Torrhus Springs", "Spring Path"];
     protected override HashSet<string> DetectionItems =>
-    [
-        "SHARD_SOLAR", "SHARD_EMBER", "SHARD_WATER_SNAKE", "SHARD_DUSTYBIT", "SHARD_SEPIALOT", "SHARD_TORRID", "SHARD_GOLDOLOT",
-        "SHARD_SPRAWL", "SHARD_BRINELING", "SHARD_HAGGARD", "RUBY_VEILSHROOM"
-    ];
+        ["SHARD_SOLAR", "SHARD_EMBER", "SHARD_WATER_SNAKE", "SHARD_DUSTYBIT", "RUBY_VEILSHROOM"];
     protected override bool Fallback => true;
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Torrhus_Springs";
-    protected override string HowTo => "Go to the hot springs on Torrhus (Spring Shallows and Spring Depths) and hunt Solars, Embers and Water Snakes for their shards.";
+    protected override string HowTo => HuntingText.Steps(
+        "Warp to Torrhus and go to the Torrhus Springs.",
+        "Net Solars and Embers when they stop swimming; a netted Water Snake fights back.",
+        "Click a Dustybit four times as it jumps away to get its shard.");
+    public override string Description =>
+        "Net the critters of the Torrhus Springs: Solars in the Spring Shallows, and Embers and Water Snakes in the Spring Depths. Dustybits on the land around the springs are caught by clicking them until they give up. Every catch also drops Ruby Veilshroom.";
 }
 
 /// <summary>
-/// Howling Spirit and Soul of the Alpha shards in the Spirit Cave / Howling Cave of The Park. The Sven
-/// Slayer task lists these zones but only the wolf drops, so shard-only periods stayed unclassified; a
+/// Howling Spirit shards in the Howling Cave of The Park (Souls of the Alpha are "Soul of the Alpha (Hunting)"). The Sven
+/// Slayer task lists this zone but only the wolf drops, so shard-only periods stayed unclassified; a
 /// period holding a Sven drop keeps going to Sven Slayer.
 /// </summary>
 public class SpiritCaveHuntingTask : BaseHuntingTask
 {
-    protected override string MethodName => "Spirit Cave (Hunting)";
-    protected override HashSet<string> Locations => ["Spirit Cave", "Howling Cave"];
-    protected override HashSet<string> DetectionItems => ["SHARD_HOWLING_SPIRIT", "SHARD_SOUL_OF_THE_ALPHA"];
+    protected override string MethodName => "Howling Spirit (Hunting)";
+    protected override HashSet<string> Locations => ["Howling Cave"];
+    protected override HashSet<string> DetectionItems => ["SHARD_HOWLING_SPIRIT"];
     protected override bool Fallback => true;
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/The_Park";
-    protected override string HowTo => "Go to the Spirit Cave or Howling Cave in The Park and hunt Howling Spirits and Souls of the Alpha for their shards.";
+    protected override string HowTo => HuntingText.Steps(
+        "Go to the Howling Cave in The Park.",
+        "Bring a Howling Spirit to low health and capture it with a Pocket Black Hole.");
+    public override string Description =>
+        "Capture Howling Spirits, stronger Pack Spirits, in the Howling Cave in The Park for their shard. They behave like normal wolves and sometimes drop logs. The shard has almost no buy orders on the bazaar.";
 }
 
 /// <summary>
@@ -159,7 +177,12 @@ public class LapisZombieHuntingTask : BaseHuntingTask
     protected override HashSet<string> DetectionItems => ["SHARD_LAPIS_ZOMBIE"];
     protected override bool Fallback => true;
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Lapis_Quarry";
-    protected override string HowTo => "Go to the Lapis Quarry in the Deep Caverns and hunt Lapis Zombies for their shard.";
+    protected override string HowTo => HuntingText.Steps(
+        "Go to the Lapis Quarry in the Deep Caverns.",
+        "Bring a Lapis Zombie to low health.",
+        "Capture it with a Pocket Black Hole.");
+    public override string Description =>
+        "Capture Lapis Zombies in the Lapis Quarry of the Deep Caverns for their shard. They wear lapis armour, fight like zombies, and sometimes shoot a laser beam. You need a Huntaxe and a Pocket Black Hole, or a Salt.";
 }
 
 /// <summary>

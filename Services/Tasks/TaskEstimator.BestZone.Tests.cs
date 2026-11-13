@@ -73,7 +73,7 @@ public class TaskEstimatorBestZoneTests
         var result = TaskEstimator.WithBestSpotStep(steps, [new("Forest", 378_000_000, 12)]);
 
         result.Select(s => s.Number).Should().Equal(1, 2, 3, 4);
-        result[2].Text.Should().Be("Best spot seen: Forest ~378M/h (12 players).");
+        result[2].Text.Should().Be("Best spot seen: Forest (12 players).");
         result[3].Text.Should().StartWith("Check /cofl task again");
         result[1].OnClick.Should().Be("/warp hub");
         steps.Should().HaveCount(3); // the task's own list is not mutated
@@ -85,7 +85,7 @@ public class TaskEstimatorBestZoneTests
         var result = TaskEstimator.WithBestSpotStep([new() { Number = 1, Text = "Go." }], [new("Forest", 1_500_000, 3)]);
 
         result.Select(s => s.Number).Should().Equal(1, 2);
-        result[1].Text.Should().Be("Best spot seen: Forest ~1.5M/h (3 players).");
+        result[1].Text.Should().Be("Best spot seen: Forest (3 players).");
     }
 
     [Test]
@@ -103,6 +103,25 @@ public class TaskEstimatorBestZoneTests
         var result = TaskEstimator.WithBestSpotStep([new() { Number = 1, Text = "Go." }],
             [new("Mines of Divan", 28_000_000, 45), new("Royal Mines", 11_000_000, 15), new("Gunpowder Mines", 2_700_000, 3)]);
 
-        result[1].Text.Should().Be("Best spots seen: Mines of Divan ~28M/h (45 players), Royal Mines ~11M/h (15 players), Gunpowder Mines ~2.7M/h (3 players).");
+        result[1].Text.Should().Be("Best spots seen: Mines of Divan (45 players), Royal Mines (15 players), Gunpowder Mines (3 players).");
+    }
+
+    [Test]
+    public void BestSpotStep_NamesTheZoneEvenWhenItContainsAnM()
+    {
+        var result = TaskEstimator.WithBestSpotStep([new() { Number = 1, Text = "Go." }], [new("Mines of Divan", 1_681_000_000, 21)]);
+
+        result[1].Text.Should().Be("Best spot seen: Mines of Divan (21 players).");
+    }
+
+    /// <summary>Regression: the raw zone rate (no costs, no shrinkage) was shown next to a much lower headline.</summary>
+    [Test]
+    public void BestSpotStep_NeverShowsACoinsPerHourFigure()
+    {
+        var result = TaskEstimator.WithBestSpotStep([new() { Number = 1, Text = "Go." }], [new("Crystal Nucleus", 1_681_000_000, 21)]);
+
+        result[1].Text.Should().NotContain("/h");
+        // no coin figure such as "1.6M", "1,681,000,000" or "21 coins" - a zone name like "Mines of Divan" must not trip this
+        System.Text.RegularExpressions.Regex.IsMatch(result[1].Text, @"\d+(\.\d+)?\s*[kKmMbB]\b|\d{1,3}(,\d{3})+").Should().BeFalse();
     }
 }

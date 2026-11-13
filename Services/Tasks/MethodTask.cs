@@ -168,11 +168,27 @@ public abstract class MethodTask : ProfitTask
         var reference = CostReferenceDrop(itemCounts);
         if (reference == null)
             return 0;
-        var scale = (itemCounts[reference.ItemTag] / hours) / reference.RatePerHour;
+        var observedScale = (itemCounts[reference.ItemTag] / hours) / reference.RatePerHour;
+        var scale = CostScale(observedScale);
         // a cost tag observed with a negative count is already inside the caller's item value: charging
         // its formula estimate on top would subtract the same cost twice
-        return FormulaCosts.Where(c => !IsObservedCost(itemCounts, c.ItemTag))
-            .Sum(c => priceOf(c.ItemTag) * c.RatePerHour) * scale * hours;
+        var estimatedCosts = FormulaCosts.Where(c => !IsObservedCost(itemCounts, c.ItemTag)).ToList();
+        var cost = estimatedCosts.Sum(c => priceOf(c.ItemTag) * c.RatePerHour) * scale * hours;
+        return cost + WithheldReferenceValue(itemCounts, hours, reference, observedScale, estimatedCosts.Count > 0, priceOf);
+    }
+
+    /// <summary>
+    /// Value of the reference drop above what <see cref="MaxCostScale"/> allows, charged next to the cost: capping only the cost
+    /// while the reference drop counts in full would turn an implausible observation (7x the seed) into a profit. Only while
+    /// the cost is estimated; an observed cost is real, and so is the revenue it was spent for.
+    /// </summary>
+    private double WithheldReferenceValue(Dictionary<string, double> itemCounts, double hours, MethodDrop reference,
+        double observedScale, bool costIsEstimated, Func<string, double> priceOf)
+    {
+        if (!costIsEstimated || observedScale <= MaxCostScale)
+            return 0;
+        var allowedCount = MaxCostScale * reference.RatePerHour * hours;
+        return (itemCounts[reference.ItemTag] - allowedCount) * priceOf(reference.ItemTag);
     }
 
     /// <summary>
@@ -181,6 +197,16 @@ public abstract class MethodTask : ProfitTask
     /// </summary>
     internal string CostReferenceTag(Dictionary<string, double> itemCounts)
         => FormulaCosts.Count == 0 || itemCounts == null ? null : CostReferenceDrop(itemCounts)?.ItemTag;
+
+    /// <summary>
+    /// Upper bound for the factor <see cref="ScaledFormulaCost"/> multiplies the design-time cost by, infinity for no
+    /// bound. A task whose reference drop is credited without passing the inventory (chat summaries) can be observed at
+    /// several times its seed rate while the cost it is scaled for is only ever seen through that same figure. The reference
+    /// drop above the bound is withheld from the revenue as well, see <see cref="WithheldReferenceValue"/>.
+    /// </summary>
+    protected virtual double MaxCostScale => double.PositiveInfinity;
+
+    private double CostScale(double observedScale) => Math.Min(observedScale, MaxCostScale);
 
     private MethodDrop CostReferenceDrop(Dictionary<string, double> itemCounts)
         => FormulaDrops.FirstOrDefault(d => d.RatePerHour > 0 && itemCounts.ContainsKey(d.ItemTag));
@@ -483,7 +509,16 @@ public abstract class MethodTask : ProfitTask
     public DetectionSignature GetDetectionSignature() => new(
         MethodName, Locations, DetectionItems, RequireShardItems, ExcludeShardItems, Priority, Category, DerivedFrom,
         MinLocationOnlyItems, EvidenceItems, Fallback, ZoneDetectionItems, ZoneExcludedItems, Hidden, KeepableCostTags(),
-        ExcludedZones);
+        ExcludedZones, BulkClaim, BulkYield);
+
+    /// <summary>
+    /// Periods this rule calls bulk belong to this task: they count as an item match and lift the <see cref="ZoneExcludedItems"/>
+    /// veto, so stray mob drops in a mining period do not push it to a grinding task. Classification only.
+    /// </summary>
+    protected virtual BulkItemRule BulkClaim => null;
+
+    /// <summary>The counterpart of <see cref="BulkClaim"/>: periods this rule calls bulk are never attributed to this task. Classification only.</summary>
+    protected virtual BulkItemRule BulkYield => null;
 
     /// <summary>
     /// Estimated multipliers from the declared effects, used to seed the
@@ -492,7 +527,9 @@ public abstract class MethodTask : ProfitTask
     public List<double> EffectMultipliersForEstimate =>
         Effects?.Select(e => e.EstimatedMultiplier).Where(m => m > 0).ToList() ?? [];
 
-    public override string Description => $"Calculates profit for {MethodName}";
+    /// <summary>Generated from the task's name, place and requirements, see <see cref="TaskDescriptionBuilder"/>. Tasks override this for hand written text.</summary>
+    public override string Description => TaskDescriptionBuilder.Build(
+        MethodName, Where, SkyblockZones.IslandDisplayName(Island), AllRequirements, Category);
 
     public override async Task<TaskResult> Execute(TaskParams parameters)
     {
@@ -990,7 +1027,7 @@ public abstract class MethodTask : ProfitTask
         if (totalPerHour <= 0)
             return (costs, 0);
         var reference = FormulaDrops.FirstOrDefault(d => d.RatePerHour > 0 && itemRatesPerHour.ContainsKey(d.ItemTag));
-        var scale = reference == null ? 0 : itemRatesPerHour[reference.ItemTag] / reference.RatePerHour;
+        var scale = reference == null ? 0 : CostScale(itemRatesPerHour[reference.ItemTag] / reference.RatePerHour);
         foreach (var cost in FormulaCosts)
         {
             if (IsObservedCost(itemRatesPerHour, cost.ItemTag))

@@ -318,6 +318,7 @@ public class TaskEstimator
             CurrentDoers = doers,
             DoersChange20m = deltas.GetValueOrDefault(name),
             Drops = BuildDrops(task, dropCounts, dropSeconds, prices),
+            Requirements = task.AllRequirements.Select(TaskRequirementInfo.From).ToList(),
             TraceId = span?.TraceId.ToString() ?? System.Diagnostics.Activity.Current?.TraceId.ToString(),
             WikiUrl = task.WikiUrlForTest,
             Where = task.WhereForTest,
@@ -367,10 +368,12 @@ public class TaskEstimator
     /// <summary>
     /// Copy of <paramref name="steps"/> with the best spot hint inserted before the closing "Check /cofl task again"
     /// step (appended when there is none) and everything renumbered. The task's own step objects are not touched.
+    /// Names the spot and its player count only: the zone rate is a raw value over hours, without costs or shrinkage,
+    /// a median 1.8x (up to 48x) the headline, so it is not shown next to it.
     /// </summary>
     internal static List<TaskStep> WithBestSpotStep(List<TaskStep> steps, IReadOnlyList<BestZoneResult> zones)
     {
-        string Spot(BestZoneResult z) => $"{z.Zone} ~{SimpleTaskFormatProvider.FormatPriceShort(z.CoinsPerHour)}/h ({z.Players} players)";
+        string Spot(BestZoneResult z) => $"{z.Zone} ({z.Players} players)";
         var text = zones.Count == 1
             ? $"Best spot seen: {Spot(zones[0])}."
             : $"Best spots seen: {string.Join(", ", zones.Select(Spot))}.";

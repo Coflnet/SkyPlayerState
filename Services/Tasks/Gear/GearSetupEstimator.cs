@@ -62,7 +62,7 @@ public static class GearSetupEstimator
             : ScaledRates(input, anchor);
 
         var baselineRate = rateOf(profile.Baseline, true);
-        var baseline = ToEstimate(input, profile.Baseline, baselineRate, baselineRate.Rate);
+        var baseline = ToEstimate(input, TierBaseline(input, profile), baselineRate, baselineRate.Rate);
         var setups = profile.Setups.OrderBy(s => GearTiers.Rank(s.Tier))
             .Select(s => ToEstimate(input, s, rateOf(s, false), baselineRate.Rate))
             .ToList();
@@ -79,6 +79,28 @@ public static class GearSetupEstimator
             BaselineCoinsPerHour = baseline.CoinsPerHour,
             Baseline = baseline,
             Setups = setups
+        };
+    }
+
+    internal const string UnknownGearBaselineName = "Community rate (gear varies)";
+
+    /// <summary>
+    /// tierUnlock only: on a tier at or above the first one a setup unlocks, the starter kit the baseline lists cannot do
+    /// the tier, so the baseline is the plain community rate without a gear claim (it was "Adaptive armor + AOTE" at M7).
+    /// </summary>
+    internal static GearSetup TierBaseline(GearEstimateInput input, ResolvedGearProfile profile)
+    {
+        if (GearModelKinds.Normalize(profile.Model.Kind) != GearModelKinds.TierUnlock)
+            return profile.Baseline;
+        var tiers = profile.Profile.Tiers ?? [];
+        var firstUnlock = profile.Setups.Select(s => TierIndex(tiers, s.UnlocksTask)).Where(i => i >= 0).DefaultIfEmpty(int.MaxValue).Min();
+        if (TierIndex(tiers, input.TaskName) < firstUnlock)
+            return profile.Baseline;
+        return profile.Baseline with
+        {
+            Name = UnknownGearBaselineName,
+            Items = [],
+            Assumptions = [.. profile.Baseline.Assumptions ?? [], "The gear this tier is done with varies, the listed upgrades are what it is usually unlocked with."]
         };
     }
 
@@ -218,16 +240,41 @@ public static class GearSetupEstimator
     private static SetupRate UnlockedTierRate(GearEstimateInput input, GearSetup setup, List<string> assumptions)
     {
         var unlocked = input.EstimateOf(setup.UnlocksTask!);
-        var rate = Finite(unlocked?.CoinsPerHour);
-        if (rate is not > 0)
+        if (Finite(unlocked?.CoinsPerHour) is not > 0)
         {
             assumptions.Add($"There is no community estimate for '{setup.UnlocksTask}' yet.");
             return new SetupRate(null, null, GearConfidence.Low, assumptions, GearSetupStatus.Upgrade);
         }
-        assumptions.Add($"This setup is assumed to make '{setup.UnlocksTask}' doable; its rate is that task's community rate.");
         var bound = Finite(input.Community?.CoinsPerHour);
+        var (rate, bestTier) = BestReachableRate(input, setup.UnlocksTask!, unlocked!);
+        if (bound > 0 && rate <= bound)
+        {
+            assumptions.Add($"Every tier this gear unlocks earns no more than '{input.TaskName}' does, so it is no upgrade here.");
+            return new SetupRate(null, null, CapModel(GearConfidence.High, input.Profile), assumptions, GearSetupStatus.Reached);
+        }
+        assumptions.Add(bestTier == setup.UnlocksTask
+            ? $"This setup is assumed to make '{setup.UnlocksTask}' doable; its rate is that task's community rate."
+            : $"This setup makes '{setup.UnlocksTask}' doable, but '{bestTier}' earns more and is reachable with it, so that rate is used.");
         var confidence = Min(DataConfidence(unlocked), DataConfidence(input.Community));
         return new SetupRate(rate, bound > 0 ? rate / bound : null, CapModel(confidence, input.Profile), assumptions, GearSetupStatus.Upgrade);
+    }
+
+    /// <summary>
+    /// The best community rate among the tiers above the bound one up to and including <paramref name="unlockTask"/>:
+    /// gear that unlocks a floor also does the floors below it, so it never earns less than the best of them.
+    /// </summary>
+    private static (double Rate, string Tier) BestReachableRate(GearEstimateInput input, string unlockTask, TaskEstimate unlocked)
+    {
+        var tiers = input.Profile.Profile.Tiers ?? [];
+        var best = (Rate: unlocked.CoinsPerHour, Tier: unlockTask);
+        var from = TierIndex(tiers, input.TaskName) + 1;
+        for (var i = Math.Max(from, 0); i < TierIndex(tiers, unlockTask); i++)
+        {
+            var rate = Finite(input.EstimateOf(tiers[i])?.CoinsPerHour);
+            if (rate > best.Rate)
+                best = (rate.Value, tiers[i]);
+        }
+        return best;
     }
 
     /// <summary>Position of <paramref name="task"/> in the profile's tier ladder, -1 when absent.</summary>

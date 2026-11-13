@@ -33,7 +33,7 @@
   "modelConfidence": "medium",
   "baseline": {
     "id": "baseline",
-    "name": "Starter gemstone drill",
+    "name": "Starter gemstone gear",
     "items": [
       {
         "slot": "tool",
@@ -108,7 +108,7 @@
   "setups": [
     {
       "id": "budget",
-      "name": "Budget Gemstone Drill",
+      "name": "Budget gemstone gear",
       "tier": "budget",
       "items": [
         {
@@ -212,7 +212,7 @@
     },
     {
       "id": "mid",
-      "name": "Mid Jasper Drill",
+      "name": "Mid gemstone gear",
       "tier": "mid",
       "items": [
         {
@@ -548,12 +548,12 @@
         "baseline:tool": {
           "tag": "GEMSTONE_DRILL_4",
           "name": "Jasper Drill X",
-          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+          "reason": "Cheapest drill with the Breaking Power to mine this gemstone at all, so every tier uses it and the armor and pet differ; Efficiency V, Fortune IV and Lapidary V books applied"
         },
         "budget:tool": {
           "tag": "GEMSTONE_DRILL_4",
           "name": "Jasper Drill X",
-          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+          "reason": "Cheapest drill with the Breaking Power to mine this gemstone at all, so every tier uses it and the armor and pet differ; Efficiency V, Fortune IV and Lapidary V books applied"
         }
       },
       "statOverrides": {
@@ -578,12 +578,12 @@
         "baseline:tool": {
           "tag": "GEMSTONE_DRILL_4",
           "name": "Jasper Drill X",
-          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+          "reason": "Cheapest drill with the Breaking Power to mine this gemstone at all, so every tier uses it and the armor and pet differ; Efficiency V, Fortune IV and Lapidary V books applied"
         },
         "budget:tool": {
           "tag": "GEMSTONE_DRILL_4",
           "name": "Jasper Drill X",
-          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+          "reason": "Cheapest drill with the Breaking Power to mine this gemstone at all, so every tier uses it and the armor and pet differ; Efficiency V, Fortune IV and Lapidary V books applied"
         }
       },
       "statOverrides": {
@@ -608,12 +608,12 @@
         "baseline:tool": {
           "tag": "GEMSTONE_DRILL_4",
           "name": "Jasper Drill X",
-          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+          "reason": "Cheapest drill with the Breaking Power to mine this gemstone at all, so every tier uses it and the armor and pet differ; Efficiency V, Fortune IV and Lapidary V books applied"
         },
         "budget:tool": {
           "tag": "GEMSTONE_DRILL_4",
           "name": "Jasper Drill X",
-          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+          "reason": "Cheapest drill with the Breaking Power to mine this gemstone at all, so every tier uses it and the armor and pet differ; Efficiency V, Fortune IV and Lapidary V books applied"
         }
       },
       "statOverrides": {
@@ -638,12 +638,12 @@
         "baseline:tool": {
           "tag": "GEMSTONE_DRILL_4",
           "name": "Jasper Drill X",
-          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+          "reason": "Cheapest drill with the Breaking Power to mine this gemstone at all, so every tier uses it and the armor and pet differ; Efficiency V, Fortune IV and Lapidary V books applied"
         },
         "budget:tool": {
           "tag": "GEMSTONE_DRILL_4",
           "name": "Jasper Drill X",
-          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+          "reason": "Cheapest drill with the Breaking Power to mine this gemstone at all, so every tier uses it and the armor and pet differ; Efficiency V, Fortune IV and Lapidary V books applied"
         }
       },
       "statOverrides": {
@@ -668,12 +668,12 @@
         "baseline:tool": {
           "tag": "GEMSTONE_DRILL_4",
           "name": "Jasper Drill X",
-          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+          "reason": "Cheapest drill with the Breaking Power to mine this gemstone at all, so every tier uses it and the armor and pet differ; Efficiency V, Fortune IV and Lapidary V books applied"
         },
         "budget:tool": {
           "tag": "GEMSTONE_DRILL_4",
           "name": "Jasper Drill X",
-          "reason": "Breaking Power for every gemstone with high Gemstone Fortune and Pristine; Efficiency V, Fortune IV and Lapidary V books applied"
+          "reason": "Cheapest drill with the Breaking Power to mine this gemstone at all, so every tier uses it and the armor and pet differ; Efficiency V, Fortune IV and Lapidary V books applied"
         }
       },
       "statOverrides": {

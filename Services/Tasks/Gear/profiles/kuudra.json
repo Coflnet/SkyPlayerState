@@ -12,11 +12,17 @@
   "model": {
     "kind": "tierUnlock"
   },
-  "tiers": ["Kuudra T1", "Kuudra T2", "Kuudra T3", "Kuudra T4", "Kuudra T5"],
+  "tiers": [
+    "Kuudra T1",
+    "Kuudra T2",
+    "Kuudra T3",
+    "Kuudra T4",
+    "Kuudra T5"
+  ],
   "modelConfidence": "medium",
   "baseline": {
     "id": "baseline",
-    "name": "Basic Terror armor",
+    "name": "Basic Terror armor with Hyperion",
     "items": [
       {
         "slot": "helmet",
@@ -41,18 +47,25 @@
         "tag": "TERROR_BOOTS",
         "name": "Terror Boots",
         "reason": "Armor of the lowest Kuudra tier, enough for the first tiers"
+      },
+      {
+        "slot": "weapon",
+        "tag": "HYPERION",
+        "name": "Hyperion",
+        "reason": "Weapon every Kuudra tier asks for (the task steps list it as required gear)"
       }
     ],
     "stats": {},
     "assumptions": [
-      "Which tiers a setup realistically supports is a research estimate, not a measurement."
+      "Which tiers a setup realistically supports is a research estimate, not a measurement.",
+      "Hyperion is the weapon the Kuudra task steps require on every tier, so it is part of every setup below the Terminator."
     ]
   },
   "setups": [
     {
       "id": "budget",
       "tier": "budget",
-      "name": "Hot Terror armor",
+      "name": "Hot Terror armor with Hyperion",
       "items": [
         {
           "slot": "helmet",
@@ -77,6 +90,12 @@
           "tag": "HOT_TERROR_BOOTS",
           "name": "Hot Terror Boots",
           "reason": "Prestiged one step, supports the middle tiers"
+        },
+        {
+          "slot": "weapon",
+          "tag": "HYPERION",
+          "name": "Hyperion",
+          "reason": "Weapon every Kuudra tier asks for (the task steps list it as required gear)"
         }
       ],
       "stats": {},
@@ -87,13 +106,14 @@
       "assumptions": [
         "Each Kuudra tier also needs the previous tier cleared, enough faction reputation and a Kuudra key.",
         "Which tiers a setup realistically supports is a research estimate, not a measurement.",
-        "Prestiging your own armor is often cheaper than buying high tier pieces on a thin market."
+        "Prestiging your own armor is often cheaper than buying high tier pieces on a thin market.",
+        "Hyperion is the weapon the Kuudra task steps require on every tier, so it is part of every setup below the Terminator."
       ]
     },
     {
       "id": "mid",
       "tier": "mid",
-      "name": "Burning Terror armor",
+      "name": "Burning Terror armor with Hyperion",
       "items": [
         {
           "slot": "helmet",
@@ -118,6 +138,12 @@
           "tag": "BURNING_TERROR_BOOTS",
           "name": "Burning Terror Boots",
           "reason": "Prestiged two steps, supports the upper tiers"
+        },
+        {
+          "slot": "weapon",
+          "tag": "HYPERION",
+          "name": "Hyperion",
+          "reason": "Weapon every Kuudra tier asks for (the task steps list it as required gear)"
         }
       ],
       "stats": {},
@@ -128,7 +154,8 @@
       "assumptions": [
         "Armor tiers need a matching combat level on top of the cleared Kuudra tier.",
         "Which tiers a setup realistically supports is a research estimate, not a measurement.",
-        "Kuudra armor markets are thin, so single piece prices can be outliers."
+        "Kuudra armor markets are thin, so single piece prices can be outliers.",
+        "Hyperion is the weapon the Kuudra task steps require on every tier, so it is part of every setup below the Terminator."
       ]
     },
     {

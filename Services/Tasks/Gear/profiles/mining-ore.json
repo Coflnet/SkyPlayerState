@@ -13,7 +13,9 @@
     "https://hypixelskyblock.minecraft.wiki/w/Block_Fortune",
     "https://hypixelskyblock.minecraft.wiki/w/Dwarven_Metal_Fortune",
     "https://hypixelskyblock.minecraft.wiki/w/Breaking_Power",
-    "https://hypixelskyblock.minecraft.wiki/w/Drills"
+    "https://hypixelskyblock.minecraft.wiki/w/Drills",
+    "https://hypixelskyblock.minecraft.wiki/w/Mineral_Armor",
+    "https://hypixelskyblock.minecraft.wiki/w/Glossy_Mineral_Armor"
   ],
   "model": {
     "kind": "mining",
@@ -126,39 +128,27 @@
         },
         {
           "slot": "helmet",
-          "tag": "ARMOR_OF_YOG_HELMET",
-          "name": "Yog Helmet",
-          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+          "tag": "MINERAL_HELMET",
+          "name": "Mineral Helmet",
+          "reason": "Mining Spread on ores and blocks (+100 per piece, +400 with all four) and Block Fortune"
         },
         {
           "slot": "chestplate",
-          "tag": "ARMOR_OF_YOG_CHESTPLATE",
-          "name": "Yog Chestplate",
-          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+          "tag": "MINERAL_CHESTPLATE",
+          "name": "Mineral Chestplate",
+          "reason": "Mining Spread on ores and blocks (+100 per piece, +400 with all four) and Block Fortune"
         },
         {
           "slot": "leggings",
-          "tag": "ARMOR_OF_YOG_LEGGINGS",
-          "name": "Yog Leggings",
-          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+          "tag": "MINERAL_LEGGINGS",
+          "name": "Mineral Leggings",
+          "reason": "Mining Spread on ores and blocks (+100 per piece, +400 with all four) and Block Fortune"
         },
         {
           "slot": "boots",
-          "tag": "ARMOR_OF_YOG_BOOTS",
-          "name": "Yog Boots",
-          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
-        },
-        {
-          "slot": "armor_gem_amber",
-          "tag": "FINE_AMBER_GEM",
-          "name": "Fine Amber Gemstone",
-          "reason": "Fills the armor Amber slots for Mining Speed"
-        },
-        {
-          "slot": "armor_gem_jade",
-          "tag": "FINE_JADE_GEM",
-          "name": "Fine Jade Gemstone",
-          "reason": "Fills the armor Jade slots for Mining Fortune"
+          "tag": "MINERAL_BOOTS",
+          "name": "Mineral Boots",
+          "reason": "Mining Spread on ores and blocks (+100 per piece, +400 with all four) and Block Fortune"
         },
         {
           "slot": "necklace",
@@ -201,20 +191,23 @@
         }
       ],
       "stats": {
-        "Mining Speed": 2877,
-        "Mining Fortune": 795,
+        "Mining Speed": 2633,
+        "Mining Fortune": 635,
         "Ore Fortune": 100,
-        "Block Fortune": 100,
+        "Block Fortune": 200,
         "Dwarven Metal Fortune": 0,
-        "Mining Spread": 300
+        "Mining Spread": 700
       },
       "sources": [
         "https://hypixelskyblock.minecraft.wiki/w/Drills",
-        "https://hypixelskyblock.minecraft.wiki/w/Breaking_Power"
+        "https://hypixelskyblock.minecraft.wiki/w/Breaking_Power",
+        "https://hypixelskyblock.minecraft.wiki/w/Mineral_Armor",
+        "https://hypixelskyblock.minecraft.wiki/w/Mining_Spread"
       ],
       "assumptions": [
         "Heart of the Mountain perks and the mining skill level are the same in every setup because they cannot be bought.",
-        "The Bal pet value is a research estimate because the pet rarity is not verified."
+        "The Bal pet value is a research estimate because the pet rarity is not verified.",
+        "Ore and block tasks use Mineral armor (Glossy Mineral from mid): Mineralworks adds Mining Spread on ores and blocks, which the measured setups of redstone and diamond mining also pick. Dwarven metal tasks (Mithril, Umber, Tungsten, Glacite) keep the Mining Speed armor, spread does not apply to them."
       ]
     },
     {
@@ -230,39 +223,27 @@
         },
         {
           "slot": "helmet",
-          "tag": "SORROW_HELMET",
-          "name": "Sorrow Helmet",
-          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+          "tag": "GLOSSY_MINERAL_HELMET",
+          "name": "Glossy Mineral Helmet",
+          "reason": "Mining Spread on ores and blocks (+150 per piece, +600 with all four) and Block Fortune"
         },
         {
           "slot": "chestplate",
-          "tag": "SORROW_CHESTPLATE",
-          "name": "Sorrow Chestplate",
-          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+          "tag": "GLOSSY_MINERAL_CHESTPLATE",
+          "name": "Glossy Mineral Chestplate",
+          "reason": "Mining Spread on ores and blocks (+150 per piece, +600 with all four) and Block Fortune"
         },
         {
           "slot": "leggings",
-          "tag": "SORROW_LEGGINGS",
-          "name": "Sorrow Leggings",
-          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+          "tag": "GLOSSY_MINERAL_LEGGINGS",
+          "name": "Glossy Mineral Leggings",
+          "reason": "Mining Spread on ores and blocks (+150 per piece, +600 with all four) and Block Fortune"
         },
         {
           "slot": "boots",
-          "tag": "SORROW_BOOTS",
-          "name": "Sorrow Boots",
-          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
-        },
-        {
-          "slot": "armor_gem_amber",
-          "tag": "FINE_AMBER_GEM",
-          "name": "Fine Amber Gemstone",
-          "reason": "Fills the armor Amber slots for Mining Speed"
-        },
-        {
-          "slot": "armor_gem_jade",
-          "tag": "FINE_JADE_GEM",
-          "name": "Fine Jade Gemstone",
-          "reason": "Fills the armor Jade and Universal slots for Mining Fortune"
+          "tag": "GLOSSY_MINERAL_BOOTS",
+          "name": "Glossy Mineral Boots",
+          "reason": "Mining Spread on ores and blocks (+150 per piece, +600 with all four) and Block Fortune"
         },
         {
           "slot": "necklace",
@@ -305,20 +286,23 @@
         }
       ],
       "stats": {
-        "Mining Speed": 3319,
-        "Mining Fortune": 865,
+        "Mining Speed": 2975,
+        "Mining Fortune": 625,
         "Ore Fortune": 100,
-        "Block Fortune": 100,
+        "Block Fortune": 300,
         "Dwarven Metal Fortune": 0,
-        "Mining Spread": 300
+        "Mining Spread": 900
       },
       "sources": [
         "https://hypixelskyblock.minecraft.wiki/w/Drills",
-        "https://hypixelskyblock.minecraft.wiki/w/Gemstone_Slot"
+        "https://hypixelskyblock.minecraft.wiki/w/Gemstone_Slot",
+        "https://hypixelskyblock.minecraft.wiki/w/Mineral_Armor",
+        "https://hypixelskyblock.minecraft.wiki/w/Mining_Spread"
       ],
       "assumptions": [
         "Heart of the Mountain perks and the mining skill level are the same in every setup because they cannot be bought.",
-        "Gemstone slot unlock costs are not part of the item list, and the Bal pet value is a research estimate because the pet rarity is not verified."
+        "Gemstone slot unlock costs are not part of the item list, and the Bal pet value is a research estimate because the pet rarity is not verified.",
+        "Ore and block tasks use Mineral armor (Glossy Mineral from mid): Mineralworks adds Mining Spread on ores and blocks, which the measured setups of redstone and diamond mining also pick. Dwarven metal tasks (Mithril, Umber, Tungsten, Glacite) keep the Mining Speed armor, spread does not apply to them."
       ]
     },
     {
@@ -334,39 +318,27 @@
         },
         {
           "slot": "helmet",
-          "tag": "DIVAN_HELMET",
-          "name": "Helmet of Divan",
-          "reason": "Best mining armor with gemstone slots"
+          "tag": "GLOSSY_MINERAL_HELMET",
+          "name": "Glossy Mineral Helmet",
+          "reason": "Mining Spread on ores and blocks (+150 per piece, +600 with all four) and Block Fortune"
         },
         {
           "slot": "chestplate",
-          "tag": "DIVAN_CHESTPLATE",
-          "name": "Chestplate of Divan",
-          "reason": "Best mining armor with gemstone slots"
+          "tag": "GLOSSY_MINERAL_CHESTPLATE",
+          "name": "Glossy Mineral Chestplate",
+          "reason": "Mining Spread on ores and blocks (+150 per piece, +600 with all four) and Block Fortune"
         },
         {
           "slot": "leggings",
-          "tag": "DIVAN_LEGGINGS",
-          "name": "Leggings of Divan",
-          "reason": "Best mining armor with gemstone slots"
+          "tag": "GLOSSY_MINERAL_LEGGINGS",
+          "name": "Glossy Mineral Leggings",
+          "reason": "Mining Spread on ores and blocks (+150 per piece, +600 with all four) and Block Fortune"
         },
         {
           "slot": "boots",
-          "tag": "DIVAN_BOOTS",
-          "name": "Boots of Divan",
-          "reason": "Best mining armor with gemstone slots"
-        },
-        {
-          "slot": "armor_gem_amber",
-          "tag": "FLAWLESS_AMBER_GEM",
-          "name": "Flawless Amber Gemstone",
-          "reason": "Fills the armor Amber slots for Mining Speed"
-        },
-        {
-          "slot": "armor_gem_jade",
-          "tag": "FLAWLESS_JADE_GEM",
-          "name": "Flawless Jade Gemstone",
-          "reason": "Fills the armor Jade slots for Mining Fortune"
+          "tag": "GLOSSY_MINERAL_BOOTS",
+          "name": "Glossy Mineral Boots",
+          "reason": "Mining Spread on ores and blocks (+150 per piece, +600 with all four) and Block Fortune"
         },
         {
           "slot": "necklace",
@@ -410,20 +382,23 @@
         }
       ],
       "stats": {
-        "Mining Speed": 4925,
-        "Mining Fortune": 1165,
+        "Mining Speed": 4141,
+        "Mining Fortune": 829,
         "Ore Fortune": 100,
-        "Block Fortune": 100,
+        "Block Fortune": 300,
         "Dwarven Metal Fortune": 0,
-        "Mining Spread": 300
+        "Mining Spread": 900
       },
       "sources": [
         "https://hypixelskyblock.minecraft.wiki/w/Titanium_Drill_DR-X655",
-        "https://hypixelskyblock.minecraft.wiki/w/Drills"
+        "https://hypixelskyblock.minecraft.wiki/w/Drills",
+        "https://hypixelskyblock.minecraft.wiki/w/Mineral_Armor",
+        "https://hypixelskyblock.minecraft.wiki/w/Mining_Spread"
       ],
       "assumptions": [
         "Heart of the Mountain perks and the mining skill level are the same in every setup because they cannot be bought.",
-        "The Scatha pet rarity is not verified and the estimate uses the pet's listed legendary values."
+        "The Scatha pet rarity is not verified and the estimate uses the pet's listed legendary values.",
+        "Ore and block tasks use Mineral armor (Glossy Mineral from mid): Mineralworks adds Mining Spread on ores and blocks, which the measured setups of redstone and diamond mining also pick. Dwarven metal tasks (Mithril, Umber, Tungsten, Glacite) keep the Mining Speed armor, spread does not apply to them."
       ]
     }
   ],
@@ -553,11 +528,122 @@
           "tag": "DWARVEN_METAL",
           "name": "Dwarven Metal Talisman",
           "reason": "Dwarven Metal Fortune for metal blocks"
+        },
+        "budget:helmet": {
+          "tag": "ARMOR_OF_YOG_HELMET",
+          "name": "Yog Helmet",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:chestplate": {
+          "tag": "ARMOR_OF_YOG_CHESTPLATE",
+          "name": "Yog Chestplate",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:leggings": {
+          "tag": "ARMOR_OF_YOG_LEGGINGS",
+          "name": "Yog Leggings",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:boots": {
+          "tag": "ARMOR_OF_YOG_BOOTS",
+          "name": "Yog Boots",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:armor_gem_amber": {
+          "tag": "FINE_AMBER_GEM",
+          "name": "Fine Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "budget:armor_gem_jade": {
+          "tag": "FINE_JADE_GEM",
+          "name": "Fine Jade Gemstone",
+          "reason": "Fills the armor Jade slots for Mining Fortune"
+        },
+        "mid:helmet": {
+          "tag": "SORROW_HELMET",
+          "name": "Sorrow Helmet",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:chestplate": {
+          "tag": "SORROW_CHESTPLATE",
+          "name": "Sorrow Chestplate",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:leggings": {
+          "tag": "SORROW_LEGGINGS",
+          "name": "Sorrow Leggings",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:boots": {
+          "tag": "SORROW_BOOTS",
+          "name": "Sorrow Boots",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:armor_gem_amber": {
+          "tag": "FINE_AMBER_GEM",
+          "name": "Fine Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "mid:armor_gem_jade": {
+          "tag": "FINE_JADE_GEM",
+          "name": "Fine Jade Gemstone",
+          "reason": "Fills the armor Jade and Universal slots for Mining Fortune"
+        },
+        "endgame:helmet": {
+          "tag": "DIVAN_HELMET",
+          "name": "Helmet of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:chestplate": {
+          "tag": "DIVAN_CHESTPLATE",
+          "name": "Chestplate of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:leggings": {
+          "tag": "DIVAN_LEGGINGS",
+          "name": "Leggings of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:boots": {
+          "tag": "DIVAN_BOOTS",
+          "name": "Boots of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:armor_gem_amber": {
+          "tag": "FLAWLESS_AMBER_GEM",
+          "name": "Flawless Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "endgame:armor_gem_jade": {
+          "tag": "FLAWLESS_JADE_GEM",
+          "name": "Flawless Jade Gemstone",
+          "reason": "Fills the armor Jade slots for Mining Fortune"
         }
       },
       "statOverrides": {
         "endgame": {
-          "Dwarven Metal Fortune": 15
+          "Dwarven Metal Fortune": 15,
+          "Mining Speed": 4925,
+          "Mining Fortune": 1165,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Mining Spread": 300
+        },
+        "budget": {
+          "Mining Speed": 2877,
+          "Mining Fortune": 795,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Dwarven Metal Fortune": 0,
+          "Mining Spread": 300
+        },
+        "mid": {
+          "Mining Speed": 3319,
+          "Mining Fortune": 865,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Dwarven Metal Fortune": 0,
+          "Mining Spread": 300
         }
       }
     },
@@ -591,6 +677,96 @@
           "tag": "DWARVEN_METAL",
           "name": "Dwarven Metal Talisman",
           "reason": "Dwarven Metal Fortune for metal blocks"
+        },
+        "budget:helmet": {
+          "tag": "ARMOR_OF_YOG_HELMET",
+          "name": "Yog Helmet",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:chestplate": {
+          "tag": "ARMOR_OF_YOG_CHESTPLATE",
+          "name": "Yog Chestplate",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:leggings": {
+          "tag": "ARMOR_OF_YOG_LEGGINGS",
+          "name": "Yog Leggings",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:boots": {
+          "tag": "ARMOR_OF_YOG_BOOTS",
+          "name": "Yog Boots",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:armor_gem_amber": {
+          "tag": "FINE_AMBER_GEM",
+          "name": "Fine Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "budget:armor_gem_jade": {
+          "tag": "FINE_JADE_GEM",
+          "name": "Fine Jade Gemstone",
+          "reason": "Fills the armor Jade slots for Mining Fortune"
+        },
+        "mid:helmet": {
+          "tag": "SORROW_HELMET",
+          "name": "Sorrow Helmet",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:chestplate": {
+          "tag": "SORROW_CHESTPLATE",
+          "name": "Sorrow Chestplate",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:leggings": {
+          "tag": "SORROW_LEGGINGS",
+          "name": "Sorrow Leggings",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:boots": {
+          "tag": "SORROW_BOOTS",
+          "name": "Sorrow Boots",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:armor_gem_amber": {
+          "tag": "FINE_AMBER_GEM",
+          "name": "Fine Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "mid:armor_gem_jade": {
+          "tag": "FINE_JADE_GEM",
+          "name": "Fine Jade Gemstone",
+          "reason": "Fills the armor Jade and Universal slots for Mining Fortune"
+        },
+        "endgame:helmet": {
+          "tag": "DIVAN_HELMET",
+          "name": "Helmet of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:chestplate": {
+          "tag": "DIVAN_CHESTPLATE",
+          "name": "Chestplate of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:leggings": {
+          "tag": "DIVAN_LEGGINGS",
+          "name": "Leggings of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:boots": {
+          "tag": "DIVAN_BOOTS",
+          "name": "Boots of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:armor_gem_amber": {
+          "tag": "FLAWLESS_AMBER_GEM",
+          "name": "Flawless Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "endgame:armor_gem_jade": {
+          "tag": "FLAWLESS_JADE_GEM",
+          "name": "Flawless Jade Gemstone",
+          "reason": "Fills the armor Jade slots for Mining Fortune"
         }
       },
       "statOverrides": {
@@ -600,14 +776,27 @@
         },
         "budget": {
           "Mining Speed": 3027,
-          "Mining Fortune": 780
+          "Mining Fortune": 780,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Dwarven Metal Fortune": 0,
+          "Mining Spread": 300
         },
         "mid": {
           "Mining Speed": 3219,
-          "Mining Fortune": 840
+          "Mining Fortune": 840,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Dwarven Metal Fortune": 0,
+          "Mining Spread": 300
         },
         "endgame": {
-          "Dwarven Metal Fortune": 15
+          "Dwarven Metal Fortune": 15,
+          "Mining Speed": 4925,
+          "Mining Fortune": 1165,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Mining Spread": 300
         }
       }
     },
@@ -641,6 +830,96 @@
           "tag": "DWARVEN_METAL",
           "name": "Dwarven Metal Talisman",
           "reason": "Dwarven Metal Fortune for metal blocks"
+        },
+        "budget:helmet": {
+          "tag": "ARMOR_OF_YOG_HELMET",
+          "name": "Yog Helmet",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:chestplate": {
+          "tag": "ARMOR_OF_YOG_CHESTPLATE",
+          "name": "Yog Chestplate",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:leggings": {
+          "tag": "ARMOR_OF_YOG_LEGGINGS",
+          "name": "Yog Leggings",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:boots": {
+          "tag": "ARMOR_OF_YOG_BOOTS",
+          "name": "Yog Boots",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:armor_gem_amber": {
+          "tag": "FINE_AMBER_GEM",
+          "name": "Fine Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "budget:armor_gem_jade": {
+          "tag": "FINE_JADE_GEM",
+          "name": "Fine Jade Gemstone",
+          "reason": "Fills the armor Jade slots for Mining Fortune"
+        },
+        "mid:helmet": {
+          "tag": "SORROW_HELMET",
+          "name": "Sorrow Helmet",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:chestplate": {
+          "tag": "SORROW_CHESTPLATE",
+          "name": "Sorrow Chestplate",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:leggings": {
+          "tag": "SORROW_LEGGINGS",
+          "name": "Sorrow Leggings",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:boots": {
+          "tag": "SORROW_BOOTS",
+          "name": "Sorrow Boots",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:armor_gem_amber": {
+          "tag": "FINE_AMBER_GEM",
+          "name": "Fine Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "mid:armor_gem_jade": {
+          "tag": "FINE_JADE_GEM",
+          "name": "Fine Jade Gemstone",
+          "reason": "Fills the armor Jade and Universal slots for Mining Fortune"
+        },
+        "endgame:helmet": {
+          "tag": "DIVAN_HELMET",
+          "name": "Helmet of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:chestplate": {
+          "tag": "DIVAN_CHESTPLATE",
+          "name": "Chestplate of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:leggings": {
+          "tag": "DIVAN_LEGGINGS",
+          "name": "Leggings of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:boots": {
+          "tag": "DIVAN_BOOTS",
+          "name": "Boots of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:armor_gem_amber": {
+          "tag": "FLAWLESS_AMBER_GEM",
+          "name": "Flawless Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "endgame:armor_gem_jade": {
+          "tag": "FLAWLESS_JADE_GEM",
+          "name": "Flawless Jade Gemstone",
+          "reason": "Fills the armor Jade slots for Mining Fortune"
         }
       },
       "statOverrides": {
@@ -650,14 +929,27 @@
         },
         "budget": {
           "Mining Speed": 3027,
-          "Mining Fortune": 780
+          "Mining Fortune": 780,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Dwarven Metal Fortune": 0,
+          "Mining Spread": 300
         },
         "mid": {
           "Mining Speed": 3219,
-          "Mining Fortune": 840
+          "Mining Fortune": 840,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Dwarven Metal Fortune": 0,
+          "Mining Spread": 300
         },
         "endgame": {
-          "Dwarven Metal Fortune": 15
+          "Dwarven Metal Fortune": 15,
+          "Mining Speed": 4925,
+          "Mining Fortune": 1165,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Mining Spread": 300
         }
       }
     },
@@ -691,6 +983,96 @@
           "tag": "DWARVEN_METAL",
           "name": "Dwarven Metal Talisman",
           "reason": "Dwarven Metal Fortune for metal blocks"
+        },
+        "budget:helmet": {
+          "tag": "ARMOR_OF_YOG_HELMET",
+          "name": "Yog Helmet",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:chestplate": {
+          "tag": "ARMOR_OF_YOG_CHESTPLATE",
+          "name": "Yog Chestplate",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:leggings": {
+          "tag": "ARMOR_OF_YOG_LEGGINGS",
+          "name": "Yog Leggings",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:boots": {
+          "tag": "ARMOR_OF_YOG_BOOTS",
+          "name": "Yog Boots",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:armor_gem_amber": {
+          "tag": "FINE_AMBER_GEM",
+          "name": "Fine Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "budget:armor_gem_jade": {
+          "tag": "FINE_JADE_GEM",
+          "name": "Fine Jade Gemstone",
+          "reason": "Fills the armor Jade slots for Mining Fortune"
+        },
+        "mid:helmet": {
+          "tag": "SORROW_HELMET",
+          "name": "Sorrow Helmet",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:chestplate": {
+          "tag": "SORROW_CHESTPLATE",
+          "name": "Sorrow Chestplate",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:leggings": {
+          "tag": "SORROW_LEGGINGS",
+          "name": "Sorrow Leggings",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:boots": {
+          "tag": "SORROW_BOOTS",
+          "name": "Sorrow Boots",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:armor_gem_amber": {
+          "tag": "FINE_AMBER_GEM",
+          "name": "Fine Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "mid:armor_gem_jade": {
+          "tag": "FINE_JADE_GEM",
+          "name": "Fine Jade Gemstone",
+          "reason": "Fills the armor Jade and Universal slots for Mining Fortune"
+        },
+        "endgame:helmet": {
+          "tag": "DIVAN_HELMET",
+          "name": "Helmet of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:chestplate": {
+          "tag": "DIVAN_CHESTPLATE",
+          "name": "Chestplate of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:leggings": {
+          "tag": "DIVAN_LEGGINGS",
+          "name": "Leggings of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:boots": {
+          "tag": "DIVAN_BOOTS",
+          "name": "Boots of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:armor_gem_amber": {
+          "tag": "FLAWLESS_AMBER_GEM",
+          "name": "Flawless Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "endgame:armor_gem_jade": {
+          "tag": "FLAWLESS_JADE_GEM",
+          "name": "Flawless Jade Gemstone",
+          "reason": "Fills the armor Jade slots for Mining Fortune"
         }
       },
       "statOverrides": {
@@ -700,14 +1082,391 @@
         },
         "budget": {
           "Mining Speed": 3027,
-          "Mining Fortune": 780
+          "Mining Fortune": 780,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Dwarven Metal Fortune": 0,
+          "Mining Spread": 300
         },
         "mid": {
           "Mining Speed": 3219,
-          "Mining Fortune": 840
+          "Mining Fortune": 840,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Dwarven Metal Fortune": 0,
+          "Mining Spread": 300
         },
         "endgame": {
-          "Dwarven Metal Fortune": 15
+          "Dwarven Metal Fortune": 15,
+          "Mining Speed": 4925,
+          "Mining Fortune": 1165,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Mining Spread": 300
+        }
+      }
+    },
+    {
+      "task": "Sludge Mining",
+      "modelOverrides": {
+        "blockStrength": 50,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Block Fortune"
+        ]
+      }
+    },
+    {
+      "task": "Sludge Mining (Gem Mixture)",
+      "modelOverrides": {
+        "blockStrength": 50,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Block Fortune"
+        ]
+      }
+    },
+    {
+      "task": "Jungle Powder Mining",
+      "modelOverrides": {
+        "blockStrength": 50,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Block Fortune"
+        ]
+      }
+    },
+    {
+      "task": "Goblin Holdout Powder Mining",
+      "modelOverrides": {
+        "blockStrength": 50,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Block Fortune"
+        ]
+      }
+    },
+    {
+      "task": "Precursor City Powder Mining",
+      "modelOverrides": {
+        "blockStrength": 50,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Block Fortune"
+        ]
+      }
+    },
+    {
+      "task": "Crystal Hollows Powder Mining",
+      "modelOverrides": {
+        "blockStrength": 50,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Block Fortune"
+        ]
+      }
+    },
+    {
+      "task": "Scatha Mining",
+      "modelOverrides": {
+        "blockStrength": 50,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Block Fortune"
+        ]
+      }
+    },
+    {
+      "task": "Mithril Deposits Powder Mining",
+      "modelOverrides": {
+        "blockStrength": 800,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Dwarven Metal Fortune"
+        ]
+      },
+      "itemOverrides": {
+        "endgame:accessory2": {
+          "tag": "DWARVEN_METAL",
+          "name": "Dwarven Metal Talisman",
+          "reason": "Dwarven Metal Fortune for metal blocks"
+        },
+        "budget:helmet": {
+          "tag": "ARMOR_OF_YOG_HELMET",
+          "name": "Yog Helmet",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:chestplate": {
+          "tag": "ARMOR_OF_YOG_CHESTPLATE",
+          "name": "Yog Chestplate",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:leggings": {
+          "tag": "ARMOR_OF_YOG_LEGGINGS",
+          "name": "Yog Leggings",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:boots": {
+          "tag": "ARMOR_OF_YOG_BOOTS",
+          "name": "Yog Boots",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:armor_gem_amber": {
+          "tag": "FINE_AMBER_GEM",
+          "name": "Fine Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "budget:armor_gem_jade": {
+          "tag": "FINE_JADE_GEM",
+          "name": "Fine Jade Gemstone",
+          "reason": "Fills the armor Jade slots for Mining Fortune"
+        },
+        "mid:helmet": {
+          "tag": "SORROW_HELMET",
+          "name": "Sorrow Helmet",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:chestplate": {
+          "tag": "SORROW_CHESTPLATE",
+          "name": "Sorrow Chestplate",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:leggings": {
+          "tag": "SORROW_LEGGINGS",
+          "name": "Sorrow Leggings",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:boots": {
+          "tag": "SORROW_BOOTS",
+          "name": "Sorrow Boots",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:armor_gem_amber": {
+          "tag": "FINE_AMBER_GEM",
+          "name": "Fine Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "mid:armor_gem_jade": {
+          "tag": "FINE_JADE_GEM",
+          "name": "Fine Jade Gemstone",
+          "reason": "Fills the armor Jade and Universal slots for Mining Fortune"
+        },
+        "endgame:helmet": {
+          "tag": "DIVAN_HELMET",
+          "name": "Helmet of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:chestplate": {
+          "tag": "DIVAN_CHESTPLATE",
+          "name": "Chestplate of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:leggings": {
+          "tag": "DIVAN_LEGGINGS",
+          "name": "Leggings of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:boots": {
+          "tag": "DIVAN_BOOTS",
+          "name": "Boots of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:armor_gem_amber": {
+          "tag": "FLAWLESS_AMBER_GEM",
+          "name": "Flawless Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "endgame:armor_gem_jade": {
+          "tag": "FLAWLESS_JADE_GEM",
+          "name": "Flawless Jade Gemstone",
+          "reason": "Fills the armor Jade slots for Mining Fortune"
+        }
+      },
+      "statOverrides": {
+        "endgame": {
+          "Dwarven Metal Fortune": 15,
+          "Mining Speed": 4925,
+          "Mining Fortune": 1165,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Mining Spread": 300
+        },
+        "budget": {
+          "Mining Speed": 2877,
+          "Mining Fortune": 795,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Dwarven Metal Fortune": 0,
+          "Mining Spread": 300
+        },
+        "mid": {
+          "Mining Speed": 3319,
+          "Mining Fortune": 865,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Dwarven Metal Fortune": 0,
+          "Mining Spread": 300
+        }
+      }
+    },
+    {
+      "task": "Glacite Mineshafts",
+      "modelOverrides": {
+        "blockStrength": 5600,
+        "instamineFactor": 60,
+        "fortuneStats": [
+          "Mining Fortune",
+          "Dwarven Metal Fortune"
+        ]
+      },
+      "itemOverrides": {
+        "baseline:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Cheapest drill with the Breaking Power for Glacite, Umber and Tungsten; Efficiency V and Fortune IV books applied"
+        },
+        "budget:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Cheapest drill with the Breaking Power for Glacite, Umber and Tungsten; Efficiency V and Fortune IV books applied"
+        },
+        "mid:tool": {
+          "tag": "GEMSTONE_DRILL_4",
+          "name": "Jasper Drill X",
+          "reason": "Cheapest drill with the Breaking Power for Glacite, Umber and Tungsten; Efficiency V and Fortune IV books applied"
+        },
+        "endgame:accessory2": {
+          "tag": "DWARVEN_METAL",
+          "name": "Dwarven Metal Talisman",
+          "reason": "Dwarven Metal Fortune for metal blocks"
+        },
+        "budget:helmet": {
+          "tag": "ARMOR_OF_YOG_HELMET",
+          "name": "Yog Helmet",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:chestplate": {
+          "tag": "ARMOR_OF_YOG_CHESTPLATE",
+          "name": "Yog Chestplate",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:leggings": {
+          "tag": "ARMOR_OF_YOG_LEGGINGS",
+          "name": "Yog Leggings",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:boots": {
+          "tag": "ARMOR_OF_YOG_BOOTS",
+          "name": "Yog Boots",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "budget:armor_gem_amber": {
+          "tag": "FINE_AMBER_GEM",
+          "name": "Fine Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "budget:armor_gem_jade": {
+          "tag": "FINE_JADE_GEM",
+          "name": "Fine Jade Gemstone",
+          "reason": "Fills the armor Jade slots for Mining Fortune"
+        },
+        "mid:helmet": {
+          "tag": "SORROW_HELMET",
+          "name": "Sorrow Helmet",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:chestplate": {
+          "tag": "SORROW_CHESTPLATE",
+          "name": "Sorrow Chestplate",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:leggings": {
+          "tag": "SORROW_LEGGINGS",
+          "name": "Sorrow Leggings",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:boots": {
+          "tag": "SORROW_BOOTS",
+          "name": "Sorrow Boots",
+          "reason": "Armor with Mining Speed and Mining Fortune and gemstone slots"
+        },
+        "mid:armor_gem_amber": {
+          "tag": "FINE_AMBER_GEM",
+          "name": "Fine Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "mid:armor_gem_jade": {
+          "tag": "FINE_JADE_GEM",
+          "name": "Fine Jade Gemstone",
+          "reason": "Fills the armor Jade and Universal slots for Mining Fortune"
+        },
+        "endgame:helmet": {
+          "tag": "DIVAN_HELMET",
+          "name": "Helmet of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:chestplate": {
+          "tag": "DIVAN_CHESTPLATE",
+          "name": "Chestplate of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:leggings": {
+          "tag": "DIVAN_LEGGINGS",
+          "name": "Leggings of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:boots": {
+          "tag": "DIVAN_BOOTS",
+          "name": "Boots of Divan",
+          "reason": "Best mining armor with gemstone slots"
+        },
+        "endgame:armor_gem_amber": {
+          "tag": "FLAWLESS_AMBER_GEM",
+          "name": "Flawless Amber Gemstone",
+          "reason": "Fills the armor Amber slots for Mining Speed"
+        },
+        "endgame:armor_gem_jade": {
+          "tag": "FLAWLESS_JADE_GEM",
+          "name": "Flawless Jade Gemstone",
+          "reason": "Fills the armor Jade slots for Mining Fortune"
+        }
+      },
+      "statOverrides": {
+        "baseline": {
+          "Mining Speed": 2850,
+          "Mining Fortune": 505
+        },
+        "budget": {
+          "Mining Speed": 3027,
+          "Mining Fortune": 780,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Dwarven Metal Fortune": 0,
+          "Mining Spread": 300
+        },
+        "mid": {
+          "Mining Speed": 3219,
+          "Mining Fortune": 840,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Dwarven Metal Fortune": 0,
+          "Mining Spread": 300
+        },
+        "endgame": {
+          "Dwarven Metal Fortune": 15,
+          "Mining Speed": 4925,
+          "Mining Fortune": 1165,
+          "Ore Fortune": 100,
+          "Block Fortune": 100,
+          "Mining Spread": 300
         }
       }
     }

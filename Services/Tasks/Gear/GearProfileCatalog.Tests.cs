@@ -152,8 +152,15 @@ public class GearProfileCatalogTests
         NeuItemExists(itemsDir, "SYNTHETIC_HELMET_BUDGET").Should().BeFalse();
     }
 
-    private static string NeuItemsDir() => Path.GetFullPath(Path.Combine(
-        AppContext.BaseDirectory, "..", "..", "..", "..", "NotEnoughUpdates-REPO", "items"));
+    /// <summary>NEU_REPO_DIR overrides the checkout, for a local clone that is behind upstream/master.</summary>
+    private static string NeuItemsDir()
+    {
+        var overrideDir = Environment.GetEnvironmentVariable("NEU_REPO_DIR");
+        if (!string.IsNullOrEmpty(overrideDir))
+            return Path.Combine(overrideDir, "items");
+        return Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory, "..", "..", "..", "..", "NotEnoughUpdates-REPO", "items"));
+    }
 
     /// <summary>NEU stores plain items as TAG.json and pets (PET_X) as X;&lt;rarity&gt;.json.</summary>
     private static bool NeuItemExists(string itemsDir, string tag)
@@ -634,5 +641,75 @@ public class GearProfileCatalogTests
         var errors = GearProfileValidator.RegistryErrors(catalog, Registry);
         errors.Should().Contain(e => e.Contains("unlocksTask 'Kuudra T9'"));
         errors.Should().Contain(e => e.Contains("tier 'Kuudra T9'"));
+    }
+
+    // ── shipped profile content (gear review 2026-11-12) ──
+
+    private static GearProfile Shipped(string task) =>
+        GearProfileCatalog.Embedded.TryGet(task, out var bound) ? GearBindingResolver.Resolve(bound.Profile, bound.Binding).Profile with
+        {
+            Baseline = GearBindingResolver.Resolve(bound.Profile, bound.Binding).Baseline,
+            Setups = GearBindingResolver.Resolve(bound.Profile, bound.Binding).Setups.ToList()
+        } : throw new AssertionException($"{task} has no gear profile");
+
+    private static GearSetup SetupOf(GearProfile profile, string id) => profile.AllSetups().Single(s => s.Id == id);
+
+    /// <summary>Regression: tasks whose base activity has a profile had no setups at all.</summary>
+    [TestCase("Crimson Fishing (Hunting)")]
+    [TestCase("Bayou Fishing (Hunting)")]
+    [TestCase("Galatea Fishing (Hunting)")]
+    [TestCase("Water Fishing (Hunting)")]
+    [TestCase("Glacite Mineshafts")]
+    [TestCase("Scatha Mining")]
+    [TestCase("Sludge Mining")]
+    [TestCase("Sludge Mining (Gem Mixture)")]
+    [TestCase("Jungle Powder Mining")]
+    [TestCase("Goblin Holdout Powder Mining")]
+    [TestCase("Precursor City Powder Mining")]
+    [TestCase("Mithril Deposits Powder Mining")]
+    [TestCase("Crystal Hollows Powder Mining")]
+    public void ActivityVariants_HaveAGearProfile(string task)
+        => GearProfileCatalog.Embedded.TryGet(task, out _).Should().BeTrue();
+
+    /// <summary>Regression: Mining Spread was 300 in every tier and the Mineral armor the measured setups pick was never offered.</summary>
+    [Test]
+    public void OreMining_OffersMineralArmorAndGrowingSpread()
+    {
+        var coal = Shipped("Coal Mining");
+
+        SetupOf(coal, "budget").Items.Single(i => i.Slot == "helmet").ItemTag.Should().Be("MINERAL_HELMET");
+        SetupOf(coal, "mid").Items.Single(i => i.Slot == "helmet").ItemTag.Should().Be("GLOSSY_MINERAL_HELMET");
+        var spread = coal.AllSetups().Select(s => s.Stats["Mining Spread"]).ToList();
+        spread.Should().BeInAscendingOrder().And.HaveCount(4);
+        spread.Distinct().Count().Should().BeGreaterThan(2);
+    }
+
+    [Test]
+    public void DwarvenMetalMining_KeepsTheMiningSpeedArmorAndFlatSpread()
+    {
+        var mithril = Shipped("Mithril Mining");
+
+        SetupOf(mithril, "budget").Items.Single(i => i.Slot == "helmet").ItemTag.Should().Be("ARMOR_OF_YOG_HELMET");
+        SetupOf(mithril, "endgame").Items.Single(i => i.Slot == "helmet").ItemTag.Should().Be("DIVAN_HELMET");
+        mithril.AllSetups().Select(s => s.Stats["Mining Spread"]).Distinct().Should().ContainSingle();
+    }
+
+    /// <summary>Regression: the Jasper drill was labelled a "Starter gemstone drill" for baseline, budget and mid.</summary>
+    [Test]
+    public void GemMining_NoSetupIsCalledAStarterDrill()
+    {
+        var jasper = Shipped("Jasper Mining");
+
+        jasper.AllSetups().Select(s => s.Name).Should().NotContain(n => n.Contains("drill", StringComparison.OrdinalIgnoreCase) && n.Contains("Starter"));
+        SetupOf(jasper, "baseline").Items.Single(i => i.Slot == "tool").Reason.Should().Contain("every tier");
+    }
+
+    /// <summary>Regression: Kuudra setups had no weapon below endgame while the task steps ask for a Hyperion.</summary>
+    [Test]
+    public void Kuudra_EverySetupHasAWeapon()
+    {
+        var t1 = Shipped("Kuudra T1");
+
+        t1.AllSetups().Should().OnlyContain(s => s.Items.Any(i => i.Slot == "weapon"));
     }
 }

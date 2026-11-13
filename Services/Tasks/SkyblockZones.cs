@@ -109,6 +109,34 @@ public static class SkyblockZones
     }
 
     /// <summary>
+    /// Like <see cref="IslandOf"/>, but also resolves an island name used as a location ("Moonglade", "Garden").
+    /// For task metadata (requirements, guidance) only: detection keeps <see cref="IslandOf"/> so the
+    /// classifier's tab-island fallback behaves as before.
+    /// </summary>
+    public static string IslandOfLocation(string location)
+    {
+        var island = IslandOf(location);
+        if (island != null)
+            return island;
+        var canonical = Canonical(location);
+        return canonical != null && KnownIslands.Contains(canonical) ? canonical : null;
+    }
+
+    /// <summary>Island names themselves, tasks declare them as locations ("Moonglade", "Garden") and they are not zones.</summary>
+    private static readonly HashSet<string> KnownIslands = [.. ZoneToIsland.Values];
+
+    /// <summary>Islands whose short internal name reads oddly to players.</summary>
+    private static readonly Dictionary<string, string> IslandDisplayNames = new(StringComparer.Ordinal)
+    {
+        ["Jerry"] = "Jerry's Workshop",
+        ["Kuudra"] = "Kuudra's Hollow",
+    };
+
+    /// <summary>The name to show players for an island, the island itself when it reads fine. Null stays null.</summary>
+    public static string IslandDisplayName(string island) =>
+        island != null && IslandDisplayNames.TryGetValue(island, out var display) ? display : island;
+
+    /// <summary>
     /// All zones known to belong to <paramref name="island"/> (does not include the island name
     /// itself unless it was also registered as a zone, e.g. "Crystal Hollows").
     /// </summary>

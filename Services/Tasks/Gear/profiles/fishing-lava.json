@@ -253,12 +253,6 @@
       }
     },
     {
-      "task": "Crimson Hotspot Fishing",
-      "modelOverrides": {
-        "bulkFrom": "creatures"
-      }
-    },
-    {
       "task": "Magma Core Fishing",
       "modelOverrides": {
         "bulkFrom": "creatures",
@@ -270,6 +264,12 @@
       "modelOverrides": {
         "bulkFrom": "creatures",
         "fishingSpeedCap": 300
+      }
+    },
+    {
+      "task": "Crimson Fishing (Hunting)",
+      "modelOverrides": {
+        "bulkFrom": "creatures"
       }
     }
   ]

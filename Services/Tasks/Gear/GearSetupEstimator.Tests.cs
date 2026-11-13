@@ -367,6 +367,52 @@ public class GearSetupEstimatorTests
         Setup(result, "endgame").Confidence.Should().Be("low");
     }
 
+    private static TaskGearSetups TierPage(string task, Func<string, double?> rateOf)
+    {
+        TaskEstimate? Rate(string name) => rateOf(name) is { } r ? Community(name, r) : null;
+        return GearSetupEstimator.Estimate(new GearEstimateInput(task, Resolve(GearFixtures.All(), task), Rate(task),
+            RevenueShares.Unknown, Rate, null));
+    }
+
+    /// <summary>Regression: gear for F6 (1.50M) was offered on F1-F4 although F5 (2.01M), which it also does, earns more.</summary>
+    [Test]
+    public void TierUnlock_UpgradeEarnsTheBestTierItReaches_NotJustTheUnlockedOne()
+    {
+        // T1 1, T2 2, T3 (budget unlock) 1.5, T4 4, T5 5
+        var rates = new Dictionary<string, double> { ["Kuudra T1"] = C, ["Kuudra T2"] = 2 * C, ["Kuudra T3"] = 1.5 * C, ["Kuudra T4"] = 4 * C, ["Kuudra T5"] = 5 * C };
+
+        var page = TierPage("Kuudra T1", name => rates.GetValueOrDefault(name));
+
+        Setup(page, "budget").CoinsPerHour.Should().Be(2 * C);
+        Setup(page, "budget").DeltaCoinsPerHour.Should().Be(C);
+        Setup(page, "budget").Assumptions.Should().Contain(a => a.Contains("Kuudra T2"));
+    }
+
+    [Test]
+    public void TierUnlock_GearThatOnlyUnlocksLowerEarningTiers_IsNotAnUpgrade()
+    {
+        var rates = new Dictionary<string, double> { ["Kuudra T1"] = 3 * C, ["Kuudra T2"] = C, ["Kuudra T3"] = 2 * C, ["Kuudra T4"] = 4 * C, ["Kuudra T5"] = 5 * C };
+
+        var page = TierPage("Kuudra T1", name => rates.GetValueOrDefault(name));
+
+        Setup(page, "budget").Status.Should().Be(GearSetupStatus.Reached);
+        Setup(page, "budget").DeltaCoinsPerHour.Should().BeNull();
+        Setup(page, "mid").Status.Should().Be(GearSetupStatus.Upgrade);
+    }
+
+    /// <summary>Regression: the M7 baseline claimed the Adaptive starter kit earns the M7 community rate.</summary>
+    [Test]
+    public void TierUnlock_BaselineOfATierTheStarterKitCannotDo_ClaimsNoGear()
+    {
+        var low = TierPage("Kuudra T1");
+        var high = TierPage("Kuudra T4");
+
+        low.Baseline.Items.Should().NotBeEmpty();
+        high.Baseline.Name.Should().Be(GearSetupEstimator.UnknownGearBaselineName);
+        high.Baseline.Items.Should().BeEmpty();
+        high.BaselineCoinsPerHour.Should().Be(4 * C);
+    }
+
     // ── every binding, shipped and synthetic ──
 
     private static List<BoundGearProfile> AllBindings()

@@ -34,6 +34,10 @@ public static class AreaRequirements
         ["Glacite Tunnels"] = () => [TaskRequirement.HeartOfTheMountain(7)],
         ["Great Glacite Lake"] = () => [TaskRequirement.HeartOfTheMountain(7)],
         ["Glacite Mineshafts"] = () => [TaskRequirement.HeartOfTheMountain(7)],
+        // the Base Camp (and the Fossil Research Center in it) is behind the same HOTM 7 railroad pass
+        // (hypixelskyblock.minecraft.wiki/w/Dwarven_Base_Camp)
+        ["Dwarven Base Camp"] = () => [TaskRequirement.HeartOfTheMountain(7)],
+        ["Fossil Research Center"] = () => [TaskRequirement.HeartOfTheMountain(7)],
         ["Zealot Bruiser Hideout"] = () => [TaskRequirement.Skill("combat", 20)],
         ["Void Sepulture"] = () => [TaskRequirement.Skill("combat", 25)],
     };
@@ -42,7 +46,7 @@ public static class AreaRequirements
     public static List<TaskRequirement> ForZone(string zone)
     {
         var result = new List<TaskRequirement>();
-        var island = SkyblockZones.IslandOf(zone);
+        var island = SkyblockZones.IslandOfLocation(zone);
         if (island != null && Islands.TryGetValue(island, out var forIsland))
             result.AddRange(forIsland());
         var canonical = SkyblockZones.Canonical(zone);

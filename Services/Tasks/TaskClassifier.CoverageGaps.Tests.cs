@@ -23,7 +23,7 @@ public class TaskClassifierCoverageGapsTests
     [
         "Crimson Isle Mobs", "Galatea Contests", "Glacite Walker", "Chill (Hunting)", "Honeybuzz (Hunting)",
         "Yog and Bal", "Barn Animals", "Farm and Barn Crops", "Dungeon Chest Claims",
-        "Torrhus Springs (Hunting)", "Spirit Cave (Hunting)", "Lapis Zombie (Hunting)"
+        "Spring Critters (Hunting)", "Howling Spirit (Hunting)", "Lapis Zombie (Hunting)"
     ];
 
     // ── the fallback guarantee itself ──
@@ -167,8 +167,8 @@ public class TaskClassifierCoverageGapsTests
     {
         // the Garden keeps its crop task
         Classify("The Garden", new() { { "WHEAT", 300 }, { "SEEDS", 400 } }).Should().Be("Wheat Farming");
-        // a Hub farm Diana burrow period with one stray carrot stays Diana
-        Classify("Farm", new() { { "ENCHANTED_GOLD", 24 }, { "ROTTEN_FLESH", 5 }, { "CARROT_ITEM", 1 } }).Should().Be("Diana");
+        // a Hub farm Diana burrow period with one stray carrot stays Diana (the feather proves the dig, gold alone would not)
+        Classify("Farm", new() { { "GRIFFIN_FEATHER", 2 }, { "ENCHANTED_GOLD", 24 }, { "ROTTEN_FLESH", 5 }, { "CARROT_ITEM", 1 } }).Should().Be("Diana");
         // the Mushroom Desert keeps its mushroom task
         Classify("Mushroom Desert", new() { { "RED_MUSHROOM", 100 } }).Should().Be("Red Mushroom");
         Classify("The Barn", new() { { PseudoItems.BAZAAR_PURCHASE, 5000 }, { "WHEAT", 100 } }).Should().Be("Bazaar Purchases");
@@ -269,9 +269,9 @@ public class TaskClassifierCoverageGapsTests
     [TestCase("Spring Depths", "SHARD_EMBER", 9)]
     [TestCase("Torrhus Springs", "SHARD_WATER_SNAKE", 3)]
     [TestCase("Spring Path", "SHARD_SOLAR", 5)]
-    public void TorrhusSpringShards_ClassifyToTorrhusSpringsHunting(string zone, string shard, int count)
+    public void TorrhusSpringShards_ClassifyToSpringCrittersHunting(string zone, string shard, int count)
     {
-        Classify(zone, new() { { shard, count } }).Should().Be("Torrhus Springs (Hunting)");
+        Classify(zone, new() { { shard, count } }).Should().Be("Spring Critters (Hunting)");
     }
 
     [Test]
@@ -300,11 +300,37 @@ public class TaskClassifierCoverageGapsTests
         Classify("Murkwater Shallows", new() { { "SEA_LUMIES", 1 } }).Should().BeNull();
     }
 
-    [TestCase("Spirit Cave", "SHARD_SOUL_OF_THE_ALPHA", 106)]
     [TestCase("Howling Cave", "SHARD_HOWLING_SPIRIT", 16)]
-    public void SpiritCaveShards_ClassifyToSpiritCaveHunting(string zone, string shard, int count)
+    public void HowlingSpiritShards_ClassifyToHowlingSpiritHunting(string zone, string shard, int count)
     {
-        Classify(zone, new() { { shard, count } }).Should().Be("Spirit Cave (Hunting)");
+        Classify(zone, new() { { shard, count } }).Should().Be("Howling Spirit (Hunting)");
+    }
+
+    [TestCase("Spirit Cave", 106)]
+    [TestCase("Soul Cave", 12)]
+    [TestCase("Howling Cave", 30)]
+    public void SoulOfTheAlphaShards_ClassifyToSoulOfTheAlphaHunting(string zone, int count)
+    {
+        Classify(zone, new() { { "SHARD_SOUL_OF_THE_ALPHA", count } }).Should().Be("Soul of the Alpha (Hunting)");
+    }
+
+    [Test]
+    public void HowlingSpirit_IsNoLongerTheSpiritCave_AndNeitherFallbackTakesAMixedPeriodFromTheMoreValuableOne()
+    {
+        // the Spirit Cave only has Souls of the Alpha now (wiki: Howling Spirits spawn in the Howling Cave)
+        Classify("Spirit Cave", new() { { "SHARD_HOWLING_SPIRIT", 3 } }).Should().BeNull();
+        var items = new Dictionary<string, int> { { "SHARD_HOWLING_SPIRIT", 5 }, { "SHARD_SOUL_OF_THE_ALPHA", 2 } };
+        Classify("Howling Cave", items, new() { { "SHARD_HOWLING_SPIRIT", 100 }, { "SHARD_SOUL_OF_THE_ALPHA", 15_800 } })
+            .Should().Be("Soul of the Alpha (Hunting)");
+        Classify("Howling Cave", items, new() { { "SHARD_HOWLING_SPIRIT", 15_800 }, { "SHARD_SOUL_OF_THE_ALPHA", 100 } })
+            .Should().Be("Howling Spirit (Hunting)");
+    }
+
+    [Test]
+    public void SoulOfTheAlpha_SvenDropsStillGoToSvenSlayer()
+    {
+        Classify("Howling Cave", new() { { "WOLF_TOOTH", 20 }, { "SHARD_SOUL_OF_THE_ALPHA", 2 } },
+            new() { { "WOLF_TOOTH", 10 }, { "SHARD_SOUL_OF_THE_ALPHA", 1_000_000 } }).Should().Be("Sven Slayer");
     }
 
     [Test]

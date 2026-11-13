@@ -36,11 +36,11 @@ public class TaskCatalogRegistrationTests
     private static readonly string[] ExpectedRegisteredTaskNames =
     [
         "AmberMiningTask", "AuctionPurchaseTask", "AutomatonTask", "BackwaterBayouTask", "BambuleafTask",
-        "BarbarianDukeXTask", "BayouFishingHuntingTask", "BayouFishingTask", "BayouHotspotFishingHuntingTask",
-        "BayouHotspotFishingTask", "BazaarPurchaseTask", "BezalHuntingTask", "BirriesHuntingTask", "BladesoulTask", "BlazeSlayerTask", "BrownMushroomTask", "BruiserHuntingTask",
+        "BarbarianDukeXTask", "BayouFishingHuntingTask", "BayouFishingTask",
+        "BazaarPurchaseTask", "BezalHuntingTask", "BirriesHuntingTask", "BladesoulTask", "BlazeSlayerTask", "BrownMushroomTask", "BruiserHuntingTask",
         "BurningsoulTask", "CactusFarmingTask", "CarrotFarmingTask", "CoalMiningTask", "CobblestoneMiningTask",
         "CocoaBeansFarmingTask", "ComposterTask", "CoralotTask",
-        "CrimsonFishingHuntingTask", "CrimsonFishingTask", "CrimsonHotspotFishingTask", "CrimsonIsleTask",
+        "CrimsonFishingHuntingTask", "CrimsonFishingTask", "CrimsonIsleTask",
         "CritterSafariTask", "CrystalHollowsPowderMiningTask",
         "DailyCrimsonQuestsTask", "DeepCavernsTask", "DiamondMiningTask", "DianaTask",
         "DreadwingTask", "DrownedTask", "DwarvenMinesMiningTask", "EndStoneMiningTask", "EnderDragonTask", "ExperimentationTableTask",
@@ -71,6 +71,9 @@ public class TaskCatalogRegistrationTests
         "WheatFarmingTask", "WildRoseFarmingTask",
         "WinterFishingTask", "WitherSpecterHuntingTask", "XyzHuntingTask", "YogHuntingTask", "ZealotHuntingTask",
         "ZealotsFdTask",
+        // NonHuntingGapTasks.cs
+        "XyzMysticMarshTask", "CorleoneTask", "ToxicRainSlimeTask", "ArachneTask", "MagmaBossTask", "KadaKnightTask",
+        "RedSandMiningTask", "QuartzMiningTask", "SandMiningTask", "GlacialCaveTask",
         // CoverageGapTasks.cs
         "CrimsonIsleMobsTask", "GalateaContestsTask", "GlaciteWalkerTask", "ChillHuntingTask", "HoneybuzzHuntingTask",
         "YogAndBalTask", "BarnAnimalsTask", "FarmAndBarnCropsTask", "DungeonChestClaimsTask",
@@ -79,7 +82,12 @@ public class TaskCatalogRegistrationTests
         "OakForagingTask", "BirchForagingTask", "SpruceForagingTask", "DarkOakForagingTask", "AcaciaForagingTask", "JungleForagingTask",
         "RubyMiningTask", "TopazMiningTask", "AquamarineMiningTask", "CitrineMiningTask", "OnyxMiningTask", "FossilExcavationTask",
         "GlaciteMineshaftTask", "GoldMiningTask", "IronMiningTask", "LapisMiningTask", "EmeraldMiningTask",
-        "DungBeetleHuntingTask", "HideonsunHuntingTask", "TorrhusCanyonHuntingTask", "LunarMothTrappingTask", "StridersurferTask", "TarantulaSlayerTask"
+        "DungBeetleHuntingTask", "HideonsunHuntingTask", "TorrhusCanyonHuntingTask", "LunarMothTrappingTask", "StridersurferTask", "TarantulaSlayerTask",
+        // HuntingGapTasks.cs: per-shard hunts split out of Critter Safari, Torrhus Springs, Spirit Cave, Helix/Honeycomb and the fallbacks
+        "CritterSafariHauntedTask", "CritterSafariForestTask", "CritterSafariCavernTask", "CritterSafariIcyTask",
+        "MangroveHoneyLatheringTask", "FigHoneyLatheringTask", "HelixHoneyLatheringTask", "LotusLilyPadCrittersTask",
+        "TewtilHuntingTask", "LotumHuntingTask", "TorrhusSeaCreaturesHuntingTask", "SepialotGoldolotHuntingTask",
+        "AntHuntingTask", "ThystHuntingTask", "SoulOfTheAlphaHuntingTask", "DiveGhastHuntingTask", "CinderbatHuntingTask"
     ];
 
     [Test]

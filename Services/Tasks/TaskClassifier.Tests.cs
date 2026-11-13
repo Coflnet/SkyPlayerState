@@ -64,12 +64,13 @@ public class TaskClassifierTests
     // ── Tie breaking ──
 
     [Test]
-    public void HotspotBeatsPlainFishing_ItemEvidenceOverLocationOnly()
+    public void SpookyBaitAtTheBayou_BeatsAMatchingLocationOnlyTask()
     {
-        var items = new Dictionary<string, int> { { "HOTSPOT_CATCH", 8 }, { "RAW_FISH", 100 } };
+        // Bayou Fishing is location-only: the spent Spooky Bait is item evidence, so Spooky Fishing wins over it
+        var items = new Dictionary<string, int> { { "SPOOKY_BAIT", -8 }, { "RAW_FISH", 100 } };
         var result = Classifier.Classify("Backwater Bayou", items, 15);
         result.Should().NotBeNull();
-        result.TaskName.Should().Be("Bayou Hotspot Fishing");
+        result.TaskName.Should().Be("Spooky Fishing");
         result.ItemMatched.Should().BeTrue();
     }
 
@@ -144,10 +145,10 @@ public class TaskClassifierTests
     [Test]
     public void DetectionItemHitWithFewItems_StillClassifies()
     {
-        var items = new Dictionary<string, int> { { "HOTSPOT_CATCH", 2 } };
-        var result = Classifier.Classify("Backwater Bayou", items, 15);
+        var items = new Dictionary<string, int> { { "GRIFFIN_FEATHER", 2 } };
+        var result = Classifier.Classify("Ruins", items, 15);
         result.Should().NotBeNull("a detection item hit is strong evidence even at low counts");
-        result.TaskName.Should().Be("Bayou Hotspot Fishing");
+        result.TaskName.Should().Be("Diana");
     }
 
     [Test]
@@ -1056,12 +1057,14 @@ public class TaskClassifierTests
     }
 
     [Test]
-    public void CritterSafariWithShard_ClassifiesToCritterSafari()
+    public void CritterSafariWithShard_ClassifiesToItsBiome_AndOtherPeriodsToCritterSafari()
     {
+        // Foxtrot is a Forest biome critter; the broad "Critter Safari" only keeps what no biome claims
         var items = new Dictionary<string, int> { { "SHARD_FOXTROT", 3 } };
         var result = Classifier.Classify("Critter Safari", items, 10);
         result.Should().NotBeNull();
-        result!.TaskName.Should().Be("Critter Safari");
+        result!.TaskName.Should().Be("Critter Safari: Forest");
+        Classifier.Classify("Critter Safari", new Dictionary<string, int> { { "ESSENCE_SAFARI", 4 } }, 10)!.TaskName.Should().Be("Critter Safari");
     }
 
     /// <summary>
@@ -1069,10 +1072,11 @@ public class TaskClassifierTests
     /// classified as Helix Foraging, which matched the whole Torrhus island.
     /// </summary>
     [Test]
-    public void CritterSafariWithHelixLogs_StaysCritterSafari()
+    public void CritterSafariWithHelixLogs_StaysInTheSafari()
     {
         var items = new Dictionary<string, int> { { "SHARD_BLOODBAT", 5 }, { "SHARD_HIDEONWALL", 3 }, { "HELIX_LOG", 100 } };
-        Classifier.Classify("Critter Safari", items, 10)!.TaskName.Should().Be("Critter Safari");
+        // Bloodbat and Hideonwall are Haunted biome critters: the shards decide the biome, the logs never matter
+        Classifier.Classify("Critter Safari", items, 10)!.TaskName.Should().Be("Critter Safari: Haunted");
         Classifier.Classify("Torrhus Heights", new() { { "HELIX_LOG", 100 } }, 10)!.TaskName.Should().Be("Helix Foraging");
         Classifier.Classify("Spring Path", new() { { "HELIX_LOG", 100 } }, 10)!.TaskName.Should().Be("Helix Foraging");
     }
@@ -1191,8 +1195,9 @@ public class TaskClassifierTests
         => Classifier.Classify("Ruins", new() { { tag, 1 } }, 10).Should().NotBeNull().And.Subject.As<Classification>().TaskName.Should().Be("Diana");
 
     [Test]
-    public void Diana_ForestEnchantedGoldOnly_IsDiana()
-        => Classifier.Classify("Forest", new() { { "ENCHANTED_GOLD", 8 } }, 10).Should().NotBeNull().And.Subject.As<Classification>().TaskName.Should().Be("Diana");
+    public void Diana_ForestEnchantedGoldOnly_IsNotDiana()
+        // gold is farmed and minion collected all over the Hub; production 2026-11 booked 29.8 h of it to Diana (8 Ancient Claws/h)
+        => Classifier.Classify("Forest", new() { { "ENCHANTED_GOLD", 8 } }, 10)?.TaskName.Should().NotBe("Diana");
 
     [Test]
     public void Diana_TradeCenterGriffinFeather_IsADianaTask()
@@ -2051,9 +2056,9 @@ public class TaskClassifierTests
         => NameAt("Torrhus Canyon", new() { { shard, 3 } }).Should().Be("Helix Foraging");
 
     [Test]
-    public void Pollendart_IsHoneycombGathering_AndHoneycombOutvaluesGroundhogs()
+    public void Pollendart_IsHelixHoneyLathering_AndHoneycombOutvaluesGroundhogs()
     {
-        NameAt("Torrhus Canyon", new() { { "SHARD_POLLENDART", 4 } }).Should().Be("Honeycomb Gathering");
+        NameAt("Torrhus Canyon", new() { { "SHARD_POLLENDART", 4 } }).Should().Be("Helix Honey Lathering");
         NameAtPriced("Torrhus Canyon", new() { { "HONEYCOMB", 400 }, { "SHARD_GROUNDHOG", 2 } }, Round2Prices).Should().Be("Honeycomb Gathering");
     }
 
@@ -2079,8 +2084,8 @@ public class TaskClassifierTests
     [Test]
     public void TorrhusSprings_OtherSpringCreaturesAndVeilshroom()
     {
-        NameAt("Torrhus Springs", new() { { "SHARD_DUSTYBIT", 3 }, { "RUBY_VEILSHROOM", 20 } }).Should().Be("Torrhus Springs (Hunting)");
-        NameAt("Spring Depths", new() { { "RUBY_VEILSHROOM", 25 } }).Should().Be("Torrhus Springs (Hunting)");
+        NameAt("Torrhus Springs", new() { { "SHARD_DUSTYBIT", 3 }, { "RUBY_VEILSHROOM", 20 } }).Should().Be("Spring Critters (Hunting)");
+        NameAt("Spring Depths", new() { { "RUBY_VEILSHROOM", 25 } }).Should().Be("Spring Critters (Hunting)");
     }
 
     [Test]
@@ -2205,10 +2210,6 @@ public class TaskClassifierTests
     [Test]
     public void PlainBayouPeriod_StaysBayouFishing()
         => NameAt("Backwater Bayou", new() { { "RAW_FISH", 100 }, { "WATER_LILY", 40 }, { "PRISMARINE_CRYSTALS", 20 } }).Should().Be("Bayou Fishing");
-
-    [Test]
-    public void BayouHotspotWithoutSpookyDrops_StaysHotspot()
-        => NameAt("Backwater Bayou", new() { { "HOTSPOT_CATCH", 3 }, { "RAW_FISH", 100 } }).Should().Be("Bayou Hotspot Fishing");
 
     [Test]
     public void SpookyBaitOnlyAtFishingZone_IsSpookyFishing()

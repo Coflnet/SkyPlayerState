@@ -88,7 +88,7 @@ public abstract class ProfitTask
     protected virtual string Where => null;
     public string WhereForTest => Where;
     /// <summary>The SkyBlock island <see cref="Where"/> belongs to, or null if unknown (see SkyblockZones).</summary>
-    protected string Island => SkyblockZones.IslandOf(Where);
+    protected string Island => SkyblockZones.IslandOfLocation(Where);
     public string IslandForTest => Island;
     /// <summary>Wiki page for <see cref="Island"/> (has the island's map), or null if unknown.</summary>
     protected string WhereWikiUrl => SkyblockZones.IslandWikiUrl(Island);

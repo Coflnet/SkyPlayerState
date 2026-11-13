@@ -57,6 +57,12 @@ internal static class SpookyFishingEvidence
         "PHANTOM_HOOK", "PHANTOM_ROD", // Phantom Fisher
         "PET_ITEM_VAMPIRE_FANG"
     ];
+    /// <summary>
+    /// Spooky-only drops that keep a period out of the shard-based Water Fishing (Hunting). Exactly the drops Spooky Fishing
+    /// itself requires: candy alone is no proof (mobs drop it too), so a veto on it would leave a candy and shard period
+    /// without any task.
+    /// </summary>
+    public static readonly HashSet<string> HuntingVeto = Exclusive;
     /// <summary>Optional extras that raise the matched value over plain Water Fishing.</summary>
     public static readonly HashSet<string> Evidence = new(FishingEvidence.Water)
         { "GREEN_CANDY", "PURPLE_CANDY", "PUMPKIN", "ENCHANTED_PUMPKIN", "SPOOKY_BAIT" };
@@ -124,7 +130,8 @@ public class SpookyFishingTask : BaseFishingTask
     // items only add matched value so a spooky period outranks plain Water Fishing.
     protected override HashSet<string> DetectionItems => SpookyFishingEvidence.Exclusive;
     protected override HashSet<string> EvidenceItems => SpookyFishingEvidence.Evidence;
-    protected override bool ExcludeShardItems => true;
+    // Shards may be in the period: Water Fishing (Hunting) vetoes the exclusive drops, so a festival period with shards
+    // and a spooky drop has to land here (the exclusive drops are mandatory, plain shard fishing never reaches this task)
     // default priority: the mandatory exclusive drops already make this strictly more specific than Water Fishing
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 200), new("PUMPKIN", 50)];
 }
@@ -229,25 +236,31 @@ public class LotusAtollTask : BaseFishingTask
     protected override string MethodName => "Lotus Atoll";
     // Island key: the trophy frogs are caught at Lotus Highlands, Lotus Eater's Cave and Tewtil Tunnel as well.
     protected override HashSet<string> Locations => ["Lotus Atoll"];
-    // The lily pads pushed together are WATER_LILY/LOTUS; the pile explodes into sea
-    // creatures and fish that are caught for SHARD_LOTUS_FISH, which is the main value.
-    // Shards are deliberately not excluded so their value counts toward this activity.
+    // The lily pads pushed together are WATER_LILY/LOTUS; the pile explodes into Lotus, Lily Pads, a frog and sea
+    // creatures, and the Lotusfish swimming in the water are netted for SHARD_LOTUS_FISH.
+    // Shards are deliberately not excluded so their value counts toward this activity. The explosion critters
+    // (Flipflopper, Seashine) are "Lotus Lily Pad Critters", Tewtil and Lotum have their own tasks.
     protected override HashSet<string> DetectionItems =>
     [
         "LOTUS", "WATER_LILY", "FROGCOIN",
         .. FrogSpecies.SelectMany(f => FrogTiers.Select(t => $"{f}_{t}"))
     ];
     // Trophy frogs, tags are <NAME>_<TIER> (production 2026-10-10: ~90 unclassified periods).
-    private static readonly string[] FrogSpecies =
+    internal static readonly string[] FrogSpecies =
     [
         "LOTUS", "COMMON_FROG", "BULLFROG", "WETLANDS_FROG", "PUDDLE_JUMPER", "REALITY_HOPPER", "LEAP_FROG", "EXPLODING_FROG",
         "BLESSED_FROG", "CAVE_FROG", "SEA_FROG", "TREE_FROG", "HIGHLANDS_FROG"
     ];
-    private static readonly string[] FrogTiers = ["BRONZE", "SILVER", "GOLD", "DIAMOND"];
+    internal static readonly string[] FrogTiers = ["BRONZE", "SILVER", "GOLD", "DIAMOND"];
     // Lotus Atoll is its own separate Fishing island (reached via the Ship Navigator NPC on
     // Backwater Bayou) - NOT part of Galatea, despite the name similarity. Corrected 2026-09,
     // verified hypixelskyblock.minecraft.wiki/w/Lotus_Atoll (see SkyblockZones.cs).
-    protected override string HowTo => "Go to Lotus Atoll (via the Ship Navigator on Backwater Bayou) and push lily pads across the pond into one big pile. It explodes into sea creatures and fish you catch for Lotusfish shards.";
+    protected override string HowTo => HuntingText.Steps(
+        "Travel to Lotus Atoll through the Ship Navigator on Backwater Bayou.",
+        "Fish for Trophy Frogs and push lily pads together until one explodes.",
+        "Net Lotusfish in the water for their shard.");
+    public override string Description =>
+        "Fish and push lily pads on Lotus Atoll for Lotus and Trophy Frogs. Lily pads pushed together explode at size 8 into Lotus, Lily Pads and a frog for everyone who helped, and spawn sea creatures. Lotusfish swim in the water and are netted for their shard. You need Fishing 10.";
     // Reference sample (Ekwav, ~5 min at Lotus Atoll): LOTUS 57, WATER_LILY 64, SHARD_LOTUS_FISH 22.
     protected override List<MethodDrop> FormulaDrops => [new("WATER_LILY", 700), new("LOTUS", 650), new("SHARD_LOTUS_FISH", 250)];
 }
@@ -338,11 +351,14 @@ public class PiscaryFishingHuntingTask : BaseFishingTask
 }
 public class BayouFishingHuntingTask : BaseFishingTask
 {
+    internal const string BayouShardHowTo =
+        "Fish in Backwater Bayou and kill the sea creatures with a Salt active. Their shards are charmed: Bayou Sludge, Titanoboa, Dumpster Diver and Alligator all drop here.";
     protected override string MethodName => "Bayou Fishing (Hunting)";
     protected override HashSet<string> Locations => ["Backwater Bayou"];
     protected override bool RequireShardItems => true;
     // Alligator/Titanoboa sea creatures drop attribute shards; that is the value, not raw fish.
     protected override List<MethodDrop> FormulaDrops => [new("WATER_LILY", 80), new("SHARD_ALLIGATOR", 6), new("SHARD_TITANOBOA", 0.5)];
+    protected override string HowTo => BayouShardHowTo;
 }
 public class BayouHotspotFishingHuntingTask : BaseFishingTask
 {
@@ -350,6 +366,7 @@ public class BayouHotspotFishingHuntingTask : BaseFishingTask
     protected override HashSet<string> Locations => ["Backwater Bayou"];
     protected override bool RequireShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 300), new("WATER_LILY", 120)];
+    protected override string HowTo => BayouFishingHuntingTask.BayouShardHowTo;
 }
 public class SpookyFishingHuntingTask : BaseFishingTask
 {
@@ -407,7 +424,9 @@ public class CrimsonFishingHuntingTask : BaseFishingTask
     protected override HashSet<string> Locations =>
         ["Blazing Volcano", "Burning Desert", "Mystic Marsh", "Magma Chamber", "Stronghold", "Crimson Fields", "Dragontail", "Crimson Isle"];
     protected override string Where => "Stronghold";
-    protected override string HowTo => "Fish in the lava on the Crimson Isle, most often around the Stronghold. Blazing Volcano, Crimson Fields and Dragontail work too.";
+    protected override string HowTo =>
+        "Fish in the lava on the Crimson Isle, most often around the Stronghold. Blazing Volcano, Crimson Fields and Dragontail work too. "
+        + "Kill the sea creatures with a Salt active to charm their shards, for example Lava Leech and Thunder.";
     protected override HashSet<string> DetectionItems => FishingEvidence.Lava;
     protected override bool RequireShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("MAGMA_FISH", 150)];
@@ -452,6 +471,9 @@ public class WaterFishingHuntingTask : BaseFishingTask
     protected override HashSet<string> Locations => ["Hub", "Village", "Forest", "Birch Park", "The Park", "Spider's Den", "Crystal Hollows"];
     // Water evidence (2026-09 finding: this task absorbed Bazaar Alley shard purchases).
     protected override HashSet<string> DetectionItems => FishingEvidence.Water;
+    // Spooky Festival fishing runs in the same zones and also yields shards: its drops send the period to Spooky Fishing
+    protected override Dictionary<string, HashSet<string>> ZoneExcludedItems =>
+        Locations.ToDictionary(zone => zone, _ => SpookyFishingEvidence.HuntingVeto);
     protected override bool RequireShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 200)];
 }

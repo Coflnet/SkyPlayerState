@@ -22,23 +22,31 @@ public abstract class BaseForagingTask : MethodTask
     ];
 }
 
+/// <summary>The Torrhus zones without the Critter Safari minigame, shared by Helix Foraging and the Helix lathering hunt.</summary>
+internal static class TorrhusLandZones
+{
+    public static readonly string[] WithoutSafari =
+    [
+        "Torrhus Canyon", "Miria's Hut", "Pangolin Hideaway", "Torrhus Heights", "Spring Path", "Torrhus Springs",
+        "Spring Shallows", "Spring Depths", "Ant's Cave", "Hotspot Haven", "Desert Temple"
+    ];
+}
+
 public class HelixForagingTask : BaseForagingTask
 {
     protected override string MethodName => "Helix Foraging";
     // The Torrhus zones (see SkyblockZones) without the Critter Safari: no Helix tree grows in that
     // minigame instance, and logs showing up in a Safari period took it away from the Critter Safari
     // task (production 2026-10-03). Where below names the actual spot to stand in.
-    protected override HashSet<string> Locations =>
-    [
-        "Torrhus Canyon", "Miria's Hut", "Pangolin Hideaway", "Torrhus Heights", "Spring Path", "Torrhus Springs",
-        "Spring Shallows", "Spring Depths", "Ant's Cave", "Hotspot Haven", "Desert Temple"
-    ];
+    protected override HashSet<string> Locations => [.. TorrhusLandZones.WithoutSafari];
     protected override string Where => "Torrhus Canyon";
     protected override HashSet<string> DetectionItems =>
     [
         "HELIX_LOG", "ENCHANTED_HELIX_LOG",
         // Helix Tree Gifts critters (Puck drops Bottled Mischief); 48-71 periods of each shard were Helix periods 2026-10-11
-        "SHARD_GROUNDHOG", "SHARD_FIREFOX", "SHARD_PUCK", "SHARD_DRYBARK", "BOTTLED_MISCHIEF"
+        "SHARD_GROUNDHOG", "SHARD_FIREFOX", "SHARD_PUCK", "SHARD_DRYBARK", "BOTTLED_MISCHIEF",
+        // also Helix Tree Gifts / a 1% side drop of breaking a Torrhus tree (wiki Grizzly_Bear, Pangolin)
+        "SHARD_GRIZZLY_BEAR", "HELIXIS"
     ];
     protected override List<MethodDrop> FormulaDrops =>
     [
@@ -68,8 +76,9 @@ public class FigForagingTask : BaseForagingTask
     // Where below names the actual spot to stand in.
     protected override HashSet<string> Locations => ["Moonglade"];
     protected override string Where => "Moonglade Marsh";
-    // TENDER_WOOD: Fig Tree Gifts (a chance bonus drop from felling Fig trees).
-    protected override HashSet<string> DetectionItems => ["FIG_LOG", "ENCHANTED_FIG_LOG", "TENDER_WOOD"];
+    // TENDER_WOOD and the Chameleon/Hummingbird shards: Fig Tree Gifts (a chance bonus drop from felling Fig trees).
+    protected override HashSet<string> DetectionItems =>
+        ["FIG_LOG", "ENCHANTED_FIG_LOG", "TENDER_WOOD", "SHARD_CHAMELEON", "SHARD_HUMMINGBIRD"];
     protected override List<MethodDrop> FormulaDrops =>
     [
         new("FIG_LOG", 20000), new("ENCHANTED_FIG_LOG", 150), new("MANGROVE_LOG", 500), new("TENDER_WOOD", 200)
@@ -98,8 +107,9 @@ public class MangroveForagingTask : BaseForagingTask
     // Where below names the actual spot to stand in.
     protected override HashSet<string> Locations => ["Moonglade"];
     protected override string Where => "Murkwater Loch";
-    // VINESAP/DEEP_ROOT: Mangrove Tree Gifts (a chance bonus drop from felling Mangrove trees).
-    protected override HashSet<string> DetectionItems => ["MANGROVE_LOG", "ENCHANTED_MANGROVE_LOG", "VINESAP", "DEEP_ROOT"];
+    // VINESAP/DEEP_ROOT and the Chameleon/Hummingbird shards: Mangrove Tree Gifts (a chance bonus drop from felling Mangrove trees).
+    protected override HashSet<string> DetectionItems =>
+        ["MANGROVE_LOG", "ENCHANTED_MANGROVE_LOG", "VINESAP", "DEEP_ROOT", "SHARD_CHAMELEON", "SHARD_HUMMINGBIRD"];
     protected override List<MethodDrop> FormulaDrops =>
     [
         new("MANGROVE_LOG", 3000), new("ENCHANTED_MANGROVE_LOG", 20), new("VINESAP", 40)
@@ -135,8 +145,8 @@ public class HoneycombGatheringTask : BaseForagingTask
     protected override HashSet<string> DetectionItems =>
     [
         "HONEYCOMB", "ENCHANTED_HONEYCOMB",
-        // Pollendart is lassoed at honeycomb-lathered trees: 52 of 77 periods with it were here 2026-10-11
-        "SHARD_POLLENDART"
+        // the Queen Bee shard is found in Honeyhives. Pollendart (lathered trees) is "Helix Honey Lathering".
+        "SHARD_QUEEN_BEE"
     ];
     // Production medians (2026-09) per 10-min period * 6: HONEYCOMB 81, ENCHANTED_HONEYCOMB 3.
     protected override List<MethodDrop> FormulaDrops => [new("HONEYCOMB", 486), new("ENCHANTED_HONEYCOMB", 18)];

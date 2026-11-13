@@ -28,8 +28,8 @@ public class DianaTask : BaseDianaTask
     protected override HashSet<string> Locations => ["Hub", "Wilderness", "Forest", "Mountain", "Ruins", "Graveyard", "Farm", "Village"];
     protected override HashSet<string> DetectionItems => [
         "GRIFFIN_FEATHER", "MINOS_RELIC", "DAEDALUS_STICK",
-        // treasure-burrow loot (ENCHANTED_GOLD alone makes up most dug-burrow periods)
-        "ENCHANTED_GOLD", "MYTHOS_FRAGMENT", "CROCHET_TIGER_PLUSHIE", "WASHED_UP_SOUVENIR", "CRETAN_URN",
+        // treasure-burrow loot (ENCHANTED_GOLD is not here: every gold farm and minion period holds it, see EvidenceItems)
+        "MYTHOS_FRAGMENT", "CROCHET_TIGER_PLUSHIE", "WASHED_UP_SOUVENIR", "CRETAN_URN",
         "ANTIQUE_REMEDIES", "DWARF_TURTLE_SHELMET",
         // rare drops that showed up alone in otherwise unclassified Hub periods (production 2026-10-01)
         "BRAIDED_GRIFFIN_FEATHER", "SHIMMERING_WOOL", "MANTI_CORE", "FATEFUL_STINGER", "BRAIN_FOOD", "CROWN_OF_GREED",
@@ -37,6 +37,11 @@ public class DianaTask : BaseDianaTask
         "ANCIENT_CLAW", "ENCHANTED_ANCIENT_CLAW", "HILT_OF_REVELATIONS",
         // burrow mob shards (Harpy/Sphinx: 31% of the Harpy periods at Ruins/Graveyard/Mountain were unclassified)
         "SHARD_MINOS_HUNTER", "SHARD_CRETAN_BULL", "SHARD_HARPY", "SHARD_MINOTAUR", "SHARD_SPHINX", "SHARD_KING_MINOS"];
+    // Gold next to a Diana-only item is still the treasure loot of the dig, but alone it is any gold activity (production
+    // 2026-11: 29.8 h of "Diana" with 8 Ancient Claws/h against a 2,800/h seed, mostly gold and hard stone).
+    protected override HashSet<string> EvidenceItems => ["ENCHANTED_GOLD"];
+    // The Bazaar Alley is a shop street in the Hub, nobody digs burrows there (best zone 5.3M/h from 6 players)
+    protected override HashSet<string> ExcludedZones => ["Bazaar Alley"];
     // Observed per hour over 603 session hours of the 2026-10-21..24 event (300 players, ~26M/h); the Chimera book is
     // about half of the value.
     protected override List<MethodDrop> FormulaDrops => [

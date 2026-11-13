@@ -13,6 +13,9 @@ public class ZealotsFdTask : MethodTask
     // pearls/eyes of the same period could outvalue it and keep the fight here.
     protected override Dictionary<string, HashSet<string>> ZoneExcludedItems =>
         new() { ["Zealot Bruiser Hideout"] = ["NULL_SPHERE"] };
+    // Pearls drop from every Enderman, so a period of mostly mined blocks is not a zealot fight just because of them
+    // (92% of all tracked end stone sat in Zealots (FD) periods, production 2026-11)
+    protected override BulkItemRule BulkYield => ObsidianMiningTask.EndBlockBulk;
     protected override List<MethodDrop> FormulaDrops => [new("SUMMONING_EYE", 4), new("ENDER_PEARL", 300)];
     protected override string Category => "Combat";
     protected override string HowTo => "Go to The End and grind Zealots for Summoning Eyes, mostly in the Dragon's Nest and the Zealot Bruiser Hideout. Kill Zealots rapidly; Special Zealots have a guaranteed eye drop. Formula-based estimate.";
@@ -87,9 +90,11 @@ public class BrownMushroomTask : MethodTask
 public class MyceliumTask : MethodTask
 {
     protected override string MethodName => "Mycelium";
-    // Mycelium is mined on the Crimson Isle (Mystic Marsh/Mage Outpost/Scarleton) or via Private Island minions.
+    // Mycelium is mined on the Crimson Isle (Mystic Marsh/Mage Outpost/Scarleton).
     // Verified on the community wiki 2026-09: https://hypixelskyblock.minecraft.wiki/w/Mycelium
-    protected override HashSet<string> Locations => ["Mystic Marsh", "Mage Outpost", "Scarleton", "Private Island"];
+    // "Private Island" was listed for minions, which made it the sink of every AFK minion period (422.9 h at 0.06M/h):
+    // minion output belongs to Minion Collection.
+    protected override HashSet<string> Locations => ["Mystic Marsh", "Mage Outpost", "Scarleton"];
     protected override HashSet<string> DetectionItems => ["MYCEL", "ENCHANTED_MYCELIUM"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_MYCELIUM", 250)];
     protected override string Category => "Farming";

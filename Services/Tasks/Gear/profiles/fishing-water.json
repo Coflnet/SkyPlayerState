@@ -367,13 +367,6 @@
       }
     },
     {
-      "task": "Bayou Hotspot Fishing",
-      "modelOverrides": {
-        "bulkFrom": "catches",
-        "fishingSpeedCap": 200
-      }
-    },
-    {
       "task": "Winter Fishing",
       "modelOverrides": {
         "bulkFrom": "catches"
@@ -408,6 +401,25 @@
       "task": "Water Worm Fishing",
       "modelOverrides": {
         "bulkFrom": "creatures"
+      }
+    },
+    {
+      "task": "Water Fishing (Hunting)",
+      "modelOverrides": {
+        "bulkFrom": "creatures"
+      }
+    },
+    {
+      "task": "Galatea Fishing (Hunting)",
+      "modelOverrides": {
+        "bulkFrom": "creatures"
+      }
+    },
+    {
+      "task": "Bayou Fishing (Hunting)",
+      "modelOverrides": {
+        "bulkFrom": "creatures",
+        "fishingSpeedCap": 200
       }
     }
   ]

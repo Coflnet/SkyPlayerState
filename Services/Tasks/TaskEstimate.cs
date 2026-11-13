@@ -31,6 +31,8 @@ public class TaskEstimate
     public int CurrentDoers { get; set; }
     public int DoersChange20m { get; set; }
     public List<TaskDropRate> Drops { get; set; } = new();
+    /// <summary>What a player needs for this task (hard ones block it, soft ones are recommended). Declared data only, never per player.</summary>
+    public List<TaskRequirementInfo> Requirements { get; set; } = new();
     public string TraceId { get; set; }
     /// <summary>Wiki page explaining the method/main item, or null if not curated - see MethodTask.WikiUrl.</summary>
     public string WikiUrl { get; set; }
@@ -52,6 +54,21 @@ public class TaskEstimate
     public double BestZoneCoinsPerHour { get; set; }
     /// <summary>Distinct players the <see cref="BestZone"/> rate was observed from, 0 when none.</summary>
     public int BestZonePlayers { get; set; }
+}
+
+/// <summary>The public, player independent part of a <see cref="TaskRequirement"/>.</summary>
+public class TaskRequirementInfo
+{
+    public string Label { get; set; }
+    /// <summary>One of <see cref="RequirementKinds"/>.</summary>
+    public string Kind { get; set; }
+    public string Key { get; set; }
+    public int Target { get; set; }
+    /// <summary>True when the game blocks the player without it, false when only recommended.</summary>
+    public bool Hard { get; set; }
+
+    public static TaskRequirementInfo From(TaskRequirement r) =>
+        new() { Label = r.Label, Kind = r.Kind, Key = r.Key, Target = r.Target, Hard = r.Hard };
 }
 
 public class TaskDropRate

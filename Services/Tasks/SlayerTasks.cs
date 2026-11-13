@@ -304,7 +304,7 @@ public class T4VoidgloomsTask : MethodTask
     ];
     protected override List<MethodDrop> FormulaDrops => [new("NULL_SPHERE", 15), new("SUMMONING_EYE", 2)];
     protected override string Category => "Slayer";
-    protected override string HowTo => "Go to The End and spawn T4 Voidgloom Seraphs, most often in the Void Sepulture; the Zealot Bruiser Hideout and Dragon's Nest work too. Use Terminator or Juju bow for high DPS. Requires Combat 24+ and Enderman Slayer 7.";
+    protected override string HowTo => "Go to The End and spawn T4 Voidgloom Seraphs, most often in the Void Sepulture; the Zealot Bruiser Hideout and Dragon's Nest work too. Use Terminator or Juju bow for high DPS. Enderman Slayer 7 is recommended.";
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "TERMINATOR", Reason = "High DPS weapon for Voidgloom kills" },
         new() { ItemTag = "VOID_SWORD", Reason = "Alternative weapon for Voidgloom kills" }
@@ -327,7 +327,9 @@ public class RevenantSlayerTask : MethodTask
     protected override string MethodName => "Revenant Slayer";
     protected override HashSet<string> Locations => ["Crypts", "Graveyard"];
     protected override HashSet<string> DetectionItems =>
-        ["REVENANT_FLESH", "FOUL_FLESH", "REVENANT_VISCERA", "REVENANT_CATALYST", "UNDEAD_CATALYST", "ROTTEN_FLESH"];
+        ["REVENANT_FLESH", "FOUL_FLESH", "REVENANT_VISCERA", "REVENANT_CATALYST", "UNDEAD_CATALYST", "ROTTEN_FLESH",
+            // the Revenant Sycophant miniboss spawns while a Revenant Horror III+ quest is active (wiki)
+            "SHARD_SYCOPHANT"];
     // Production medians (2026-09) per 10-min period * 6: REVENANT_FLESH 126, ROTTEN_FLESH 43.
     protected override List<MethodDrop> FormulaDrops => [new("REVENANT_FLESH", 756), new("ROTTEN_FLESH", 258)];
     protected override string Category => "Slayer";

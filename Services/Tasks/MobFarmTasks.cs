@@ -203,7 +203,9 @@ public class DreadwingTask : BaseGalateaMobTask
     protected override HashSet<string> Locations => ["Moonglade"];
     protected override string Where => "Moonglade Marsh";
     protected override HashSet<string> DetectionItems => ["SHARD_DREADWING"];
-    protected override List<MethodDrop> FormulaDrops => [new("SHARD_DREADWING", 240)];
+    // Dreadwing 3, Phanflare 7 and Phanpyre 6 per 5 minutes (shard calculator); Phanflare/Phanpyre also come from Fig and
+    // Mangrove tree gifts, so they are only rates here and no detection items.
+    protected override List<MethodDrop> FormulaDrops => [new("SHARD_DREADWING", 36), new("SHARD_PHANFLARE", 84), new("SHARD_PHANPYRE", 72)];
     protected override string HowTo => "Go to Wyrmgrove Tomb or Ancient Ruins on Galatea and kill Dreadwing mobs.";
 }
 public class SpikeTask : BaseGalateaMobTask
@@ -308,6 +310,9 @@ public class AutomatonTask : MethodTask
     // Crafting a Precursor Apparatus consumes one of each part: counted as a cost (full value rates only), the apparatus no
     // longer books the parts' value a second time (the parts were already counted when they dropped).
     protected override HashSet<string> FullValueCostItems => DetectionItems;
+    // The parts also come out of the treasure chests of powder mining (see PrecursorCityPowderMiningTask), where they outvalue
+    // the mined stone: a period of bulk mining output is Precursor City Powder Mining's, not a robot fight.
+    protected override BulkItemRule BulkYield => PowderMiningEvidence.MiningBulk;
     protected override List<MethodDrop> FormulaDrops =>
     [
         new("CONTROL_SWITCH", 3), new("ELECTRON_TRANSMITTER", 3), new("FTX_3070", 3),

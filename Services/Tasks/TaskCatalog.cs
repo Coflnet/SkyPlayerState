@@ -52,7 +52,7 @@ internal static class TaskCatalog
         typeof(SpookyFishingHuntingTask),   // conflates Spooky Festival fishing with shard hunting (different systems)
         typeof(WinterFishingHuntingTask),   // fishing nets (shard hunting) do not work at Jerry's Workshop
         typeof(OasisFishingHuntingTask),    // real activity is Tomb Floodway shard fishing, mislabeled as Oasis
-        typeof(CinderbatTask),              // real mob but spawns on Crimson Isle not Galatea; SHARD_CINDER_BAT tag unconfirmed
+        typeof(CinderbatTask),              // Galatea zones were wrong (it lives on the Crimson Isle); superseded by CinderbatHuntingTask (HuntingGapTasks.cs)
         typeof(XyzMobTask),                 // duplicate of XyzHuntingTask; wrong location (Exe mob is on Crimson Isle)
         typeof(GhostMobTask),               // duplicate of GhostHuntingTask; GHOST_COIN is not a real item id
         typeof(SludgeMiningCoalTask),       // fabricated "coal from sludge" variant; sludge is a Crystal Hollows grind
@@ -67,6 +67,11 @@ internal static class TaskCatalog
         typeof(CaducousFeederTask),         // crafting-table Rift item, not a forge craft
         typeof(ShimmeringLightHoodTask),    // likely a crafting-table (Mycelium IX) craft, not a forge recipe
         typeof(RiftAccessTask),             // MOTES are non-transferable currency with no coin value
+
+        // ── Unregistered 2026-11: no data could ever reach them (production week: 0 contributors, 0 hours). ──
+        typeof(BayouHotspotFishingTask),        // detects on HOTSPOT_CATCH, which no mod/chat/listener emits (only tests did)
+        typeof(CrimsonHotspotFishingTask),      // same HOTSPOT_CATCH detection
+        typeof(BayouHotspotFishingHuntingTask), // same location/shard rules as Bayou Fishing (Hunting), which wins every tie by name
     ];
 
     internal static ClassNameDictonary<ProfitTask> Create()
@@ -95,13 +100,13 @@ internal static class TaskCatalog
         // Fishing tasks (regular)
         // tasks.Add<PiscaryFishingTask>();     // deactivated: "Piscary" is a rod enchantment, not a place
         tasks.Add<BayouFishingTask>();
-        tasks.Add<BayouHotspotFishingTask>();
+        // tasks.Add<BayouHotspotFishingTask>();   // unregistered: see IntentionallyUnregistered (HOTSPOT_CATCH is never emitted)
         tasks.Add<SpookyFishingTask>();
         tasks.Add<WinterFishingTask>();
         tasks.Add<WaterWormFishingTask>();
         // tasks.Add<QuarryFishingTask>();      // deactivated: bestiary grind, not an efficient money method
         tasks.Add<CrimsonFishingTask>();
-        tasks.Add<CrimsonHotspotFishingTask>();
+        // tasks.Add<CrimsonHotspotFishingTask>();  // unregistered: see IntentionallyUnregistered (HOTSPOT_CATCH is never emitted)
         // tasks.Add<FestivalFishingTask>();    // deactivated: fabricated location, seasonal, unconfirmed shark tags
         tasks.Add<SquidFishingTask>();
         tasks.Add<GalateaFishingMethodTask>();
@@ -114,7 +119,7 @@ internal static class TaskCatalog
         // Fishing tasks (hunting)
         // tasks.Add<PiscaryFishingHuntingTask>();  // deactivated: fabricated "Piscary" location
         tasks.Add<BayouFishingHuntingTask>();
-        tasks.Add<BayouHotspotFishingHuntingTask>();
+        // tasks.Add<BayouHotspotFishingHuntingTask>(); // unregistered: see IntentionallyUnregistered (never wins against Bayou Fishing (Hunting))
         // tasks.Add<SpookyFishingHuntingTask>();   // deactivated: conflates Spooky fishing with shard hunting
         // tasks.Add<WinterFishingHuntingTask>();   // deactivated: shard hunting impossible at Jerry's Workshop
         tasks.Add<WaterWormFishingHuntingTask>();
@@ -152,7 +157,7 @@ internal static class TaskCatalog
         tasks.Add<BlazeSlayerTask>();
 
         // Mob farm tasks (Galatea)
-        // tasks.Add<CinderbatTask>();      // deactivated: Crimson Isle mob (not Galatea); SHARD_CINDER_BAT tag unconfirmed
+        // tasks.Add<CinderbatTask>();      // deactivated: Crimson Isle mob (not Galatea); replaced by CinderbatHuntingTask
         tasks.Add<BurningsoulTask>();    // re-registered 2026-09: Inferno Demonlord (Blaze Slayer boss, Crimson Isle) - see MobFarmTasks.cs
         tasks.Add<LumisquidTask>();
         tasks.Add<ShellwiseTask>();
@@ -227,6 +232,24 @@ internal static class TaskCatalog
         tasks.Add<HideonsunHuntingTask>();
         tasks.Add<TorrhusCanyonHuntingTask>();
         tasks.Add<CritterSafariTask>();
+        // per-shard and per-method hunts split out of broader tasks (HuntingGapTasks.cs)
+        tasks.Add<CritterSafariHauntedTask>();
+        tasks.Add<CritterSafariForestTask>();
+        tasks.Add<CritterSafariCavernTask>();
+        tasks.Add<CritterSafariIcyTask>();
+        tasks.Add<MangroveHoneyLatheringTask>();
+        tasks.Add<FigHoneyLatheringTask>();
+        tasks.Add<HelixHoneyLatheringTask>();
+        tasks.Add<LotusLilyPadCrittersTask>();
+        tasks.Add<TewtilHuntingTask>();
+        tasks.Add<LotumHuntingTask>();
+        tasks.Add<TorrhusSeaCreaturesHuntingTask>();
+        tasks.Add<SepialotGoldolotHuntingTask>();
+        tasks.Add<AntHuntingTask>();
+        tasks.Add<ThystHuntingTask>();
+        tasks.Add<SoulOfTheAlphaHuntingTask>();
+        tasks.Add<DiveGhastHuntingTask>();
+        tasks.Add<CinderbatHuntingTask>();
 
         // Diana / Mythological event tasks
         tasks.Add<DianaTask>();
@@ -357,6 +380,18 @@ internal static class TaskCatalog
         tasks.Add<RedMushroomTask>();
         tasks.Add<BrownMushroomTask>();
         tasks.Add<MyceliumTask>();
+
+        // Non-hunting methods that had no task (NonHuntingGapTasks.cs)
+        tasks.Add<XyzMysticMarshTask>();
+        tasks.Add<CorleoneTask>();
+        tasks.Add<ToxicRainSlimeTask>();
+        tasks.Add<ArachneTask>();
+        tasks.Add<MagmaBossTask>();
+        tasks.Add<KadaKnightTask>();
+        tasks.Add<RedSandMiningTask>();
+        tasks.Add<QuartzMiningTask>();
+        tasks.Add<SandMiningTask>();
+        tasks.Add<GlacialCaveTask>();
 
         // Passive tasks (TaskType.Passive: setup then wait)
         tasks.Add<HuntingTrapTask>();

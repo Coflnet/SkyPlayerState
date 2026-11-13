@@ -70,6 +70,12 @@ internal static class PowderMiningEvidence
 {
     public static readonly HashSet<string> ChestLoot =
         ["HARD_STONE", "ENCHANTED_HARD_STONE", "TREASURITE", "WISHING_COMPASS", "PICKONIMBUS"];
+
+    /// <summary>Mined stone and mithril in bulk: a fight with a few blocks next to it does not reach these hourly rates.</summary>
+    public static readonly BulkItemRule MiningBulk = new(new Dictionary<string, int>
+    {
+        ["HARD_STONE"] = 600, ["ENCHANTED_HARD_STONE"] = 12, ["MITHRIL_ORE"] = 600, ["ENCHANTED_MITHRIL"] = 30
+    });
 }
 
 // ── Gemstone Mining ──
@@ -211,6 +217,20 @@ public class ObsidianMiningTask : BaseMiningTask
         "ENDER_PEARL", "ENCHANTED_ENDER_PEARL", "SUMMONING_EYE", "CRYSTAL_FRAGMENT", "MITE_GEL", "NULL_SPHERE",
         "ENDER_GAUNTLET", "ENDER_BELT", "ENDER_NECKLACE", "ENDER_CLOAK"
     ];
+    private static readonly HashSet<string> FightMarkers = EndEnemyDrops.Except(["ENDER_PEARL", "ENCHANTED_ENDER_PEARL"]).ToHashSet();
+    /// <summary>
+    /// Mined obsidian of The End in bulk (mining runs ~32k/h, a zealot fight holds ~1.9k/h of it). Such a period belongs to
+    /// Obsidian Mining even with pearls in it (Endermen drop them while the player mines). Every other enemy drop
+    /// (eyes, Mite Gel, Null Sphere...) still marks a fight.
+    /// </summary>
+    internal static readonly BulkItemRule ObsidianBulk = new(
+        new Dictionary<string, int> { ["OBSIDIAN"] = 8000, ["ENCHANTED_OBSIDIAN"] = 30 }, FightMarkers);
+    /// <summary>The same for the end stone blocks (thousands an hour, where a zealot or Enderman fight holds a handful).</summary>
+    internal static readonly BulkItemRule EndStoneBulk = new(
+        new Dictionary<string, int> { ["ENDER_STONE"] = 1800, ["ENCHANTED_ENDSTONE"] = 600 }, FightMarkers);
+    /// <summary>Either kind of block mining; the zealot task yields such a period.</summary>
+    internal static readonly BulkItemRule EndBlockBulk = BulkItemRule.Combine(ObsidianBulk, EndStoneBulk);
+    protected override BulkItemRule BulkClaim => ObsidianBulk;
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_OBSIDIAN", 200)];
     // production (2026-10): obsidian is mined in The End (Dragon's Nest), essentially none in the Obsidian Sanctuary
     protected override string Where => "The End";
@@ -236,6 +256,8 @@ public class EndStoneMiningTask : BaseMiningTask
     // Grinding periods hold a few Enchanted End Stone too (next to Mite Gel and Endstone Roses), which outvalue the pearls
     // of a short period (46 Zealot periods with 1-56 of it 2026-10-11): next to any enemy drop it is not mining.
     protected override Dictionary<string, HashSet<string>> ZoneExcludedItems => new() { ["The End"] = [.. ObsidianMiningTask.EndEnemyDrops] };
+    // raw end stone has no bazaar buy orders (sell price 0), so a period of only raw blocks needs the volume to be seen
+    protected override BulkItemRule BulkClaim => ObsidianMiningTask.EndStoneBulk;
     // median ~2,270 Enchanted End Stone per period through a personal compactor
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_ENDSTONE", 9000)];
     // end stone breaks instantly with any decent pickaxe, no gauntlet involved
@@ -434,8 +456,9 @@ public class ScathaMiningTask : BaseMiningTask
     protected override string MethodName => "Scatha Mining";
     // Scatha/Worm spawn only in the Crystal Hollows; they drop gemstones, not worm membrane.
     protected override HashSet<string> Locations => ["Crystal Hollows"];
-    // Worms drop membranes while tunnel mining, so they count even without the lucky pet.
-    protected override HashSet<string> DetectionItems => ["PET_SCATHA", "WORM_MEMBRANE"];
+    // Worms drop membranes while tunnel mining, so they count even without the lucky pet. A Stoneworm (80%) or Scatha (20%)
+    // spawns from 0.167% of the Hard Stone broken in the tunnels (wiki Stoneworm): the same activity, the shards count too.
+    protected override HashSet<string> DetectionItems => ["PET_SCATHA", "WORM_MEMBRANE", "SHARD_STONEWORM", "SHARD_SCATHA"];
     protected override List<MethodDrop> FormulaDrops => [new("FINE_TOPAZ_GEM", 15), new("FINE_AMETHYST_GEM", 6), new("ROUGH_TOPAZ_GEM", 50), new("FINE_JADE_GEM", 3)];
     protected override string HowTo => "Mine in the Crystal Hollows to spawn and kill Scatha worms for rare drops.";
     protected override double ActionsPerHour => 1500;
@@ -803,6 +826,13 @@ public class FossilExcavationTask : BaseMiningTask
         new("TUSK_FOSSIL", 0.5), new("WEBBED_FOSSIL", 0.4), new("CLUBBED_FOSSIL", 0.2), new("FOOTPRINT_FOSSIL", 0.2), new("CLAW_FOSSIL", 0.2)
     ];
     protected override List<MethodDrop> FormulaCosts => [new("SUSPICIOUS_SCRAP", 120)];
+    // The reference drop ESSENCE_FOSSIL is credited from chat and was observed at 7.2x its seed (2026-11-12), which scaled
+    // the scrap cost to 864 scraps an hour and the task to -19M/h. No double count of the essence could be proven in the
+    // listener (one credit per summary line, never through inventory or sacks), so the bound holds on both sides: the scrap
+    // cost never exceeds the seeded 120 scraps an hour, and the essence beyond 1x its seed is not counted as revenue
+    // either (MethodTask.WithheldReferenceValue). Spent scrap that was actually observed is a negative count and replaces
+    // this estimate, and then the essence counts in full.
+    protected override double MaxCostScale => 1.0;
     // no gauntlet needed: the excavator is an NPC machine
     protected override List<RequiredItem> RequiredItems => [];
     protected override string HowTo =>

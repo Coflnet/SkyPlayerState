@@ -146,7 +146,10 @@ public class TaskClassifier
                 if (!locationMatches)
                     continue;
             }
-            if (sig.IsExcludedAt(location, itemsCollected.Where(kv => kv.Value > 0).Select(kv => kv.Key)))
+            var bulkClaimed = sig.BulkClaim?.IsBulk(itemsCollected, minutes) ?? false;
+            if (sig.BulkYield?.IsBulk(itemsCollected, minutes) ?? false)
+                continue;
+            if (!bulkClaimed && sig.IsExcludedAt(location, itemsCollected.Where(kv => kv.Value > 0).Select(kv => kv.Key)))
                 continue;
             List<string> matched = null;
             var detectionItems = sig.DetectionItemsAt(location);
@@ -157,7 +160,7 @@ public class TaskClassifier
                     .Select(kv => kv.Key).ToList();
                 // a cost (negative count) of an evidence item stands in for a detection item: a period of only
                 // consumed items (eyes placed on the dragon altar) still belongs to the task that consumes them
-                if (matched.Count == 0 && !(sig.EvidenceItems is { Count: > 0 }
+                if (matched.Count == 0 && !bulkClaimed && !(sig.EvidenceItems is { Count: > 0 }
                     && itemsCollected.Any(kv => kv.Value < 0 && sig.EvidenceItems.Contains(kv.Key) && sig.CountsAsSignal(kv.Key, kv.Value))))
                     continue;
             }
@@ -173,7 +176,7 @@ public class TaskClassifier
             var evidence = sig.EvidenceItems is { Count: > 0 }
                 ? itemsCollected.Where(kv => sig.EvidenceItems.Contains(kv.Key) && sig.CountsAsSignal(kv.Key, kv.Value)).Select(kv => kv.Key).ToList()
                 : [];
-            var itemMatched = matched != null || evidence.Count > 0;
+            var itemMatched = matched != null || evidence.Count > 0 || bulkClaimed;
             // minimum signal: a detection item hit, or enough generic activity for location-only tasks -
             // the threshold is per-signature (see DetectionSignature.MinLocationOnlyItems) so a task
             // whose zone is an unambiguous dedicated instance (a Catacombs floor, a Kuudra tier, a

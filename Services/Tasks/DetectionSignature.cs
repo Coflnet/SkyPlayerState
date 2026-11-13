@@ -42,6 +42,13 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 /// Per-zone veto (see MethodTask.ZoneExcludedItems): in a zone matching one of the keys, a period
 /// holding a positive count of any of these items is never attributed to this task.
 /// </param>
+/// <param name="BulkClaim">
+/// Classification only (see MethodTask.BulkClaim): a period this rule calls bulk counts as an item match of this task and
+/// is not vetoed by <see cref="ZoneExcludedItems"/>.
+/// </param>
+/// <param name="BulkYield">
+/// Classification only (see MethodTask.BulkYield): a period this rule calls bulk is never attributed to this task.
+/// </param>
 public record DetectionSignature(
     string MethodName,
     HashSet<string> Locations,
@@ -58,7 +65,9 @@ public record DetectionSignature(
     Dictionary<string, HashSet<string>> ZoneExcludedItems = null,
     bool Hidden = false,
     HashSet<string> CostItems = null,
-    HashSet<string> ExcludedZones = null)
+    HashSet<string> ExcludedZones = null,
+    BulkItemRule BulkClaim = null,
+    BulkItemRule BulkYield = null)
 {
     /// <summary>True when <paramref name="zone"/> is in <see cref="Locations"/> and not in <see cref="ExcludedZones"/>.</summary>
     public bool MatchesZone(string zone) => SkyblockZones.Matches(Locations, zone, ExcludedZones);

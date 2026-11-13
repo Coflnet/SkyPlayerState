@@ -71,6 +71,20 @@ public class TaskControllerEstimatesTests
     }
 
     [Test]
+    public async Task CommunityEstimates_CarryTheTasksRequirements()
+    {
+        var registry = new TaskRegistry();
+        var estimates = await MakeEstimator(registry).GetCommunityEstimates(Prices(registry));
+
+        var withRequirements = estimates.Where(e => e.Requirements.Count > 0).ToList();
+        withRequirements.Should().NotBeEmpty();
+        var task = registry.PublicMethodTasks.First(t => t.AllRequirements.Count > 0);
+        var estimate = estimates.Single(e => e.TaskName == task.GetDetectionSignature().MethodName);
+        estimate.Requirements.Select(r => r.Label).Should().Equal(task.AllRequirements.Select(r => r.Label));
+        estimate.Requirements.Should().OnlyContain(r => !string.IsNullOrEmpty(r.Kind));
+    }
+
+    [Test]
     public async Task CommunityEstimates_AreCachedBetweenCalls()
     {
         var registry = new TaskRegistry();

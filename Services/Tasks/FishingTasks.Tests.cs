@@ -107,6 +107,21 @@ public class FishingTasksTests
     }
 
     [Test]
+    public void HubFestivalPeriodWithShardsAndAWerewolfSkin_IsSpookyFishing()
+        => Classifier.Classify("Hub", new() { { "RAW_FISH", 100 }, { "SHARD_STRIDER_SURFER", 2 }, { "WEREWOLF_SKIN", 3 } }, 10)!
+            .TaskName.Should().Be("Spooky Fishing");
+
+    [Test]
+    public void HubPeriodWithShardsAndOnlyCandy_IsWaterFishingHunting()
+        => Classifier.Classify("Hub", new() { { "RAW_FISH", 100 }, { "SHARD_STRIDER_SURFER", 2 }, { "GREEN_CANDY", 4 } }, 10)!
+            .TaskName.Should().Be("Water Fishing (Hunting)");
+
+    [Test]
+    public void HubPeriodWithShardsAndNoSpookyDrop_IsWaterFishingHunting()
+        => Classifier.Classify("Hub", new() { { "RAW_FISH", 100 }, { "SHARD_STRIDER_SURFER", 2 } }, 10)!
+            .TaskName.Should().Be("Water Fishing (Hunting)");
+
+    [Test]
     public void CrimsonFishing_LavaEvidenceCoversGeneratedTrophyFishTags()
     {
         // Spot check a couple of the 72 generated SPECIES_TIER tags to guard the generation logic itself.
