@@ -183,7 +183,9 @@ public class GearModelService
         var rare = rareRate?.PerHour(distribution!.Builds) ?? 0;
         var (curve, publishedCurve) = Curve(distribution, rare, scorer, options);
         var lateGame = cohort == null ? null : GearModelPublisher.LateGame(cohort, GearLateGamePrior.Of(distribution!, cohort, curve, rareRate!), options);
-        var catalog = GearPieceCatalog.Build(builds, scorer, distribution, options.MinPlayers);
+        // Exclude incidental zero-score gear (e.g. Divan armor while fishing), retaining set bonuses.
+        var catalog = GearPieceCatalog.Build(builds, scorer, distribution, options.MinPlayers)
+            .Where(e => scorer.Formula.Kind != GearScoreFormula.WeightedSum || e.Contribution > 0).ToList();
         var recommended = Recommended(catalog, scorer, curve, rare, lateGame, distribution, options);
         return new MeasuredTaskGear(task, category, now, FormulaInfo(scorer),
             distribution == null ? null : GearModelPublisher.Distribution(distribution), lateGame, publishedCurve,

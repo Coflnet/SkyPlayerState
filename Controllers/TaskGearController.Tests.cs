@@ -236,7 +236,7 @@ public class TaskGearControllerTests
         endgame["coinsPerHour"]!.GetValue<double>().Should().Be(lateGame["coinsPerHour"]!.GetValue<double>());
         endgame["score"]!.GetValue<double>().Should().Be(450, "tool 225 + Fermento 75 + Elephant 150");
         endgame["extrapolated"]!.GetValue<bool>().Should().BeFalse();
-        endgame["pieces"]!["necklace"].Should().NotBeNull("the necklace adds nothing but is the most used one");
+        endgame["pieces"]!["necklace"].Should().BeNull("zero-score sightings are not income upgrades");
         endgame["pieces"]!["tool"]!.GetValue<string>().Should().Be(tool["id"]!.GetValue<string>());
         endgame["pieces"]!["helmet"]!.GetValue<string>().Should().Be(helmet["id"]!.GetValue<string>(), "the full Fermento set adds 75");
         endgame["effects"]!.AsArray().Select(e => e!.GetValue<string>()).Should().BeEquivalentTo(["set-fermento", "pet-elephant-trunk-efficiency"]);

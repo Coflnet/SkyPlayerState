@@ -59,7 +59,7 @@
     {
       "id": "budget",
       "tier": "budget",
-      "name": "Figstone Splitter and Monkey",
+      "name": "Budget foraging gear and Monkey",
       "items": [
         {
           "slot": "tool",
@@ -215,7 +215,7 @@
     {
       "id": "endgame",
       "tier": "endgame",
-      "name": "Helix Chopper and Helix armor",
+      "name": "Helix armor and Monkey",
       "items": [
         {
           "slot": "tool",

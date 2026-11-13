@@ -37,10 +37,52 @@ public class GearScoreTests
     public void MiningAndForaging_Weights()
     {
         GearScoreFormulas.For(GearModifierTable.MiningGem, "Gemstone Mining")!
-            .Score(Stats(("Gemstone Fortune", 300), ("Mining Speed", 2000), ("Pristine", 5), ("Mining Spread", 100))).Should().Be(300 + 200 + 100 + 50);
+            .Score(Stats(("Mining Fortune", 400), ("Gemstone Fortune", 300), ("Mining Speed", 2000), ("Pristine", 5), ("Mining Spread", 100))).Should().Be(400 + 300 + 200 + 100 + 50);
         GearScoreFormulas.For(GearModifierTable.MiningOre, "Mithril Mining")!
             .Score(Stats(("Mining Fortune", 400), ("Mining Speed", 1000), ("Pristine", 5))).Should().Be(500, "Pristine only counts for gemstones");
         GearScoreFormulas.For(GearModifierTable.Foraging, "Oak Foraging")!.Score(Stats(("Foraging Fortune", 200), ("Sweep", 10))).Should().Be(250);
+    }
+
+    [TestCase("TITANIUM_BELT", "belt", 12, 30, 15)]
+    [TestCase("DWARVEN_HANDWARMERS", "gloves", 36, 45, 40.5)]
+    public void GemstoneEquipment_CountsGeneralMiningFortune(string tag, string slot, double fortune, double speed, double score)
+    {
+        // Amber Mining production catalog: previously only the speed contributed (3 and 4.5).
+        var piece = Piece(tag, ("Mining Fortune", fortune), ("Mining Speed", speed));
+
+        Embedded("Amber Mining", GearModifierTable.MiningGem).PieceContribution(slot, piece).Should().Be(score);
+    }
+
+    [TestCase("Amber Mining", GearModifierTable.MiningGem)]
+    [TestCase("Sapphire Mining", GearModifierTable.MiningGem)]
+    [TestCase("Topaz Mining", GearModifierTable.MiningGem)]
+    [TestCase("Iron Mining", GearModifierTable.MiningOre)]
+    public void Bal_BaseFortune_IsPositiveWithoutLore_AndNeverCountedTwice(string task, string category)
+    {
+        var scorer = GearScorer.For(task, category)!;
+        var pet = new GearPet { Type = "BAL", Tier = "LEGENDARY", Level = 100 };
+
+        scorer.PetContribution(pet).Should().Be(100);
+        pet.Stats = Stats(("Mining Fortune", 120));
+        scorer.PetContribution(pet).Should().Be(120, "captured lore includes held-item bonuses");
+        pet.Stats = Stats(("Mining Fortune", 0));
+        scorer.PetContribution(pet).Should().Be(0, "even a captured zero is authoritative");
+        pet.Stats.Clear();
+        pet.Level = 50;
+        scorer.PetContribution(pet).Should().Be(50);
+        pet.Tier = "RARE";
+        scorer.PetContribution(pet).Should().Be(0);
+    }
+
+    [TestCase(1)]
+    [TestCase(100)]
+    public void Hedgehog_HuntersInsight_AssumesMaxBestiary_IndependentOfPetLevel(int level)
+    {
+        var pet = new GearPet { Type = "HEDGEHOG", Tier = "LEGENDARY", Level = level };
+
+        GearScorer.For("Cactus Farming", GearModifierTable.Farming)!.PetContribution(pet)
+            .Should().Be(157.5, "225 Bestiary tiers x 0.7; Fearsome Farmer only affects pests");
+        GearScorer.For("Fig Foraging", GearModifierTable.Foraging)!.PetContribution(pet).Should().Be(0);
     }
 
     [Test]

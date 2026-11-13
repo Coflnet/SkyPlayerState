@@ -8,8 +8,8 @@ using Coflnet.Sky.PlayerState.Tasks;
 namespace Coflnet.Sky.PlayerState.Services.Gear;
 
 /// <summary>
-/// A special effect of gear or a pet that is not a lore stat line (a set bonus, a pet perk, an equipment ability), as an
-/// approximate stat equivalent. One row of <c>gear-effects.json</c>, see <see cref="GearEffectTable"/>.
+/// A special effect of gear or a pet (a set bonus, a pet perk, an equipment ability), or a missing-lore base-stat
+/// fallback, as an approximate stat equivalent. One row of <c>gear-effects.json</c>, see <see cref="GearEffectTable"/>.
 /// </summary>
 public sealed record GearEffect
 {
@@ -34,6 +34,8 @@ public sealed record GearEffect
     public List<string>? Tags { get; init; }
     /// <summary>Multipliers only: scale the stats of the worn pieces with these tags instead of the build totals.</summary>
     public List<string>? PieceTags { get; init; }
+    /// <summary>Pet base-stat fallback: apply only when this stat was not captured from pet lore.</summary>
+    public string? MissingPetStat { get; init; }
     public string? PetType { get; init; }
     public string? MinRarity { get; init; }
     /// <summary>The pet level <see cref="Value"/> belongs to: 100, 200 for the dragon pets.</summary>

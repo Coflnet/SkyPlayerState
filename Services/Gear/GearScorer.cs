@@ -95,6 +95,8 @@ public sealed class GearScorer
 
     private void AddIfActive(List<GearActiveEffect> result, GearEffect effect, ObservedGear gear)
     {
+        if (effect.MissingPetStat is { } stat && gear.Pet?.Stats?.ContainsKey(stat) == true)
+            return;
         var amount = effect.Kind switch
         {
             GearEffect.KindSet => SetAmount(effect, gear),

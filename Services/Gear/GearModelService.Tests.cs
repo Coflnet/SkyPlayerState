@@ -38,6 +38,49 @@ public class GearModelServiceTests
     }
 
     [Test]
+    public void FishingCatalog_ExcludesMiningArmor_WithoutDroppingSetBonusesOrRenamedItems()
+    {
+        // Production MAGMA_LORD_GAUNTLET is a necklace despite its internal id.
+        var gear = new ObservedGear
+        {
+            Slots = new()
+            {
+                [GearSnapshot.Tool] = new() { Tag = "HELLFIRE_ROD", ItemType = "FISHING ROD", Stats = new() { ["Fishing Speed"] = 75 } },
+                [GearSnapshot.Helmet] = new() { Tag = "DIVAN_HELMET", ItemType = "HELMET", Stats = new() { ["Mining Speed"] = 100 } },
+                [GearSnapshot.Chestplate] = new() { Tag = "MAGMA_LORD_CHESTPLATE", ItemType = "CHESTPLATE" },
+                [GearSnapshot.Leggings] = new() { Tag = "MAGMA_LORD_LEGGINGS", ItemType = "LEGGINGS" },
+                [GearSnapshot.Necklace] = new() { Tag = "MAGMA_LORD_GAUNTLET", ItemType = "NECKLACE", Stats = new() { ["Sea Creature Chance"] = 2.5 } },
+                [GearSnapshot.Gloves] = new() { Tag = "GILLSPLASH_GLOVES", ItemType = "GLOVES", Stats = new() { ["Fishing Speed"] = 5 } }
+            }
+        };
+        var result = GearModelService.Compute("Flaming Worm Fishing",
+            Enumerable.Range(1, 3).Select(player => Obs(player, gear, 1, 1000, category: GearModifierTable.FishingLava)).ToList(), Now);
+
+        result.Pieces.Select(p => p.Slot).Should().BeEquivalentTo(new[] { GearSnapshot.Tool, GearSnapshot.Chestplate, GearSnapshot.Leggings, GearSnapshot.Necklace, GearSnapshot.Gloves });
+        result.Recommended!.Pieces.Keys.Should().BeEquivalentTo(new[] { GearSnapshot.Tool, GearSnapshot.Chestplate, GearSnapshot.Leggings, GearSnapshot.Necklace, GearSnapshot.Gloves });
+    }
+
+    [TestCase("Amber Mining", GearModifierTable.MiningGem, "BAL", true)]
+    [TestCase("Sapphire Mining", GearModifierTable.MiningGem, "BAL", true)]
+    [TestCase("Topaz Mining", GearModifierTable.MiningGem, "BAL", true)]
+    [TestCase("Iron Mining", GearModifierTable.MiningOre, "BAL", true)]
+    [TestCase("Cactus Farming", GearModifierTable.Farming, "HEDGEHOG", true)]
+    [TestCase("Tungsten Mining", GearModifierTable.MiningOre, "MAMMOTH", false)]
+    [TestCase("Fig Foraging", GearModifierTable.Foraging, "GOLDEN_DRAGON", false)]
+    [TestCase("Fig Foraging", GearModifierTable.Foraging, "OCELOT", false)]
+    [TestCase("Obsidian Mining", GearModifierTable.MiningOre, "ENDERMAN", false)]
+    public void PetCatalog_KeepsRelevantFortune_AndFiltersUnrelatedPerks(string task, string category, string petType, bool kept)
+    {
+        var gear = new ObservedGear { Pet = new GearPet { Type = petType, Tier = "LEGENDARY", Level = 100 } };
+        var inputs = Enumerable.Range(1, 3).Select(player => Obs(player, gear, 1, 1000, category: category)).ToList();
+
+        var result = GearModelService.Compute(task, inputs, Now);
+
+        result.Pieces.Any(p => p.Slot == GearPieceCatalog.PetSlot).Should().Be(kept);
+        result.Pieces.Should().OnlyContain(p => p.ScoreContribution > 0);
+    }
+
+    [Test]
     public void Compute_EveryPartOfTheModel_FromTenPlayers()
     {
         var result = GearModelService.Compute(Wheat, TenPlayers(), Now);

@@ -672,26 +672,43 @@ public class GearProfileCatalogTests
         => GearProfileCatalog.Embedded.TryGet(task, out _).Should().BeTrue();
 
     /// <summary>Regression: Mining Spread was 300 in every tier and the Mineral armor the measured setups pick was never offered.</summary>
-    [Test]
-    public void OreMining_OffersMineralArmorAndGrowingSpread()
+    [TestCase("Coal Mining")]
+    [TestCase("Redstone Mining")]
+    [TestCase("Obsidian Mining")]
+    public void OreMining_OffersMineralArmorAndGrowingSpread(string task)
     {
-        var coal = Shipped("Coal Mining");
+        var coal = Shipped(task);
 
         SetupOf(coal, "budget").Items.Single(i => i.Slot == "helmet").ItemTag.Should().Be("MINERAL_HELMET");
         SetupOf(coal, "mid").Items.Single(i => i.Slot == "helmet").ItemTag.Should().Be("GLOSSY_MINERAL_HELMET");
+        SetupOf(coal, "endgame").Name.Should().Be("Endgame mining gear");
         var spread = coal.AllSetups().Select(s => s.Stats["Mining Spread"]).ToList();
         spread.Should().BeInAscendingOrder().And.HaveCount(4);
         spread.Distinct().Count().Should().BeGreaterThan(2);
     }
 
-    [Test]
-    public void DwarvenMetalMining_KeepsTheMiningSpeedArmorAndFlatSpread()
+    [TestCase("Mithril Mining")]
+    [TestCase("Umber Mining")]
+    [TestCase("Tungsten Mining")]
+    [TestCase("Glacite Mining")]
+    public void DwarvenMetalMining_KeepsTheMiningSpeedArmorAndFlatSpread(string task)
     {
-        var mithril = Shipped("Mithril Mining");
+        var mithril = Shipped(task);
 
         SetupOf(mithril, "budget").Items.Single(i => i.Slot == "helmet").ItemTag.Should().Be("ARMOR_OF_YOG_HELMET");
         SetupOf(mithril, "endgame").Items.Single(i => i.Slot == "helmet").ItemTag.Should().Be("DIVAN_HELMET");
+        SetupOf(mithril, "endgame").Name.Should().Be("Endgame mining gear");
         mithril.AllSetups().Select(s => s.Stats["Mining Spread"]).Distinct().Should().ContainSingle();
+    }
+
+    [TestCase("Birch Foraging")]
+    [TestCase("Helix Foraging")]
+    public void Foraging_SetupNamesApplyToBothParkAndGalateaTools(string task)
+    {
+        var foraging = Shipped(task);
+
+        SetupOf(foraging, "budget").Name.Should().Be("Budget foraging gear and Monkey");
+        SetupOf(foraging, "endgame").Name.Should().Be("Helix armor and Monkey");
     }
 
     /// <summary>Regression: the Jasper drill was labelled a "Starter gemstone drill" for baseline, budget and mid.</summary>

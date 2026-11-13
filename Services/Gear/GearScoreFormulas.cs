@@ -92,7 +92,7 @@ public sealed record GearScoreFormula(string Kind, IReadOnlyDictionary<string, d
 /// <item>farming: Farming Fortune 1 + the task crop's fortune 1 (<see cref="FarmingCrops"/>);</item>
 /// <item>mining-ore: Mining Fortune 1 + Mining Speed 0.1 + Mining Spread 0.5 + the task block's fortune 1 (Ore, Dwarven Metal or
 /// Block Fortune, <see cref="MiningBlocks"/>; they add to Mining Fortune only on their blocks) (Breaking Power is a gate, ignored);</item>
-/// <item>mining-gem: Gemstone Fortune 1 + Mining Speed 0.1 + Pristine 20 + Mining Spread 0.5;</item>
+/// <item>mining-gem: Mining Fortune 1 + Gemstone Fortune 1 + Mining Speed 0.1 + Pristine 20 + Mining Spread 0.5;</item>
 /// <item>fishing: Sea Creature Chance 10 + Fishing Speed 1 + Double Hook Chance 5, plus Trophy Chance 1 for the trophy
 /// fish tasks (<see cref="TrophyTasks"/>);</item>
 /// <item>foraging: Foraging Fortune 1 + Sweep 5;</item>
@@ -119,7 +119,7 @@ public static class GearScoreFormulas
     {
         GearModifierTable.Farming => Farming(task),
         GearModifierTable.MiningOre => MiningOre(task),
-        GearModifierTable.MiningGem => Sum(("Gemstone Fortune", 1), ("Mining Speed", 0.1), ("Pristine", 20), ("Mining Spread", 0.5)),
+        GearModifierTable.MiningGem => Sum(("Mining Fortune", 1), ("Gemstone Fortune", 1), ("Mining Speed", 0.1), ("Pristine", 20), ("Mining Spread", 0.5)),
         GearModifierTable.FishingWater => Fishing(false),
         GearModifierTable.FishingLava => Fishing(task != null && TrophyTasks.Contains(task)),
         GearModifierTable.Foraging => Sum(("Foraging Fortune", 1), ("Sweep", 5)),

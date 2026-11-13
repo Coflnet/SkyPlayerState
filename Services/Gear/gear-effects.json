@@ -1,5 +1,5 @@
 {
-  "note": "Special effects of gear and pets that are not lore stat lines, counted into the gear score (GearEffectTable). Source: research-gear-effects.md (2026-11-08). Only rows with a numeric value that does not depend on a skill level, collection, counter, mob type or a short buff window. Pet values are at level 'atLevel' (default 100), linear in the level; of several entries with the same pet, mode, stats and target pieces the highest matching minRarity wins. Set tiers are the value per worn piece count (index 0 = 1 piece). mode multiply: value is the fraction added (0.2 = x1.2) to the build totals of the stats, or to the stats of 'pieceTags' only. zones: island or zone names as SkyblockZones knows them, matched against the task's locations. ALL VALUES AND THE SELECTION ARE TUNABLE in the data review. miningBlocks: only for mining tasks of these block kinds (MiningBlocks: ore, dwarven-metal, block). Effects that scale with the Farming level assume level 60 (the scorer does not know a player's level: the optimal setup is assumed).",
+  "note": "Special effects of gear and pets that are not lore stat lines, counted into the gear score (GearEffectTable). Source: research-gear-effects.md (2026-11-08). Rows use fixed numeric values, with explicitly documented optimal-setup assumptions for Farming level and Pest Bestiary tiers; other unknown collections, counters, mob types and short buff windows are not modelled. Pet base-stat fallbacks with missingPetStat apply only when that stat is absent from pet lore. Pet values are at level 'atLevel' (default 100), linear in the level; of several entries with the same pet, mode, stats and target pieces the highest matching minRarity wins. Set tiers are the value per worn piece count (index 0 = 1 piece). mode multiply: value is the fraction added (0.2 = x1.2) to the build totals of the stats, or to the stats of 'pieceTags' only. zones: island or zone names as SkyblockZones knows them, matched against the task's locations. ALL VALUES AND THE SELECTION ARE TUNABLE in the data review. miningBlocks: only for mining tasks of these block kinds (MiningBlocks: ore, dwarven-metal, block). Effects that scale with the Farming level assume level 60 (the scorer does not know a player's level: the optimal setup is assumed).",
   "effects": [
     {
       "id": "set-tater",
@@ -220,6 +220,21 @@
       "source": "https://hypixelskyblock.minecraft.wiki/w/Elephant_Pet"
     },
     {
+      "id": "pet-hedgehog-hunters-insight",
+      "kind": "pet",
+      "petType": "HEDGEHOG",
+      "minRarity": "LEGENDARY",
+      "category": "farming",
+      "stats": [
+        "Farming Fortune"
+      ],
+      "value": 157.5,
+      "atLevel": 1,
+      "confidence": "med",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Hedgehog_Pet",
+      "note": "Hunter's Insight: +0.7 Farming Fortune per Pest Bestiary Tier (also in NEU upstream/master items/HEDGEHOG;4.json). Assumes the published maximum 225 qualifying tiers, like Farming 60 for other optimal-setup effects; actual player tiers are unknown. Independent of pet level, hence atLevel 1. Fearsome Farmer is pests-only and does not count for crop farming."
+    },
+    {
       "id": "pet-rose-dragon-garden-power",
       "kind": "pet",
       "petType": "ROSE_DRAGON",
@@ -287,6 +302,20 @@
       "confidence": "high",
       "source": "https://hypixelskyblock.minecraft.wiki/w/Scatha_Pet",
       "toolType": "DRILL"
+    },
+    {
+      "id": "pet-bal-base-fortune",
+      "kind": "pet",
+      "petType": "BAL",
+      "minRarity": "EPIC",
+      "stats": [
+        "Mining Fortune"
+      ],
+      "value": 100,
+      "missingPetStat": "Mining Fortune",
+      "confidence": "high",
+      "source": "https://hypixelskyblock.minecraft.wiki/w/Bal_Pet",
+      "note": "Base Mining Fortune +1 per level, corroborated by NEU upstream/master constants/petnums.json BAL EPIC and LEGENDARY. Fallback for sightings without this lore stat; never add it twice. Furnace remains restricted to Magma Fields."
     },
     {
       "id": "pet-bal-furnace-epic",
