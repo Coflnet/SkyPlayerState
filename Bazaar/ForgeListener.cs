@@ -29,14 +29,14 @@ public class ForgeListener : UpdateListener
     {
         // example: §7Time Remaining: §a55m 6s
         // optional hours: §7Time Remaining: §a4h 11m for item §5Refined Mithril
-        var timeMatch = System.Text.RegularExpressions.Regex.Match(i.Description!, @"§7Time Remaining: §a(?:(\d+)d )?(?:(\d+)h )?(?:(\d+)m )?(?:(\d+)s)?");
+        var timeMatch = System.Text.RegularExpressions.Regex.Match(i.Description!, @"§7Time Remaining: §a(?:(\d+)d\s*)?(?:(\d+)h\s*)?(?:(\d+)m\s*)?(?:(\d+)s)?");
         if (timeMatch.Success)
         {
             int days = timeMatch.Groups[1].Success ? int.Parse(timeMatch.Groups[1].Value) : 0;
             int hours = timeMatch.Groups[2].Success ? int.Parse(timeMatch.Groups[2].Value) : 0;
             int minutes = timeMatch.Groups[3].Success ? int.Parse(timeMatch.Groups[3].Value) : 0;
             int seconds = timeMatch.Groups[4].Success ? int.Parse(timeMatch.Groups[4].Value) : 0;
-            var parsed = DateTime.Now.AddDays(days).AddHours(hours).AddMinutes(minutes).AddSeconds(seconds);
+            var parsed = DateTime.UtcNow.AddDays(days).AddHours(hours).AddMinutes(minutes).AddSeconds(seconds);
             Logger.LogDebug("Parsed forge item time: {time} for item {item}", parsed, i.ItemName);
             return parsed;
         }
@@ -50,7 +50,7 @@ public class ForgeListener : UpdateListener
         {
             Logger.LogWarning("Failed to parse time from description: {description} for item {item}", i.Description, i.ItemName);
             // Fallback if no time is found, could be an error or a default value
-            return DateTime.Now.AddMinutes(30);
+            return DateTime.UtcNow.AddMinutes(30);
         }
 
     }

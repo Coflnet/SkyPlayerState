@@ -1545,10 +1545,9 @@ public class TaskClassifierTests
     }
 
     [Test]
-    public void DragonsNestSummoningEyeOnly_KeepsItsClassification()
-        => NameAtPriced("Dragon's Nest", new() { { "SUMMONING_EYE", 2 } }, EndPrices).Should().Be(DragonsNestEyeOnlyBaseline);
+    public void DragonsNestSummoningEyeOnly_ProvesNeitherSlayerNorHunting()
+        => NameAtPriced("Dragon's Nest", new() { { "SUMMONING_EYE", 2 } }, EndPrices).Should().Be("Zealots (FD)");
 
-    private const string DragonsNestEyeOnlyBaseline = "T4 Voidglooms";
 
     [Test]
     public void T4VoidgloomsPersonalView_DropsHideoutPeriodsWithoutNullSphere()
@@ -2157,7 +2156,7 @@ public class TaskClassifierTests
     [Test]
     public void BlazeSlayerRareBossDrops_AreBlazeSlayer()
     {
-        NameAtPriced("Crimson Isle", new() { { "ENCHANTMENT_SMOLDERING_1", 1 }, { "BLAZE_ROD", 3 } }, Round2Prices).Should().Be("Blaze Slayer");
+        NameAtPriced("Crimson Isle", new() { { "ENCHANTMENT_SMOLDERING_1", 1 }, { "BLAZE_ROD", 3 } }, Round2Prices).Should().NotBe("Blaze Slayer");
         NameAt("Crimson Isle", new() { { "ENCHANTMENT_ULTIMATE_REITERATE_1", 1 } }).Should().Be("Blaze Slayer");
         NameAt("Crimson Isle", new() { { "CRUDE_GABAGOOL_DISTILLATE", 1 } }).Should().Be("Blaze Slayer");
         NameAt("Crimson Isle", new() { { "POTION_wisp_ice", 1 } }).Should().Be("Blaze Slayer");

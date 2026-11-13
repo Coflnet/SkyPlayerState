@@ -410,7 +410,7 @@ public static class SkyblockZones
             ["Lotus Atoll"] = ("/warp lotus", WikiPageUrl("Lotus Atoll")), // also "/warp atoll" - both verified
             // "/warp desert" also works for Mushroom Desert specifically, but only after consuming a
             // Travel Scroll to Mushroom Island - /warp barn is the one guaranteed to always work.
-            ["The Farming Islands"] = ("/warp barn", WikiPageUrl("The Farming Islands")),
+            ["The Farming Islands"] = ("/warp barn", WikiPageUrl("The Barn")),
             ["The Park"] = ("/warp park", WikiPageUrl("The Park")),
             ["Spider's Den"] = ("/warp spider", WikiPageUrl("Spider's Den")),
             ["Hub"] = ("/warp hub", WikiPageUrl("Hub")),

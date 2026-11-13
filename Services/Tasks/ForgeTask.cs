@@ -33,7 +33,7 @@ public class ForgeTask : ProfitTask
                 Breakdown = NewGuidanceBreakdown("Forge", "formula")
             };
         }
-        if (forgeStatus.All(f => f.Tag != null && f.ForgeEnd > DateTime.UtcNow))
+        if (forgeStatus.All(f => f != null && f.Tag != null && f.ForgeEnd > DateTime.UtcNow))
         {
             var forgeEnd = forgeStatus.Min(f => f.ForgeEnd);
             return new TaskResult

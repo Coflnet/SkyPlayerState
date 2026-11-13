@@ -213,15 +213,19 @@ public class TaskRequirementTests
     }
 
     [Test]
-    public async Task Floor1_NeedsOnlyCombat15_SoTheFirstFloorIsNotLockedForNewPlayers()
+    public async Task Floor1_NeedsCatacombs1_FromTheEntrance()
     {
-        var newPlayer = new PlayerProfileSnapshot();
+        var newPlayer = new PlayerProfileSnapshot { CatacombsLevel = 0 };
         newPlayer.SkillLevels["combat"] = 15;
 
         var result = await new F1Task().ExecuteWithRequirements(Params(newPlayer));
 
-        result.IsAccessible.Should().BeTrue();
-        result.Breakdown.Requirements.Select(r => r.Label).Should().Equal("Combat 15");
+        result.IsAccessible.Should().BeFalse();
+        result.InaccessibleReason.Should().Be("Needs Catacombs 1 (you: 0)");
+        result.Breakdown.Requirements.Select(r => r.Label).Should().Equal("Combat 15", "Catacombs 1");
+
+        newPlayer.CatacombsLevel = 1;
+        (await new F1Task().ExecuteWithRequirements(Params(newPlayer))).IsAccessible.Should().BeTrue();
     }
 
     [Test]
@@ -240,7 +244,7 @@ public class TaskRequirementTests
     public async Task EveryFloorTask_RequiresTheCatacombsLevelItsHowToStates()
     {
         // BaseDungeonTask owns the level table, the floor classes still print their own level - they must agree
-        foreach (var task in new ProfitTask[] { new F2Task(), new F3Task(), new F4Task(), new F5Task(), new F6Task(), new F7Task(),
+        foreach (var task in new ProfitTask[] { new F1Task(), new F2Task(), new F3Task(), new F4Task(), new F5Task(), new F6Task(), new F7Task(),
             new M1Task(), new M2Task(), new M3Task(), new M4Task(), new M5Task(), new M6Task(), new M7Task() })
         {
             var result = await task.ExecuteWithRequirements(Params(null));

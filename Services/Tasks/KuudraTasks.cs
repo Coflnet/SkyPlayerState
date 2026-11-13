@@ -7,6 +7,7 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 public abstract class BaseKuudraTask : MethodTask
 {
     protected override string Category => "Kuudra";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Kuudra";
     protected override string ActionUnit => "runs";
     protected override string WarpCommand => "/warp kuudra";
     /// <summary>Kuudra tier this task covers, 1 (Basic) to 5 (Infernal); 0 for tasks not tied to one tier.</summary>
@@ -32,12 +33,13 @@ public abstract class BaseKuudraTask : MethodTask
             return requirements;
         }
     }
+    // Current reward shards have named SHARD_* tags; no generic ATTRIBUTE_SHARD price/rate is meaningful.
     // A Kuudra tier zone ("Kuudra's Hollow (T1)".."(T5)") is a dedicated instance - it can only ever
     // mean that one tier, so a couple of essence/attribute shard items is already unambiguous
     // evidence, unlike a shared open-world zone. See DungeonTasks.BaseDungeonTask for the same idea.
     protected override int MinLocationOnlyItems => 1;
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "TERROR_CHESTPLATE", Reason = "Kuudra armor set" },
+        new() { ItemTag = "AURORA_CHESTPLATE", Reason = "Mage armor for Hyperion clears; use Terror for bow damage" },
         new() { ItemTag = "HYPERION", Reason = "Weapon" }
     ];
     protected override List<DropEffect> Effects => [
@@ -58,7 +60,7 @@ public class KuudraT1Task : BaseKuudraTask
     protected override HashSet<string> Locations => ["Kuudra's Hollow (T1)"];
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 600)];
     protected override double ActionsPerHour => 12;
-    protected override string HowTo => "Queue for Kuudra Basic (T1) via the NPC in the Crimson Isle. Fight waves of mobs and defeat Kuudra. Easiest tier, good for beginners.";
+    protected override string HowTo => "Have Elle take you to Kuudra Basic (T1) from the Forgotten Skull on the Crimson Isle. Fish up supply crates with a lava rod, build and fuel the ballista, then fire at Kuudra. A matching Kuudra Key opens the paid chest; compare its cost with the loot.";
 }
 public class KuudraT2Task : BaseKuudraTask
 {
@@ -74,27 +76,27 @@ public class KuudraT3Task : BaseKuudraTask
     protected override string MethodName => "Kuudra T3";
     protected override int KuudraTier => 3;
     protected override HashSet<string> Locations => ["Kuudra's Hollow (T3)"];
-    protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 1200), new("ATTRIBUTE_SHARD", 15)];
+    protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 1200)];
     protected override double ActionsPerHour => 8;
-    protected override string HowTo => "Queue for Kuudra Burning (T3). First tier that drops Attribute Shards. Requires good armor and team coordination.";
+    protected override string HowTo => "Queue for Kuudra Burning (T3). Needs Hot cleared and 3,000 reputation. Coordinate supplies, construction and the stun/damage phases with your party.";
 }
 public class KuudraT4Task : BaseKuudraTask
 {
     protected override string MethodName => "Kuudra T4";
     protected override int KuudraTier => 4;
     protected override HashSet<string> Locations => ["Kuudra's Hollow (T4)"];
-    protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 1500), new("ATTRIBUTE_SHARD", 30)];
+    protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 1500)];
     protected override double ActionsPerHour => 6;
-    protected override string HowTo => "Queue for Kuudra Fiery (T4). High attribute shard drops. Requires strong Terror/Aurora armor and good team.";
+    protected override string HowTo => "Queue for Kuudra Fiery (T4). Needs Burning cleared and 7,000 reputation. Coordinate supplies, construction and the stun/damage phases; bring gear appropriate to your role.";
 }
 public class KuudraT5Task : BaseKuudraTask
 {
     protected override string MethodName => "Kuudra T5";
     protected override int KuudraTier => 5;
     protected override HashSet<string> Locations => ["Kuudra's Hollow (T5)"];
-    protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 2000), new("ATTRIBUTE_SHARD", 50)];
+    protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 2000)];
     protected override double ActionsPerHour => 5;
-    protected override string HowTo => "Queue for Kuudra Infernal (T5). Highest tier with best drops. Requires maxed gear, team of 4 experienced players. Best money maker in the game for endgame players.";
+    protected override string HowTo => "Queue for Kuudra Infernal (T5). Needs Fiery cleared and 12,000 reputation. Bring an experienced party of 4 and gear for the final Kuudra damage phase. Compare paid chest loot with the Infernal Kuudra Key cost before claiming.";
 }
 
 /// <summary>

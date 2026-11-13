@@ -3,15 +3,15 @@ using System.Collections.Generic;
 namespace Coflnet.Sky.PlayerState.Tasks;
 
 /// <summary>
-/// Base for Diana tasks — only accessible when the current mayor is Diana
+/// Base for Diana tasks — only accessible when the Mythological Ritual is active
 /// </summary>
 public abstract class BaseDianaTask : MethodTask
 {
     protected override string Category => "Event";
     protected override string CheckAccessibility(TaskParams parameters)
     {
-        if (parameters.CurrentMayor != null && parameters.CurrentMayor != "diana")
-            return $"Only available when Diana is mayor (current: {parameters.CurrentMayor}).";
+        if (parameters.CurrentMayor != null && parameters.CurrentMayor != "diana" && parameters.CurrentMayor != "jerry")
+            return $"Requires Diana's Mythological Ritual perk, including Jerry's Diana rotation (current: {parameters.CurrentMayor}).";
         return base.CheckAccessibility(parameters);
     }
 }
@@ -27,7 +27,7 @@ public class DianaTask : BaseDianaTask
     protected override string MethodName => "Diana";
     protected override HashSet<string> Locations => ["Hub", "Wilderness", "Forest", "Mountain", "Ruins", "Graveyard", "Farm", "Village"];
     protected override HashSet<string> DetectionItems => [
-        "GRIFFIN_FEATHER", "MINOS_RELIC", "DAEDALUS_STICK",
+        "GRIFFIN_FEATHER", "MINOS_RELIC", "DAEDALUS_STICK", "ENCHANTMENT_ULTIMATE_CHIMERA_1",
         // treasure-burrow loot (ENCHANTED_GOLD is not here: every gold farm and minion period holds it, see EvidenceItems)
         "MYTHOS_FRAGMENT", "CROCHET_TIGER_PLUSHIE", "WASHED_UP_SOUVENIR", "CRETAN_URN",
         "ANTIQUE_REMEDIES", "DWARF_TURTLE_SHELMET",
@@ -56,11 +56,11 @@ public class DianaTask : BaseDianaTask
         + "(Ancient Claws, shards, Daedalus Stick, Chimera), the rest give treasure (Griffin Feathers, coins).";
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "ANCESTRAL_SPADE", Reason = "Required to dig Diana burrows (the Archaic and Deific Spade make longer chains)" },
-        new() { ItemTag = "PET_GRIFFIN", Reason = "Griffin pet reveals burrow locations via particles" }
+        new() { ItemTag = "PET_GRIFFIN", Reason = "Equip a Griffin to summon Mythological creatures; higher rarity unlocks more creature types" }
     ];
     protected override List<DropEffect> Effects => [
-        new() { Name = "Griffin Pet Rarity", Description = "Higher rarity Griffin reveals burrows further away", EstimatedMultiplier = 1.3 },
-        new() { Name = "Magic Find", Description = "Increases rare mob spawn and drop chance, and the chance of Chimera book and Daedalus Stick", EstimatedMultiplier = 1.3 },
+        new() { Name = "Griffin Pet Rarity", Description = "Higher rarity Griffin unlocks more Mythological creature types and scales their stats", EstimatedMultiplier = 1.3 },
+        new() { Name = "Magic Find", Description = "Increases eligible rare creature drop chances, including Chimera and Daedalus Stick", EstimatedMultiplier = 1.3 },
         new() { Name = "Ferocity", Description = "More hits per attack for faster kills", EstimatedMultiplier = 1.15 }
     ];
 }

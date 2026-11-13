@@ -72,6 +72,13 @@ internal static class TaskCatalog
         typeof(BayouHotspotFishingTask),        // detects on HOTSPOT_CATCH, which no mod/chat/listener emits (only tests did)
         typeof(CrimsonHotspotFishingTask),      // same HOTSPOT_CATCH detection
         typeof(BayouHotspotFishingHuntingTask), // same location/shard rules as Bayou Fishing (Hunting), which wins every tie by name
+        typeof(WaterWormFishingHuntingTask), // Water Worm has no hunting shard; ordinary membrane fishing remains registered
+        typeof(SquidFishingTask),           // ordinary squid do not spawn on Galatea; Lumisquid has its own net-catching task
+        typeof(SquidFishingHuntingTask),    // same unsupported Galatea squid-rod activity
+        typeof(ReaperScytheTask),           // ordinary Zombie VII recipe, not a Forge craft
+        typeof(GauntletOfContagionTask),    // ordinary Mycelium X recipe, not a Forge craft
+        typeof(PolarvoidBookTask),          // Rift recipe, not a Forge craft
+        typeof(ShimmeringLightSlippersTask), // ordinary Mycelium IX recipe, not a Forge craft
     ];
 
     internal static ClassNameDictonary<ProfitTask> Create()
@@ -108,7 +115,6 @@ internal static class TaskCatalog
         tasks.Add<CrimsonFishingTask>();
         // tasks.Add<CrimsonHotspotFishingTask>();  // unregistered: see IntentionallyUnregistered (HOTSPOT_CATCH is never emitted)
         // tasks.Add<FestivalFishingTask>();    // deactivated: fabricated location, seasonal, unconfirmed shark tags
-        tasks.Add<SquidFishingTask>();
         tasks.Add<GalateaFishingMethodTask>();
         tasks.Add<LotusAtollTask>();
         tasks.Add<OasisFishingTask>();
@@ -122,12 +128,11 @@ internal static class TaskCatalog
         // tasks.Add<BayouHotspotFishingHuntingTask>(); // unregistered: see IntentionallyUnregistered (never wins against Bayou Fishing (Hunting))
         // tasks.Add<SpookyFishingHuntingTask>();   // deactivated: conflates Spooky fishing with shard hunting
         // tasks.Add<WinterFishingHuntingTask>();   // deactivated: shard hunting impossible at Jerry's Workshop
-        tasks.Add<WaterWormFishingHuntingTask>();
         // tasks.Add<QuarryFishingHuntingTask>();   // deactivated: see QuarryFishingTask
         tasks.Add<CrimsonFishingHuntingTask>();
         // tasks.Add<FestivalFishingHuntingTask>(); // deactivated: conflates Festival with Tomb Floodway shard fishing
-        tasks.Add<SquidFishingHuntingTask>();
         tasks.Add<GalateaFishingHuntingTask>();
+        tasks.Add<MoongladeSeaCreaturesHuntingTask>();
         // tasks.Add<OasisFishingHuntingTask>();    // deactivated: real spot is Tomb Floodway, mislabeled as Oasis
         tasks.Add<WaterFishingHuntingTask>();
 
@@ -318,13 +323,9 @@ internal static class TaskCatalog
         tasks.Add<JungleForagingTask>();
 
         // Crafting tasks
-        tasks.Add<ReaperScytheTask>();
-        tasks.Add<GauntletOfContagionTask>();
         // tasks.Add<ExportableCarrotsCraftTask>(); // deactivated: fabricated recipe, Rift-only inputs
-        tasks.Add<ShimmeringLightSlippersTask>();
         // tasks.Add<ExtremelyRealShurikenTask>(); // removed 2026-07: Rift NPC item, not a forge craft
         // tasks.Add<ShimmeringLightHoodTask>();    // deactivated: likely a crafting-table (Mycelium IX) craft, not forge
-        tasks.Add<PolarvoidBookTask>();
         // tasks.Add<GrandmasKnittingNeedleTask>(); // deactivated: bought from a Rift NPC, not a forge craft
         // tasks.Add<SoulOfTheAlphaTask>();        // removed 2026-07: it is a mob, not a forge-craftable item
         // tasks.Add<BluetoothRingTask>();          // deactivated: Collections-menu craft, not a forge craft

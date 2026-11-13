@@ -161,7 +161,7 @@ public abstract class MethodTask : ProfitTask
     /// as is, but is mathematically the scale-1 case of this same idea.
     /// </para>
     /// </summary>
-    public double ScaledFormulaCost(Dictionary<string, double> itemCounts, double hours, Func<string, double> priceOf)
+    public virtual double ScaledFormulaCost(Dictionary<string, double> itemCounts, double hours, Func<string, double> priceOf)
     {
         if (FormulaCosts.Count == 0 || hours <= 0 || itemCounts == null || itemCounts.Count == 0)
             return 0;

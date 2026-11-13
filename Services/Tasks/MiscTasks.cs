@@ -18,12 +18,13 @@ public class ZealotsFdTask : MethodTask
     protected override BulkItemRule BulkYield => ObsidianMiningTask.EndBlockBulk;
     protected override List<MethodDrop> FormulaDrops => [new("SUMMONING_EYE", 4), new("ENDER_PEARL", 300)];
     protected override string Category => "Combat";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Zealot";
     protected override string HowTo => "Go to The End and grind Zealots for Summoning Eyes, mostly in the Dragon's Nest and the Zealot Bruiser Hideout. Kill Zealots rapidly; Special Zealots have a guaranteed eye drop. Formula-based estimate.";
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "One-shot zealots for fast farming" }
     ];
     protected override List<DropEffect> Effects => [
-        new() { Name = "Magic Find", Description = "Increases Summoning Eye drop rate", EstimatedMultiplier = 1.2 },
+        new() { Name = "Zealot kill speed", Description = "More Zealot kills give more chances to spawn Special Zealots; Magic Find does not affect their spawn chance", EstimatedMultiplier = 1.2 },
         new() { Name = "Combat Level", Description = "Higher combat level increases damage", EstimatedMultiplier = 1.1 }
     ];
 }
@@ -56,6 +57,7 @@ public class EnderDragonTask : MethodTask
     // about 6 fights an hour with 2 own eyes each
     protected override List<MethodDrop> FormulaCosts => [new("SUMMONING_EYE", 12)];
     protected override string Category => "Combat";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Ender_Dragon";
     protected override string HowTo => "Place Summoning Eyes (from Zealots or the Bazaar) on the altar in the Dragon's Nest to summon the Ender Dragon and deal damage for loot quality. More own eyes placed means better drops. Formula-based estimate.";
 }
 
@@ -68,6 +70,7 @@ public class RedMushroomTask : MethodTask
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_RED_MUSHROOM", 300)];
     protected override string Category => "Farming";
     protected override string Where => "Glowing Mushroom Cave";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Mushroom";
     protected override string HowTo => "Go to the Glowing Mushroom Cave in the Mushroom Desert and break mushroom blocks for fast collection. Mushroom Gorge and the Mushroom Desert work too.";
     protected override List<DropEffect> Effects => [
         new() { Name = "Farming Fortune", Description = "Increases mushroom drop amount", EstimatedMultiplier = 1.3 },
@@ -81,6 +84,7 @@ public class BrownMushroomTask : MethodTask
     protected override HashSet<string> DetectionItems => ["BROWN_MUSHROOM", "ENCHANTED_BROWN_MUSHROOM"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_BROWN_MUSHROOM", 300)];
     protected override string Category => "Farming";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Mushroom";
     protected override string HowTo => "Go to the Mushroom Desert and farm Brown Mushrooms. Same areas as Red Mushrooms but collect the brown variant.";
     protected override List<DropEffect> Effects => [
         new() { Name = "Farming Fortune", Description = "Increases mushroom drop amount", EstimatedMultiplier = 1.3 },

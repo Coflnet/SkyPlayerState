@@ -331,11 +331,12 @@ public class GearSetupEstimatorTests
     }
 
     [Test]
-    public void TierUnlock_HigherTierPage_MarksLowerGearAsReached()
+    public void TierUnlock_HigherTierPage_KeepsOneLowerStartingPoint()
     {
         var page = TierPage("Kuudra T4");
 
-        Setup(page, "budget").Status.Should().Be(GearSetupStatus.Reached, "T3 gear is below T4");
+        page.Setups.Select(s => s.Id).Should().Equal("budget", "mid", "endgame");
+        Setup(page, "budget").Status.Should().Be(GearSetupStatus.Reached, "T3 gear is the starting point for T4");
         Setup(page, "mid").Status.Should().Be(GearSetupStatus.Reached, "T4 gear is this tier's own");
         Setup(page, "mid").DeltaCoinsPerHour.Should().BeNull();
         Setup(page, "mid").CoinsPerHour.Should().BeNull();
@@ -347,7 +348,21 @@ public class GearSetupEstimatorTests
     [Test]
     public void TierUnlock_HighestTierPage_HasOnlyReachedSetups()
     {
-        TierPage("Kuudra T5").Setups.Should().OnlyContain(s => s.Status == GearSetupStatus.Reached && s.DeltaCoinsPerHour == null);
+        var page = TierPage("Kuudra T5");
+        page.Setups.Select(s => s.Id).Should().Equal("mid", "endgame");
+        page.Setups.Should().OnlyContain(s => s.Status == GearSetupStatus.Reached && s.DeltaCoinsPerHour == null);
+        page.BaselineCoinsPerHour.Should().Be(5 * C);
+    }
+
+    [Test]
+    public void ShippedM7_KeepsOneLowerKitToUpgradeFrom()
+    {
+        var bound = GearProfileCatalog.Embedded.Bindings.Single(b => b.Binding.Task == "M7");
+        var page = EstimateBinding(bound, RevenueShares.Unknown);
+        page.Setups.Select(s => s.UnlocksTask).Should().Equal("M3", "M7");
+        page.Setups.Should().NotContain(s => s.UnlocksTask == "F6");
+        page.Baseline.Items.Should().BeEmpty();
+        page.BaselineCoinsPerHour.Should().BePositive();
     }
 
     [Test]

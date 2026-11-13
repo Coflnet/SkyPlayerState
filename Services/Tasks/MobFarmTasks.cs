@@ -18,12 +18,7 @@ public abstract class BaseGalateaMobTask : MethodTask
     protected override LateRewardSpec LateReward => GalateaContestRewards.ForLocations(Locations);
     protected override List<DropEffect> Effects =>
     [
-        new() { Name = "Magic Find", Description = "Increases chance of rare drops", EstimatedMultiplier = 1.2 },
-        new() { Name = "Combat Level", Description = "Higher combat level increases damage and XP", EstimatedMultiplier = 1.1 },
-        new() { Name = "Pet Luck", Description = "Increases pet drop chance from mobs", EstimatedMultiplier = 1.15 }
-    ];
-    protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "Weapon for mob farming" }
+        new() { Name = "Hunting Fortune", Description = "Increases the number of captured shards", EstimatedMultiplier = 1.2 }
     ];
 }
 
@@ -45,6 +40,10 @@ public class BurningsoulTask : BaseGalateaMobTask
     // Galatea ember zone mobs or the old Burningsoul Demon miniboss.
     protected override List<TaskRequirement> Requirements => [.. base.Requirements, .. SlayerRequirements.Unlock("blaze")];
     protected override string MethodName => "Inferno Demonlord";
+    protected override string Category => "Slayer";
+    protected override LateRewardSpec LateReward => null;
+    protected override List<DropEffect> Effects => [];
+    public override List<StatFactor> StatFactors => [new("skill:Combat", 1, 60)];
     // Bare island name "Crimson Isle" deliberately excluded - IndividualSlayerTask/MethodTask both
     // match via SkyblockZones.Matches, so an island-level entry would wrongly count every Crimson
     // Isle zone (Mycelium mining in Mystic Marsh, fishing in Scarleton/Oasis, ...) as this drop.
@@ -54,30 +53,34 @@ public class BurningsoulTask : BaseGalateaMobTask
     // Only the shard is modeled - the other T4 Blaze Slayer boss drops (Derelict Ashe, Blaze Rods,
     // dye chances) have no verified rates/tags elsewhere in this codebase to reuse here.
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_BURNINGSOUL", 20 * 0.0527)];
-    protected override string HowTo => "Buy a Maddox Batphone, start a Blaze Slayer quest at Tier 4, grind Blazes in the Smoldering Tomb until the Inferno Demonlord boss spawns, then kill it for a chance at an Inferno Demonlord Shard.";
+    protected override string HowTo => "Talk to Maddox at the Hub Tavern (or use an unlocked Maddox Batphone), start a Blaze Slayer quest at Tier 4, grind Blazes in the Smoldering Tomb until the Inferno Demonlord boss spawns, then kill it for a chance at an Inferno Demonlord Shard.";
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Burningsoul_Shard";
     protected override List<TaskStep> Steps => InfernoDemonlordGuide.Steps(4);
 }
 public class LumisquidTask : BaseGalateaMobTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Lumisquid_Shard";
     protected override string MethodName => "Lumisquid";
-    protected override HashSet<string> Locations => ["Murkwater Depths", "Murkwater Shallows", "Squid Cave"];
+    protected override HashSet<string> Locations => ["Squid Cave", "Murkwater Depths", "Murkwater Shallows"];
     protected override HashSet<string> DetectionItems => ["SHARD_LUMISQUID"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_LUMISQUID", 280)];
-    protected override string HowTo => "Go to the Murkwater areas on Galatea and kill Lumisquids in the underwater caves.";
+    protected override string HowTo => "Go to Squid Cave on Galatea and catch Lumisquids with a Fishing Net. Underwater Huntraps in Squid Cave can also yield their shards.";
 }
 public class ShellwiseTask : BaseGalateaMobTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Shellwise";
     protected override string MethodName => "Shellwise";
-    protected override HashSet<string> Locations => ["Reefguard Pass", "Murkwater Depths", "South Reaches"];
+    protected override HashSet<string> Locations => ["Murkwater Depths"];
     protected override string Where => "Murkwater Depths";
     protected override HashSet<string> DetectionItems => ["SHARD_SHELLWISE"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_SHELLWISE", 270)];
-    protected override string HowTo => "Go to the Murkwater Depths on Galatea and kill Shellwise mobs. Reefguard Pass and South Reaches work too.";
+    protected override string HowTo => "Go to Murkwater Depths on Galatea and catch Shellwises with a Basic Fishing Net or better; regular weapons cannot damage them.";
 }
 public class MatchoTask : BaseGalateaMobTask
 {
     protected override string MethodName => "Matcho";
+    protected override LateRewardSpec LateReward => null;
+    public override List<StatFactor> StatFactors => [new("skill:Combat", 0.5, 60), new("skill:Hunting", 0.5, 50)];
     // Matcho is launched from the Blazing Volcano eruption on the Crimson Isle, not Galatea.
     // Verified on the community wiki 2026-09: every 120-150 minutes the volcano erupts and
     // launches coal blocks across the whole island; a Matcho spawns wherever one lands. Unlike the
@@ -86,15 +89,15 @@ public class MatchoTask : BaseGalateaMobTask
     protected override HashSet<string> Locations => ["Crimson Isle", "Blazing Volcano"];
     protected override HashSet<string> DetectionItems => ["SHARD_MATCHO"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_MATCHO", 260)];
-    protected override string HowTo => "Wait for the Blazing Volcano on the Crimson Isle to erupt (every 120-150 minutes), then look for Matchos anywhere a coal block landed and kill them.";
+    protected override string HowTo => "Wait for the Blazing Volcano on the Crimson Isle to erupt (every 120-150 minutes), then look for Matchos anywhere a coal block landed and charm them or capture them with a Black Hole to obtain shards.";
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Matcho";
     protected override List<TaskStep> Steps =>
     [
-        new() { Number = 1, Text = "Get your gear: a good sword or bow for fighting a level 100 mob." },
+        new() { Number = 1, Text = "Get your gear: a good sword or bow for fighting a tough Crimson Isle mob." },
         new() { Number = 2, Text = "Type /warp isle to get close.", OnClick = "/warp isle" },
         new() { Number = 3, Text = "Watch the Blazing Volcano - every 120-150 minutes it erupts with a loud explosion.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Blazing_Volcano" },
         new() { Number = 4, Text = "After it erupts, blocks (including coal) land all over the Crimson Isle. Wherever a coal block lands, a Matcho appears.", OnClick = WikiUrl },
-        new() { Number = 5, Text = "Find and kill the Matchos before someone else does." },
+        new() { Number = 5, Text = "Find Matchos and charm them or capture them with a Black Hole for shards." },
         new() { Number = 6, Text = "You're doing it right when you collect: Matcho Shard. That's what we track for your coins/hour." },
         new() { Number = 7, Text = "Sell the shards on the Bazaar." },
         new() { Number = 8, Text = "Check /cofl task again to see your real coins/hour." },
@@ -102,13 +105,14 @@ public class MatchoTask : BaseGalateaMobTask
 }
 public class StridersurferTask : BaseGalateaMobTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Stridersurfer";
     protected override string MethodName => "Stridersurfer";
     // Confirmed in production 2026-10-03: tag SHARD_STRIDER_SURFER, ~550/h at South Reaches and ~275/h
     // at Stride-Ember Fissure (Stridersurfers also walk the other Ember zones).
     protected override HashSet<string> Locations => ["South Reaches", "Stride-Ember Fissure", "Side-Ember Way", "Dive-Ember Pass"];
     protected override HashSet<string> DetectionItems => ["SHARD_STRIDER_SURFER"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_STRIDER_SURFER", 550)];
-    protected override string HowTo => "Go to the South Reaches or the Ember areas on Galatea and kill Stridersurfers. Higher drop rate than other Ember mobs.";
+    protected override string HowTo => "Go to Stride-Ember Fissure on Galatea and charm Stridersurfers or capture them with a Black Hole for shards. They can also be fished up there at Fishing XVII.";
 }
 public class SporeTask : BaseGalateaMobTask
 {
@@ -120,7 +124,11 @@ public class SporeTask : BaseGalateaMobTask
 }
 public class BladesoulTask : BaseGalateaMobTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Bladesoul";
     protected override string MethodName => "Bladesoul";
+    protected override LateRewardSpec LateReward => null;
+    protected override List<DropEffect> Effects => [];
+    public override List<StatFactor> StatFactors => [new("skill:Combat", 1, 60)];
     // Bladesoul is a respawning boss in the Stronghold (Crimson Isle); it drops no shard.
     protected override HashSet<string> Locations => ["Stronghold"];
     protected override HashSet<string> DetectionItems => ["HALLOWED_SKULL", "MAGMA_URCHIN"];
@@ -135,24 +143,27 @@ public class BladesoulTask : BaseGalateaMobTask
 }
 public class JoydiveTask : BaseGalateaMobTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Joydive";
     protected override string MethodName => "Joydive";
     protected override HashSet<string> Locations => ["Murkwater Shallows", "Murkwater Depths"];
     protected override string Where => "Murkwater Depths";
     protected override HashSet<string> DetectionItems => ["SHARD_JOYDIVE"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_JOYDIVE", 280)];
-    protected override string HowTo => "Go to the Murkwater Depths on Galatea and kill Joydive mobs. The Murkwater Shallows work too.";
+    protected override string HowTo => "Go to Murkwater Depths or Murkwater Shallows on Galatea and throw a Fishing Net at a Joydive. Follow it into its cave, then use the net again once it stops to capture it.";
 }
 public class DrownedTask : BaseGalateaMobTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Drowned_Shard";
     protected override string MethodName => "Drowned";
     // Kelpwoven Tunnels is for Spikes; Drowned (Tidetot/Hydrospear/Seacurse) is in the Drowned Reliquary.
     protected override HashSet<string> Locations => ["Drowned Reliquary", "Murkwater Depths"];
     protected override HashSet<string> DetectionItems => ["SHARD_DROWNED"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_DROWNED", 300)];
-    protected override string HowTo => "Go to Drowned Reliquary or Kelpwoven Tunnels on Galatea and kill Drowned mobs.";
+    protected override string HowTo => "Go to Drowned Reliquary on Galatea and charm Drowned mobs or capture them with a Black Hole. Huntraps placed there can also yield Drowned Shards.";
 }
 public class CoralotTask : BaseGalateaMobTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Coralot";
     protected override string MethodName => "Coralot";
     // Island key (2026-09-27 production log finding: the shard shows up all over Moonglade, not
     // just the zones this used to list) - the shard tag is the specific evidence.
@@ -162,17 +173,19 @@ public class CoralotTask : BaseGalateaMobTask
     protected override string Where => "Murkwater Loch";
     protected override HashSet<string> DetectionItems => ["SHARD_CORALOT"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_CORALOT", 260)];
-    protected override string HowTo => "Go to the Murkwater Depths or Murkwater Loch on Galatea and kill Coralot mobs.";
+    protected override string HowTo => "Go to Murkwater Loch or the Wetlands on Galatea. Approach a Coralot and stand still until its warning sign disappears, then capture it with a Fishing Net or Lasso.";
 }
 public class BambuleafTask : BaseGalateaMobTask
 {
+    protected override HashSet<string> ObservedCostItems => ["BAMBOO"];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Bambuleaf";
     protected override string MethodName => "Bambuleaf";
     // Island key - see CoralotTask's comment.
     protected override HashSet<string> Locations => ["Moonglade"];
-    protected override string Where => "North Wetlands";
+    protected override string Where => "Tranquility Sanctum";
     protected override HashSet<string> DetectionItems => ["SHARD_BAMBULEAF"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_BAMBULEAF", 260)];
-    protected override string HowTo => "Go to the Wetlands on Galatea and kill Bambuleaf mobs in the marshy areas.";
+    protected override string HowTo => "Go to Tranquility Sanctum on Galatea during spring or summer and feed a Bambuleaf 40–44 Bamboo until it passes out and awards its shard.";
 }
 public class HideonleafTask : BaseGalateaMobTask
 {
@@ -182,14 +195,14 @@ public class HideonleafTask : BaseGalateaMobTask
     protected override string Where => "North Wetlands";
     protected override HashSet<string> DetectionItems => ["SHARD_HIDEONLEAF"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_HIDEONLEAF", 250)];
-    protected override string HowTo => "Go to the Wetlands or Evergreen Plateau on Galatea and kill Hideonleaf mobs.";
+    protected override string HowTo => "Find Hideonleafs hiding among green blocks on Galatea. Stand on one to make it shoot, then hit its bullet back three times to obtain its shard.";
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Hideonleaf";
     protected override List<TaskStep> Steps =>
     [
-        new() { Number = 1, Text = "Get your gear: a good sword or bow." },
+        new() { Number = 1, Text = "Find a Hideonleaf among green blocks on Galatea." },
         new() { Number = 2, Text = "Type /warp galatea to get close.", OnClick = "/warp galatea" },
         new() { Number = 3, Text = "Go to the Wetlands (North or South) or Evergreen Plateau on Galatea.", OnClick = WhereWikiUrl },
-        new() { Number = 4, Text = "Look for and kill Hideonleaf mobs - they like to hide, so look closely.", OnClick = WikiUrl },
+        new() { Number = 4, Text = "Stand on a Hideonleaf, then hit its bullet back three times to obtain its shard.", OnClick = WikiUrl },
         new() { Number = 5, Text = "You're doing it right when you collect: Hideonleaf Shard. That's what we track for your coins/hour." },
         new() { Number = 6, Text = "Sell the shards on the Bazaar." },
         new() { Number = 7, Text = "Check /cofl task again to see your real coins/hour." },
@@ -197,6 +210,7 @@ public class HideonleafTask : BaseGalateaMobTask
 }
 public class DreadwingTask : BaseGalateaMobTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Dreadwing";
     protected override string MethodName => "Dreadwing";
     // Island key - see CoralotTask's comment (Dreadwing spawns from breaking trees, reported all
     // over Moonglade, not just Moonglade Marsh).
@@ -206,49 +220,57 @@ public class DreadwingTask : BaseGalateaMobTask
     // Dreadwing 3, Phanflare 7 and Phanpyre 6 per 5 minutes (shard calculator); Phanflare/Phanpyre also come from Fig and
     // Mangrove tree gifts, so they are only rates here and no detection items.
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_DREADWING", 36), new("SHARD_PHANFLARE", 84), new("SHARD_PHANPYRE", 72)];
-    protected override string HowTo => "Go to Wyrmgrove Tomb or Ancient Ruins on Galatea and kill Dreadwing mobs.";
+    protected override string HowTo => "Break trees in Moonglade Marsh on Galatea for a chance to spawn Dreadwings. Throw a Lasso at a Dreadwing and reel it in to capture its shard.";
 }
 public class SpikeTask : BaseGalateaMobTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Spike";
     protected override string MethodName => "Spike";
-    protected override HashSet<string> Locations => ["Kelpwoven Tunnels", "Murkwater Shallows"];
+    protected override HashSet<string> Locations => ["Kelpwoven Tunnels", "Murkwater Shallows", "Murkwater Depths"];
     protected override HashSet<string> DetectionItems => ["SHARD_SPIKE"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_SPIKE", 270)];
-    protected override string HowTo => "Go to the underwater areas on Galatea and kill Spike mobs.";
+    protected override string HowTo => "Find Spikes in the underwater areas on Galatea and use a Turbo Fishing Net from a distance to capture them. They take 10 damage per hit regardless of Pull.";
 }
 public class SeerTask : BaseGalateaMobTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Seer";
     protected override string MethodName => "Seer";
+    protected override LateRewardSpec LateReward => null;
+    public override List<StatFactor> StatFactors => [new("skill:Combat", 0.5, 60), new("skill:Hunting", 0.5, 50)];
     // The Seer is in Dragon's Nest (bottom of The End), not on Galatea.
     protected override HashSet<string> Locations => ["Dragon's Nest"];
     protected override HashSet<string> DetectionItems => ["SHARD_SEER"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_SEER", 240)];
-    protected override string HowTo => "Go to Ancient Ruins or Tranquility Sanctum on Galatea and kill Seer mobs.";
+    protected override string HowTo => "Go to Dragon's Nest in The End and charm Seers or capture them with a Black Hole to obtain Seer Shards.";
 }
 public class MochibearkTask : BaseGalateaMobTask
 {
+    protected override HashSet<string> ObservedCostItems => ["BAMBOO"];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Mochibear";
     protected override string MethodName => "Mochibear";
     // Island key - see CoralotTask's comment.
     protected override HashSet<string> Locations => ["Moonglade"];
     protected override string Where => "Tranquility Sanctum";
     protected override HashSet<string> DetectionItems => ["SHARD_MOCHIBEAR"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_MOCHIBEAR", 250)];
-    protected override string HowTo => "Go to the Tranquility Sanctum on Galatea and kill Mochibear mobs. The Wetlands and Evergreen Plateau work too.";
+    protected override string HowTo => "Go to Tranquility Sanctum on Galatea during autumn or winter and feed a Mochibear 40–44 Bamboo until it passes out and awards its shard.";
 }
 public class MossybitTask : BaseGalateaMobTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Mossybit";
     protected override string MethodName => "Mossybit";
     // Island key - see CoralotTask's comment.
     protected override HashSet<string> Locations => ["Moonglade"];
-    protected override string Where => "North Wetlands";
+    protected override string Where => "Murkwater Loch";
     protected override HashSet<string> DetectionItems => ["SHARD_MOSSYBIT"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_MOSSYBIT", 250)];
-    protected override string HowTo => "Go to the Wetlands or Evergreen Plateau on Galatea and kill Mossybit mobs.";
+    protected override string HowTo => "Go to the land around Murkwater Loch on Galatea and click a Mossybit. Follow its green particles and interact again after each jump until it tires out and drops its shard.";
 }
 
 // ── Non-Galatea mobs ──
 public class VoraciousSpiderTask : MethodTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Voracious_Spider";
     protected override string MethodName => "Voracious Spider";
     protected override string Category => "Mob Farming";
     protected override string ActionUnit => "kills";
@@ -269,6 +291,7 @@ public class VoraciousSpiderTask : MethodTask
 }
 public class GoldenGhoulTask : MethodTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Golden_Ghoul";
     protected override string MethodName => "Golden Ghoul";
     protected override string Category => "Mob Farming";
     protected override string ActionUnit => "kills";
@@ -279,7 +302,7 @@ public class GoldenGhoulTask : MethodTask
     protected override HashSet<string> Locations => ["Crypts", "Graveyard", "Coal Mine"];
     protected override HashSet<string> DetectionItems => ["SHARD_GOLDEN_GHOUL", "GOLDEN_POWDER", "GOLD_INGOT"];
     protected override List<MethodDrop> FormulaDrops => [new("GOLDEN_POWDER", 0.5)];
-    protected override string HowTo => "Go to the Ruins or Graveyard and kill Golden Ghouls for Golden Powder.";
+    protected override string HowTo => "Go to the Crypts below the Graveyard in the Hub and kill Golden Ghouls for Gold Ingots and a rare chance at Golden Powder.";
     protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "Weapon" }];
     protected override List<DropEffect> Effects => [
         new() { Name = "Magic Find", Description = "Increases rare drop chance", EstimatedMultiplier = 1.2 }
@@ -287,6 +310,7 @@ public class GoldenGhoulTask : MethodTask
 }
 public class StarSentryTask : MethodTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Star_Sentry";
     protected override string MethodName => "Star Sentry";
     protected override string Category => "Mob Farming";
     protected override string ActionUnit => "kills";
@@ -294,7 +318,7 @@ public class StarSentryTask : MethodTask
     protected override HashSet<string> Locations => ["Dwarven Mines", "Royal Mines", "Rampart's Quarry"];
     protected override HashSet<string> DetectionItems => ["SHARD_STAR_SENTRY"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_STAR_SENTRY", 200)];
-    protected override string HowTo => "Go to The End and kill Star Sentries in the Dragon's Nest area.";
+    protected override string HowTo => "Follow the Fallen Star event in the Dwarven Mines. Charm Star Sentries or capture them with a Black Hole for shards.";
     protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "Weapon" }];
     protected override List<DropEffect> Effects => [
         new() { Name = "Magic Find", Description = "Increases rare drop chance", EstimatedMultiplier = 1.2 }
@@ -302,6 +326,7 @@ public class StarSentryTask : MethodTask
 }
 public class AutomatonTask : MethodTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Automaton";
     protected override string MethodName => "Automaton";
     protected override string Category => "Mob Farming";
     protected override string ActionUnit => "kills";
@@ -450,8 +475,9 @@ public class BlazeSlayerTask : MethodTask
         "HIGH_CLASS_ARCHFIEND_DICE", "SCORCHED_BOOKS", "WILSON_ENGINEERING_PLANS", "ARROW_BUNDLE_MAGMA",
         // the last three are boss drops seen inside Blaze Slayer periods in production 2026-10-11 (casing as booked); Smoldering
         // comes from the tomb blazes killed for the quest
-        "ENCHANTMENT_SMOLDERING_1", "ENCHANTMENT_ULTIMATE_REITERATE_1", "CRUDE_GABAGOOL_DISTILLATE", "POTION_wisp_ice"
+        "ENCHANTMENT_ULTIMATE_REITERATE_1", "CRUDE_GABAGOOL_DISTILLATE", "POTION_wisp_ice"
     ];
+    protected override HashSet<string> EvidenceItems => ["ENCHANTMENT_SMOLDERING_1"];
     // Production medians (2026-09): 4 Derelict Ashe + 25 Blaze Rods per period, per hour below.
     protected override List<MethodDrop> FormulaDrops => [new("DERELICT_ASHE", 60), new("BLAZE_ROD", 400), new("BLAZE_ASHES", 20)];
     protected override double ActionsPerHour => 4; // bosses, not regular kills
@@ -459,16 +485,16 @@ public class BlazeSlayerTask : MethodTask
     // No RequiredItems - the weapon choice is covered in the Steps below instead.
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Inferno_Demonlord";
     protected override string HowTo =>
-        "Buy a Maddox Batphone, start a Blaze Slayer quest, and kill Blazes in the Smoldering Tomb or The Wasteland for Combat "
+        "Talk to Maddox at the Hub Tavern (or use an unlocked Maddox Batphone), start a Blaze Slayer quest, and kill Blazes in the Smoldering Tomb or The Wasteland for Combat "
         + "XP until the Inferno Demonlord boss spawns. Kill the boss - it's the only source of Derelict Ashe. "
         + "Sell Derelict Ashe and Blaze Rods on the Bazaar.";
     protected override List<TaskStep> Steps =>
     [
-        new() { Number = 1, Text = "The first time, buy a Maddox Batphone from Maddox (at the Hub Tavern) so you can start Slayer quests from anywhere, including the Crimson Isle.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Maddox_Batphone" },
+        new() { Number = 1, Text = "Start the quest at Maddox in the Hub Tavern, or use a Maddox Batphone after unlocking it at Wolf Slayer III.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Maddox_Batphone" },
         new() { Number = 2, Text = "Type /warp isle to get close.", OnClick = "/warp isle" },
-        new() { Number = 3, Text = "Talk to Maddox (or use your Batphone) and start a Blaze Slayer quest.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Maddox" },
+        new() { Number = 3, Text = "Talk to Maddox (or use your Batphone) and start a Blaze Slayer quest.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Maddox_the_Slayer" },
         new() { Number = 4, Text = "Go to the Smoldering Tomb (or The Wasteland) and kill regular Blazes there - that's where most players get their Blaze Slayer Combat XP.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Smoldering_Tomb" },
-        new() { Number = 5, Text = "Bring a Juju Shortbow or Terminator and Fire Resistance - Blazes and the boss hit hard with fire damage." },
+        new() { Number = 5, Text = "For Tier II+ bring paired Blaze Slayer daggers and match their attunement to the boss and demons. Use health and True Defense against true damage." },
         new() { Number = 6, Text = "Once you've killed enough Blazes, the Inferno Demonlord boss spawns - kill it to finish the quest.", OnClick = WikiUrl },
         new() { Number = 7, Text = "You're doing it right when you start collecting: DERELICT_ASHE, BLAZE_ROD, BLAZE_ASHES. That's what we track for your coins/hour." },
         new() { Number = 8, Text = "Sell Derelict Ashe and Blaze Rods on the Bazaar." },

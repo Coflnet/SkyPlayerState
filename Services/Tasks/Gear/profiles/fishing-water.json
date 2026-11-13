@@ -379,12 +379,6 @@
       }
     },
     {
-      "task": "Squid Fishing",
-      "modelOverrides": {
-        "bulkFrom": "creatures"
-      }
-    },
-    {
       "task": "Oasis Fishing",
       "modelOverrides": {
         "bulkFrom": "creatures"

@@ -85,9 +85,10 @@ public class ComposterService
         var increase = composterState.SpeedPercentIncrease;
         var extraDropChance = composterState.MultiDropChance;
         var costReduction = composterState.CostReductionPercent;
-        var producedperHour = 6 * (1 - increase / 100f);
+        var cyclesPerHour = 6 * (1 + increase / 100f);
 
-        var profitPerHour = (compostPrice - (bestCrop.Item2 * (1 + extraDropChance / 100f) + bestFuel.Item2 * (1 - costReduction / 100f))) * producedperHour;
+        var costPerCycle = (4000 * bestCrop.Item2 + 2000 * bestFuel.Item2) * (1 - costReduction / 100f);
+        var profitPerHour = (compostPrice * (1 + extraDropChance / 100f) - costPerCycle) * cyclesPerHour;
         return (bestCrop.Key, bestFuel.Key, profitPerHour);
     }
 }

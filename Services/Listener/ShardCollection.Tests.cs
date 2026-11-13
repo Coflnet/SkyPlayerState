@@ -17,6 +17,8 @@ public class ShardCollectionTests
     [TestCase("LOOT SHARE! You received a Billygoat Shard from Serelya catching a Billygoat!", "SHARD_BILLYGOAT", 1)]
     [TestCase("LOOT SHARE! You received a Hideonfloor Shard from 72Thomas catching a Hideonfloor!", "SHARD_HIDEONFLOOR", 1)]
     [TestCase("LOOT SHARE! You received a Mantis Shrimp Shard from Someone catching a Mantis Shrimp!", "SHARD_MANTIS_SHRIMP", 1)]
+    [TestCase("CHARM! You charmed the Yog and received 2 Yog Shards!", "SHARD_YOG", 2)]
+    [TestCase("CHARM! You charmed the Hellwisp and received 1 Hellwisp Shard!", "SHARD_HELLWISP", 1)]
     public void ParsesShardGainMessages(string message, string expectedTag, int expectedCount)
     {
         var parsed = CollectionListener.TryParseShardGain(message, out var tag, out var count);

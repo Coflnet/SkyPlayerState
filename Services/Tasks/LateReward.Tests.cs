@@ -295,14 +295,16 @@ public class LateRewardTests
     }
 
     [Test]
-    public async Task SlayerBossDrop_AfterMobKills_DoesNotCountTheMobTimeTwice()
+    public async Task SlayerBossDrop_AfterTrackedSlayerWork_DoesNotCountTheWorkTimeTwice()
     {
-        var mobs = MakePeriod("Dragon's Nest", Start, TimeSpan.FromMinutes(4), 40_000, new() { { "SUMMONING_EYE", 4 } }, "T4 Voidglooms");
+        // Eyes alone could be Zealot farming; a preceding boss drop establishes this as tracked Slayer work.
+        var work = MakePeriod("Dragon's Nest", Start, TimeSpan.FromMinutes(4), 40_000,
+            new() { { "SUMMONING_EYE", 4 }, { "NULL_SPHERE", 2 } }, "T4 Voidglooms");
         var boss = MakePeriod("Dragon's Nest", Start.AddMinutes(4), TimeSpan.FromSeconds(20), 1_000_000, new() { { "NULL_SPHERE", 2 } }, "T4 Voidglooms");
 
-        var result = await new T4VoidgloomsTask().Execute(MakeParams(mobs, boss));
+        var result = await new T4VoidgloomsTask().Execute(MakeParams(work, boss));
 
-        // the floor reaches back no further than the end of the mob period: 4 min + 20 s, not 4 + 5 min
+        // the floor reaches back no further than the end of the work period: 4 min + 20 s, not 4 + 5 min
         result.Breakdown.TrackedHours.Should().BeApproximately((4 * 60 + 20) / 3600.0, 1e-6);
     }
 

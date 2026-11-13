@@ -22,8 +22,8 @@ public class JerryTask : IslandTask
 
     public override bool IsPossibleAt(DateTime time)
     {
-        // Season of Jerry, same day window the mod side CurrentEventDetailedFlipFilter uses
+        // The island opens for all of Late Winter and throughout real-world December.
         var currentDay = (int)(Constants.SkyblockYear(time) * 31 * 12) % (31 * 12);
-        return currentDay >= 11 * 31 + 23 && currentDay <= 11 * 31 + 26;
+        return time.Month == 12 || currentDay >= 11 * 31;
     }
 }

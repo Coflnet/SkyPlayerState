@@ -65,7 +65,7 @@ public class TaskGearController : ControllerBase
     /// <summary>
     /// Measured gear model of one task (as in /Task/estimates): the gear score distribution over player-builds, the late
     /// game cohort (90th score percentile, widened to 2 players, never below the 75th), the rate curve over the score,
-    /// the piece catalog with score contributions, the recommended "maximum achievable" endgame build, the measured
+    /// the piece catalog with score contributions, the recommended endgame build with the highest modeled score from observed gear, the measured
     /// modifier effects, and the researched setups with their modelled estimates as the fallback (basis "estimate").
     /// Every number comes from at least 2 distinct players (rounded to 2 significant digits below 5); never contains
     /// player data. Derived hourly. 404 with slug task_not_found for an unknown task. Before the first derivation after

@@ -19,19 +19,12 @@ public class HuntingTrapTask : MethodTask
     /// </summary>
     private static readonly List<(string ShardTag, ShardRarity Rarity, string[] Locations)> ShardLocations =
     [
-        ("SHARD_RAIN_SLIME", ShardRarity.Uncommon, ["Spider's Den", "The Spider's Den"]),
         ("SHARD_HELLWISP", ShardRarity.Legendary, ["Matriarch's Lair"]),
         ("SHARD_XYZ", ShardRarity.Epic, ["Mystic Marsh"]),
-        ("SHARD_INVISIBUG", ShardRarity.Rare, ["Moonglade Marsh", "North Wetlands", "South Wetlands", "Evergreen Plateau"]),
-        ("SHARD_YOG", ShardRarity.Common, ["Magma Fields", "Blazing Volcano", "Crystal Hollows"]),
-        ("SHARD_FLARE", ShardRarity.Epic, ["Blazing Volcano", "Burning Desert", "Crimson Isle"]),
-        ("SHARD_GHOST", ShardRarity.Epic, ["Dwarven Mines", "The Mist", "Goblin Holdout"]),
-        ("SHARD_FLAMING_SPIDER", ShardRarity.Uncommon, ["Blazing Volcano", "Crimson Isle", "Spider's Den"]),
-        ("SHARD_ZEALOT", ShardRarity.Common, ["The End", "Dragon's Nest", "Void Sepulture"]),
-        ("SHARD_BRUISER", ShardRarity.Uncommon, ["The End", "Dragon's Nest"]),
+        ("SHARD_INVISIBUG", ShardRarity.Rare, ["Moonglade Marsh"]),
+        ("SHARD_GHOST", ShardRarity.Epic, ["The Mist"]),
         ("SHARD_CINDER_BAT", ShardRarity.Legendary, ["Smoldering Tomb"]),
-        ("SHARD_BURNINGSOUL", ShardRarity.Epic, ["Dive-Ember Pass", "Side-Ember Way"]),
-        ("SHARD_DROWNED", ShardRarity.Rare, ["Drowned Reliquary", "Kelpwoven Tunnels", "Murkwater Depths"]),
+        ("SHARD_DROWNED", ShardRarity.Rare, ["Drowned Reliquary"]),
         // the valuable spots of the wiki's "Place Hunting Traps in ..." entries (underwater where noted there)
         ("SHARD_BAYOU_SLUDGE", ShardRarity.Uncommon, ["Backwater Bayou"]),
         ("SHARD_TORRID", ShardRarity.Rare, ["Spring Depths"]),
@@ -76,14 +69,15 @@ public class HuntingTrapTask : MethodTask
     protected override string MethodName => "Hunting Trap";
     protected override string Category => "Hunting";
     // No single Where - it dynamically picks whichever zone currently has the priciest shard (see
-    // Execute below), so fall back to the general "Shard" wiki page instead of one specific zone.
-    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Shard";
+    // Execute below), so link to the Huntraps mechanic instead of one specific zone.
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Huntraps";
     protected override TaskType TaskType => TaskType.Passive;
     protected override string ActionUnit => "traps";
     // No fixed ActionsPerHour: the capture time depends on the rarity of the shard Execute picks, and the breakdown
     // carries that shard's rate (a fixed Rare time disagreed with it whenever another rarity paid the most).
-    // The in-game trap is not a tradeable/priced item on the API, so no RequiredItem tag is listed.
-    protected override List<RequiredItem> RequiredItems => [];
+    // Small Huntrap item ID verified against the Hypixel items API.
+    protected override List<RequiredItem> RequiredItems =>
+        [new() { ItemTag = "RETIA_BASICA", Reason = "Place a Small Huntrap or better" }];
 
     public override Task<TaskResult> Execute(TaskParams parameters)
     {
@@ -134,10 +128,11 @@ public class HuntingTrapTask : MethodTask
             ProfitPerHour = (int)profitPerHour,
             Type = TaskType.Passive, MostlyPassive = true,
             IsAccessible = true,
-            Message = $"Place trap at {McColorCodes.GREEN}{location} {McColorCodes.GRAY}for {McColorCodes.YELLOW}{shardName} {McColorCodes.GRAY}({fmt.FormatPrice(bestShard.Price)} every ~{bestShard.Hours:0.#}h)",
-            Details = $"Best shard: {McColorCodes.YELLOW}{shardName} {McColorCodes.GRAY}worth {McColorCodes.AQUA}{fmt.FormatPrice(bestShard.Price)}\n"
+            Message = $"Trap at {McColorCodes.GREEN}{location} {McColorCodes.GRAY}— upper-bound estimate for {McColorCodes.YELLOW}{shardName} {McColorCodes.GRAY}({fmt.FormatPrice(profitPerHour)}/h; depends on capture)",
+            Details = $"Selected shard: {McColorCodes.YELLOW}{shardName} {McColorCodes.GRAY}worth {McColorCodes.AQUA}{fmt.FormatPrice(bestShard.Price)}\n"
                 + $"Location: {McColorCodes.GREEN}{string.Join(", ", bestShard.Locations)}\n"
-                + $"{McColorCodes.GRAY}Place a hunting trap there and collect after about {bestShard.Hours:0.#} hours.\n"
+                + $"{McColorCodes.GRAY}Upper-bound estimate: selected shard value divided by its ~{bestShard.Hours:0.#}h midpoint capture time.\n"
+                + $"{McColorCodes.GRAY}Traps can catch other shards here; this shard is not guaranteed, and actual profit depends on the capture.\n"
                 + $"{McColorCodes.DARK_GRAY}(Passive — can be done alongside active tasks)",
             Name = MethodName,
             Breakdown = breakdown
@@ -145,8 +140,8 @@ public class HuntingTrapTask : MethodTask
     }
     protected override string HowTo => HuntingText.Steps(
         "Get a Huntrap; they unlock with the Tender Wood collection.",
-        "Place it in the suggested spot.",
+        "Place it in the suggested spot and follow the required land or underwater placement rules; Bambuleaf requires Spring or Summer.",
         "Come back after the capture time, collect the shard and place the trap again.");
     public override string Description =>
-        "A passive task: Huntraps placed where shard creatures live catch a shard on their own. A Small Huntrap needs 8-12 hours for a common shard and up to 16-24 hours for a legendary one, and bigger Huntraps are up to 50% faster. This task suggests the trap spot whose shard pays the most per hour.";
+        "A passive task: Huntraps placed where shard creatures live catch a shard on their own. A Small Huntrap needs 8-12 hours for a common shard and up to 16-24 hours for a legendary one, and bigger Huntraps are up to 50% faster. This task ranks an optimistic upper-bound estimate: selected shard value divided by its midpoint capture time. Traps may catch other shards, so actual profit depends on the capture.";
 }

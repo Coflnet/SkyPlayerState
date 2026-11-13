@@ -40,9 +40,9 @@ public abstract class IndividualSlayerTask : ProfitTask
             var warp = EffectiveWarpCommand;
             if (warp != null)
                 Add($"Type {warp} to get close.", warp);
-            Add("The first time, buy a Maddox Batphone from Maddox (at the Hub Tavern) - then you can start any Slayer quest from anywhere.",
+            Add("Visit Maddox in the Hub Tavern to start quests. At Wolf Slayer III you earn a Maddox Batphone and unlock its recipe for remote calls.",
                 "https://hypixelskyblock.minecraft.wiki/w/Maddox_Batphone");
-            Add($"Talk to Maddox (or use your Batphone) and start a {SlayerName} quest.", "https://hypixelskyblock.minecraft.wiki/w/Maddox");
+            Add($"Talk to Maddox (or use your Batphone) and start a {SlayerName} quest.", "https://hypixelskyblock.minecraft.wiki/w/Maddox_the_Slayer");
             if (Where != null)
                 Add($"Kill the mobs the quest asks for near {Where} until the boss spawns.", WhereWikiUrl);
             Add("Kill the boss to finish the quest and get your Slayer rewards.");
@@ -209,14 +209,14 @@ internal static class InfernoDemonlordGuide
         var steps = new List<TaskStep>();
         void Add(string text, string onClick = null) => steps.Add(new TaskStep { Number = steps.Count + 1, Text = text, OnClick = onClick });
 
-        Add("The first time, buy a Maddox Batphone from Maddox (at the Hub Tavern) so you can start Slayer quests from anywhere, including the Crimson Isle.",
+        Add("Start the quest at Maddox in the Hub Tavern, or use a Maddox Batphone after unlocking it at Wolf Slayer III.",
             "https://hypixelskyblock.minecraft.wiki/w/Maddox_Batphone");
         Add("Type /warp isle to get close.", "/warp isle");
         Add($"Talk to Maddox (or use your Batphone) and start a Blaze Slayer quest at Tier {tier}.",
-            "https://hypixelskyblock.minecraft.wiki/w/Maddox");
+            "https://hypixelskyblock.minecraft.wiki/w/Maddox_the_Slayer");
         Add("Go to the Smoldering Tomb and kill regular Blazes there - that's the recommended spot for Blaze Slayer Combat XP.",
             "https://hypixelskyblock.minecraft.wiki/w/Smoldering_Tomb");
-        Add("Wear gear with high health and Fire Resistance - Blazes and the boss hit hard with fire and true damage. Opal Gemstones in your armor/weapon combat slots help a lot.");
+        Add("Bring paired Blaze Slayer daggers and switch their attunement to match the boss and demons. High health and True Defense help against true damage; Opal Gemstones grant True Defense.");
         Add("Once you've killed enough Blazes, the Inferno Demonlord boss spawns - kill it to finish the quest.",
             "https://hypixelskyblock.minecraft.wiki/w/Inferno_Demonlord");
         Add("Sell Derelict Ashe, Blaze Rods, and any rare shard/dye drops on the Bazaar or Auction House.");
@@ -261,14 +261,16 @@ public class AshfangTask : IndividualSlayerTask
 public class BarbarianDukeXTask : MethodTask
 {
     protected override string MethodName => "Barbarian Duke X";
-    protected override HashSet<string> Locations => ["The Dukedom", "Stronghold", "Dragontail", "Mage Outpost"];
-    protected override HashSet<string> DetectionItems => ["SHARD_BARBARIAN_DUKE_X", "MAGMA_URCHIN"];
+    protected override HashSet<string> Locations => ["The Dukedom"];
+    protected override HashSet<string> DetectionItems => ["SHARD_BARBARIAN_DUKE_X", "LEATHER_CLOTH", "FLAMING_FIST"];
+    // Magma Urchin is shared with four other Crimson Isle minibosses; it cannot establish a Duke kill.
+    protected override HashSet<string> EvidenceItems => ["MAGMA_URCHIN"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_BARBARIAN_DUKE_X", 20)];
     protected override string Category => "Combat";
     protected override string ActionUnit => "kills";
     protected override string Where => "The Dukedom";
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Barbarian_Duke_X";
-    protected override string HowTo => "Go to The Dukedom on the Crimson Isle and kill Barbarian Duke X for its shard.";
+    protected override string HowTo => "Go to The Dukedom on the Crimson Isle and charm Barbarian Duke X or capture it with a Black Hole for its shard. Regular kills award Leather Cloth and other boss loot.";
     public override string Description => "Barbarian Duke X on Crimson Isle";
 }
 
@@ -282,10 +284,12 @@ public class T4VoidgloomsTask : MethodTask
         [.. SlayerRequirements.ForTier("enderman", 4), TaskRequirement.SlayerLevel("enderman", 7, hard: false)];
     protected override LateRewardSpec LateReward => SlayerBossDrops.NullSphere;
     protected override string MethodName => "T4 Voidglooms";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Voidgloom_Seraph";
+    protected override HashSet<string> EvidenceItems => ["SUMMONING_EYE"];
     protected override HashSet<string> Locations => ["Dragon's Nest", "Void Sepulture", "Zealot Bruiser Hideout"];
     // production (2026-10): 72% of the fight time is in the Void Sepulture
     protected override string Where => "Void Sepulture";
-    protected override HashSet<string> DetectionItems => ["NULL_SPHERE", "SUMMONING_EYE", .. BossDrops];
+    protected override HashSet<string> DetectionItems => ["NULL_SPHERE", .. BossDrops];
     // Zealots (and Bruisers) farmed at the Hideout drop Summoning Eyes too (production 2026-10-03: 211
     // periods there were Voidgloom fights misread as Zealots (FD)), so only boss-only drops prove the
     // slayer fight in that zone.
@@ -307,7 +311,7 @@ public class T4VoidgloomsTask : MethodTask
     protected override string HowTo => "Go to The End and spawn T4 Voidgloom Seraphs, most often in the Void Sepulture; the Zealot Bruiser Hideout and Dragon's Nest work too. Use Terminator or Juju bow for high DPS. Enderman Slayer 7 is recommended.";
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "TERMINATOR", Reason = "High DPS weapon for Voidgloom kills" },
-        new() { ItemTag = "VOID_SWORD", Reason = "Alternative weapon for Voidgloom kills" }
+        new() { ItemTag = "ATOMSPLIT_KATANA", Reason = "Slayer katana alternative for Voidgloom kills" }
     ];
     protected override List<DropEffect> Effects => [
         new() { Name = "Magic Find", Description = "Increases rare drop chance from slayer bosses", EstimatedMultiplier = 1.2 },
@@ -327,9 +331,10 @@ public class RevenantSlayerTask : MethodTask
     protected override string MethodName => "Revenant Slayer";
     protected override HashSet<string> Locations => ["Crypts", "Graveyard"];
     protected override HashSet<string> DetectionItems =>
-        ["REVENANT_FLESH", "FOUL_FLESH", "REVENANT_VISCERA", "REVENANT_CATALYST", "UNDEAD_CATALYST", "ROTTEN_FLESH",
+        ["REVENANT_FLESH", "FOUL_FLESH", "REVENANT_CATALYST", "UNDEAD_CATALYST", "WARDEN_HEART",
             // the Revenant Sycophant miniboss spawns while a Revenant Horror III+ quest is active (wiki)
             "SHARD_SYCOPHANT"];
+    protected override HashSet<string> EvidenceItems => ["ROTTEN_FLESH", "REVENANT_VISCERA"];
     // Production medians (2026-09) per 10-min period * 6: REVENANT_FLESH 126, ROTTEN_FLESH 43.
     protected override List<MethodDrop> FormulaDrops => [new("REVENANT_FLESH", 756), new("ROTTEN_FLESH", 258)];
     protected override string Category => "Slayer";
@@ -338,7 +343,7 @@ public class RevenantSlayerTask : MethodTask
     // is the actual slayer quest reward and should win.
     protected override int Priority => 1;
     protected override string HowTo =>
-        "Buy a Maddox Batphone, start a Zombie Slayer quest, then kill Crypt Ghouls and Golden Ghouls "
+        "Talk to Maddox at the Hub Tavern (or use an unlocked Maddox Batphone), start a Zombie Slayer quest, then kill Crypt Ghouls and Golden Ghouls "
         + "in the Hub Crypts (below the Graveyard) until the Revenant Horror boss spawns. Kill it for "
         + "guaranteed Revenant Flesh.";
     // no RequiredItems: no specific weapon is verified for this slayer, a generic one would mislead
@@ -359,12 +364,12 @@ public class SvenSlayerTask : MethodTask
     protected override List<TaskRequirement> Requirements => SlayerRequirements.Unlock("wolf");
     protected override string MethodName => "Sven Slayer";
     protected override HashSet<string> Locations => ["Howling Cave", "Soul Cave", "Spirit Cave", "Ruins"];
-    protected override HashSet<string> DetectionItems => ["WOLF_TOOTH", "HAMSTER_WHEEL", "RED_CLAW_EGG", "FURBALL"];
+    protected override HashSet<string> DetectionItems => ["WOLF_TOOTH", "HAMSTER_WHEEL", "RED_CLAW_EGG", "FURBALL", "OVERFLUX_CAPACITOR"];
     // Production medians (2026-09) per 10-min period * 6: WOLF_TOOTH 257, HAMSTER_WHEEL 12.
     protected override List<MethodDrop> FormulaDrops => [new("WOLF_TOOTH", 1542), new("HAMSTER_WHEEL", 72)];
     protected override string Category => "Slayer";
     protected override string HowTo =>
-        "Buy a Maddox Batphone, start a Wolf Slayer quest, then kill wolves at the Ruins in the Hub or in the Soul Cave, "
+        "Talk to Maddox at the Hub Tavern (or use an unlocked Maddox Batphone), start a Wolf Slayer quest, then kill wolves at the Ruins in the Hub or in the Soul Cave, "
         + "Spirit Cave and Howling Cave complex (behind the Dark Thicket in The Park) until Sven Packmaster spawns. He is immune to ability "
         + "and ranged damage (melee only) and deals true damage - bring high health/defense gear.";
     // no RequiredItems: no specific weapon is verified for this slayer, a generic one would mislead
@@ -387,12 +392,13 @@ public class TarantulaSlayerCrimsonIsleTask : MethodTask
     protected override LateRewardSpec LateReward => SlayerBossDrops.TarantulaWeb;
     protected override string MethodName => "Tarantula Slayer (Crimson Isle)";
     protected override HashSet<string> Locations => ["Burning Desert", "Dragontail", "Crimson Isle"];
-    protected override HashSet<string> DetectionItems => ["TARANTULA_WEB", "TARANTULA_SILK", "TOXIC_ARROW_POISON", "BURNING_EYE", "SHARD_PRIMORDIAL"];
+    protected override HashSet<string> DetectionItems => ["TARANTULA_WEB", "TOXIC_ARROW_POISON", "SPIDER_CATALYST", "SHARD_PRIMORDIAL"];
+    protected override HashSet<string> EvidenceItems => ["BURNING_EYE", "TARANTULA_SILK"];
     // Production medians (2026-09) per 10-min period * 6: TARANTULA_WEB 71, BURNING_EYE 4.
     protected override List<MethodDrop> FormulaDrops => [new("TARANTULA_WEB", 426), new("BURNING_EYE", 24)];
     protected override string Category => "Slayer";
     protected override string HowTo =>
-        "Buy a Maddox Batphone, start a Spider Slayer quest, then kill Flaming Spiders [Lv80] in the "
+        "Talk to Maddox at the Hub Tavern (or use an unlocked Maddox Batphone), start a Spider Slayer quest, then kill Flaming Spiders [Lv80] in the "
         + "Burning Desert or around Dragontail on the Crimson Isle to spawn Tarantula Broodfather quickly (they also drop "
         + "Burning Eye, 20% chance). Kill the boss for Tarantula Web.";
     // no RequiredItems: no specific weapon is verified for this slayer, a generic one would mislead
@@ -415,12 +421,13 @@ public class TarantulaSlayerTask : MethodTask
     protected override LateRewardSpec LateReward => SlayerBossDrops.TarantulaWeb;
     protected override string MethodName => "Tarantula Slayer";
     protected override HashSet<string> Locations => ["Arachne's Burrow", "Arachne's Sanctuary", "Spider's Den", "Spider Mound"];
-    protected override HashSet<string> DetectionItems => ["TARANTULA_WEB", "TARANTULA_SILK", "TOXIC_ARROW_POISON", "SPIDER_CATALYST", "SHARD_PRIMORDIAL"];
+    protected override HashSet<string> DetectionItems => ["TARANTULA_WEB", "TOXIC_ARROW_POISON", "SPIDER_CATALYST", "SHARD_PRIMORDIAL"];
+    protected override HashSet<string> EvidenceItems => ["TARANTULA_SILK"];
     // Production medians (2026-10-02/03) per hour: TARANTULA_WEB 2700, TOXIC_ARROW_POISON 750, TARANTULA_SILK 12.
     protected override List<MethodDrop> FormulaDrops => [new("TARANTULA_WEB", 2700), new("TOXIC_ARROW_POISON", 750), new("TARANTULA_SILK", 12)];
     protected override string Category => "Slayer";
     protected override string HowTo =>
-        "Buy a Maddox Batphone, start a Spider Slayer quest, then kill spiders in the Spider's Den "
+        "Talk to Maddox at the Hub Tavern (or use an unlocked Maddox Batphone), start a Spider Slayer quest, then kill spiders in the Spider's Den "
         + "(Arachne's Burrow or Arachne's Sanctuary) to spawn Tarantula Broodfather. Kill the boss for Tarantula Web.";
     // no RequiredItems: no specific weapon is verified for this slayer, a generic one would mislead
     protected override List<DropEffect> Effects => [
@@ -437,11 +444,13 @@ public class T4VoidgloomsFdTask : MethodTask
         [.. SlayerRequirements.ForTier("enderman", 4), TaskRequirement.SlayerLevel("enderman", 7, hard: false)];
     protected override LateRewardSpec LateReward => SlayerBossDrops.NullSphere;
     protected override string MethodName => "T4 Voidglooms (FD)";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Voidgloom_Seraph";
+    protected override HashSet<string> EvidenceItems => ["SUMMONING_EYE"];
     protected override HashSet<string> Locations => ["Dragon's Nest", "Void Sepulture"];
-    protected override HashSet<string> DetectionItems => ["NULL_SPHERE", "SUMMONING_EYE", .. T4VoidgloomsTask.BossDrops];
+    protected override HashSet<string> DetectionItems => ["NULL_SPHERE", .. T4VoidgloomsTask.BossDrops];
     protected override List<MethodDrop> FormulaDrops => [new("NULL_SPHERE", 20), new("SUMMONING_EYE", 3)];
     protected override string Category => "Slayer";
-    protected override string HowTo => "Go to The End and spawn T4 Voidgloom Seraphs (formula drop estimate). Uses estimated rates for players without tracked data.";
+    protected override string HowTo => "Start a Tier IV Enderman Slayer quest at Maddox, then kill Endermen in the Void Sepulture or Dragon's Nest to spawn the boss. Final Destination armor helps survival. Break the hitshield, touch thrown beacons within 5 seconds and look at floating heads to clear them.";
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "TERMINATOR", Reason = "High DPS weapon for Voidgloom kills" }
     ];

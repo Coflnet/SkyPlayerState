@@ -48,6 +48,11 @@ public class XyzMysticMarshTask : BaseKillTask
     protected override HashSet<string> DetectionItems => ["X", "Y", "Z"];
     protected override List<MethodDrop> FormulaDrops => [new("X", 224), new("Y", 72), new("Z", 88)];
     protected override string ActionUnit => "atominized Exes";
+    protected override List<RequiredItem> RequiredItems => [
+        new() { ItemTag = "ATOMINIZER", Reason = "Converts Exes, Wais and Zees into X, Y and Z" },
+        new() { ItemTag = "CHARMINIZER", Reason = "Moves Exes together so they merge" }
+    ];
+    protected override List<DropEffect> Effects => [];
     public override string Description =>
         "Turn the floating Exes in the Mystic Marsh on the Crimson Isle into X, Y and Z with an Atominizer. "
         + "Two Exes that touch merge into a Wai, and two Wais into a Zee; an Exe gives an X, a Wai a Y and a Zee a Z, and Y and Z sell for much more. "
@@ -74,7 +79,7 @@ public class CorleoneTask : BaseKillTask
         "Find a Corleone structure in the Mithril Deposits, a lobby can have up to two. "
         + "Wait at the spawn and kill him when he appears, he throws a ball that spawns an exploding Smog. "
         + "If the lobby has both structures, walk between them. Sell the Corleonite on the bazaar.";
-    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Corleone";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Boss_Corleone";
 }
 
 /// <summary>Toxic Rain Slimes, which only spawn in a thunderstorm and are the source of Poison Samples.</summary>
@@ -103,7 +108,7 @@ public class ArachneTask : BaseKillTask
     protected override string MethodName => "Arachne";
     protected override string Category => "Combat";
     protected override HashSet<string> Locations => ["Arachne's Sanctuary"];
-    protected override HashSet<string> DetectionItems => ["SHARD_ARACHNE", "ARACHNE_FANG", "DARK_QUEENS_SOUL_DROP", "LUXURIOUS_SPOOL"];
+    protected override HashSet<string> DetectionItems => ["SHARD_ARACHNE", "ARACHNE_FANG", "DARK_QUEENS_SOUL_DROP", "LUXURIOUS_SPOOL", "SOUL_STRING", "ARACHNE_FRAGMENT"];
     public override string Description =>
         "Summon and kill Arachne in Arachne's Sanctuary in the Spider's Den. "
         + "Four Arachne's Callings summon the weak form, one Arachne Crystal the strong form, which can also drop a Dark Queen's Soul. "

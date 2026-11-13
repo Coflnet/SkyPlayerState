@@ -70,13 +70,18 @@ public class DailyCrimsonQuestsTask : LimitedTask
 {
     protected override string MethodName => "Daily Crimson Quests";
     protected override TimeSpan Cooldown => TimeSpan.FromHours(24);
-    protected override HashSet<string> Locations => ["Crimson Isle", "Stronghold", "Dragontail", "Burning Desert", "Blazing Volcano", "Mage Outpost", "The Dukedom"];
+    // A reward period does not prove that all daily quests/charges/stock were consumed.
+    protected override DateTime? GetNextAvailableAt(TaskParams parameters) => null;
+    // Rewards are claimed at the faction town board, not at the miniboss or fishing spot.
+    protected override HashSet<string> Locations => ["Scarleton", "Dragontail", "Scarleton Town Square", "Dragontail Town Square"];
+    protected override string Where => "Scarleton";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Faction_Quests";
     // CRIMSON_QUEST_REWARD is not a real item; Lumino Fiber is one of the real faction-quest rewards.
     protected override HashSet<string> DetectionItems => ["LUMINO_FIBER"];
     protected override List<MethodDrop> FormulaDrops => [new("LUMINO_FIBER", 0.2)];
     protected override string Category => "Daily";
-    protected override string HowTo => "Go to the Crimson Isle and complete daily quests from NPCs. " +
-        "Quests include combat missions, item collection, and boss kills. Rewards include Crimson Essence and exclusive items.";
+    protected override string HowTo => "Read your faction town board in the Community Center of Scarleton or Dragontail. " +
+        "Complete up to five faction quests each day, then claim their rewards at the board. Rewards include reputation, Bits and items; only some rewards include Lumino Fiber, so tracking is partial.";
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "Combat weapon for quest mobs" }
     ];
@@ -90,12 +95,17 @@ public class ExperimentationTableTask : LimitedTask
 {
     protected override string MethodName => "Experimentation Table";
     protected override TimeSpan Cooldown => TimeSpan.FromHours(24);
-    protected override HashSet<string> Locations => ["Hub", "Village"];
-    protected override HashSet<string> DetectionItems => ["GRAND_EXP_BOTTLE", "TITANIC_EXP_BOTTLE"];
+    // A reward period does not prove that all daily quests/charges/stock were consumed.
+    protected override DateTime? GetNextAvailableAt(TaskParams parameters) => null;
+    protected override HashSet<string> Locations => ["Your Island"];
+    protected override string Where => "Private Island";
+    protected override string WarpCommand => "/is";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Experimentation_Table";
+    protected override HashSet<string> DetectionItems => ["GRAND_EXP_BOTTLE", "TITANIC_EXP_BOTTLE", "COLOSSAL_EXP_BOTTLE", "EXPERIMENT_THE_FISH", "METAPHYSICAL_SERUM"];
     protected override List<MethodDrop> FormulaDrops => [new("GRAND_EXP_BOTTLE", 3), new("TITANIC_EXP_BOTTLE", 1)];
     protected override string Category => "Daily";
-    protected override string HowTo => "Visit the Experimentation Table in the Hub (near the Alchemist). " +
-        "Complete the memory/click game for enchanting XP and rare rewards. Higher Enchanting level unlocks better experiments.";
+    protected override string HowTo => "Place an Experimentation Table on your Private Island (recipe unlocked at Enchanting X). " +
+        "Complete Chronomatron and Ultrasequencer, then Superpairs for enchanting XP and rewards. Charges regenerate 24 hours after the last charge is consumed; extra charges cost Bits. Bottle and unique item rewards are tracked; book-only rewards may be missed.";
     protected override List<RequiredItem> RequiredItems => [];
     protected override List<DropEffect> Effects => [
         new() { Name = "Enchanting Level", Description = "Higher enchanting unlocks Superpairs and Ultrasequencer", EstimatedMultiplier = 1.5 }
@@ -128,19 +138,25 @@ public class ViperShardNpcFlipTask : LimitedTask
 {
     protected override string MethodName => "Viper Shard NPC Flip";
     protected override TimeSpan Cooldown => TimeSpan.FromHours(24);
+    // A reward period does not prove that all daily quests/charges/stock were consumed.
+    protected override DateTime? GetNextAvailableAt(TaskParams parameters) => null;
     protected override HashSet<string> Locations => ["North Reaches"];
     protected override HashSet<string> DetectionItems => ["SHARD_VIPER"];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Kiara";
     protected override List<MethodDrop> FormulaDrops => []; // overriding Execute for custom calc
     protected override string Category => "Daily";
     protected override double ActionsPerHour => 20; // ~3 minutes per run = 20 runs/hour
-    protected override string HowTo => "Buy 10 SHARD_VIPER from the NPC for 100k coins each (1M total), " +
-        "then sell them on the bazaar at North Reaches for 150k-200k each. " +
-        "Takes about 3 minutes. Up to 1M profit per run (~20M/h effective rate).";
+    // This task's acquired shards are bought from Kiara for a fixed coin price, not a market-priced ingredient.
+    public override double ScaledFormulaCost(Dictionary<string, double> itemCounts, double hours, Func<string, double> priceOf)
+        => hours > 0 ? Math.Max(0, itemCounts?.GetValueOrDefault("SHARD_VIPER") ?? 0) * 100_000 : 0;
+    protected override string HowTo => "Buy up to 10 Viper Shards per day from Kiara at North Reaches for 100k coins each (1M total), " +
+        "then sell them on the Bazaar if the current sale price covers the cost and tax. Kiara's Abiphone contact increases stock to 11; this estimate uses 10. Allow about 3 minutes.";
 
     public override Task<TaskResult> Execute(TaskParams parameters)
     {
         var prices = parameters.GetPrices();
-        var viperPrice = prices.GetValueOrDefault("SHARD_VIPER", 0);
+        var viperPrice = parameters.BazaarPrices?.FirstOrDefault(p => p.ProductId == "SHARD_VIPER")?.SellPrice
+            ?? prices.GetValueOrDefault("SHARD_VIPER", 0);
         var npcBuyPrice = 100_000f;
         var quantity = 10;
 
@@ -166,7 +182,7 @@ public class ViperShardNpcFlipTask : LimitedTask
         {
             ProfitPerHour = (int)profitPerHour,
             Type = TaskType.Limited,
-            Message = $"Buy 10 Viper Shards from NPC, sell on bazaar for {McColorCodes.AQUA}{fmt.FormatPrice(profitPerRun)} {McColorCodes.GRAY}profit",
+            Message = $"Buy 10 Viper Shards from Kiara, sell on bazaar for {McColorCodes.AQUA}{fmt.FormatPrice(profitPerRun)} {McColorCodes.GRAY}profit before Bazaar tax",
             Details = $"NPC buy price: {McColorCodes.YELLOW}{fmt.FormatPrice(npcBuyPrice)} {McColorCodes.GRAY}x10 = {fmt.FormatPrice(npcBuyPrice * quantity)}\n"
                 + $"Bazaar sell price: {McColorCodes.AQUA}{fmt.FormatPrice(viperPrice)} {McColorCodes.GRAY}x10 = {fmt.FormatPrice(viperPrice * quantity)}\n"
                 + $"Profit: {McColorCodes.GREEN}{fmt.FormatPrice(profitPerRun)}\n"
@@ -178,7 +194,7 @@ public class ViperShardNpcFlipTask : LimitedTask
             Breakdown = new MethodBreakdown
             {
                 HowTo = HowTo,
-                RequiredItems = [new RequiredItem { ItemTag = "SHARD_VIPER", Name = "Viper Shard", Reason = "Buy from NPC at North Reaches (100k each)" }],
+                RequiredItems = [new RequiredItem { ItemTag = "SHARD_VIPER", Name = "Viper Shard", Reason = "Buy from Kiara at North Reaches (100k each)" }],
                 Drops = [new DropInfo
                 {
                     ItemTag = "SHARD_VIPER",

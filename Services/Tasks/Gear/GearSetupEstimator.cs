@@ -57,13 +57,19 @@ public static class GearSetupEstimator
     {
         var profile = input.Profile;
         var anchor = profile.Anchor ?? profile.Baseline;
-        Func<GearSetup, bool, SetupRate> rateOf = GearModelKinds.Normalize(profile.Model.Kind) == GearModelKinds.TierUnlock
+        var tierUnlock = GearModelKinds.Normalize(profile.Model.Kind) == GearModelKinds.TierUnlock;
+        var currentTier = TierIndex(profile.Profile.Tiers ?? [], input.TaskName);
+        var startingTier = profile.Setups.Select(s => TierIndex(profile.Profile.Tiers ?? [], s.UnlocksTask))
+            .Where(t => t >= 0 && t < currentTier).DefaultIfEmpty(currentTier).Max();
+        Func<GearSetup, bool, SetupRate> rateOf = tierUnlock
             ? (setup, isBaseline) => TierRate(input, setup, isBaseline)
             : ScaledRates(input, anchor);
 
         var baselineRate = rateOf(profile.Baseline, true);
         var baseline = ToEstimate(input, TierBaseline(input, profile), baselineRate, baselineRate.Rate);
-        var setups = profile.Setups.OrderBy(s => GearTiers.Rank(s.Tier))
+        var setups = profile.Setups
+            .Where(s => !tierUnlock || TierIndex(profile.Profile.Tiers ?? [], s.UnlocksTask) >= startingTier)
+            .OrderBy(s => GearTiers.Rank(s.Tier))
             .Select(s => ToEstimate(input, s, rateOf(s, false), baselineRate.Rate))
             .ToList();
         return new TaskGearSetups

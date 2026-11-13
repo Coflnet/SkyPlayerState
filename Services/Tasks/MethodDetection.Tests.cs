@@ -432,14 +432,14 @@ public class MethodDetectionTests
     }
 
     [Test]
-    public async Task LimitedTask_SetsNextAvailableAt_WhenRecentlyCompleted()
+    public async Task ExperimentationReward_DoesNotProveAllChargesWereConsumed()
     {
         var start = new DateTime(2025, 7, 24, 10, 0, 0, DateTimeKind.Utc);
         var period = new Period
         {
             PlayerUuid = "test",
             Server = "m1",
-            Location = "Hub",
+            Location = "Your Island",
             Profit = 100_000,
             StartTime = start,
             EndTime = start.AddMinutes(5),
@@ -449,8 +449,8 @@ public class MethodDetectionTests
 
         var result = await task.Execute(MakeParamsWithTime(start.AddHours(1), period));
 
-        result.IsAccessible.Should().BeFalse();
-        result.NextAvailableAt.Should().Be(start.AddMinutes(5).AddHours(24));
+        result.IsAccessible.Should().BeTrue();
+        result.NextAvailableAt.Should().BeNull();
     }
 
     // PrepareTaskResult test stays in SkyModCommands, it covers the command layer.
@@ -632,8 +632,8 @@ public class MethodDetectionTests
         // regression test below for the same class of bug.
         var period = MakePeriod("Void Sepulture", 3_000_000, new()
         {
-            { "SUMMONING_EYE", 5 },
-            { "ENCHANTED_OBSIDIAN", 15 }
+            { "NULL_SPHERE", 120 },
+            { "SUMMONING_EYE", 5 }
         }, 10);
         var task = new T4VoidgloomsTask();
         var result = await task.Execute(MakeParams(period));

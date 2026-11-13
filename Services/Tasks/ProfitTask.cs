@@ -91,7 +91,9 @@ public abstract class ProfitTask
     protected string Island => SkyblockZones.IslandOfLocation(Where);
     public string IslandForTest => Island;
     /// <summary>Wiki page for <see cref="Island"/> (has the island's map), or null if unknown.</summary>
-    protected string WhereWikiUrl => SkyblockZones.IslandWikiUrl(Island);
+    protected string WhereWikiUrl => Island == "The Farming Islands"
+        ? SkyblockZones.WikiPageUrl(Where == "The Barn" ? "The Barn" : "Mushroom Desert")
+        : SkyblockZones.IslandWikiUrl(Island);
     public string WhereWikiUrlForTest => WhereWikiUrl;
     /// <summary>This task's own declared warp, if any - see <see cref="EffectiveWarpCommand"/>.</summary>
     protected virtual string WarpCommand => null;

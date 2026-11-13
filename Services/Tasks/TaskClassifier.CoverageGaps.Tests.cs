@@ -59,10 +59,10 @@ public class TaskClassifierCoverageGapsTests
     }
 
     [Test]
-    public void FallbackTask_LosesToARegularLocationOnlyTask_ItNeverTakesItsPeriod()
+    public void CouponOnlyPeriod_DoesNotProveRodFishing()
     {
-        // Galatea Fishing (regular, location-only) already classified this lone coupon period
-        Classify("Driptoad Delve", new() { { "AGATHA_COUPON", 40 } }).Should().Be("Galatea Fishing");
+        // A contest coupon alone is not evidence of rod fishing.
+        Classify("Driptoad Delve", new() { { "AGATHA_COUPON", 40 } }).Should().Be("Galatea Contests");
     }
 
     // ── 1. Crimson Isle mobs ──
@@ -255,8 +255,8 @@ public class TaskClassifierCoverageGapsTests
         // a lone shard, and with the generic mob drops that used to send it to Crimson Isle Mobs
         Classify("The Dukedom", new() { { "SHARD_BARBARIAN_DUKE_X", 2 } }).Should().Be("Barbarian Duke X");
         Classify("The Dukedom", new() { { "SHARD_BARBARIAN_DUKE_X", 4 }, { "PORK", 55 }, { "LEATHER_CLOTH", 2 } }).Should().Be("Barbarian Duke X");
-        // without the shard the hidden fallback still takes the zone
-        Classify("The Dukedom", new() { { "PORK", 55 }, { "LEATHER_CLOTH", 2 } }).Should().Be("Crimson Isle Mobs");
+        // The guaranteed Leather Cloth drop also identifies a regular kill without a captured shard.
+        Classify("The Dukedom", new() { { "PORK", 55 }, { "LEATHER_CLOTH", 2 } }).Should().Be("Barbarian Duke X");
     }
 
     [Test]

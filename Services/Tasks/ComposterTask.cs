@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Coflnet.Sky.Commands.MC;
 
@@ -13,9 +14,12 @@ public class ComposterTask : ProfitTask
     {
         var composterService = parameters.GetService<ComposterService>();
         var all = parameters.GetPrices();
-        var compostPrice = all.GetValueOrDefault("COMPOST");
+        foreach (var price in parameters.BazaarPrices)
+            all[price.ProductId] = (float)price.BuyPrice;
+        var compostPrice = (float)(parameters.BazaarPrices.FirstOrDefault(p => p.ProductId == "COMPOST")?.SellPrice
+            ?? all.GetValueOrDefault("COMPOST"));
         var upgrades = parameters.ExtractedInfo?.Composter ?? new();
-        var caclucated = composterService.GetBestFlip(parameters.GetPrices(), compostPrice, upgrades);
+        var caclucated = composterService.GetBestFlip(all, compostPrice, upgrades);
         if (caclucated.cropMatter == null || caclucated.fuel == null)
             return new TaskResult
             {

@@ -216,11 +216,11 @@ public class BarnAnimalsTask : MethodTask
     // the literal zone (not the "The Farming Islands" island): the Mushroom Desert has its own tasks
     protected override HashSet<string> Locations => ["The Barn"];
     protected override HashSet<string> DetectionItems =>
-        ["LEATHER", "RAW_BEEF", "RAW_CHICKEN", "FEATHER", "EGG", "PORK", "MUTTON", "WOOL", "RABBIT", "RABBIT_HIDE", "RABBIT_FOOT"];
+        ["LEATHER", "RAW_BEEF", "RAW_CHICKEN", "FEATHER", "EGG", "PORK"];
     protected override bool Fallback => true;
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/The_Barn";
     protected override string HowTo =>
-        "Go to The Barn and kill the cows, pigs, chickens, sheep and rabbits there for leather, meat, feathers and eggs.";
+        "Go to The Barn and kill the cows, pigs and chickens there for leather, meat, feathers and eggs.";
     public override string Description =>
         "Killing the animals in The Barn on the Farming Islands (leather, beef, chicken, pork, feathers, eggs).";
 }
@@ -268,12 +268,13 @@ public class FarmAndBarnCropsTask : MethodTask
     protected override HashSet<string> DetectionItems =>
     [
         "WHEAT", "SEEDS", "ENCHANTED_WHEAT", "ENCHANTED_SEEDS", "CARROT_ITEM", "ENCHANTED_CARROT",
-        "POTATO_ITEM", "ENCHANTED_POTATO", "NETHER_STALK", "ENCHANTED_NETHER_STALK"
+        "POTATO_ITEM", "ENCHANTED_POTATO", "NETHER_STALK", "ENCHANTED_NETHER_STALK",
+        "MELON", "ENCHANTED_MELON", "PUMPKIN", "ENCHANTED_PUMPKIN"
     ];
     protected override bool Fallback => true;
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/The_Barn";
     protected override string HowTo =>
-        "Harvest the crop fields at the Hub farm or in The Barn (wheat, carrots, potatoes, nether wart). The Garden is far better once unlocked.";
+        "Harvest the crop fields at the Hub farm or in The Barn (wheat, carrots, potatoes, pumpkins and melons; nether wart at the Hub). The Garden is far better once unlocked.";
     public override string Description =>
-        "Farming wheat, carrots, potatoes and nether wart at the Hub farm and in The Barn instead of the Garden.";
+        "Farming crops at the Hub farm and in The Barn instead of the Garden.";
 }

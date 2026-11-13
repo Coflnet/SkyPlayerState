@@ -153,6 +153,7 @@ public class LotumHuntingTask : CritterHuntingTask
 
 public class CritterSafariPartyTask : MethodTask
 {
+    // Keep the historical task name/key; the chat marker proves a shared catch, not party membership.
     protected override string MethodName => "Critter Safari Party (Loot Share)";
     protected override string Category => "Hunting";
     protected override string ActionUnit => "catches";
@@ -162,11 +163,11 @@ public class CritterSafariPartyTask : MethodTask
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Critter_Safari";
     protected override string HowTo => HuntingText.Steps(
         "Reach Hunting 15 and obtain a Safari Ticket from Miria's contests.",
-        "Organize a party and enter the same Critter Safari through the Safari Manager in Torrhus Canyon.",
+        "Enter the Critter Safari through the Safari Manager in Torrhus Canyon; party membership is not required for shared catches.",
         "Spread out across the biomes and throw Critter Capsules at valuable critters; every player in the Safari receives shards from successful catches.",
         "Collect floor drops along the way and sell your shared shards on the bazaar.");
     public override string Description =>
-        "Hunt with a party in the Critter Safari and collect shared shards from the group's catches across its four biomes. Every player in the Safari receives a shard when a critter is caught, so coordinating catches can reward the whole group. You need Hunting 15 and a Safari Ticket, then enter through the Safari Manager in Torrhus Canyon.";
+        "Collect shared shards from other players' catches across the four Critter Safari biomes. Every player in the same Safari instance receives shards from a successful catch; the loot-share message does not establish party membership. You need Hunting 15 and a Safari Ticket, then enter through the Safari Manager in Torrhus Canyon.";
 }
 
 /// <summary>
@@ -288,6 +289,8 @@ public class SepialotGoldolotHuntingTask : CritterHuntingTask
 
 public class AntHuntingTask : CritterHuntingTask
 {
+    protected override List<RequiredItem> RequiredItems =>
+        [new() { ItemTag = "SKYMART_VACUUM", Reason = "A Vacuum is required to damage Ants" }];
     protected override string MethodName => "Ant (Hunting)";
     protected override HashSet<string> Locations => ["Ant's Cave"];
     protected override HashSet<string> DetectionItems => ["SHARD_ANT", "SHARD_QUEEN_ANT"];

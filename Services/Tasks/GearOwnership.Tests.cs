@@ -158,7 +158,7 @@ public class GearOwnershipTests
     [Test]
     public void WornArmorConsumablesAndPets_StayUnknownWhenAbsent()
     {
-        var result = Result(Req("WITHER_CHESTPLATE"), Req("KISMET_FEATHER"), Req("SHARD_VIPER"), Req("PET_GRIFFIN"));
+        var result = Result(Req("WITHER_CHESTPLATE"), Req("POWER_WITHER_CHESTPLATE"), Req("AURORA_CHESTPLATE"), Req("KISMET_FEATHER"), Req("SHARD_VIPER"), Req("PET_GRIFFIN"));
         GearOwnership.Annotate(result, Params(new StateObject()));
         result.Breakdown.RequiredItems.Should().OnlyContain(r => r.Owned == null);
     }

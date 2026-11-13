@@ -213,12 +213,12 @@ public class CollectionListener : UpdateListener
     internal static bool TryParseShardGain(string uploadedLine, out string tag, out int count, ILogger logger = null)
     {
         // New captures say "caught ... and gained a/x2/2x ... Shard"; older catches and loot share
-        // say "You caught/received a ... Shard" directly. Hypixel writes the gained count both as
+        // say "You caught/received a ... Shard" directly. Charm gains use "and received 2 ...". Hypixel writes the gained count both as
         // "x2" (seen originally) and "2x" (seen in Critter Safari catch lines) - accept both orders.
         var line = StripFormatting(uploadedLine);
-        var match = Regex.Match(line, @"\bgained (a|an|x[\d,]+|[\d,]+x) (.+?) Shards?!", RegexOptions.IgnoreCase);
+        var match = Regex.Match(line, @"\b(?:gained|and received) (a|an|x[\d,]+|[\d,]+x?) (.+?) Shards?!", RegexOptions.IgnoreCase);
         if (!match.Success)
-            match = Regex.Match(line, @"\bYou (?:caught|received) (a|an|x[\d,]+|[\d,]+x) (.+?) Shards?(?:!| for\b| from\b)",
+            match = Regex.Match(line, @"\bYou (?:caught|received) (a|an|x[\d,]+|[\d,]+x?) (.+?) Shards?(?:!| for\b| from\b)",
                 RegexOptions.IgnoreCase);
         if (!match.Success)
         {
@@ -260,7 +260,7 @@ public class CollectionListener : UpdateListener
             return int.Parse(amount[1..].Replace(",", ""));
         if (amount.EndsWith("x", StringComparison.OrdinalIgnoreCase))
             return int.Parse(amount[..^1].Replace(",", ""));
-        return 1;
+        return int.TryParse(amount.Replace(",", ""), out var count) ? count : 1;
     }
 
     internal static bool TryParseNpcShardTrade(IEnumerable<string> previousLines, string uploadedLine,

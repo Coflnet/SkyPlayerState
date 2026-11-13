@@ -63,7 +63,9 @@ public class TaskGearControllerTests
         var all = await MakeService(GearFixtures.All()).GetAll();
 
         all.Select(s => s.TaskName).Should().BeEquivalentTo(GearFixtures.All().Bindings.Select(b => b.Binding.Task));
-        all.Should().OnlyContain(s => s.Setups.Count == 3 && s.Baseline.Id == GearTiers.Baseline);
+        all.Should().OnlyContain(s => s.Setups.Count >= 1 && s.Setups.Count <= 3 && s.Baseline.Id == GearTiers.Baseline);
+        all.Single(s => s.TaskName == "Kuudra T4").Setups.Select(s => s.Id).Should().Equal("budget", "mid", "endgame");
+        all.Single(s => s.TaskName == "Kuudra T5").Setups.Select(s => s.Id).Should().Equal("mid", "endgame");
     }
 
     [Test]

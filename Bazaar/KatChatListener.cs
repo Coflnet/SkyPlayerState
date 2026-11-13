@@ -28,7 +28,7 @@ public class KatChatListener : UpdateListener
                     args.currentState.ExtractedInfo.KatStatus ??= new();
                     args.currentState.ExtractedInfo.KatStatus.ItemName = match.Groups["item"].Value;
                     args.currentState.ExtractedInfo.KatStatus.IsKatActive = true;
-                    args.currentState.ExtractedInfo.KatStatus.KatEnd = DateTime.Now.AddHours(1);
+                    args.currentState.ExtractedInfo.KatStatus.KatEnd = DateTime.UtcNow.AddHours(1);
                 }
             }
             else if (line.Contains("Come back in"))
@@ -37,12 +37,7 @@ public class KatChatListener : UpdateListener
                 if (match.Success)
                 {
                     var timeString = match.Groups["time"].Value;
-                    if (timeString.Contains("hour"))
-                    {
-                        Logger.LogWarning("Time string contains 'hour': {timeString}", timeString);
-                        return;
-                    }
-                    args.currentState.ExtractedInfo.KatStatus.KatEnd = DateTime.Now.Add(ParseTime(timeString));
+                    args.currentState.ExtractedInfo.KatStatus.KatEnd = DateTime.UtcNow.Add(ParseTime(timeString));
                 }
             }
             else if (line.Contains("I'm currently taking care of your"))
@@ -58,12 +53,14 @@ public class KatChatListener : UpdateListener
             }
             else if (line.Contains("You can pick it up in"))
             {
-                var match = Regex.Match(line, @"\[NPC\] Kat: You can pick it up in (?<time>.+)\.");
+                var match = Regex.Match(line, @"\[NPC\] Kat: You can pick it up in (?<time>.+?)\.?$");
                 if (match.Success)
                 {
                     Logger.LogInformation("Found Kat end time in line: {line}", line);
+                    args.currentState.ExtractedInfo.KatStatus ??= new();
+                    args.currentState.ExtractedInfo.KatStatus.IsKatActive = true;
                     var timeString = match.Groups["time"].Value;
-                    args.currentState.ExtractedInfo.KatStatus.KatEnd = DateTime.Now.Add(ParseTime(timeString));
+                    args.currentState.ExtractedInfo.KatStatus.KatEnd = DateTime.UtcNow.Add(ParseTime(timeString));
                 }
                 else
                 {

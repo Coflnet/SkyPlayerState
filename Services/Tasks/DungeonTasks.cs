@@ -42,8 +42,7 @@ public abstract class BaseDungeonTask : MethodTask
     /// and the previous floor cleared: the wiki says beating a floor unlocks the one after it, Master Mode opens
     /// with Floor 7 cleared. The wiki is not explicit that M(n) needs M(n-1) cleared; the owner states dungeon
     /// floors unlock incrementally, so that is applied to Master Mode as well.
-    /// Floor 1 gets no Catacombs level requirement even though the table says 1: a player starts at level 0 and
-    /// only reaches level 1 by running Floor 1, so requiring it would lock the first floor for everyone new.
+    /// Floor 1 requires Catacombs I; new players gain their first Catacombs XP in the Entrance.
     /// </summary>
     protected override List<TaskRequirement> Requirements
     {
@@ -53,8 +52,7 @@ public abstract class BaseDungeonTask : MethodTask
                 return [];
             var (master, floor) = FloorOfTask.Value;
             var requirements = new List<TaskRequirement> { TaskRequirement.Skill("combat", 15) };
-            if (master || floor > 1)
-                requirements.Add(TaskRequirement.CatacombsLevel(RequiredLevelOf(master, floor)));
+            requirements.Add(TaskRequirement.CatacombsLevel(RequiredLevelOf(master, floor)));
             if (floor > 1)
                 requirements.Add(TaskRequirement.DungeonFloor(master, floor - 1));
             else if (master)
@@ -81,7 +79,7 @@ public abstract class BaseDungeonTask : MethodTask
     protected override List<DropEffect> Effects =>
     [
         new() { Name = "Dungeon Class Level", Description = "Higher class level increases damage and survivability", EstimatedMultiplier = 1.2 },
-        new() { Name = "Catacombs Level", Description = "Higher catacombs level unlocks better drops", EstimatedMultiplier = 1.3 },
+        new() { Name = "Catacombs Level", Description = "Higher Catacombs level improves dungeon item stats", EstimatedMultiplier = 1.3 },
         new() { Name = "Kismet Feather", Description = "Rerolls dungeon chest drops for better loot", EstimatedMultiplier = 1.5 }
     ];
 }
@@ -118,7 +116,7 @@ public abstract class BaseCatacombsFloorTask : BaseDungeonTask
 
     protected override string HowTo =>
         $"Queue for {ModeLabel}Floor {FloorNumeral} in the Dungeon Hub. Requires Catacombs level {RequiredCatacombsLevel}+. "
-        + $"Boss fight is {BossName}. Open the reward chests as you go, or claim them later at Croesus in the Dungeon "
+        + $"Boss fight is {BossName}. Choose a reward chest after the boss, or claim it later at Croesus in the Dungeon "
         + "Hub; opening costs coins, which are subtracted from your profit.";
 
     protected override List<TaskStep> Steps =>
@@ -126,7 +124,7 @@ public abstract class BaseCatacombsFloorTask : BaseDungeonTask
         new() { Number = 1, Text = "Type /warp dungeon_hub to get close.", OnClick = "/warp dungeon_hub" },
         new() { Number = 2, Text = $"Queue for {ModeLabel}Floor {FloorNumeral} (needs Catacombs level {RequiredCatacombsLevel}+), with a good party of 5.", OnClick = WhereWikiUrl },
         new() { Number = 3, Text = $"Clear the dungeon and fight the boss, {BossName}." },
-        new() { Number = 4, Text = "Open the reward chests (or claim them later at Croesus in the Dungeon Hub); opening costs coins, which are subtracted from your profit.", OnClick = WikiUrl },
+        new() { Number = 4, Text = "Choose one reward chest per run (a Dungeon Chest Key allows a second), or claim it later at Croesus in the Dungeon Hub. Paid chests cost coins, which are subtracted from your profit.", OnClick = WikiUrl },
         new() { Number = 5, Text = $"You're doing it right when you start collecting: {string.Join(", ", FormulaDrops.Select(d => d.ItemTag))}." },
         new() { Number = 6, Text = "Sell the essence on the Bazaar/Auction House." },
         new() { Number = 7, Text = "Check /cofl task again to see your real coins/hour." },
@@ -250,6 +248,7 @@ public class M3Task : BaseCatacombsFloorTask
 public class M4Task : BaseDungeonTask
 {
     protected override string MethodName => "M4";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/The_Catacombs_-_Floor_IV";
     // Bare "The Catacombs"/"Master Mode Catacombs Floor IV" deliberately removed: neither ever
     // occurs on the real scoreboard (verified against production logs), and the bare island-level
     // name matched EVERY floor's periods via SkyblockZones.Matches' island fallback, with the
@@ -259,27 +258,29 @@ public class M4Task : BaseDungeonTask
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 300)];
     protected override string HowTo => "Queue for Master Mode Floor 4 in the Dungeon Hub. Requires Catacombs level 30+. Run with a party of 5 for efficient clears.";
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "WITHER_CHESTPLATE", Reason = "Recommended dungeon armor for survivability" }
+        new() { ItemTag = "POWER_WITHER_CHESTPLATE", Reason = "Necron armor for archer/berserk damage; mages use Storm and tanks use Goldor" }
     ];
 }
 public class M5Task : BaseDungeonTask
 {
     protected override string MethodName => "M5";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/The_Catacombs_-_Floor_V";
     protected override HashSet<string> Locations => ["The Catacombs (M5)"];
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 400)];
-    protected override string HowTo => "Queue for Master Mode Floor 5. Requires Catacombs level 32+. Boss fight is Professor with Guardians phase.";
+    protected override string HowTo => "Queue for Master Mode Floor 5. Requires Catacombs level 32+. Boss fight is Livid and his clones.";
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "WITHER_CHESTPLATE", Reason = "Recommended dungeon armor for survivability" }
+        new() { ItemTag = "POWER_WITHER_CHESTPLATE", Reason = "Necron armor for archer/berserk damage; mages use Storm and tanks use Goldor" }
     ];
 }
 public class M6Task : BaseDungeonTask
 {
     protected override string MethodName => "M6";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/The_Catacombs_-_Floor_VI";
     protected override HashSet<string> Locations => ["The Catacombs (M6)"];
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 500)];
     protected override string HowTo => "Queue for Master Mode Floor 6. Requires Catacombs level 34+. Boss is Sadan with terracotta phases.";
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "WITHER_CHESTPLATE", Reason = "Recommended dungeon armor for survivability" },
+        new() { ItemTag = "POWER_WITHER_CHESTPLATE", Reason = "Necron armor for archer/berserk damage; mages use Storm and tanks use Goldor" },
         new() { ItemTag = "HYPERION", Reason = "Recommended mage weapon for efficient clears (standard from M4 up, not enforced by the game)" }
     ];
 }
@@ -292,25 +293,27 @@ public class M7Task : BaseDungeonTask
     /// </summary>
     // TODO once data exists: replace with 3600 / median seconds of run-length key "dungeon:M7" (IRunLengthRecorder.GetMedian, GET /RunLength/dungeon:M7).
     public const double RunsPerHour = 7;
-    /// <summary>Necron's Handle per hour of plain M7.</summary>
-    public const double HandlePerHour = 0.05;
+    /// <summary>Unmodified average Bedrock chest chance (0.1296%); no RNG meter, bonuses or Kismet rerolls.
+    /// Source: https://hypixelskyblock.minecraft.wiki/w/Necron%27s_Handle. Chest costs remain observed costs.</summary>
+    public const double HandlePerRun = 0.001296;
+    public const double HandlePerHour = RunsPerHour * HandlePerRun;
     protected override string MethodName => "M7";
     protected override HashSet<string> Locations => ["The Catacombs (M7)"];
     protected override double ActionsPerHour => RunsPerHour;
     protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_WITHER", 600), new("NECRON_HANDLE", HandlePerHour)];
-    protected override string HowTo => "Queue for Master Mode Floor 7. Requires Catacombs level 36+. Boss is Necron with multiple phases. Handle drop is rare (~1/20). Kismet Feathers used to reroll the end chest count as a cost.";
+    protected override string HowTo => "Queue for Master Mode Floor 7. Requires Catacombs level 36+. Bosses are Maxor, Storm, Goldor, Necron and the Wither King. The base Handle chance is about 1 in 772 Bedrock chests; bonuses, RNG meter progress and rerolls change your odds. Claiming a Handle costs 100 million coins. Kismet Feathers used to reroll the end chest count as a cost.";
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "HYPERION", Reason = "Recommended mage weapon for M7 (standard from M4 up, not enforced by the game)" },
         new() { ItemTag = "TERMINATOR", Reason = "Recommended archer/berserk/tank weapon for M7 (standard from M4 up, needs Enderman Slayer 7 to use)" }
     ];
-    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Necron";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/The_Catacombs_-_Floor_VII";
     protected override List<TaskStep> Steps =>
     [
         new() { Number = 1, Text = "Get your gear ready: a Hyperion (mage) or Terminator (archer) is best for M7." },
         new() { Number = 2, Text = "Type /warp dungeon_hub to get close.", OnClick = "/warp dungeon_hub" },
         new() { Number = 3, Text = "Queue for Master Mode Floor 7 (needs Catacombs level 36+), with a good party of 5.", OnClick = WhereWikiUrl },
-        new() { Number = 4, Text = "Clear the dungeon and fight the boss, Necron - he has several phases." },
-        new() { Number = 5, Text = "You're doing it right when you collect: Wither Essence, and rarely a Necron's Handle (about 1 in 20 runs).", OnClick = WikiUrl },
+        new() { Number = 4, Text = "Clear the dungeon and fight the Wither Lords, then the Wither King." },
+        new() { Number = 5, Text = "You're doing it right when you collect: Wither Essence, and rarely a Necron's Handle (base chance about 1 in 772 Bedrock chests, before bonuses, RNG meter progress or rerolls).", OnClick = WikiUrl },
         new() { Number = 6, Text = "Sell the Wither Essence, and the Handle if you get one, on the Bazaar/Auction House." },
         new() { Number = 7, Text = "Check /cofl task again to see your real coins/hour." },
     ];

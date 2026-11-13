@@ -19,6 +19,41 @@ public class TaskGuidanceTests
     private static readonly Regex WikiUrlPattern = new(@"^https://hypixelskyblock\.minecraft\.wiki/w/\S+$");
 
     [Test]
+    public void EveryDungeonFloor_LinksItsOwnFloorPage()
+    {
+        var numerals = new[] { "I", "II", "III", "IV", "V", "VI", "VII" };
+        foreach (var mode in new[] { "F", "M" })
+        for (var floor = 1; floor <= 7; floor++)
+        {
+            var task = Registry.PublicTasks.Single(t => t.Name == $"{mode}{floor}");
+            task.WikiUrlForTest.Should().Be("https://hypixelskyblock.minecraft.wiki/w/The_Catacombs_-_Floor_" + numerals[floor - 1]);
+        }
+        string.Join(" ", new M5Task().StepsForTest.Select(s => s.Text)).Should().Contain("Livid").And.NotContain("Professor");
+    }
+
+    [Test]
+    public void M7_HandleSeedUsesTheUnmodifiedChestChance()
+    {
+        var task = new M7Task();
+        M7Task.HandlePerRun.Should().BeApproximately(0.001296, 1e-9);
+        task.FormulaDropsForTest.Single(d => d.ItemTag == "NECRON_HANDLE").RatePerHour
+            .Should().BeApproximately(M7Task.RunsPerHour * 0.001296, 1e-9);
+        string.Join(" ", task.StepsForTest.Select(s => s.Text)).Should().Contain("1 in 772").And.NotContain("1/20");
+        task.StepsForTest.Should().NotContain(s => s.Text.Contains("1 in 20"));
+    }
+
+    [TestCase("Oasis Fishing", "Mushroom_Desert")]
+    [TestCase("Barn Animals", "The_Barn")]
+    [TestCase("Red Mushroom", "Mushroom_Desert")]
+    [TestCase("Brown Mushroom", "Mushroom_Desert")]
+    [TestCase("Sand Mining", "Mushroom_Desert")]
+    public void FarmingLocations_LinkTheActualIslandRatherThanDisambiguation(string task, string page)
+    {
+        Registry.GetByName(task).WhereWikiUrlForTest.Should()
+            .Be("https://hypixelskyblock.minecraft.wiki/w/" + page);
+    }
+
+    [Test]
     public void EveryRegisteredTask_HasAWikiUrl()
     {
         // Strict: every task the default task list can show must have SOME wiki link, not just a

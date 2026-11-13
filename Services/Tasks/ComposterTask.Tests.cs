@@ -54,4 +54,16 @@ public class ComposterTaskTests
         result.ProfitPerHour.Should().Be(0);
         result.Message.Should().Contain("unavailable");
     }
+    [Test]
+    public async Task Execute_UsesBazaarBuyCostsAndSellProceedsInsteadOfCleanPrices()
+    {
+        var parameters = MakeParams(new() { ["WHEAT"] = 1000, ["VOLTA"] = 1000000, ["COMPOST"] = 200000 });
+        parameters.BazaarPrices = [
+            new() { ProductId = "WHEAT", BuyPrice = 1, SellPrice = 0.5 },
+            new() { ProductId = "VOLTA", BuyPrice = 10000, SellPrice = 9000 },
+            new() { ProductId = "COMPOST", BuyPrice = 100000, SellPrice = 90000 }
+        ];
+        // Six cycles, each selling for 90k and consuming 4k matter + 2k fuel worth 6k.
+        (await new ComposterTask().Execute(parameters)).ProfitPerHour.Should().Be(504000);
+    }
 }

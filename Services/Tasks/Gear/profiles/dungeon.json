@@ -5,6 +5,9 @@
   "researchedAt": "2026-11-07",
   "sources": [
     "https://hypixelskyblock.minecraft.wiki/w/Catacombs",
+    "https://hypixelskyblock.minecraft.wiki/w/Mercenary_Armor",
+    "https://hypixelskyblock.minecraft.wiki/w/Necron%27s_Armor",
+    "https://hypixelskyblock.minecraft.wiki/w/Diamond_Necron_Head",
     "https://api.hypixel.net/v2/resources/skyblock/items",
     "https://www.youtube.com/watch?v=zpxxPsxficc",
     "https://www.youtube.com/watch?v=XFhs_W60c60",
@@ -17,31 +20,31 @@
   "modelConfidence": "medium",
   "baseline": {
     "id": "baseline",
-    "name": "Adaptive armor starter kit",
+    "name": "Mercenary armor starter kit",
     "items": [
       {
         "slot": "helmet",
-        "tag": "ADAPTIVE_HELMET",
-        "name": "Adaptive Helmet",
-        "reason": "Cheap early dungeon armor"
+        "tag": "MERCENARY_HELMET",
+        "name": "Mercenary Helmet",
+        "reason": "Starter combat armor with no dungeon floor completion requirement"
       },
       {
         "slot": "chestplate",
-        "tag": "ADAPTIVE_CHESTPLATE",
-        "name": "Adaptive Chestplate",
-        "reason": "Cheap early dungeon armor"
+        "tag": "MERCENARY_CHESTPLATE",
+        "name": "Mercenary Chestplate",
+        "reason": "Starter combat armor with no dungeon floor completion requirement"
       },
       {
         "slot": "leggings",
-        "tag": "ADAPTIVE_LEGGINGS",
-        "name": "Adaptive Leggings",
-        "reason": "Cheap early dungeon armor"
+        "tag": "MERCENARY_LEGGINGS",
+        "name": "Mercenary Leggings",
+        "reason": "Starter combat armor with no dungeon floor completion requirement"
       },
       {
         "slot": "boots",
-        "tag": "ADAPTIVE_BOOTS",
-        "name": "Adaptive Boots",
-        "reason": "Cheap early dungeon armor"
+        "tag": "MERCENARY_BOOTS",
+        "name": "Mercenary Boots",
+        "reason": "Starter combat armor with no dungeon floor completion requirement"
       },
       {
         "slot": "weapon",
@@ -52,7 +55,8 @@
     ],
     "stats": {},
     "assumptions": [
-      "Which floors a setup realistically supports is a progression guide opinion, not a measurement."
+      "Which floors a setup realistically supports is a progression guide opinion, not a measurement.",
+      "This is a first-floor starter kit, not an efficient setup for later floors. Gear does not determine the community baseline rate."
     ]
   },
   "setups": [
@@ -99,6 +103,7 @@
       ],
       "assumptions": [
         "Which floors a setup realistically supports is a progression guide opinion, not a measurement.",
+        "Shadow Assassin armor and Livid Dagger require Floor V completion; this is a post-F5 upgrade for F6, not gear for a first F5 clear.",
         "Each floor needs a Catacombs level; the higher floors need a high level."
       ]
     },
@@ -153,13 +158,13 @@
     {
       "id": "endgame",
       "tier": "endgame",
-      "name": "Necron's armor, Spirit Mask and Hyperion",
+      "name": "Necron's armor, Diamond Necron Head and Terminator",
       "items": [
         {
           "slot": "helmet",
-          "tag": "SPIRIT_MASK",
-          "name": "Spirit Mask",
-          "reason": "Late game helmet; needs a cleared Master Mode floor"
+          "tag": "DIAMOND_NECRON_HEAD",
+          "name": "Diamond Necron Head",
+          "reason": "Archer helmet with doubled stats on Floor VII and M7"
         },
         {
           "slot": "chestplate",
@@ -181,9 +186,15 @@
         },
         {
           "slot": "weapon",
+          "tag": "TERMINATOR",
+          "name": "Terminator",
+          "reason": "Archer weapon for Master Mode; requires Enderman Slayer 7"
+        },
+        {
+          "slot": "support_weapon",
           "tag": "HYPERION",
           "name": "Hyperion",
-          "reason": "Mage endgame weapon, needs Floor VII cleared; archers use Terminator instead"
+          "reason": "Wither Impact support for healing and mobility; requires Floor VII completion"
         },
         {
           "slot": "scroll_1",
@@ -215,6 +226,7 @@
       "assumptions": [
         "Which floors a setup realistically supports is a progression guide opinion, not a measurement.",
         "Hyperion needs the final normal floor cleared and dungeonized weapons need a high Catacombs level.",
+        "The Diamond Necron Head is specific to Floor VII and M7; use the matching floor head on other floors.",
         "Gear alone does not clear the hardest floors; skill and a good party matter just as much."
       ]
     }

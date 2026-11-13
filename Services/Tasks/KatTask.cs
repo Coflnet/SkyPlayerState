@@ -9,12 +9,12 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 
 public class KatTask : ProfitTask
 {
-    protected override string Where => "Hub";
+    protected override string Where => "Pet Care";
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Kat";
     protected override List<TaskStep> Steps =>
     [
         new() { Number = 1, Text = "Type /warp hub to get close.", OnClick = "/warp hub" },
-        new() { Number = 2, Text = "Find Kat's house/building in the Hub and click her.", OnClick = WikiUrl },
+        new() { Number = 2, Text = "Find Kat at Pet Care in the Hub and click her.", OnClick = WikiUrl },
         new() { Number = 3, Text = "Pick the pet upgrade this task suggests and buy it from the Auction House (click the button below to jump straight to it)." },
         new() { Number = 4, Text = "Give the pet and the materials to Kat and pay to start the upgrade." },
         new() { Number = 5, Text = "Wait for the upgrade to finish, then sell the upgraded pet on the Auction House." },
@@ -75,12 +75,20 @@ public class KatTask : ProfitTask
         // skip top one as its usually quickly bought, add 6 minutes for getting materials and setup
         var attributeLevel = parameters.ExtractedInfo.AttributeLevel?.GetValueOrDefault("Kat's Favorite") ?? 0;
         var attributeMultiplier = 1 - (attributeLevel * 0.01f);
-        var best = katData.Where(k => k.katData.CoreData.Hours != 0)
-            .OrderByDescending(k => Math.Min(k.katData.Profit, k.sumary?.Med ?? k.katData.Profit) / (k.katData.CoreData.Hours / attributeMultiplier + 0.1) * k.sumary?.Volume ?? 1)
-            .Skip(1).FirstOrDefault();
+        var best = katData.Where(k => k != null && k.katData.CoreData.Hours > 0)
+            .OrderByDescending(k => Math.Min(k.katData.Profit, k.sumary?.Med ?? k.katData.Profit) / (k.katData.CoreData.Hours * attributeMultiplier + 0.1) * k.sumary?.Volume ?? 1)
+            .FirstOrDefault();
+        if (best == null)
+            return new TaskResult
+            {
+                ProfitPerHour = 0, Type = TaskType.Passive, MostlyPassive = true,
+                Message = "No profitable Kat upgrades found, please try again later.",
+                OnClick = EffectiveWarpCommand,
+                Breakdown = NewGuidanceBreakdown("Pets", "formula")
+            };
         var coreData = best.katData.CoreData;
         var profit = Math.Min(best.katData.Profit, best.sumary.Med);
-        var hours = coreData.Hours / attributeMultiplier;
+        var hours = coreData.Hours * attributeMultiplier;
         var explanation = $"{McColorCodes.YELLOW}Kat's Favorite {McColorCodes.GRAY}level {attributeLevel} reduces the time to {McColorCodes.AQUA}{attributeMultiplier * 100}%"
             + $"\n{McColorCodes.GRAY}Upgrading {coreData.Name} with kat starting with {coreData.BaseRarity}, you will need:";
         if (coreData.Material != null)
@@ -100,7 +108,7 @@ public class KatTask : ProfitTask
         var feeAndRiskFactor = 0.97;
         return new TaskResult
         {
-            ProfitPerHour = (int)(profit * feeAndRiskFactor / (coreData.Hours + 0.1) / attributeMultiplier),
+            ProfitPerHour = (int)(profit * feeAndRiskFactor / (hours + 0.1)),
             Type = TaskType.Passive, MostlyPassive = true,
             Message = $"Upgrade {coreData.Name} with kat starting with {coreData.BaseRarity}, click to get cheapest purchase, if its already sold try again in a minute.",
             Details = explanation,

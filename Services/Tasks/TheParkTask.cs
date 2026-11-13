@@ -5,18 +5,7 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 public class TheParkTask : IslandTask
 {
     protected override string RegionName => "the park";
-    protected override HashSet<string> locationNames =>
-    [
-        "Birch Park",
-        "Dark Thicket",
-        "Howling Cave",
-        "Jungle Island",
-        "Melody's Plateau",
-        "Savanna Woodland",
-        "Spruce Woods",
-        "The Howling Cave",
-        "The Wolf's Den"
-    ];
+    protected override HashSet<string> locationNames => ["The Park"];
 }
 
 public class TheParkForagingTask : IslandTask

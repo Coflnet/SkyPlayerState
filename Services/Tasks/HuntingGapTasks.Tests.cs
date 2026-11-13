@@ -409,7 +409,7 @@ public class HuntingGapTasksTests
     }
 
     [TestCase("SHARD_HELLWISP", 20.0)]
-    [TestCase("SHARD_YOG", 10.0)]
+    [TestCase("SHARD_ANT", 10.0)]
     [TestCase("SHARD_XYZ", 17.5)]
     public async Task HuntingTrap_ActionsPerHourFollowTheChosenShardsCaptureTime(string shard, double hours)
     {
@@ -431,12 +431,15 @@ public class HuntingGapTasksTests
         result.Breakdown.ActionsPerHour.Should().BeApproximately(1 / hours, 1e-9);
         result.Breakdown.Drops.Single().RatePerHour.Should().BeApproximately(1 / hours, 1e-9);
         result.ProfitPerHour.Should().Be((int)(1_000_000 / hours));
+        result.Message.Should().Contain("upper-bound estimate");
+        result.Details.Should().Contain("this shard is not guaranteed").And.Contain("actual profit depends on the capture");
     }
 
     [Test]
     public void HuntingTrap_DropsTheWrongSpots_AndKnowsTheRightOnes()
     {
-        foreach (var removed in new[] { "SHARD_KADA_KNIGHT", "SHARD_BEZAL", "SHARD_OBSIDIAN_DEFENDER", "SHARD_WITHER_SPECTER" })
+        foreach (var removed in new[] { "SHARD_KADA_KNIGHT", "SHARD_BEZAL", "SHARD_OBSIDIAN_DEFENDER", "SHARD_WITHER_SPECTER",
+            "SHARD_RAIN_SLIME", "SHARD_YOG", "SHARD_FLARE", "SHARD_FLAMING_SPIDER", "SHARD_ZEALOT", "SHARD_BRUISER", "SHARD_BURNINGSOUL" })
             HuntingTrapTask.LocationsOf(removed).Should().BeNull($"{removed} had wrong zones");
         HuntingTrapTask.LocationsOf("SHARD_CINDER_BAT").Should().Equal("Smoldering Tomb");
         HuntingTrapTask.LocationsOf("SHARD_XYZ").Should().Equal("Mystic Marsh");
@@ -468,9 +471,9 @@ public class HuntingGapTasksTests
     [Test]
     public async Task HuntingTrap_RanksByCoinsPerHour_NotByThePriceAlone()
     {
-        // a flat 24 h would pick Torrid (419.6k); the common Zealot is captured faster and earns more per hour
-        var result = await new HuntingTrapTask().Execute(TrapParams(new() { { "SHARD_TORRID", 419_600 }, { "SHARD_ZEALOT", 400_000 } }));
-        result.Message.Should().Contain("SHARD_ZEALOT");
+        // a flat 24 h would pick Torrid (419.6k); the common Ant is captured faster and earns more per hour
+        var result = await new HuntingTrapTask().Execute(TrapParams(new() { { "SHARD_TORRID", 419_600 }, { "SHARD_ANT", 400_000 } }));
+        result.Message.Should().Contain("SHARD_ANT");
         result.ProfitPerHour.Should().Be(40_000);
         result.Breakdown.Drops.Single().RatePerHour.Should().BeApproximately(0.1, 1e-9);
     }

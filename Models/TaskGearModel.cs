@@ -19,7 +19,7 @@ public static class GearSetupBasis
 /// <summary>
 /// The measured gear model of one task (see <see cref="Services.Gear.GearModelService"/>): the distribution of the gear
 /// score over player-builds, the late game cohort (top 10 %), the rate curve over the score, the privacy safe piece
-/// catalog, the recommended "maximum achievable" endgame build, the measured modifier effects and the curated estimates
+/// catalog, the recommended endgame build with the highest modeled score from observed gear, the measured modifier effects and the curated estimates
 /// as the fallback. Every number comes from at least <see cref="MinPlayers"/> distinct players; below 5 players numbers
 /// are rounded to 2 significant digits and counts banded.
 /// </summary>
@@ -199,7 +199,7 @@ public class GearPieceEffect
     public string Source { get; set; } = "";
 }
 
-/// <summary>The recommended "maximum achievable" endgame build.</summary>
+/// <summary>The recommended endgame build with the highest modeled score from observed gear.</summary>
 public class GearRecommendedBuild
 {
     /// <summary>Slot to the <see cref="GearCatalogPiece.Id"/> of the chosen piece.</summary>

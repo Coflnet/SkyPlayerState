@@ -26,12 +26,13 @@ public abstract class BaseHuntingTask : MethodTask
     protected override LateRewardSpec LateReward => GalateaContestRewards.ForLocations(Locations);
     protected override List<DropEffect> Effects =>
     [
-        new() { Name = "Magic Find", Description = "Increases chance of rare shard drops", EstimatedMultiplier = 1.3 },
-        new() { Name = "Looting", Description = "Higher looting enchantment increases shard drop rate", EstimatedMultiplier = 1.2 },
+        new() { Name = "Hunting Fortune", Description = "Increases the number of shards per capture", EstimatedMultiplier = 1.3 },
+        new() { Name = "Charm Chance", Description = "Increases the chance to obtain a shard when killing a charmable mob", EstimatedMultiplier = 1.2 },
         new() { Name = "Combat Level", Description = "Higher combat level increases kill speed", EstimatedMultiplier = 1.1 }
     ];
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "ASPECT_OF_THE_DRAGON", Reason = "Weapon for mob hunting", Category = "HUNT_WEAPON" }
+        new() { ItemTag = "VENATOR_GENESIS", Reason = "Huntaxe to weaken the mob" },
+        new() { ItemTag = "SMALL_POCKET_BLACK_HOLE", Reason = "Capture the weakened mob" }
     ];
 }
 
@@ -39,28 +40,29 @@ public abstract class BaseHuntingTask : MethodTask
 
 public class RainSlimeHuntingTask : BaseHuntingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Rain_Slime";
     protected override string MethodName => "Rain Slime (Hunting)";
     protected override HashSet<string> Locations => ["Spider's Den", "The Spider's Den"];
     protected override HashSet<string> DetectionItems => ["SHARD_RAIN_SLIME"];
     protected override List<MethodDrop> FormulaDrops => [new("SHARD_RAIN_SLIME", 200)];
     /// <summary>
-    /// Rain Slimes only spawn from :00 to :20 each hour
+    /// Rain Slimes spawn during weather from :35 to :55 each hour
     /// </summary>
     protected override string CheckAccessibility(TaskParams parameters)
     {
         var minute = parameters.TestTime.Minute;
-        if (minute >= 20)
-            return $"Rain Slimes only spawn from :00 to :20 each hour. Available again in {60 - minute + 0} minutes.";
+        if (minute < 35 || minute >= 55)
+            return $"Rain Slimes spawn during weather from :35 to :55 each hour. Available again in {(35 - minute + 60) % 60} minutes.";
         return base.CheckAccessibility(parameters);
     }
 
     protected override DateTime? GetNextAvailableAt(TaskParams parameters)
     {
         var minute = parameters.TestTime.Minute;
-        if (minute < 20)
+        if (minute >= 35 && minute < 55)
             return null;
         return new DateTime(parameters.TestTime.Year, parameters.TestTime.Month, parameters.TestTime.Day,
-            parameters.TestTime.Hour, 0, 0, parameters.TestTime.Kind).AddHours(1);
+            parameters.TestTime.Hour, 35, 0, parameters.TestTime.Kind).AddHours(minute >= 55 ? 1 : 0);
     }
     protected override string HowTo => HuntingText.Steps(
         "Go to the Spider's Den while it is raining.",
@@ -71,6 +73,7 @@ public class RainSlimeHuntingTask : BaseHuntingTask
 }
 public class HellwispHuntingTask : BaseHuntingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Hellwisp";
     protected override string MethodName => "Hellwisp (Hunting)";
     protected override HashSet<string> Locations => ["Magma Chamber", "Matriarch's Lair"];
     protected override HashSet<string> DetectionItems => ["SHARD_HELLWISP"];
@@ -83,8 +86,9 @@ public class HellwispHuntingTask : BaseHuntingTask
     public override string Description =>
         "Capture Hellwisps, packs of upside-down Ghasts in the lava pools next to the Matriarch's Lair on the Crimson Isle, for their legendary shard. Two of them sit in the pools northwest of the Magma Chamber, and they pull you in with their tentacles. You need a Huntaxe and a Pocket Black Hole, or a Salt.";
 }
-public class XyzHuntingTask : BaseHuntingTask
+public class XyzHuntingTask : CritterHuntingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Exe";
     protected override string MethodName => "Xyz (Hunting)";
     // SHARD_XYZ drops from the Exe mob on the Crimson Isle (Mystic Marsh), not Crystal Hollows.
     protected override HashSet<string> Locations => ["Crimson Isle", "Mystic Marsh"];
@@ -99,6 +103,7 @@ public class XyzHuntingTask : BaseHuntingTask
 }
 public class KadaKnightHuntingTask : BaseHuntingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Kada_Knight";
     protected override string MethodName => "Kada Knight (Hunting)";
     // Kada Knight spawns in caves near the Magma Chamber on the Crimson Isle, not the Galatea underwater zones.
     protected override HashSet<string> Locations => ["Crimson Isle", "Magma Chamber"];
@@ -111,8 +116,9 @@ public class KadaKnightHuntingTask : BaseHuntingTask
     public override string Description =>
         "Capture Kada Knights in the caves that lead to the Magma Chamber on the Crimson Isle for their shard. They also drop Kada Leads. You need a Huntaxe and a Pocket Black Hole, or a Salt.";
 }
-public class InvisibugHuntingTask : BaseHuntingTask
+public class InvisibugHuntingTask : CritterHuntingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Invisibug";
     protected override string MethodName => "Invisibug (Hunting)";
     // Island key (2026-09-27 production log finding: SHARD_INVISIBUG shows up all over Moonglade,
     // not just the wetlands/Tangleburg zones this used to list) - the shard tag is the specific
@@ -132,6 +138,7 @@ public class InvisibugHuntingTask : BaseHuntingTask
 }
 public class YogHuntingTask : BaseHuntingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Yog";
     protected override string MethodName => "Yog (Hunting)";
     protected override HashSet<string> Locations => ["Magma Fields", "Khazad-dûm", "Crystal Hollows"];
     protected override HashSet<string> DetectionItems => ["SHARD_YOG"];
@@ -145,6 +152,7 @@ public class YogHuntingTask : BaseHuntingTask
 }
 public class FlareHuntingTask : BaseHuntingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Flare";
     protected override string MethodName => "Flare (Hunting)";
     protected override HashSet<string> Locations => ["Blazing Volcano", "Burning Desert", "Crimson Isle"];
     // Flares only stand on the 12 stone pillars around the Magma Chamber platform
@@ -160,6 +168,7 @@ public class FlareHuntingTask : BaseHuntingTask
 }
 public class BezalHuntingTask : BaseHuntingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Bezal";
     protected override string MethodName => "Bezal (Hunting)";
     protected override HashSet<string> Locations => ["Crimson Isle", "Stronghold"];
     protected override HashSet<string> DetectionItems => ["SHARD_BEZAL"];
@@ -174,6 +183,7 @@ public class BezalHuntingTask : BaseHuntingTask
 }
 public class GhostHuntingTask : BaseHuntingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Ghost";
     protected override string MethodName => "Ghost (Hunting)";
     // GHOST_COIN is not an item (Ghosts have a 0.01% chance to drop 1M raw coins); the sellable drop is the shard.
     protected override HashSet<string> Locations => ["Dwarven Mines", "The Mist"];
@@ -189,6 +199,7 @@ public class GhostHuntingTask : BaseHuntingTask
 }
 public class FlamingSpiderHuntingTask : BaseHuntingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Flaming_Spider";
     protected override string MethodName => "Flaming Spider (Hunting)";
     protected override HashSet<string> Locations => ["Crimson Isle", "Blazing Volcano", "Burning Desert"];
     protected override HashSet<string> DetectionItems => ["SHARD_FLAMING_SPIDER"];
@@ -202,6 +213,7 @@ public class FlamingSpiderHuntingTask : BaseHuntingTask
 }
 public class ObsidianDefenderHuntingTask : BaseHuntingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Obsidian_Defender";
     protected override string MethodName => "Obsidian Defender (Hunting)";
     // Obsidian Defenders spawn in Dragon's Nest (The End).
     protected override HashSet<string> Locations => ["Dragon's Nest", "The End"];
@@ -216,6 +228,7 @@ public class ObsidianDefenderHuntingTask : BaseHuntingTask
 }
 public class WitherSpecterHuntingTask : BaseHuntingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Wither_Spectre";
     protected override string MethodName => "Wither Specter (Hunting)";
     // Wither Spectre spawns in the Stronghold on the Crimson Isle, not The End.
     protected override HashSet<string> Locations => ["Crimson Isle", "Stronghold"];
@@ -230,9 +243,11 @@ public class WitherSpecterHuntingTask : BaseHuntingTask
 }
 public class ZealotHuntingTask : BaseHuntingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Zealot";
     protected override string MethodName => "Zealot (Hunting)";
     protected override HashSet<string> Locations => ["The End", "Dragon's Nest", "Void Sepulture"];
-    protected override HashSet<string> DetectionItems => ["SHARD_ZEALOT", "SHARD_SPECIAL_ZEALOT", "SUMMONING_EYE"];
+    protected override HashSet<string> DetectionItems => ["SHARD_ZEALOT", "SHARD_SPECIAL_ZEALOT"];
+    protected override HashSet<string> EvidenceItems => ["SUMMONING_EYE"];
     // Same veto as ZealotsFdTask: its Summoning Eye is pricier than a Null Sphere, so without it a
     // Voidgloom fight at the Hideout would stay here.
     protected override Dictionary<string, HashSet<string>> ZoneExcludedItems =>
@@ -247,6 +262,7 @@ public class ZealotHuntingTask : BaseHuntingTask
 }
 public class BruiserHuntingTask : BaseHuntingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Zealot_Bruiser";
     protected override string MethodName => "Bruiser (Hunting)";
     protected override HashSet<string> Locations => ["The End", "Zealot Bruiser Hideout"];
     protected override HashSet<string> DetectionItems => ["SHARD_BRUISER"];
@@ -261,6 +277,7 @@ public class BruiserHuntingTask : BaseHuntingTask
 }
 public class PestHuntingTask : BaseHuntingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Pests";
     protected override string MethodName => "Pest (Hunting)";
     // Island key - real Garden zones are "The Garden" (with a per-visit pest count suffix) and
     // free-text "Plot - <player's name>" strings, both collapsed by SkyblockZones.Canonical (same
@@ -273,7 +290,9 @@ public class PestHuntingTask : BaseHuntingTask
     // real pest-drop tags (vinyls + rare pest items), shared with PestTask.
     protected override HashSet<string> DetectionItems => [.. PestEvidence.Items, .. PestEvidence.Shards];
     protected override Dictionary<string, HashSet<string>> ZoneExcludedItems => new() { ["Garden"] = PestEvidence.Crops };
-    protected override string HowTo => "Go to The Garden and hunt Pests that spawn on your plots. Use the Pesterminator vacuum or manual combat.";
+    protected override string HowTo => "Go to The Garden and hunt Pests that spawn on your plots. Use a Vacuum to kill them; ordinary weapons cannot damage Pests.";
+    protected override List<RequiredItem> RequiredItems =>
+        [new() { ItemTag = "SKYMART_VACUUM", Reason = "A Vacuum is required to damage Pests" }];
     protected override string Category => "Garden";
 }
 
@@ -482,8 +501,9 @@ public class CritterSafariTask : MethodTask
 
 // ── Torrhus shards (production 2026-10-02/03, per-hour medians) ──
 
-public class DungBeetleHuntingTask : BaseHuntingTask
+public class DungBeetleHuntingTask : CritterHuntingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Dung_Beetle_Shard";
     protected override string MethodName => "Dung Beetle (Hunting)";
     protected override HashSet<string> Locations => ["Torrhus Canyon", "Torrhus Heights", "Spring Path", "Torrhus Springs"];
     protected override HashSet<string> DetectionItems => ["SHARD_DUNG_BEETLE"];
@@ -495,8 +515,9 @@ public class DungBeetleHuntingTask : BaseHuntingTask
     public override string Description =>
         "Dung Beetle shards are found on Torrhus: they lie on the ground in Torrhus Canyon as floor drops, and Huntraps placed in Torrhus Canyon or on the Spring Path catch them. Pick them up while you do other things on Torrhus, or leave traps out.";
 }
-public class HideonsunHuntingTask : BaseHuntingTask
+public class HideonsunHuntingTask : CritterHuntingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Hideonsun";
     protected override string MethodName => "Hideonsun (Hunting)";
     protected override HashSet<string> Locations => ["Torrhus Canyon", "Torrhus Heights", "Spring Path"];
     protected override HashSet<string> DetectionItems => ["SHARD_HIDEONSUN"];
@@ -508,7 +529,7 @@ public class HideonsunHuntingTask : BaseHuntingTask
     public override string Description =>
         "Hideonsuns hide around Torrhus Canyon and fight back when you stand on them. Hit their bullet back three times and they tire out, dropping their shard and Helix Logs. No tool is needed.";
 }
-public class TorrhusCanyonHuntingTask : BaseHuntingTask
+public class TorrhusCanyonHuntingTask : CritterHuntingTask
 {
     protected override string MethodName => "Torrhus Canyon (Hunting)";
     // Listed zone by zone: the island key "Torrhus" would also cover the Critter Safari, which has its own task.

@@ -5,7 +5,7 @@ using Coflnet.Sky.PlayerState.Models;
 
 namespace Coflnet.Sky.PlayerState.Services.Gear;
 
-/// <summary>The "maximum achievable" build: catalog entries by slot, its exact score and the effects it triggers.</summary>
+/// <summary>The build with the highest modeled score from observed gear: catalog entries by slot, its exact score and the effects it triggers.</summary>
 public sealed record GearRecommendation(IReadOnlyDictionary<string, GearCatalogEntry> Entries, double Score, IReadOnlyList<GearActiveEffect> Effects);
 
 /// <summary>A rate read for a score, see <see cref="GearBuildRecommender.Rate"/>.</summary>

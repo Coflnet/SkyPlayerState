@@ -59,7 +59,7 @@ internal static class PestEvidence
         "SUGAR_CANE", "ENCHANTED_SUGAR", "ENCHANTED_SUGAR_CANE", "NETHER_STALK", "ENCHANTED_NETHER_STALK",
         "CACTUS", "BUILDER_CACTUS", "ENCHANTED_CACTUS_GREEN", "ENCHANTED_CACTUS",
         "BROWN_MUSHROOM", "BUILDER_BROWN_MUSHROOM", "ENCHANTED_BROWN_MUSHROOM",
-        "RED_MUSHROOM", "BUILDER_RED_MUSHROOM", "ENCHANTED_RED_MUSHROOM",
+        "RED_MUSHROOM", "ENCHANTED_RED_MUSHROOM",
         "INK_SACK:3", "ENCHANTED_COCOA", "DOUBLE_PLANT", "ENCHANTED_SUNFLOWER", "COMPACTED_SUNFLOWER",
         "MOONFLOWER", "ENCHANTED_MOONFLOWER", "WILD_ROSE", "ENCHANTED_WILD_ROSE",
         // top compacted forms players with a personal compactor receive (2026-10-11)
@@ -81,13 +81,15 @@ public class PestTask : MethodTask
     protected override HashSet<string> DetectionItems => PestEvidence.Items;
     protected override bool ExcludeShardItems => true;
     protected override string Category => "Garden";
-    protected override string HowTo => "Go to The Garden and kill pests that spawn on your plots. Use the Pesterminator vacuum or manual pest killing. Higher Farming Fortune increases crop drops.";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Pests";
+    protected override string HowTo => "At Garden level V, claim a SkyMart Vacuum from Pesthunter Phillip or buy one at SkyMart. "
+        + "Left-click with a vacuum to locate pests on your plots, then hold right-click near them to kill them. Pests can only be damaged by vacuums.";
     protected override List<RequiredItem> RequiredItems => [
-        new() { ItemTag = "PESTERMINATOR", Reason = "Vacuum for killing pests efficiently" }
+        new() { ItemTag = "SKYMART_VACUUM", Name = "SkyMart Vacuum", Reason = "A vacuum is required to damage pests; upgrades work too" }
     ];
     protected override List<DropEffect> Effects => [
-        new() { Name = "Farming Fortune", Description = "Increases crop drop rates from pest kills", EstimatedMultiplier = 1.3 },
-        new() { Name = "Pest Luck", Description = "Increases chance of pest spawns and rare drops", EstimatedMultiplier = 1.2 }
+        new() { Name = "Farming Fortune", Description = "Increases the quantity of crop drops from pest kills", EstimatedMultiplier = 1.3 },
+        new() { Name = "Bonus Pest Chance", Description = "Increases the number of pests that spawn together", EstimatedMultiplier = 1.2 }
     ];
 }
 
@@ -96,7 +98,7 @@ public class PestTask : MethodTask
 // Garden period is nearly always a single crop (one plot = one crop), so per-crop detection
 // classifies cleanly instead of falling back to a "most common crop" flat seed. PestTask shares
 // the same location - the classifier tells them apart by DetectionItems (crop items here vs.
-// PEST_KILL/PESTERMINATOR there).
+// pest-specific loot there).
 public abstract class BaseGardenCropTask : MethodTask
 {
     protected override string MethodName => $"{CropName} Farming";
@@ -111,6 +113,7 @@ public abstract class BaseGardenCropTask : MethodTask
 
     /// <summary>Crop display name, e.g. "Wheat" or "Sugar Cane" - MethodName becomes "{CropName} Farming".</summary>
     protected abstract string CropName { get; }
+    protected virtual string FarmingInstruction => $"Plant/farm {CropName} on one of your plots.";
     /// <summary>Community wiki page slug under https://hypixelskyblock.minecraft.wiki/w/.</summary>
     protected abstract string WikiPage { get; }
     /// <summary>Item tag of the crop's dedicated Farming Fortune tool, or null if the crop has no dedicated tool.</summary>
@@ -126,12 +129,12 @@ public abstract class BaseGardenCropTask : MethodTask
     protected override List<DropEffect> Effects =>
     [
         new() { Name = "Farming Fortune", Description = "More crops per block broken", EstimatedMultiplier = 1.5 },
-        new() { Name = "Farming Speed", Description = "Faster tool use means more blocks broken per hour", EstimatedMultiplier = 1.2 }
+        new() { Name = "Speed", Description = "Tune movement speed to break crops continuously along your farm rows", EstimatedMultiplier = 1.2 }
     ];
 
     protected override string HowTo => ToolTag == null
-        ? $"Type /warp garden, and plant/farm {CropName} on a plot. Sell what you collect on the Bazaar."
-        : $"Type /warp garden, plant/farm {CropName} on a plot, and use your {ToolName} for the best Farming Fortune. Sell what you collect on the Bazaar.";
+        ? $"Type /warp garden. {FarmingInstruction} Sell what you collect on the Bazaar."
+        : $"Type /warp garden. {FarmingInstruction} Use your {ToolName} for the best Farming Fortune. Sell what you collect on the Bazaar.";
 
     protected override List<TaskStep> Steps
     {
@@ -140,7 +143,7 @@ public abstract class BaseGardenCropTask : MethodTask
             var steps = new List<TaskStep>();
             void Add(string text, string onClick = null) => steps.Add(new TaskStep { Number = steps.Count + 1, Text = text, OnClick = onClick });
             Add("Type /warp garden to get close.", "/warp garden");
-            Add($"Plant/farm {CropName} on one of your plots.");
+            Add(FarmingInstruction);
             if (ToolTag != null)
                 Add($"Use your {ToolName} for the best Farming Fortune.", WikiUrl);
             Add($"You're doing it right when you start collecting: {string.Join(", ", DetectionItems.Take(4))}. That's what we track for your coins/hour.");
@@ -241,7 +244,7 @@ public class MushroomFarmingTask : BaseGardenCropTask
     protected override string ToolTag => "FUNGI_CUTTER";
     protected override string ToolName => "Fungi Cutter";
     protected override HashSet<string> DetectionItems =>
-        ["RED_MUSHROOM", "BROWN_MUSHROOM", "BUILDER_BROWN_MUSHROOM", "BUILDER_RED_MUSHROOM", "ENCHANTED_RED_MUSHROOM", "ENCHANTED_BROWN_MUSHROOM", "ENCHANTED_HUGE_MUSHROOM_1", "ENCHANTED_HUGE_MUSHROOM_2"];
+        ["RED_MUSHROOM", "BROWN_MUSHROOM", "BUILDER_BROWN_MUSHROOM", "ENCHANTED_RED_MUSHROOM", "ENCHANTED_BROWN_MUSHROOM", "ENCHANTED_HUGE_MUSHROOM_1", "ENCHANTED_HUGE_MUSHROOM_2"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_RED_MUSHROOM", 700), new("ENCHANTED_BROWN_MUSHROOM", 400)];
 }
 
@@ -258,6 +261,7 @@ public class CocoaBeansFarmingTask : BaseGardenCropTask
 public class SunflowerFarmingTask : BaseGardenCropTask
 {
     protected override string CropName => "Sunflower";
+    protected override string FarmingInstruction => "Farm Sunflower on a Garden plot during the day; at night it drops Moonflower instead.";
     protected override string WikiPage => "Sunflower";
     // No dedicated farming tool for Sunflower.
     protected override string ToolTag => null;
@@ -269,6 +273,7 @@ public class SunflowerFarmingTask : BaseGardenCropTask
 public class MoonflowerFarmingTask : BaseGardenCropTask
 {
     protected override string CropName => "Moonflower";
+    protected override string FarmingInstruction => "Farm Sunflower on a Garden plot at night to collect Moonflower; during the day it drops Sunflower instead.";
     protected override string WikiPage => "Moonflower";
     // No dedicated farming tool for Moonflower.
     protected override string ToolTag => null;
@@ -301,7 +306,7 @@ public class GardenVisitorsTask : MethodTask
     [
         "OVERCLOCKER_3000", "SQUEAKY_TOY", "JACOBS_TICKET", "CARNIVAL_TICKET", "FEAST_FLASK", "BOOKWORM_BOOK",
         "QUICKDRAW_GARDEN_CHIP", "SYNTHESIS_GARDEN_CHIP", "EVERGREEN_GARDEN_CHIP", "FLOWERING_BOUQUET",
-        "OVERGROWN_GRASS", "GREEN_BANDANA", "SPACE_HELMET", "FRUIT_BOWL",
+        "OVERGROWN_GRASS", "GREEN_BANDANA", "DCTR_SPACE_HELM", "FRUIT_BOWL",
         // copper comes from serving visitors and, at the Underground Lab, the Crop Analyzer (CropAnalyzerTask);
         // booked from the scoreboard, see CollectionListener.TrackCopper
         PseudoItems.COPPER
@@ -317,7 +322,8 @@ public class GardenVisitorsTask : MethodTask
     // serving visitors stands for at least one spawn interval, not the seconds spent claiming rewards
     protected override TimeSpan MinimumPeriodDuration => TimeSpan.FromMinutes(15);
     protected override List<MethodDrop> FormulaDrops => [new("JACOBS_TICKET", 5)];
-    protected override string HowTo => "Serve the visitors that arrive at your Garden and accept their rewards.";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Garden_Visitors";
+    protected override string HowTo => "Talk to a visitor at your Garden, review the requested items and rewards, then accept the offer with those items in your inventory or sacks. The requested items are consumed.";
     public override string Description =>
         "Rewards from serving Garden visitors (Garden chips, tickets, Overclocker 3000, ...).";
 }

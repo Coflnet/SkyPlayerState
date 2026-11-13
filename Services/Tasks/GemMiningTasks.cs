@@ -23,29 +23,22 @@ public abstract class BaseMiningTask : MethodTask
     ];
     protected override string Category => "Mining";
     protected override string ActionUnit => "mines";
-    protected override List<RequiredItem> RequiredItems => [new() { ItemTag = "GEMSTONE_GAUNTLET", Reason = "Mining tool" }];
     protected override List<DropEffect> Effects => [
         new() { Name = "Mining Speed", Description = "Faster block breaking", EstimatedMultiplier = 1.3 },
-        new() { Name = "Mining Fortune", Description = "More drops per block", EstimatedMultiplier = 1.5 },
-        new() { Name = "Pristine", Description = "Chance to upgrade gem quality on mine", EstimatedMultiplier = 1.2 }
+        new() { Name = "Mining Fortune", Description = "More drops per block", EstimatedMultiplier = 1.5 }
     ];
 
-    /// <summary>
-    /// Shared simple-words step list for the gemstone mining tasks below (all verified 200 on
-    /// the community wiki 2026-09). <paramref name="accessNote"/> covers the one thing that
-    /// differs between them: Crystal Hollows needs HotM 3/4 + a Crystal Hollows Pass, the Glacite
-    /// area (Peridot/Jasper via Glacite Tunnels) just needs the Dwarven Mines unlocked.
-    /// </summary>
-    protected static List<TaskStep> GemstoneSteps(string gemName, string wikiUrl, string accessNote)
+    protected static List<TaskStep> GemstoneSteps(string gemName, string wikiUrl, string accessNote, int breakingPower = 7)
     {
         var steps = new List<TaskStep>();
         void Add(string text, string onClick = null) => steps.Add(new TaskStep { Number = steps.Count + 1, Text = text, OnClick = onClick });
 
-        Add("Get a Gemstone Gauntlet - it's the only tool that can mine gemstones.",
-            "https://hypixelskyblock.minecraft.wiki/w/Gemstone_Gauntlet");
+        Add($"Use a pickaxe or drill with Breaking Power {breakingPower} or higher.",
+            "https://hypixelskyblock.minecraft.wiki/w/Breaking_Power");
         Add(accessNote);
-        Add($"Look for glowing {gemName} veins in the walls and mine them with your Gemstone Gauntlet.", wikiUrl);
+        Add($"Look for glowing {gemName} veins in the walls and mine them with your mining tool.", wikiUrl);
         Add($"You're doing it right when you collect: Rough, Flawed, and Fine {gemName} Gemstones. That's what we track for your coins/hour.");
+        Add("Pristine can replace Rough drops with Flawed gemstones; a Personal Compactor can combine them into Fine gemstones.");
         Add($"Sell your {gemName} gemstones on the Bazaar.");
         Add("Check /cofl task again to see your real coins/hour.");
         return steps;
@@ -53,9 +46,10 @@ public abstract class BaseMiningTask : MethodTask
 
     protected const string CrystalHollowsAccessNote =
         "Type /warp crystals to get close, then go into the Crystal Hollows - you need Heart of the "
-        + "Mountain level 3 or 4 and a Crystal Hollows Pass to get in.";
+        + "Mountain tier 4 and a Crystal Hollows Pass to get in.";
     protected const string GlaciteAccessNote =
-        "Type /warp mines to get close, then go down into the Glacite Tunnels in the Dwarven Mines.";
+        "Reach Heart of the Mountain tier 7, speak to Dulin in the Hanging Court, forge a Secret Railroad "
+        + "Pass and give it to a Ticket Master to reach Dwarven Base Camp and the Glacite Tunnels.";
 }
 
 /// <summary>
@@ -85,9 +79,9 @@ public class ThystMiningTask : BaseMiningTask
     protected override HashSet<string> Locations => ["Crystal Hollows", "Mithril Deposits", "Precursor Remnants", "Magma Fields", "Goblin Holdout"];
     protected override HashSet<string> DetectionItems => ["FINE_AMETHYST_GEM", "FLAWED_AMETHYST_GEM", "ROUGH_AMETHYST_GEM"];
     protected override List<MethodDrop> FormulaDrops => [new("FINE_AMETHYST_GEM", 200), new("FLAWED_AMETHYST_GEM", 400)];
-    protected override string HowTo => "Equip a Gemstone Gauntlet and mine Amethyst (Thyst) gemstone veins in the Crystal Hollows.";
+    protected override string HowTo => "Use a mining tool with sufficient Breaking Power to mine Amethyst (Thyst) gemstone veins in the Crystal Hollows.";
     protected override double ActionsPerHour => 3200;
-    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Amethyst_Gemstone";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Gemstone";
     protected override List<TaskStep> Steps => GemstoneSteps("Amethyst (Thyst)", WikiUrl, CrystalHollowsAccessNote);
 }
 public class JasperMiningTask : BaseMiningTask
@@ -96,10 +90,10 @@ public class JasperMiningTask : BaseMiningTask
     protected override HashSet<string> Locations => ["Crystal Hollows", "Fairy Grotto"];
     protected override HashSet<string> DetectionItems => ["FINE_JASPER_GEM", "FLAWED_JASPER_GEM", "ROUGH_JASPER_GEM"];
     protected override List<MethodDrop> FormulaDrops => [new("FINE_JASPER_GEM", 180), new("FLAWED_JASPER_GEM", 360)];
-    protected override string HowTo => "Equip a Gemstone Gauntlet and mine Jasper gemstone veins in the Crystal Hollows.";
+    protected override string HowTo => "Use a mining tool with sufficient Breaking Power to mine Jasper gemstone veins in the Crystal Hollows.";
     protected override double ActionsPerHour => 3000;
-    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Jasper_Gemstone";
-    protected override List<TaskStep> Steps => GemstoneSteps("Jasper", WikiUrl, CrystalHollowsAccessNote);
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Gemstone";
+    protected override List<TaskStep> Steps => GemstoneSteps("Jasper", WikiUrl, CrystalHollowsAccessNote, 9);
 }
 public class JadeMiningTask : BaseMiningTask
 {
@@ -107,9 +101,9 @@ public class JadeMiningTask : BaseMiningTask
     protected override HashSet<string> Locations => ["Crystal Hollows", "Mithril Deposits", "Goblin Holdout"];
     protected override HashSet<string> DetectionItems => ["FINE_JADE_GEM", "FLAWED_JADE_GEM", "ROUGH_JADE_GEM"];
     protected override List<MethodDrop> FormulaDrops => [new("FINE_JADE_GEM", 170), new("FLAWED_JADE_GEM", 340)];
-    protected override string HowTo => "Equip a Gemstone Gauntlet and mine Jade gemstone veins in the Crystal Hollows.";
+    protected override string HowTo => "Use a mining tool with sufficient Breaking Power to mine Jade gemstone veins in the Crystal Hollows.";
     protected override double ActionsPerHour => 2900;
-    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Jade_Gemstone";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Gemstone";
     protected override List<TaskStep> Steps => GemstoneSteps("Jade", WikiUrl, CrystalHollowsAccessNote);
 }
 public class AmberMiningTask : BaseMiningTask
@@ -118,9 +112,9 @@ public class AmberMiningTask : BaseMiningTask
     protected override HashSet<string> Locations => ["Crystal Hollows", "Goblin Holdout"];
     protected override HashSet<string> DetectionItems => ["FINE_AMBER_GEM", "FLAWED_AMBER_GEM", "ROUGH_AMBER_GEM"];
     protected override List<MethodDrop> FormulaDrops => [new("FINE_AMBER_GEM", 170), new("FLAWED_AMBER_GEM", 340)];
-    protected override string HowTo => "Equip a Gemstone Gauntlet and mine Amber gemstone veins in the Crystal Hollows.";
+    protected override string HowTo => "Use a mining tool with sufficient Breaking Power to mine Amber gemstone veins in the Crystal Hollows.";
     protected override double ActionsPerHour => 2900;
-    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Amber_Gemstone";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Gemstone";
     protected override List<TaskStep> Steps => GemstoneSteps("Amber", WikiUrl, CrystalHollowsAccessNote);
 }
 public class SapphireMiningTask : BaseMiningTask
@@ -129,9 +123,9 @@ public class SapphireMiningTask : BaseMiningTask
     protected override HashSet<string> Locations => ["Crystal Hollows", "Precursor Remnants"];
     protected override HashSet<string> DetectionItems => ["FINE_SAPPHIRE_GEM", "FLAWED_SAPPHIRE_GEM", "ROUGH_SAPPHIRE_GEM"];
     protected override List<MethodDrop> FormulaDrops => [new("FINE_SAPPHIRE_GEM", 160), new("FLAWED_SAPPHIRE_GEM", 320)];
-    protected override string HowTo => "Equip a Gemstone Gauntlet and mine Sapphire gemstone veins in the Crystal Hollows.";
+    protected override string HowTo => "Use a mining tool with sufficient Breaking Power to mine Sapphire gemstone veins in the Crystal Hollows.";
     protected override double ActionsPerHour => 2800;
-    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Sapphire_Gemstone";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Gemstone";
     protected override List<TaskStep> Steps => GemstoneSteps("Sapphire", WikiUrl, CrystalHollowsAccessNote);
 }
 public class PeridotMiningTask : BaseMiningTask
@@ -140,10 +134,10 @@ public class PeridotMiningTask : BaseMiningTask
     protected override HashSet<string> Locations => ["Glacite Tunnels", "Great Glacite Lake"];
     protected override HashSet<string> DetectionItems => ["FINE_PERIDOT_GEM", "FLAWED_PERIDOT_GEM", "ROUGH_PERIDOT_GEM"];
     protected override List<MethodDrop> FormulaDrops => [new("FINE_PERIDOT_GEM", 160), new("FLAWED_PERIDOT_GEM", 320)];
-    protected override string HowTo => "Equip a Gemstone Gauntlet and mine Peridot gemstone veins in the Crystal Hollows.";
+    protected override string HowTo => "Use a mining tool with sufficient Breaking Power to mine Peridot gemstone veins in the Glacite Tunnels.";
     protected override double ActionsPerHour => 2800;
-    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Peridot_Gemstone";
-    protected override List<TaskStep> Steps => GemstoneSteps("Peridot", WikiUrl, GlaciteAccessNote);
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Gemstone";
+    protected override List<TaskStep> Steps => GemstoneSteps("Peridot", WikiUrl, GlaciteAccessNote, 9);
 }
 
 // ── Ore Mining ──
@@ -154,7 +148,7 @@ public class CoalMiningTask : BaseMiningTask
     protected override HashSet<string> Locations => ["Dwarven Mines", "Coal Mine", "Gold Mine", "Magma Fields"];
     // coal ore in the Glacite Tunnels is mined along with the tunnel ores: those sessions are tunnel mining
     protected override HashSet<string> ExcludedZones => [.. SkyblockZones.GlaciteTunnelZones];
-    protected override HashSet<string> DetectionItems => ["COAL", "ENCHANTED_COAL"];
+    protected override HashSet<string> DetectionItems => ["COAL", "ENCHANTED_COAL", "ENCHANTED_COAL_BLOCK"];
     // Lava fishing junk (coal included) stays with Magma Core Fishing, worm membranes with Scatha tunnel mining and Yog
     // kills (coal lands in those periods too) with Yog and Bal.
     protected override Dictionary<string, HashSet<string>> ZoneExcludedItems => new()
@@ -172,7 +166,7 @@ public class DiamondMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Diamond Mining";
     protected override HashSet<string> Locations => ["Dwarven Mines", "Deep Caverns", "Diamond Reserve"];
-    protected override HashSet<string> DetectionItems => ["DIAMOND", "ENCHANTED_DIAMOND"];
+    protected override HashSet<string> DetectionItems => ["DIAMOND", "ENCHANTED_DIAMOND", "ENCHANTED_DIAMOND_BLOCK"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_DIAMOND", 300), new("ENCHANTED_DIAMOND_BLOCK", 15)];
     protected override string Where => "Royal Mines";
     protected override string HowTo => "Mine diamond ore in the Royal Mines of the Dwarven Mines, or in the Diamond Reserve in the Deep Caverns, with a pickaxe.";
@@ -182,7 +176,7 @@ public class RedstoneMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Redstone Mining";
     protected override HashSet<string> Locations => ["Dwarven Mines", "Deep Caverns", "Pigmen's Den"];
-    protected override HashSet<string> DetectionItems => ["REDSTONE", "ENCHANTED_REDSTONE"];
+    protected override HashSet<string> DetectionItems => ["REDSTONE", "ENCHANTED_REDSTONE", "ENCHANTED_REDSTONE_BLOCK"];
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_REDSTONE", 400), new("ENCHANTED_REDSTONE_BLOCK", 20)];
     protected override string HowTo => "Mine redstone ore blocks in the Deep Caverns or Pigmen's Den with a pickaxe.";
     protected override double ActionsPerHour => 3800;
@@ -349,11 +343,11 @@ public class SludgeMiningTask : BaseMiningTask
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Sludge_Juice";
     protected override List<TaskStep> Steps =>
     [
-        new() { Number = 1, Text = "Get into the Crystal Hollows: you need Heart of the Mountain level 3 or 4, and a Crystal Hollows Pass." },
+        new() { Number = 1, Text = "Get into the Crystal Hollows: you need Heart of the Mountain tier 4 and a Crystal Hollows Pass." },
         new() { Number = 2, Text = "Type /warp crystals to get close.", OnClick = "/warp crystals" },
         new() { Number = 3, Text = "Walk to the Jungle area inside the Crystal Hollows.", OnClick = WhereWikiUrl },
-        new() { Number = 4, Text = "The first time, buy a Jungle Pickaxe from Odawa (an NPC standing in the Jungle) for 200 Sludge Juice - it's the only pickaxe that can find Sludge Juice.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Jungle_Pickaxe" },
-        new() { Number = 5, Text = "Mine the grey Hard Stone blocks with your Jungle Pickaxe. Sometimes one turns into Sludge and drops Sludge Juice." },
+        new() { Number = 4, Text = "The first time, buy a Jungle Pickaxe from Odawa (an NPC standing in the Jungle) for 200 Sludge Juice - it drops Sludge Juice directly while mining Hard Stone.", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Jungle_Pickaxe" },
+        new() { Number = 5, Text = "Mine the grey Hard Stone blocks with your Jungle Pickaxe. Each block has a 3% chance to drop Sludge Juice directly." },
         new() { Number = 6, Text = "You're doing it right when you collect: Sludge Juice. That's what we track for your coins/hour.", OnClick = WikiUrl },
         new() { Number = 7, Text = "Sell Sludge Juice on the Bazaar." },
         new() { Number = 8, Text = "Check /cofl task again to see your real coins/hour." },
@@ -405,13 +399,13 @@ public class SludgeMiningGemMixtureTask : BaseMiningTask
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Gemstone_Mixture";
     protected override List<TaskStep> Steps =>
     [
-        new() { Number = 1, Text = "Get into the Crystal Hollows: you need Heart of the Mountain level 3 or 4, and a Crystal Hollows Pass." },
+        new() { Number = 1, Text = "Get into the Crystal Hollows: you need Heart of the Mountain tier 4 and a Crystal Hollows Pass." },
         new() { Number = 2, Text = "Type /warp crystals to get close.", OnClick = "/warp crystals" },
         new() { Number = 3, Text = "Walk to the Jungle area inside the Crystal Hollows and buy a Jungle Pickaxe from Odawa (200 Sludge Juice, one time only).", OnClick = "https://hypixelskyblock.minecraft.wiki/w/Jungle_Pickaxe" },
         new() { Number = 4, Text = "Mine Hard Stone blocks with your Jungle Pickaxe to collect Sludge Juice. This step is exactly the same as Sludge Mining, so it counts for both." },
         new() { Number = 5, Text = "When you have a lot of Sludge Juice, type /warp forge to go to the Forge in the Dwarven Mines.", OnClick = "/warp forge" },
         new() { Number = 6, Text = "Craft Gemstone Mixture: 320 Sludge Juice + 4 Fine Jade + 4 Fine Amber + 4 Fine Amethyst + 4 Fine Sapphire Gemstones. It takes 4 hours to finish.", OnClick = WikiUrl },
-        new() { Number = 7, Text = "A Forge only has a few slots, so you can only finish about 1 Gemstone Mixture every 4 hours in total - it's normal to also sell your extra Sludge Juice directly instead of waiting for a free slot." },
+        new() { Number = 7, Text = "With 5 Forge slots and 4 hours per craft, you can finish 1.25 Gemstone Mixtures per hour. Sell extra Sludge Juice directly while the slots are occupied." },
         new() { Number = 8, Text = "Sell your Gemstone Mixture and any leftover Sludge Juice on the Bazaar or Auction House." },
         new() { Number = 9, Text = "Check /cofl task again to see your real coins/hour." },
     ];
@@ -454,13 +448,15 @@ public class SludgeMiningCoalTask : BaseMiningTask
 public class ScathaMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Scatha Mining";
-    // Scatha/Worm spawn only in the Crystal Hollows; they drop gemstones, not worm membrane.
+    // Stoneworms and Scathas spawn from Hard Stone tunnels in the Crystal Hollows; both drop Worm Membranes.
     protected override HashSet<string> Locations => ["Crystal Hollows"];
     // Worms drop membranes while tunnel mining, so they count even without the lucky pet. A Stoneworm (80%) or Scatha (20%)
     // spawns from 0.167% of the Hard Stone broken in the tunnels (wiki Stoneworm): the same activity, the shards count too.
     protected override HashSet<string> DetectionItems => ["PET_SCATHA", "WORM_MEMBRANE", "SHARD_STONEWORM", "SHARD_SCATHA"];
     protected override List<MethodDrop> FormulaDrops => [new("FINE_TOPAZ_GEM", 15), new("FINE_AMETHYST_GEM", 6), new("ROUGH_TOPAZ_GEM", 50), new("FINE_JADE_GEM", 3)];
-    protected override string HowTo => "Mine in the Crystal Hollows to spawn and kill Scatha worms for rare drops.";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Scatha";
+    protected override string HowTo => "Mine Hard Stone tunnels in the Crystal Hollows to spawn Stoneworms and Scathas. "
+        + "Kill them for Worm Membranes and gemstones; Scathas can also drop a rare Scatha Pet.";
     protected override double ActionsPerHour => 1500;
 }
 
@@ -737,10 +733,10 @@ public class RubyMiningTask : BaseMiningTask
     protected override HashSet<string> Locations => ["Crystal Hollows", "Jungle", "Mithril Deposits", "Precursor Remnants", "Magma Fields", "Goblin Holdout", "Mines of Divan", "Crystal Nucleus"];
     protected override HashSet<string> DetectionItems => ["FINE_RUBY_GEM", "FLAWED_RUBY_GEM", "ROUGH_RUBY_GEM"];
     protected override List<MethodDrop> FormulaDrops => [new("ROUGH_RUBY_GEM", 600), new("FLAWED_RUBY_GEM", 70)];
-    protected override string HowTo => "Equip a Gemstone Gauntlet and mine Ruby gemstone veins in the Crystal Hollows.";
+    protected override string HowTo => "Use a mining tool with sufficient Breaking Power to mine Ruby gemstone veins in the Crystal Hollows.";
     protected override double ActionsPerHour => 3000;
-    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Ruby_Gemstone";
-    protected override List<TaskStep> Steps => GemstoneSteps("Ruby", WikiUrl, CrystalHollowsAccessNote);
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Gemstone";
+    protected override List<TaskStep> Steps => GemstoneSteps("Ruby", WikiUrl, CrystalHollowsAccessNote, 6);
 }
 public class TopazMiningTask : BaseMiningTask
 {
@@ -748,10 +744,10 @@ public class TopazMiningTask : BaseMiningTask
     protected override HashSet<string> Locations => ["Crystal Hollows", "Magma Fields", "Khazad-dûm"];
     protected override HashSet<string> DetectionItems => ["FINE_TOPAZ_GEM", "FLAWED_TOPAZ_GEM", "ROUGH_TOPAZ_GEM"];
     protected override List<MethodDrop> FormulaDrops => [new("ROUGH_TOPAZ_GEM", 390), new("FLAWED_TOPAZ_GEM", 130), new("FINE_TOPAZ_GEM", 13)];
-    protected override string HowTo => "Equip a Gemstone Gauntlet and mine Topaz gemstone veins in the Crystal Hollows.";
+    protected override string HowTo => "Use a mining tool with sufficient Breaking Power to mine Topaz gemstone veins in the Crystal Hollows.";
     protected override double ActionsPerHour => 3000;
-    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Topaz_Gemstone";
-    protected override List<TaskStep> Steps => GemstoneSteps("Topaz", WikiUrl, CrystalHollowsAccessNote);
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Gemstone";
+    protected override List<TaskStep> Steps => GemstoneSteps("Topaz", WikiUrl, CrystalHollowsAccessNote, 8);
 }
 public class AquamarineMiningTask : BaseMiningTask
 {
@@ -759,10 +755,10 @@ public class AquamarineMiningTask : BaseMiningTask
     protected override HashSet<string> Locations => ["Glacite Tunnels", "Great Glacite Lake", "Dwarven Base Camp"];
     protected override HashSet<string> DetectionItems => ["FINE_AQUAMARINE_GEM", "FLAWED_AQUAMARINE_GEM", "ROUGH_AQUAMARINE_GEM"];
     protected override List<MethodDrop> FormulaDrops => [new("FLAWED_AQUAMARINE_GEM", 500), new("FINE_AQUAMARINE_GEM", 160)];
-    protected override string HowTo => "Equip a Gemstone Gauntlet and mine Aquamarine gemstone veins in the Glacite Tunnels.";
+    protected override string HowTo => "Use a mining tool with sufficient Breaking Power to mine Aquamarine gemstone veins in the Glacite Tunnels.";
     protected override double ActionsPerHour => 3000;
-    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Aquamarine_Gemstone";
-    protected override List<TaskStep> Steps => GemstoneSteps("Aquamarine", WikiUrl, GlaciteAccessNote);
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Gemstone";
+    protected override List<TaskStep> Steps => GemstoneSteps("Aquamarine", WikiUrl, GlaciteAccessNote, 9);
 }
 public class CitrineMiningTask : BaseMiningTask
 {
@@ -770,10 +766,10 @@ public class CitrineMiningTask : BaseMiningTask
     protected override HashSet<string> Locations => ["Glacite Tunnels", "Great Glacite Lake", "Dwarven Base Camp"];
     protected override HashSet<string> DetectionItems => ["FINE_CITRINE_GEM", "FLAWED_CITRINE_GEM", "ROUGH_CITRINE_GEM"];
     protected override List<MethodDrop> FormulaDrops => [new("FLAWED_CITRINE_GEM", 320), new("FINE_CITRINE_GEM", 76)];
-    protected override string HowTo => "Equip a Gemstone Gauntlet and mine Citrine gemstone veins in the Glacite Tunnels.";
+    protected override string HowTo => "Use a mining tool with sufficient Breaking Power to mine Citrine gemstone veins in the Glacite Tunnels.";
     protected override double ActionsPerHour => 3000;
-    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Citrine_Gemstone";
-    protected override List<TaskStep> Steps => GemstoneSteps("Citrine", WikiUrl, GlaciteAccessNote);
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Gemstone";
+    protected override List<TaskStep> Steps => GemstoneSteps("Citrine", WikiUrl, GlaciteAccessNote, 9);
 }
 public class OnyxMiningTask : BaseMiningTask
 {
@@ -781,10 +777,10 @@ public class OnyxMiningTask : BaseMiningTask
     protected override HashSet<string> Locations => ["Glacite Tunnels", "Great Glacite Lake", "Dwarven Base Camp"];
     protected override HashSet<string> DetectionItems => ["FINE_ONYX_GEM", "FLAWED_ONYX_GEM", "ROUGH_ONYX_GEM"];
     protected override List<MethodDrop> FormulaDrops => [new("FINE_ONYX_GEM", 180)];
-    protected override string HowTo => "Equip a Gemstone Gauntlet and mine Onyx gemstone veins in the Glacite Tunnels.";
+    protected override string HowTo => "Use a mining tool with sufficient Breaking Power to mine Onyx gemstone veins in the Glacite Tunnels.";
     protected override double ActionsPerHour => 3000;
-    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Onyx_Gemstone";
-    protected override List<TaskStep> Steps => GemstoneSteps("Onyx", WikiUrl, GlaciteAccessNote);
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Gemstone";
+    protected override List<TaskStep> Steps => GemstoneSteps("Onyx", WikiUrl, GlaciteAccessNote, 9);
 }
 
 // Fossil Excavation: Suspicious Scrap is spent at the Fossil Research Center and yields the fossils.
@@ -861,7 +857,7 @@ public class IronMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Iron Mining";
     protected override HashSet<string> Locations => ["Gold Mine", "Gunpowder Mines", "Royal Mines"];
-    protected override HashSet<string> DetectionItems => ["IRON_INGOT", "IRON_ORE", "ENCHANTED_IRON"];
+    protected override HashSet<string> DetectionItems => ["IRON_INGOT", "IRON_ORE", "ENCHANTED_IRON", "ENCHANTED_IRON_BLOCK"];
     protected override List<MethodDrop> FormulaDrops => [new("IRON_INGOT", 450)];
     protected override string HowTo => "Mine iron ore in the Gold Mine, Gunpowder Mines or Royal Mines with a pickaxe.";
     protected override double ActionsPerHour => 450;
@@ -870,7 +866,7 @@ public class LapisMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Lapis Mining";
     protected override HashSet<string> Locations => ["Lapis Quarry"];
-    protected override HashSet<string> DetectionItems => ["INK_SACK:4", "ENCHANTED_LAPIS_LAZULI"];
+    protected override HashSet<string> DetectionItems => ["INK_SACK:4", "ENCHANTED_LAPIS_LAZULI", "ENCHANTED_LAPIS_LAZULI_BLOCK"];
     protected override List<MethodDrop> FormulaDrops => [new("INK_SACK:4", 6400)];
     protected override string HowTo => "Mine lapis ore in the Lapis Quarry with a pickaxe.";
     protected override double ActionsPerHour => 6400;
@@ -879,7 +875,7 @@ public class EmeraldMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Emerald Mining";
     protected override HashSet<string> Locations => ["Slimehill"];
-    protected override HashSet<string> DetectionItems => ["EMERALD", "ENCHANTED_EMERALD"];
+    protected override HashSet<string> DetectionItems => ["EMERALD", "ENCHANTED_EMERALD", "ENCHANTED_EMERALD_BLOCK"];
     protected override List<MethodDrop> FormulaDrops => [new("EMERALD", 1300)];
     protected override string HowTo => "Mine emerald ore in Slimehill with a pickaxe.";
     protected override double ActionsPerHour => 1300;

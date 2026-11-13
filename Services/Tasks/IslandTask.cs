@@ -89,7 +89,7 @@ public abstract class IslandTask : ProfitTask
         var latePeriods = LateReward == null ? []
             : parameters.LocationProfit.Values.SelectMany(v => v).Where(IsAttributedLateReward).ToList();
         var locations = parameters.LocationProfit
-            .Select(l => (key: l.Key, periods: l.Value.Where(p => !latePeriods.Contains(p)).ToArray()))
+            .Select(l => (key: l.Key, periods: l.Value.Where(p => !latePeriods.Contains(p) && p.EndTime > p.StartTime).ToArray()))
             .Where(l => l.periods.Length > 0 && SkyblockZones.Matches(locationNames, l.key))
             .Select(l => (data: l.periods,
                 totalProfit: l.periods.Sum(l => l.Profit),
@@ -117,7 +117,6 @@ public abstract class IslandTask : ProfitTask
                 OnClick = EffectiveWarpCommand,
                 Breakdown = BuildBreakdown()
             });
-        var bestLocation = locations.First();
         var totalTime = locations.Sum(l => l.data.Sum(d => (d.EndTime - d.StartTime).TotalHours));
         var fmt = parameters.Formatter;
         var formattedDuration = fmt.FormatTime(TimeSpan.FromHours(totalTime));
@@ -125,10 +124,9 @@ public abstract class IslandTask : ProfitTask
             .GroupBy(i => i.Key, i => i.Value)
             .ToDictionary(g => g.Key, g => g.Sum())
             .OrderByDescending(i => i.Value);
-        var itemBreakDown = items
+        var itemBreakDown = string.Join("\n", items
             .Take(20)
-            .Select(i => $"{McColorCodes.YELLOW}{i.Key} {McColorCodes.GRAY}x{i.Value}")
-            .Aggregate((a, b) => a + "\n" + b);
+            .Select(i => $"{McColorCodes.YELLOW}{i.Key} {McColorCodes.GRAY}x{i.Value}"));
         var totalProfit = locations.Sum(l => l.totalProfit) + latePeriods.Sum(p => p.Profit);
         var perHour = totalProfit / totalTime;
         var itemCount = items.Where(i => i.Value > 0).Sum(i => i.Value);

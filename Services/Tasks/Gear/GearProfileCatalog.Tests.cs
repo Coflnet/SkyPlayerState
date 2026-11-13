@@ -21,6 +21,35 @@ public class GearProfileCatalogTests
     // ── every embedded profile ──
 
     [Test]
+    public void DungeonStarter_DoesNotRequireALaterFloorCompletion()
+    {
+        var starter = Shipped("F1").Baseline;
+        starter.Items.Where(i => i.Slot is "helmet" or "chestplate" or "leggings" or "boots")
+            .Select(i => i.ItemTag).Should().OnlyContain(tag => tag.StartsWith("MERCENARY_"));
+    }
+
+    [Test]
+    public void DungeonEndgame_PairsArcherArmorWithABowAndSupportHyperion()
+    {
+        var setup = SetupOf(Shipped("M7"), "endgame");
+        setup.Items.Single(i => i.Slot == "weapon").ItemTag.Should().Be("TERMINATOR");
+        setup.Items.Single(i => i.Slot == "chestplate").ItemTag.Should().Be("POWER_WITHER_CHESTPLATE");
+        setup.Items.Single(i => i.Slot == "helmet").ItemTag.Should().Be("DIAMOND_NECRON_HEAD");
+        setup.Items.Single(i => i.Slot == "support_weapon").ItemTag.Should().Be("HYPERION");
+    }
+
+    [Test]
+    public void Kuudra_HyperionSetupsUseMageArmor_AndBowSetupUsesTerror()
+    {
+        foreach (var setup in Shipped("Kuudra T1").AllSetups())
+        {
+            var weapon = setup.Items.Single(i => i.Slot == "weapon").ItemTag;
+            setup.Items.Single(i => i.Slot == "chestplate").ItemTag
+                .Should().Contain(weapon == "HYPERION" ? "AURORA_" : "TERROR_");
+        }
+    }
+
+    [Test]
     public void EmbeddedProfiles_AllLoadAndPassValidation()
     {
         var catalog = GearProfileCatalog.Embedded;

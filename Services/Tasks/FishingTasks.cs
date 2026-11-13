@@ -85,7 +85,7 @@ public abstract class BaseFishingTask : MethodTask
     protected override List<DropEffect> Effects =>
     [
         new() { Name = "Fishing Speed", Description = "Higher fishing speed reduces time between catches", EstimatedMultiplier = 1.3 },
-        new() { Name = "Sea Creature Chance", Description = "Increases rare sea creature spawn rate (hunting)", EstimatedMultiplier = 1.2 },
+        new() { Name = "Sea Creature Chance", Description = "Increases the chance to fish up a sea creature", EstimatedMultiplier = 1.2 },
         new() { Name = "Lure enchantment", Description = "Reduces time between bites", EstimatedMultiplier = 1.15 }
     ];
 }
@@ -104,6 +104,7 @@ public class PiscaryFishingTask : BaseFishingTask
 }
 public class BayouFishingTask : BaseFishingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Backwater_Bayou";
     protected override string MethodName => "Bayou Fishing";
     protected override HashSet<string> Locations => ["Backwater Bayou"];
     protected override bool ExcludeShardItems => true;
@@ -119,12 +120,13 @@ public class BayouHotspotFishingTask : BaseFishingTask
 }
 public class SpookyFishingTask : BaseFishingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Spooky_Festival";
     protected override string MethodName => "Spooky Fishing";
     // Spooky sea creatures spawn wherever water fishing works (Spooky Festival is not a zone).
     // Backwater Bayou is included: most festival fishers fish there. Plain Bayou fishing keeps Bayou Fishing because
     // the exclusive drops are mandatory, and Bayou Hotspot Fishing still wins hotspot periods without them.
     protected override HashSet<string> Locations => ["Hub", "Village", "Forest", "Birch Park", "The Park", "Spider's Den", "Crystal Hollows", "Backwater Bayou"];
-    protected override string HowTo => "Only during the 1 hour Spooky Festival: fish in any water (most players use Backwater Bayou) and kill the spooky sea creatures that replace part of your catches. They drop Werewolf Skin, Soul Fragments, Deep Sea Orbs and Phantom Fisher / Nightmare items, plus candy and pumpkins. Spooky Bait is used up while fishing.";
+    protected override string HowTo => "While the Fear Mongerer is in the Hub, fish in water (for example in Backwater Bayou) and kill the spooky sea creatures that replace part of your catches. They drop Werewolf Skin, Soul Fragments, Deep Sea Orbs and Phantom Fisher / Nightmare items, plus candy and pumpkins. Spooky Bait is used up while fishing.";
     protected override HashSet<string> ObservedCostItems => ["SPOOKY_BAIT"];
     // Spooky-sea-creature exclusive drops are mandatory; the normal fish evidence and festival
     // items only add matched value so a spooky period outranks plain Water Fishing.
@@ -137,6 +139,7 @@ public class SpookyFishingTask : BaseFishingTask
 }
 public class WinterFishingTask : BaseFishingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Fishing";
     protected override string MethodName => "Winter Fishing";
     protected override HashSet<string> Locations => ["Jerry's Workshop", "Jerry Pond", "Hot Springs"];
     protected override string Where => "Hot Springs";
@@ -182,6 +185,7 @@ public class QuarryFishingTask : BaseFishingTask
 }
 public class CrimsonFishingTask : BaseFishingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Fishing";
     protected override string MethodName => "Crimson Fishing";
     // "Stronghold", "Crimson Fields", "Dragontail" and the bare "Crimson Isle" island key are
     // data-derived (production log analysis 2026-09-27 showed 110 Magma Fish periods at Stronghold
@@ -217,6 +221,7 @@ public class FestivalFishingTask : BaseFishingTask
 }
 public class SquidFishingTask : BaseFishingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Squid";
     protected override string MethodName => "Squid Fishing";
     protected override HashSet<string> Locations => ["Squid Cave", "Murkwater Depths", "Murkwater Shallows", "Driptoad Delve"];
     protected override bool ExcludeShardItems => true;
@@ -224,15 +229,21 @@ public class SquidFishingTask : BaseFishingTask
 }
 public class GalateaFishingMethodTask : BaseFishingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Moonglade_Marsh#Fishing_Mechanics";
     protected override string MethodName => "Galatea Fishing";
-    protected override HashSet<string> Locations => ["Driptoad Delve", "Murkwater Depths", "Murkwater Shallows", "Squid Cave", "Reefguard Pass"];
-    protected override string Where => "Murkwater Depths";
-    protected override string HowTo => "Fish in the Murkwater Depths or Murkwater Shallows on Galatea.";
+    protected override HashSet<string> Locations => ["Moonglade"];
+    protected override string Where => "Murkwater Loch";
+    // Logs and Sea Lumies also come from foraging/gathering; require a fishing-specific item.
+    protected override HashSet<string> DetectionItems =>
+        ["WET_WATER", "GILL_MEMBRANE", "DIVER_FRAGMENT", "FLEXBONE", "SWAMP_THE_FISH"];
+    protected override string HowTo => "Use a water Fishing Rod on Moonglade Marsh, for example at Murkwater Loch. Kill the sea creatures you hook; Wet Water, Gill Membranes, Emperor's Skulls and fishing treasures distinguish this from gathering Sea Lumies.";
+    public override string Description =>
+        "Fish with a rod in the water on Moonglade Marsh for its unique sea creatures and treasures. Sea creatures also drop Mangrove Logs and Sea Lumies, which can be gathered without fishing, so those shared items alone do not prove a fishing session.";
     protected override bool ExcludeShardItems => true;
-    protected override List<MethodDrop> FormulaDrops => [new("SEA_LUMIES", 150), new("RAW_FISH", 180)];
 }
 public class LotusAtollTask : BaseFishingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Lotus_Atoll";
     protected override string MethodName => "Lotus Atoll";
     // Island key: the trophy frogs are caught at Lotus Highlands, Lotus Eater's Cave and Tewtil Tunnel as well.
     protected override HashSet<string> Locations => ["Lotus Atoll"];
@@ -242,13 +253,13 @@ public class LotusAtollTask : BaseFishingTask
     // (Flipflopper, Seashine) are "Lotus Lily Pad Critters", Tewtil and Lotum have their own tasks.
     protected override HashSet<string> DetectionItems =>
     [
-        "LOTUS", "WATER_LILY", "FROGCOIN",
+        "LOTUS", "LOTUS_SILVER", "LOTUS_GOLD", "LOTUS_DIAMOND", "WATER_LILY", "FROGCOIN",
         .. FrogSpecies.SelectMany(f => FrogTiers.Select(t => $"{f}_{t}"))
     ];
     // Trophy frogs, tags are <NAME>_<TIER> (production 2026-10-10: ~90 unclassified periods).
     internal static readonly string[] FrogSpecies =
     [
-        "LOTUS", "COMMON_FROG", "BULLFROG", "WETLANDS_FROG", "PUDDLE_JUMPER", "REALITY_HOPPER", "LEAP_FROG", "EXPLODING_FROG",
+        "COMMON_FROG", "BULLFROG", "WETLANDS_FROG", "PUDDLE_JUMPER", "REALITY_HOPPER", "LEAP_FROG", "EXPLODING_FROG",
         "BLESSED_FROG", "CAVE_FROG", "SEA_FROG", "TREE_FROG", "HIGHLANDS_FROG"
     ];
     internal static readonly string[] FrogTiers = ["BRONZE", "SILVER", "GOLD", "DIAMOND"];
@@ -268,7 +279,7 @@ public class OasisFishingTask : BaseFishingTask
 {
     protected override string MethodName => "Oasis Fishing";
     protected override HashSet<string> Locations => ["Oasis", "Mushroom Desert"];
-    protected override HashSet<string> DetectionItems => FishingEvidence.Water;
+    protected override HashSet<string> DetectionItems => new(FishingEvidence.Water) { "ENCHANTED_MUTTON", "ENCHANTED_COOKED_MUTTON", "ENCHANTED_RABBIT" };
     protected override bool ExcludeShardItems => true;
     // Oasis Sheep sea creature drops mutton; raw fish is negligible here.
     protected override List<MethodDrop> FormulaDrops => [new("ENCHANTED_MUTTON", 30), new("ENCHANTED_COOKED_MUTTON", 0.2)];
@@ -286,6 +297,7 @@ public class OasisFishingTask : BaseFishingTask
 }
 public class WaterFishingTask : BaseFishingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Fishing";
     protected override string MethodName => "Water Fishing";
     protected override HashSet<string> Locations => ["Hub", "Village", "Forest", "Birch Park", "The Park", "Spider's Den", "Crystal Hollows"];
     // Water evidence (2026-09 finding: 288 periods matched here, only ~10 with any fish - it was
@@ -332,6 +344,7 @@ public class MagmaCoreFishingTask : BaseFishingTask
 }
 public class FlamingWormFishingTask : BaseFishingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Flaming_Worm";
     protected override string MethodName => "Flaming Worm Fishing";
     // Membranes at the other Crystal Hollows zones come from worm/Scatha tunnel mining (Magma Fields: 232 periods
     // with hard stone, iron and mithril, no lava catches); only these two zones show lava-fished ones (with chum/sulphur).
@@ -351,6 +364,7 @@ public class PiscaryFishingHuntingTask : BaseFishingTask
 }
 public class BayouFishingHuntingTask : BaseFishingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Backwater_Bayou";
     internal const string BayouShardHowTo =
         "Fish in Backwater Bayou and kill the sea creatures with a Salt active. Their shards are charmed: Bayou Sludge, Titanoboa, Dumpster Diver and Alligator all drop here.";
     protected override string MethodName => "Bayou Fishing (Hunting)";
@@ -419,6 +433,7 @@ public class QuarryFishingHuntingTask : BaseFishingTask
 }
 public class CrimsonFishingHuntingTask : BaseFishingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Fishing";
     protected override string MethodName => "Crimson Fishing (Hunting)";
     // Same Locations as CrimsonFishingTask - see its own comment for the data-derived zones.
     protected override HashSet<string> Locations =>
@@ -441,21 +456,46 @@ public class FestivalFishingHuntingTask : BaseFishingTask
 }
 public class SquidFishingHuntingTask : BaseFishingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Squid";
     protected override string MethodName => "Squid Fishing (Hunting)";
     protected override HashSet<string> Locations => ["Squid Cave", "Murkwater Depths", "Murkwater Shallows", "Driptoad Delve"];
     protected override bool RequireShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("INK_SACK", 200), new("ENCHANTED_INK_SACK", 20)];
 }
-public class GalateaFishingHuntingTask : BaseFishingTask
+public class GalateaFishingHuntingTask : CritterHuntingTask
 {
+    // Preserve the historical task name/key for these net-fish periods.
     protected override string MethodName => "Galatea Fishing (Hunting)";
-    // Murkwater Loch is where the Murkwater shards (Verdant, Azure, Salmon, Cod) are fished first
-    protected override HashSet<string> Locations => ["Driptoad Delve", "Murkwater Loch", "Murkwater Depths", "Murkwater Shallows", "Squid Cave", "Reefguard Pass"];
-    protected override bool RequireShardItems => true;
-    // location-only, but RequireShardItems is the real evidence: a lone fished shard (production: 1-5 Azure/Verdant
-    // per period) is enough, the default 5 left ~30% of the Murkwater shard periods unclassified
-    protected override int MinLocationOnlyItems => 1;
-    protected override List<MethodDrop> FormulaDrops => [new("SEA_LUMIES", 150), new("RAW_FISH", 180)];
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Fishing_Nets";
+    protected override HashSet<string> Locations => ["Moonglade"];
+    protected override string Where => "Murkwater Loch";
+    protected override bool Fallback => true;
+    protected override HashSet<string> DetectionItems =>
+        ["SHARD_COD", "SHARD_VERDANT", "SHARD_AZURE", "SHARD_SALMON"];
+    protected override List<RequiredItem> RequiredItems =>
+        [new() { ItemTag = "BASIC_FISHING_NET", Reason = "Catch the swimming critters" }];
+    protected override string HowTo => HuntingText.Steps(
+        "Go to the water around Moonglade Marsh, for example Murkwater Loch.",
+        "Find Cod, Verdants, Azures or Salmon swimming in the water.",
+        "Throw a Basic Fishing Net or better to catch them and collect their shards.");
+    public override string Description =>
+        "Catch Cod, Verdants, Azures and Salmon in the waters of Moonglade Marsh with a Fishing Net. These swimming critters give their shards when netted; a fishing rod and a Salt are not required for these captures.";
+}
+
+public class MoongladeSeaCreaturesHuntingTask : BaseFishingTask
+{
+    protected override string MethodName => "Moonglade Sea Creatures (Hunting)";
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Moonglade_Marsh#Fishing_Mechanics";
+    protected override HashSet<string> Locations => ["Moonglade"];
+    protected override string Where => "Murkwater Loch";
+    protected override HashSet<string> DetectionItems =>
+        ["SHARD_SEA_ARCHER", "SHARD_WETWING", "SHARD_TADGANG", "SHARD_ENT", "SHARD_SEA_EMPEROR", "SHARD_NESSIE"];
+    protected override string HowTo => HuntingText.Steps(
+        "Fish with a water Fishing Rod on Moonglade Marsh.",
+        "Use a Salt or another Charm Chance source, then kill the sea creatures you hook.",
+        "Collect their charmed shards; Hunting Fortune increases the number of shards.");
+    public override string Description =>
+        "Fish up Bogged, Wetwings, Tadgangs, Ents, the Loch Emperor and Nessie on Moonglade Marsh. Kill them with Charm Chance active to obtain their shards; the Loch Emperor and Nessie are elusive creatures whose shards are guaranteed with any Charm Chance.";
 }
 public class OasisFishingHuntingTask : BaseFishingTask
 {
@@ -467,6 +507,7 @@ public class OasisFishingHuntingTask : BaseFishingTask
 }
 public class WaterFishingHuntingTask : BaseFishingTask
 {
+    protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Fishing";
     protected override string MethodName => "Water Fishing (Hunting)";
     protected override HashSet<string> Locations => ["Hub", "Village", "Forest", "Birch Park", "The Park", "Spider's Den", "Crystal Hollows"];
     // Water evidence (2026-09 finding: this task absorbed Bazaar Alley shard purchases).

@@ -57,7 +57,7 @@ public static class GearOwnership
     /// <summary>Example entries: when none is owned this stays unknown (an unlisted equivalent may exist).</summary>
     private static readonly HashSet<string> ExampleOnly = new(StringComparer.Ordinal) { "ASPECT_OF_THE_DRAGON" };
     /// <summary>Worn armor is not part of the stored state (inventory is the 36 main slots only).</summary>
-    private static readonly HashSet<string> WornGear = new(StringComparer.Ordinal) { "WITHER_CHESTPLATE", "TERROR_CHESTPLATE" };
+    private static readonly HashSet<string> WornGear = new(StringComparer.Ordinal) { "WITHER_CHESTPLATE", "POWER_WITHER_CHESTPLATE", "TERROR_CHESTPLATE", "AURORA_CHESTPLATE" };
     /// <summary>Bought per run, owning one says nothing about whether the method is unlocked.</summary>
     private static readonly HashSet<string> Consumables = new(StringComparer.Ordinal) { "KISMET_FEATHER", "SHARD_VIPER" };
 

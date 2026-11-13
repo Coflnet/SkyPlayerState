@@ -17,7 +17,7 @@ public abstract class BaseForagingTask : MethodTask
     protected override List<DropEffect> Effects =>
     [
         new() { Name = "Foraging Fortune", Description = "More logs per tree", EstimatedMultiplier = 1.5 },
-        new() { Name = "Sweep", Description = "Chance to instantly fell the whole tree", EstimatedMultiplier = 1.3 },
+        new() { Name = "Sweep", Description = "Increases the number of logs broken per cut", EstimatedMultiplier = 1.3 },
         new() { Name = "Foraging Wisdom", Description = "Faster Foraging XP, indirectly more logs per hour", EstimatedMultiplier = 1.1 }
     ];
 }
@@ -117,12 +117,11 @@ public class MangroveForagingTask : BaseForagingTask
     protected override double ActionsPerHour => 3000;
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Galatea";
     protected override string HowTo =>
-        "Type /warp galatea (needs Foraging XII and Heart of the Forest tier 1, from a quest given by Hina "
-        + "in Tangleburg), then find Mangrove trees standing in the wetlands - South/North Wetlands, "
+        "Type /warp galatea (needs Foraging XII), then find Mangrove trees standing in the wetlands - South/North Wetlands, "
         + "Murkwater Loch, or Moonglade Marsh. Cut the branches first, then the trunk, then the roots.";
     protected override List<TaskStep> Steps =>
     [
-        new() { Number = 1, Text = "Level Foraging to XII and get Heart of the Forest tier 1 - both are needed. Heart of the Forest tier 1 comes from a quest given by Hina in Tangleburg." },
+        new() { Number = 1, Text = "Level Foraging to XII to enter Galatea. Speak to Hina in Tangleburg to unlock Heart of the Forest and its foraging perks." },
         new() { Number = 2, Text = "Type /warp galatea to get close.", OnClick = "/warp galatea" },
         new() { Number = 3, Text = "Look for Mangrove trees standing in the wetlands - South Wetlands, North Wetlands, Murkwater Loch, or Moonglade Marsh.", OnClick = WhereWikiUrl },
         new() { Number = 4, Text = "Cut the branches first, then the trunk, then the roots, to fell the whole tree. A Fig Hew (Foraging XII) or Figstone Splitter (XV) axe makes this much faster.", OnClick = WikiUrl },

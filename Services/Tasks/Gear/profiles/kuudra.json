@@ -5,7 +5,7 @@
   "researchedAt": "2026-11-07",
   "sources": [
     "https://hypixelskyblock.minecraft.wiki/w/Kuudra",
-    "https://hypixelskyblock.minecraft.wiki/w/Terror_Armor",
+    "https://hypixelskyblock.minecraft.wiki/w/Aurora_Armor",
     "https://api.hypixel.net/v2/resources/skyblock/items",
     "https://www.youtube.com/watch?v=elYjHeYDTWU"
   ],
@@ -22,30 +22,30 @@
   "modelConfidence": "medium",
   "baseline": {
     "id": "baseline",
-    "name": "Basic Terror armor with Hyperion",
+    "name": "Basic Aurora armor with Hyperion",
     "items": [
       {
         "slot": "helmet",
-        "tag": "TERROR_HELMET",
-        "name": "Terror Helmet",
+        "tag": "AURORA_HELMET",
+        "name": "Aurora Helmet",
         "reason": "Armor of the lowest Kuudra tier, enough for the first tiers"
       },
       {
         "slot": "chestplate",
-        "tag": "TERROR_CHESTPLATE",
-        "name": "Terror Chestplate",
+        "tag": "AURORA_CHESTPLATE",
+        "name": "Aurora Chestplate",
         "reason": "Armor of the lowest Kuudra tier, enough for the first tiers"
       },
       {
         "slot": "leggings",
-        "tag": "TERROR_LEGGINGS",
-        "name": "Terror Leggings",
+        "tag": "AURORA_LEGGINGS",
+        "name": "Aurora Leggings",
         "reason": "Armor of the lowest Kuudra tier, enough for the first tiers"
       },
       {
         "slot": "boots",
-        "tag": "TERROR_BOOTS",
-        "name": "Terror Boots",
+        "tag": "AURORA_BOOTS",
+        "name": "Aurora Boots",
         "reason": "Armor of the lowest Kuudra tier, enough for the first tiers"
       },
       {
@@ -65,30 +65,30 @@
     {
       "id": "budget",
       "tier": "budget",
-      "name": "Hot Terror armor with Hyperion",
+      "name": "Hot Aurora armor with Hyperion",
       "items": [
         {
           "slot": "helmet",
-          "tag": "HOT_TERROR_HELMET",
-          "name": "Hot Terror Helmet",
+          "tag": "HOT_AURORA_HELMET",
+          "name": "Hot Aurora Helmet",
           "reason": "Prestiged one step, supports the middle tiers"
         },
         {
           "slot": "chestplate",
-          "tag": "HOT_TERROR_CHESTPLATE",
-          "name": "Hot Terror Chestplate",
+          "tag": "HOT_AURORA_CHESTPLATE",
+          "name": "Hot Aurora Chestplate",
           "reason": "Prestiged one step, supports the middle tiers"
         },
         {
           "slot": "leggings",
-          "tag": "HOT_TERROR_LEGGINGS",
-          "name": "Hot Terror Leggings",
+          "tag": "HOT_AURORA_LEGGINGS",
+          "name": "Hot Aurora Leggings",
           "reason": "Prestiged one step, supports the middle tiers"
         },
         {
           "slot": "boots",
-          "tag": "HOT_TERROR_BOOTS",
-          "name": "Hot Terror Boots",
+          "tag": "HOT_AURORA_BOOTS",
+          "name": "Hot Aurora Boots",
           "reason": "Prestiged one step, supports the middle tiers"
         },
         {
@@ -101,7 +101,7 @@
       "stats": {},
       "unlocksTask": "Kuudra T3",
       "sources": [
-        "https://hypixelskyblock.minecraft.wiki/w/Terror_Armor"
+        "https://hypixelskyblock.minecraft.wiki/w/Aurora_Armor"
       ],
       "assumptions": [
         "Each Kuudra tier also needs the previous tier cleared, enough faction reputation and a Kuudra key.",
@@ -113,30 +113,30 @@
     {
       "id": "mid",
       "tier": "mid",
-      "name": "Burning Terror armor with Hyperion",
+      "name": "Burning Aurora armor with Hyperion",
       "items": [
         {
           "slot": "helmet",
-          "tag": "BURNING_TERROR_HELMET",
-          "name": "Burning Terror Helmet",
+          "tag": "BURNING_AURORA_HELMET",
+          "name": "Burning Aurora Helmet",
           "reason": "Prestiged two steps, supports the upper tiers"
         },
         {
           "slot": "chestplate",
-          "tag": "BURNING_TERROR_CHESTPLATE",
-          "name": "Burning Terror Chestplate",
+          "tag": "BURNING_AURORA_CHESTPLATE",
+          "name": "Burning Aurora Chestplate",
           "reason": "Prestiged two steps, supports the upper tiers"
         },
         {
           "slot": "leggings",
-          "tag": "BURNING_TERROR_LEGGINGS",
-          "name": "Burning Terror Leggings",
+          "tag": "BURNING_AURORA_LEGGINGS",
+          "name": "Burning Aurora Leggings",
           "reason": "Prestiged two steps, supports the upper tiers"
         },
         {
           "slot": "boots",
-          "tag": "BURNING_TERROR_BOOTS",
-          "name": "Burning Terror Boots",
+          "tag": "BURNING_AURORA_BOOTS",
+          "name": "Burning Aurora Boots",
           "reason": "Prestiged two steps, supports the upper tiers"
         },
         {
@@ -149,7 +149,7 @@
       "stats": {},
       "unlocksTask": "Kuudra T4",
       "sources": [
-        "https://hypixelskyblock.minecraft.wiki/w/Terror_Armor"
+        "https://hypixelskyblock.minecraft.wiki/w/Aurora_Armor"
       ],
       "assumptions": [
         "Armor tiers need a matching combat level on top of the cleared Kuudra tier.",
