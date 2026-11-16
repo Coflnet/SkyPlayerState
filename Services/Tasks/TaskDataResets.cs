@@ -20,13 +20,21 @@ public static class TaskDataResets
     /// </summary>
     public static readonly DateTime CrystalNucleusCutoff = new(2026, 11, 11, 0, 0, 0, DateTimeKind.Utc);
 
+    /// <summary>
+    /// Yog and Bal data before this holds a Divan's Alloy of 2026-11-10 (see <see cref="NucleusMiningTask.BundleOnlyLoot"/>).
+    /// Declared before <see cref="Cutoffs"/> for the same reason.
+    /// </summary>
+    public static readonly DateTime YogAndBalCutoff = new(2026, 11, 11, 0, 0, 0, DateTimeKind.Utc);
+
     private static readonly Dictionary<string, DateTime> Cutoffs = new(StringComparer.OrdinalIgnoreCase)
     {
         { "Fossil Excavation", new DateTime(2026, 10, 26, 0, 0, 0, DateTimeKind.Utc) },
         // the old AFK check (rare pool in the bucket rate) dropped normal sessions and kept the lucky ones: 96% rare value
         { "Diana", new DateTime(2026, 10, 26, 0, 0, 0, DateTimeKind.Utc) },
         // every Crystal Hollows session with a Divan Fragment was labelled Crystal Nucleus (selection on outcome, 46M/h)
-        { "Crystal Nucleus", CrystalNucleusCutoff }
+        { "Crystal Nucleus", CrystalNucleusCutoff },
+        // a 1.7B Divan's Alloy claim (nucleus bundle loot, 2026-11-10) folded into its rare pool: 55.8M/h from 2.3 hours
+        { "Yog and Bal", YogAndBalCutoff }
     };
 
     public static bool IsBeforeReset(string task, DateTime at)

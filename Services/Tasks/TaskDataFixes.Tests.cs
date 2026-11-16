@@ -33,6 +33,16 @@ public class TaskDataResetsTests
         TaskDataResets.IsBeforeReset("Crystal Nucleus", cutoff).Should().BeFalse();
     }
 
+    /// <summary>Regression: the stored Yog and Bal rows hold a 1.7B Divan's Alloy claim of 2026-11-10 (55.8M/h shown).</summary>
+    [Test]
+    public void YogAndBal_DataWithTheDivansAlloy_IsReset()
+    {
+        var cutoff = TaskDataResets.YogAndBalCutoff;
+        cutoff.Should().BeAfter(new DateTime(2026, 11, 10, 17, 5, 45, DateTimeKind.Utc), "after the alloy claim");
+        TaskDataResets.IsBeforeReset("Yog and Bal", new DateTime(2026, 11, 10, 0, 0, 0, DateTimeKind.Utc)).Should().BeTrue();
+        TaskDataResets.IsBeforeReset("Yog and Bal", cutoff).Should().BeFalse();
+    }
+
     [Test]
     public void Diana_IsReset_AndItsFormulaMatchesTheObservedEventRate()
     {

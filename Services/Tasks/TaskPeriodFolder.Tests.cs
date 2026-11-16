@@ -144,6 +144,20 @@ public class TaskPeriodFolderTests
         TaskPeriodFolder.FilterOwnedItems(items, new RubyMiningTask()).Should().NotContainKey("GEMSTONE_MIXTURE");
     }
 
+    /// <summary>
+    /// Regression (production 2026-11-10): a Crystal Nucleus bundle claim with a 1.7B Divan's Alloy merged into a Yog and
+    /// Bal session and became 99% of that task's rare pool, 55.8M/h from 2.3 tracked hours.
+    /// </summary>
+    [TestCase("DIVAN_ALLOY")]
+    [TestCase("PET_ITEM_QUICK_CLAW")]
+    public void FilterOwnedItems_NucleusBundleOnlyLoot_IsNotLootOfAnotherTask(string bundleLoot)
+    {
+        var claim = new Dictionary<string, int> { { "BOB_OMB", 20 }, { "SHARD_BAL", 3 }, { bundleLoot, 1 } };
+
+        TaskPeriodFolder.FilterOwnedItems(claim, new YogAndBalTask()).Keys.Should().BeEquivalentTo(new[] { "BOB_OMB", "SHARD_BAL" });
+        TaskPeriodFolder.FilterOwnedItems(claim, new NucleusMiningTask()).Should().ContainKey(bundleLoot);
+    }
+
     /// <summary>Regression: Summoning Eyes bought during a dragon session counted as dragon loot.</summary>
     [Test]
     public void FilterOwnedItems_InputBoughtInTheSamePeriod_IsNotLoot()

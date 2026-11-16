@@ -292,8 +292,15 @@ public class NucleusMiningTask : BaseMiningTask
     /// <summary>The method name, also the DetectedTask of the merged run periods (<see cref="NucleusRunRouter"/>).</summary>
     public const string TaskName = "Crystal Nucleus";
 
-    /// <summary>Items only the nucleus loot bundle gives (Divan Fragment, a 1.96% roll): never loot of another task.</summary>
-    internal static readonly IReadOnlySet<string> BundleOnlyLoot = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DIVAN_FRAGMENT" };
+    /// <summary>
+    /// Items only the nucleus loot bundle gives (wiki loot table): never loot of another task. Divan Fragment (1.96% per
+    /// roll), Divan's Alloy (~0.09% per bundle, ~1.7B) and Quick Claw (~80M). A missed Alloy claim made Yog and Bal 55.8M/h
+    /// (production 2026-11-10: one 1.7B Alloy was 99% of its rare pool after 2.3 tracked hours).
+    /// </summary>
+    internal static readonly IReadOnlySet<string> BundleOnlyLoot = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "DIVAN_FRAGMENT", "DIVAN_ALLOY", "PET_ITEM_QUICK_CLAW"
+    };
 
     protected override string MethodName => TaskName;
     // A run is the hunt for the five crystals across the whole Crystal Hollows, ended by the loot bundle claim. Its periods
