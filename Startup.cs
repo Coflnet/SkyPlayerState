@@ -183,6 +183,9 @@ public class Startup
         services.AddHostedService<Services.Gear.GearModelRefresher>();
         services.AddHostedService<Tasks.TaskAggregateFlusher>();
         services.AddHostedService<Tasks.CopperValueRefresher>();
+        // exports whether SkyBlock is in maintenance, when no updates can arrive (consume-rate alerts gate on it)
+        services.AddHttpClient(Services.SkyblockStatusMonitor.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(10));
+        services.AddHostedService<Services.SkyblockStatusMonitor>();
         // export the fold/estimate spans (and the existing consumer spans) to jaeger.
         // AddOpenTelemetry().WithTracing is additive to the config AddJaeger set up.
         services.AddOpenTelemetry().WithTracing(b => b.AddSource(Tasks.TaskTelemetry.SourceName).AddSource(BazaarOrderSync.SourceName));
