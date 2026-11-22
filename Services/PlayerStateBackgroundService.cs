@@ -150,7 +150,7 @@ public class PlayerStateBackgroundService : BackgroundService, IPlayerStateServi
     /// entries or summing past <see cref="maxRetryBudget"/> falls back to the default so a bad setting can
     /// neither block a partition forever nor approach the lag watchdog.
     /// </summary>
-    private static TimeSpan[] ParseRetryDelays(string? configured, ILogger logger)
+    internal static TimeSpan[] ParseRetryDelays(string? configured, ILogger logger)
     {
         if (string.IsNullOrWhiteSpace(configured))
             return defaultRetryDelays;
