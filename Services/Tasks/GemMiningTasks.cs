@@ -691,7 +691,7 @@ public class GlaciteMineshaftTask : BaseMiningTask
     // Opening a corpse consumes its key, so keys show as negative counts.
     protected override List<MethodDrop> FormulaCosts => [new("UMBER_KEY", 1.24), new("TUNGSTEN_KEY", 1.27)];
     // A Vanguard corpse consumes a Skeleton Key (forged, ~28M); no measured rate, so it only counts when observed, and only
-    // with full value rates (the switch-off AFK check on net value would drop every Vanguard session).
+    // with full value rates, which net observed costs into the rate.
     protected override HashSet<string> FullValueCostItems => ["SKELETON_KEY"];
     // Frozen corpses also drop these Forge items (wiki "Frozen Corpse": keys 0.67% from Lapis, plates 0.4-0.8% and Skeleton
     // Keys 0.34% from Umber/Tungsten, up to 13.9% keys, 10.6% Mithril Plates, 5.4% plates, 1.8% Skeleton Keys from

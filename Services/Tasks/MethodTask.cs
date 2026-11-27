@@ -74,9 +74,9 @@ public abstract class MethodTask : ProfitTask
     /// </summary>
     protected virtual HashSet<string> ObservedCostItems => [];
     /// <summary>
-    /// Like <see cref="ObservedCostItems"/>, but only kept with <see cref="TaskRateOptions.FullValueRates"/>: there the AFK
-    /// check compares gross gains, while the switch-off check compares the net value and would drop exactly the sessions
-    /// that paid the cost. Never a classification signal (not part of <see cref="KeepableCostTags"/>).
+    /// Like <see cref="ObservedCostItems"/>, but only kept with <see cref="TaskRateOptions.FullValueRates"/>: those costs
+    /// have no formula rate, so they only belong in a rate that nets the costs it observed (the switch-off rate values
+    /// costs at 0). Never a classification signal (not part of <see cref="KeepableCostTags"/>).
     /// </summary>
     protected virtual HashSet<string> FullValueCostItems => [];
     /// <summary>

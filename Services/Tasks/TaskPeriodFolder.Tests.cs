@@ -243,8 +243,7 @@ public class TaskPeriodFolderTests
 
 /// <summary>
 /// Regression: hand-ins, used Skeleton Keys and crafted Automaton parts were dropped as unexplained negatives. They are
-/// costs only with full value rates: the switch-off AFK check compares the net value and would drop exactly the sessions
-/// that paid them (every Vanguard session, -28M key).
+/// costs only with full value rates, which net observed costs into the rate; the switch-off rate values costs at 0.
 /// </summary>
 [NonParallelizable]
 public class TaskPeriodFolderFullValueCostTests
@@ -299,22 +298,39 @@ public class TaskPeriodFolderFullValueCostTests
             .Should().Contain("TUNGSTEN_KEY", -1);
 
     /// <summary>
-    /// The switch-off AFK check on the net value: a Vanguard session whose loot is worth less than its key would be dropped
-    /// as AFK if the key counted. Off it does not count, on the check uses the gross gains.
+    /// A Vanguard session whose loot is worth less than its key is not dropped as AFK: on, the kept key proves activity;
+    /// off, the key is not kept and the jewels are compared gross. Without the key the jewels alone carry it.
     /// </summary>
-    [TestCase(false)]
-    [TestCase(true)]
-    public void VanguardSession_IsNotDroppedAsAfk(bool fullValueRates)
+    [TestCase(false, true)]
+    [TestCase(true, true)]
+    [TestCase(false, false)]
+    [TestCase(true, false)]
+    public void VanguardSession_IsNotDroppedAsAfk(bool fullValueRates, bool withKey)
     {
         TaskRateOptions.FullValueRates = fullValueRates;
         var prices = new Dictionary<string, double> { ["GLACITE_JEWEL"] = 1_000_000, ["SKELETON_KEY"] = 28_000_000 };
         var task = new GlaciteMineshaftTask();
         var bucket = new BucketAggregate { WSeconds = 10 * 3600, ItemCounts = new() { ["GLACITE_JEWEL"] = 100 } };
-        var owned = TaskPeriodFolder.FilterOwnedItems(VanguardCorpse, task);
-        var counts = owned.ToDictionary(e => e.Key, e => (double)e.Value);
-        var net = counts.Sum(e => prices[e.Key] * e.Value);
+        var corpse = withKey ? VanguardCorpse : new Dictionary<string, int> { { "GLACITE_JEWEL", 3 } };
+        var counts = TaskPeriodFolder.FilterOwnedItems(corpse, task).ToDictionary(e => e.Key, e => (double)e.Value);
 
-        TaskPeriodFolder.IsAfk(task, bucket, counts, net, 0.25, prices).Should().BeFalse();
+        AfkPolicy.ProvesActivity(task, counts).Should().Be(fullValueRates && withKey);
+        AfkPolicy.IsAfk(task, bucket, counts, 0, 0.25, prices).Should().BeFalse();
+    }
+
+    /// <summary>The same session with a single jewel is far below the bucket: only the kept key keeps it.</summary>
+    [TestCase(false, true)]
+    [TestCase(true, false)]
+    public void ThinVanguardSession_IsKeptOnlyByItsKey(bool fullValueRates, bool afk)
+    {
+        TaskRateOptions.FullValueRates = fullValueRates;
+        var prices = new Dictionary<string, double> { ["GLACITE_JEWEL"] = 1_000_000, ["SKELETON_KEY"] = 28_000_000 };
+        var task = new GlaciteMineshaftTask();
+        var bucket = new BucketAggregate { WSeconds = 10 * 3600, ItemCounts = new() { ["GLACITE_JEWEL"] = 1_000 } };
+        var corpse = new Dictionary<string, int> { { "SKELETON_KEY", -1 }, { "GLACITE_JEWEL", 1 } };
+        var counts = TaskPeriodFolder.FilterOwnedItems(corpse, task).ToDictionary(e => e.Key, e => (double)e.Value);
+
+        AfkPolicy.IsAfk(task, bucket, counts, 0, 0.25, prices).Should().Be(afk);
     }
 
     /// <summary>The personal view lists the new costs under the same switch.</summary>

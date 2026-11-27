@@ -717,7 +717,7 @@ public static class TaskRateOptions
     /// <summary>
     /// Full value rates (TASKS:FULL_VALUE_RATES), off by default. On: price drift against the market value of
     /// exactly the stored counts (the rare and residual pools count in full), cost pseudo tags (chest costs)
-    /// subtracted when a rate is read, the AFK check on gross gains, consumed items as costs where a task declares them
+    /// subtracted when a rate is read, consumed items as costs where a task declares them
     /// for full value only (<see cref="MethodTask.IsConsumedCost"/>), and the rare pool evidence gate
     /// (<see cref="TaskEstimator.RareEvidenceScale"/>). These belong together: the costs buy the loot in the rare pool,
     /// and the gate keeps one lucky drop on a thin task from setting its rate.
@@ -726,7 +726,7 @@ public static class TaskRateOptions
     /// under-counted. The full value costs are only folded while on, so they too need ~8 days to fill the window.
     /// Flipping it back off leaves the folded full value costs in the stored rows, priced until they age out (~8 days for
     /// day rows, a 7 day half life for player rows).
-    /// Off: the origin/main drift, costs valued at 0 and the origin/main AFK check.
+    /// Off: the origin/main drift and costs valued at 0. The AFK check does not depend on it (see <see cref="AfkPolicy"/>).
     /// </summary>
     public static bool FullValueRates { get; set; }
 }

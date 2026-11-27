@@ -30,7 +30,6 @@ public class TaskPeriodFolder
     private const double RareAppearanceRatio = 0.05;
     private const double WinsorFactor = 4;
     private const double WinsorMinBucketHours = 2;
-    private const double AfkFactor = 0.05;
 
     public TaskPeriodFolder(TaskAggregateService aggregates, StatScoreService statScore, TaskRegistry registry,
         CoinValueRegistry coinValues, ITransactionService transactions, ILogger<TaskPeriodFolder> logger,
@@ -140,8 +139,13 @@ public class TaskPeriodFolder
             var (commonCounts, rareCoins, itemValue, rareItemCoins) = SplitRareAndCommon(
                 owned, tag => coinValues.Value(tag, prices), tag => IsInfrequent(tag, bucketAgg));
 
-            // winsorize the common coin rate against the current bucket estimate
+            // AFK contamination: gross gains far below the community rate, unless the session proves activity (see
+            // AfkPolicy). Decided before winsorizing: the cap follows the net rate, so on a cost-heavy task it would
+            // scale the best sessions below the gross AFK line
             var hours = minutes / 60.0;
+            var isAfk = !lateReward && AfkPolicy.IsAfk(methodTask, bucketAgg, commonCounts, rareCoins + promotedCoins, hours, prices);
+
+            // winsorize the common coin rate against the current bucket estimate
             double commonValue = commonCounts.Sum(c => coinValues.Value(c.Key, prices) * c.Value);
             var winsorScale = 1.0;
             if (!lateReward && bucketAgg != null && bucketAgg.WSeconds / 3600.0 >= WinsorMinBucketHours)
@@ -164,10 +168,7 @@ public class TaskPeriodFolder
             var weight = Ramp(await GetCumulativeMinutes(period.PlayerUuid, task) + minutes);
             span?.SetTag("ramp_weight", weight);
 
-            // AFK contamination: coin rate far below the community rate for the task, compared without the rare
-            // EV pools (see IsAfk); a period whose gains are all rare loot is the loot of a claim, not idle time
-            if (!lateReward && !HasOnlyRareGains(commonCounts, rareCoins + promotedCoins)
-                && IsAfk(methodTask, bucketAgg, commonCounts, commonValue, hours, prices))
+            if (isAfk)
             {
                 await KeepAfkPeriod(gated, itemValue, weight, span);
                 return;
@@ -477,14 +478,6 @@ public class TaskPeriodFolder
         return undeclared.ToDictionary(e => e.Key, e => e.Value.Value * scale * weight);
     }
 
-    /// <summary>
-    /// True when all of a period's gains are rare loot (declared rare drops or promoted undeclared ones) and the common
-    /// remainder is only costs or nothing: the loot of a claim or a paid chest. The AFK check compares common gains, so it
-    /// would class such a period AFK against a warm bucket and lose the loot.
-    /// </summary>
-    internal static bool HasOnlyRareGains(Dictionary<string, double> commonCounts, double rareGains)
-        => rareGains > 0 && !commonCounts.Values.Any(c => c > 0);
-
     private static Dictionary<string, double> WeightedValues(Dictionary<string, (int Count, double Value)> items, double weight)
         => items.ToDictionary(e => e.Key, e => e.Value.Value * weight);
 
@@ -504,7 +497,7 @@ public class TaskPeriodFolder
     }
 
     /// <summary>
-    /// Community rate used for winsorizing/AFK gating of a fresh period, mirroring <see
+    /// Community rate used for winsorizing a fresh period, mirroring <see
     /// cref="TaskEstimator.RateFromAggregate"/>'s netting so a recipe task's own bucket (if it ever
     /// has <see cref="MethodTask.FormulaCosts"/> directly, not just via a derived task) is not
     /// compared against caps/floors computed from its gross value.
@@ -518,43 +511,6 @@ public class TaskPeriodFolder
         var cost = task?.ScaledFormulaCost(agg.ItemCounts, hours, tag => TaskEstimator.UnitValue(tag, prices)) ?? 0;
         return (itemValue - cost + agg.ResidualCoins + agg.EffectiveRareCoins) / hours;
     }
-
-    /// <summary>
-    /// True when the session's common rate is below <see cref="AfkFactor"/> of the bucket's, never counting the rare
-    /// EV pools (a rare-heavy task would otherwise drop every normal session and keep only the lucky ones). With
-    /// <see cref="TaskRateOptions.FullValueRates"/> both sides are gross gains (positive counts): a session that paid
-    /// for a chest would otherwise go negative while its loot arrives later as a claim without seconds. Off, the
-    /// session's net <paramref name="commonValue"/> is compared, as before. Only checked against a bucket with
-    /// enough hours.
-    /// </summary>
-    internal static bool IsAfk(MethodTask task, BucketAggregate bucketAgg, Dictionary<string, double> commonCounts,
-        double commonValue, double hours, Dictionary<string, double> prices)
-    {
-        if (bucketAgg == null || bucketAgg.WSeconds / 3600.0 < WinsorMinBucketHours || hours <= 0)
-            return false;
-        var bucketRate = EstimateCommonBucketRate(task, bucketAgg, prices);
-        var sessionValue = TaskRateOptions.FullValueRates ? GrossValue(commonCounts, prices) : commonValue;
-        return bucketRate > 0 && sessionValue / hours < AfkFactor * bucketRate;
-    }
-
-    /// <summary>
-    /// Common bucket rate for the AFK check, without the residual/rare EV pools: with
-    /// <see cref="TaskRateOptions.FullValueRates"/> the gross gains (positive counts) per hour, else the live item
-    /// value minus the formula cost per hour.
-    /// </summary>
-    internal static double EstimateCommonBucketRate(MethodTask task, BucketAggregate agg, Dictionary<string, double> prices)
-    {
-        if (agg == null || agg.WSeconds <= 0)
-            return 0;
-        var hours = agg.WSeconds / 3600.0;
-        if (TaskRateOptions.FullValueRates)
-            return GrossValue(agg.ItemCounts, prices) / hours;
-        var cost = task?.ScaledFormulaCost(agg.ItemCounts, hours, tag => TaskEstimator.UnitValue(tag, prices)) ?? 0;
-        return (TaskEstimator.LiveValue(agg.ItemCounts, prices) - cost) / hours;
-    }
-
-    private static double GrossValue(Dictionary<string, double> counts, Dictionary<string, double> prices)
-        => counts.Where(e => e.Value > 0).Sum(e => TaskEstimator.UnitValue(e.Key, prices) * e.Value);
 
     /// <summary>Records a dropped outcome for which the owned items were not (or not yet) computed, valuing the filtered raw items.</summary>
     private async Task RecordWithoutOwned(string task, string outcome, double seconds, Period period, MethodTask methodTask, Dictionary<string, double> prices)
