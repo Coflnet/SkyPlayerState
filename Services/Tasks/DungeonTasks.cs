@@ -73,9 +73,10 @@ public abstract class BaseDungeonTask : MethodTask
     // "-6000000x DUNGEON_CHEST_COST" is that floor, and its cost must not lose to e.g. a /bz
     // purchase bucket) but are not mandatory - see MethodTask.EvidenceItems.
     protected override HashSet<string> EvidenceItems => [PseudoItems.DUNGEON_CHEST_COST, PseudoItems.DUNGEON_RUN];
-    // rerolling the end chest with a Kismet Feather is the player's choice on any floor: a consumed feather is
-    // a real cost of the run, but has no formula rate
-    protected override HashSet<string> ObservedCostItems => ["KISMET_FEATHER"];
+    // rerolling the end chest with a Kismet Feather, opening a second chest with a Dungeon Chest Key and skipping a puzzle
+    // with an Architect's First Draft are the player's choice on any floor: a consumed one is a real cost of the run, but
+    // has no formula rate (production: -27 keys on M5, -41 drafts)
+    protected override HashSet<string> ObservedCostItems => ["KISMET_FEATHER", "DUNGEON_CHEST_KEY", "ARCHITECT_FIRST_DRAFT"];
     // the floor's chest loot (RNG meter list): the rare pool may only hold what the floor's chests give
     protected override HashSet<string> RareDrops => DeclaredLoot.CatacombsFloor(FloorLabel);
     private string FloorLabel => FloorOfTask is { } f ? (f.Master ? "M" : "F") + f.Floor : null;

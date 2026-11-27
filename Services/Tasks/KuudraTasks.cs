@@ -41,6 +41,23 @@ public abstract class BaseKuudraTask : MethodTask
     // the paid chest's loot; its shard is a named SHARD_* tag of any kind, declared by family
     protected override HashSet<string> RareDrops => DeclaredLoot.KuudraChest;
     protected override bool DeclaresDropFamily(string tag) => tag.StartsWith("SHARD_", StringComparison.Ordinal);
+    /// <summary>
+    /// Consumables a run burns (production: 104 h of T5 periods consumed 47k Toxic Arrow Poison, Twilight Arrow Poison,
+    /// Magma Arrow Bundles and Kismet Feathers for paid chest rerolls). How much depends on the player's class and bow,
+    /// so they have no formula rate; a positive count of one is a supply, not loot.
+    /// </summary>
+    protected override HashSet<string> ObservedCostItems =>
+        ["TOXIC_ARROW_POISON", "TWILIGHT_ARROW_POISON", "ARROW_BUNDLE_MAGMA", "KISMET_FEATHER"];
+    /// <summary>
+    /// One tier key per run opens the paid chest. The key is used from the Kuudra menu, so it never shows up as a consumed
+    /// item and can only be charged here, priced by <see cref="KuudraKeyCost"/>. Tasks not tied to one tier pay none.
+    /// </summary>
+    protected override List<MethodDrop> FormulaCosts =>
+        KuudraTier == 0 ? [] : [new(KuudraKeyCost.OfTier(KuudraTier).Tag, ActionsPerHour)];
+
+    /// <summary>The base scaling with the keys valued by <see cref="KuudraKeyCost"/>: they have no market price.</summary>
+    public override double ScaledFormulaCost(Dictionary<string, double> itemCounts, double hours, Func<string, double> priceOf)
+        => base.ScaledFormulaCost(itemCounts, hours, KuudraKeyCost.WithKeyValues(priceOf));
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "AURORA_CHESTPLATE", Reason = "Mage armor for Hyperion clears; use Terror for bow damage" },
         new() { ItemTag = "HYPERION", Reason = "Weapon" }
