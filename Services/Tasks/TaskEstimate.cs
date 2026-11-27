@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
@@ -54,6 +55,14 @@ public class TaskEstimate
     public double BestZoneCoinsPerHour { get; set; }
     /// <summary>Distinct players the <see cref="BestZone"/> rate was observed from, 0 when none.</summary>
     public int BestZonePlayers { get; set; }
+    /// <summary>The SkyBlock event or mayor perk the task needs (e.g. "Spooky Festival"), null when it is always doable - see MethodTask.RequiredEvent.</summary>
+    public string RequiredEvent { get; set; }
+    /// <summary>False while <see cref="RequiredEvent"/> is known not to run; true when it runs, the task needs none, or that could not be checked.</summary>
+    public bool Available { get; set; } = true;
+    /// <summary>Why the task is not (or maybe not) possible right now and what has to be active, null when plainly available.</summary>
+    public string AvailabilityNote { get; set; }
+    /// <summary>When an unavailable task is possible again (UTC), null when available or unknown.</summary>
+    public DateTime? NextAvailableAt { get; set; }
 }
 
 /// <summary>The public, player independent part of a <see cref="TaskRequirement"/>.</summary>

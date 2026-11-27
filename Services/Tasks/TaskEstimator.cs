@@ -24,6 +24,7 @@ public class TaskEstimator
     private readonly StatScoreService statScore;
     private readonly TaskActivityService activityService;
     private readonly CoinValueRegistry coinValues;
+    private readonly CurrentMayorService mayorService;
     private readonly ILogger<TaskEstimator> logger;
 
     // pseudo-count shrinkage strengths (in effective hours)
@@ -44,7 +45,8 @@ public class TaskEstimator
     private static readonly TimeSpan OptionalReadTimeout = TimeSpan.FromSeconds(1);
 
     public TaskEstimator(TaskRegistry registry, TaskAggregateService aggregates, StatScoreService statScore,
-        TaskActivityService activityService, CoinValueRegistry coinValues, ILogger<TaskEstimator> logger)
+        TaskActivityService activityService, CoinValueRegistry coinValues, ILogger<TaskEstimator> logger,
+        CurrentMayorService mayorService = null)
     {
         this.registry = registry;
         this.aggregates = aggregates;
@@ -52,6 +54,7 @@ public class TaskEstimator
         this.activityService = activityService;
         this.coinValues = coinValues;
         this.logger = logger;
+        this.mayorService = mayorService;
     }
 
     /// <summary>
@@ -68,10 +71,12 @@ public class TaskEstimator
         var deltasTask = LoadOptional(activityService.GetChange20m(), new(), "task activity changes", cancellationToken);
         var playerStatsTask = LoadPlayerStats(state?.McInfo?.Uuid ?? Guid.Empty,
             aggregates.GetPlayerStats, OptionalReadTimeout, logger, cancellationToken);
-        await Task.WhenAll(coinValuesTask, countsTask, deltasTask, playerStatsTask);
+        var mayorTask = LoadMayor(cancellationToken);
+        await Task.WhenAll(coinValuesTask, countsTask, deltasTask, playerStatsTask, mayorTask);
         var counts = countsTask.Result;
         var deltas = deltasTask.Result;
         var playerStats = playerStatsTask.Result;
+        var now = DateTime.UtcNow;
 
         var results = new List<TaskEstimate>();
         // hidden accounting tasks (see MethodTask.Hidden) still classify/fold normally but must
@@ -82,8 +87,9 @@ public class TaskEstimator
             try
             {
                 var taskName = GetTaskName(task);
-                results.Add(await EstimateOne(task, taskName, state, prices, snapshot, counts, deltas,
-                    playerStats.GetValueOrDefault(taskName), zoneSnapshot.GetValueOrDefault(taskName)));
+                var estimate = await EstimateOne(task, taskName, state, prices, snapshot, counts, deltas,
+                    playerStats.GetValueOrDefault(taskName), zoneSnapshot.GetValueOrDefault(taskName));
+                results.Add(WithAvailability(estimate, task, now, mayorTask.Result));
             }
             catch (Exception e)
             {
@@ -155,6 +161,22 @@ public class TaskEstimator
     }
 
     internal static string GetTaskName(MethodTask task) => task.GetDetectionSignature().MethodName;
+
+    /// <summary>The current mayor for event gated tasks, null (= unknown, the tasks stay available) without the mayor service or when it fails.</summary>
+    private Task<MayorSnapshot> LoadMayor(CancellationToken cancellationToken) => mayorService == null
+        ? Task.FromResult<MayorSnapshot>(null)
+        : LoadOptional(mayorService.GetCurrentMayorSnapshot(), null, "current mayor", cancellationToken);
+
+    /// <summary>Sets the availability fields from the task's <see cref="MethodTask.RequiredEvent"/>.</summary>
+    internal static TaskEstimate WithAvailability(TaskEstimate estimate, MethodTask task, DateTime utcNow, MayorSnapshot mayor)
+    {
+        var availability = task.AvailabilityAt(utcNow, mayor);
+        estimate.RequiredEvent = task.RequiredEventForTest?.Name;
+        estimate.Available = availability.Available;
+        estimate.AvailabilityNote = availability.Note;
+        estimate.NextAvailableAt = availability.NextAvailableAt;
+        return estimate;
+    }
 
     private async Task RefreshCoinValues(CancellationToken cancellationToken)
     {

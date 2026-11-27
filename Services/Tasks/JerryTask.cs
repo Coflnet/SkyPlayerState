@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Coflnet.Sky.Core;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
 
@@ -20,10 +19,6 @@ public class JerryTask : IslandTask
         "Terry's Shack"
     ];
 
-    public override bool IsPossibleAt(DateTime time)
-    {
-        // The island opens for all of Late Winter and throughout real-world December.
-        var currentDay = (int)(Constants.SkyblockYear(time) * 31 * 12) % (31 * 12);
-        return time.Month == 12 || currentDay >= 11 * 31;
-    }
+    /// <summary>The island opens for all of Late Winter and throughout real-world December, see <see cref="SkyblockEvents.JerrysWorkshop"/>.</summary>
+    public override bool IsPossibleAt(DateTime time) => SkyblockEvents.JerrysWorkshop.IsRunningAt(time);
 }

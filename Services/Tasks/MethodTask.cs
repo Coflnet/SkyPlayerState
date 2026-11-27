@@ -258,10 +258,32 @@ public abstract class MethodTask : ProfitTask
     /// Check whether this task is currently accessible. Return null if accessible,
     /// or a reason string if not (e.g. "Only available during Diana mayor", "Rain Slimes only spawn :00-:20")
     /// </summary>
-    protected virtual string CheckAccessibility(TaskParams parameters) => null;
+    protected virtual string CheckAccessibility(TaskParams parameters)
+    {
+        var availability = EventAvailability(parameters);
+        return availability.Available ? null : availability.Note;
+    }
     /// <summary>All declared Locations (the task is doable in any of them), else the Where spot.</summary>
     protected override IEnumerable<string> AreaZones => Locations.Count > 0 ? Locations : base.AreaZones;
-    protected virtual DateTime? GetNextAvailableAt(TaskParams parameters) => null;
+    protected virtual DateTime? GetNextAvailableAt(TaskParams parameters) => EventAvailability(parameters).NextAvailableAt;
+
+    /// <summary>
+    /// The SkyBlock event or mayor perk this task can only be done during (Spooky Festival, Jerry's Workshop,
+    /// Mythological Ritual), null when it is always doable. Drives <see cref="AvailabilityAt"/>, the
+    /// default <see cref="CheckAccessibility"/> and the public list hiding unavailable tasks.
+    /// </summary>
+    protected virtual SkyblockEvent RequiredEvent => null;
+    /// <summary>Public accessor for the estimator/tests - see <see cref="RequiredEvent"/>.</summary>
+    public SkyblockEvent RequiredEventForTest => RequiredEvent;
+
+    /// <summary>Whether the <see cref="RequiredEvent"/> runs at <paramref name="utcNow"/>; always available without one.</summary>
+    public TaskAvailability AvailabilityAt(DateTime utcNow, MayorSnapshot mayor) =>
+        RequiredEvent?.Check(utcNow, mayor) ?? TaskAvailability.Always;
+
+    // an unset TestTime is no point in time: don't lock the task on it
+    private TaskAvailability EventAvailability(TaskParams parameters) => parameters.TestTime == default
+        ? TaskAvailability.Always
+        : AvailabilityAt(parameters.TestTime, MayorSnapshot.FromName(parameters.CurrentMayor));
 
     // ── "Where do I go / what do I click" metadata (helpful task list) ──
     // WikiUrl/Island/WhereWikiUrl/EffectiveWarpCommand/PopulateGuidanceFields are inherited as-is

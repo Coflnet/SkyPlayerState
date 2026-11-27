@@ -123,6 +123,7 @@ public class BayouHotspotFishingTask : BaseFishingTask
 }
 public class SpookyFishingTask : BaseFishingTask
 {
+    protected override SkyblockEvent RequiredEvent => SkyblockEvents.SpookyFestival;
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Spooky_Festival";
     protected override string MethodName => "Spooky Fishing";
     protected override HashSet<string> RareDrops => DeclaredLoot.SpookySeaCreatures;
@@ -143,6 +144,7 @@ public class SpookyFishingTask : BaseFishingTask
 }
 public class WinterFishingTask : BaseFishingTask
 {
+    protected override SkyblockEvent RequiredEvent => SkyblockEvents.JerrysWorkshop;
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Fishing";
     protected override string MethodName => "Winter Fishing";
     protected override HashSet<string> Locations => ["Jerry's Workshop", "Jerry Pond", "Hot Springs"];
@@ -393,6 +395,7 @@ public class BayouHotspotFishingHuntingTask : BaseFishingTask
 }
 public class SpookyFishingHuntingTask : BaseFishingTask
 {
+    protected override SkyblockEvent RequiredEvent => SkyblockEvents.SpookyFestival;
     protected override string MethodName => "Spooky Fishing (Hunting)";
     protected override HashSet<string> RareDrops => DeclaredLoot.SpookySeaCreatures;
     // See SpookyFishingTask.
@@ -404,6 +407,7 @@ public class SpookyFishingHuntingTask : BaseFishingTask
 }
 public class WinterFishingHuntingTask : BaseFishingTask
 {
+    protected override SkyblockEvent RequiredEvent => SkyblockEvents.JerrysWorkshop;
     protected override string MethodName => "Winter Fishing (Hunting)";
     protected override HashSet<string> Locations => ["Jerry's Workshop", "Jerry Pond", "Hot Springs"];
     protected override HashSet<string> DetectionItems => FishingEvidence.Water;

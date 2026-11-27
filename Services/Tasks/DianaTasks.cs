@@ -8,12 +8,7 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 public abstract class BaseDianaTask : MethodTask
 {
     protected override string Category => "Event";
-    protected override string CheckAccessibility(TaskParams parameters)
-    {
-        if (parameters.CurrentMayor != null && parameters.CurrentMayor != "diana" && parameters.CurrentMayor != "jerry")
-            return $"Requires Diana's Mythological Ritual perk, including Jerry's Diana rotation (current: {parameters.CurrentMayor}).";
-        return base.CheckAccessibility(parameters);
-    }
+    protected override SkyblockEvent RequiredEvent => SkyblockEvents.MythologicalRitual;
 }
 
 /// <summary>
