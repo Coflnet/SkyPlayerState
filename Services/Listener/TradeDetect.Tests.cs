@@ -53,6 +53,32 @@ public class TradeDetectTests
         )), Times.Once);
     }
 
+    [Test]
+    public async Task StoresExactCoinAmountFromLoreInsteadOfAbbreviatedName()
+    {
+        var service = new TradeDetect(NullLogger<TradeDetect>.Instance);
+        var inventory = JsonConvert.DeserializeObject<UpdateMessage>(Inventory)!.Chest!;
+        var coins = inventory.Items.Single(i => i.ItemName == "§62k coins");
+        coins.ItemName = "§61.2B coins";
+        coins.Description = "§7Lump-sum amount\n\n§6Total Coins Offered:\n§71.2B\n§8(1,152,000,000)";
+        var args = GetUpdateArgs(ChatUpdate);
+        var transactionService = new Mock<ITransactionService>();
+        var nameService = new Mock<IPlayerNameApi>();
+        var itemDetails = new ItemDetails(null);
+        nameService.Setup(s => s.PlayerNameUuidNameGetAsync(It.IsAny<string>(), 0, default)).ReturnsAsync(Guid.Empty.ToString());
+        args.AddService(transactionService.Object);
+        args.AddService(nameService.Object);
+        args.AddService(itemDetails);
+        args.currentState.RecentViews.Enqueue(inventory);
+        itemDetails.TagLookup["RAW_BEEF"] = 5;
+
+        await service.Process(args);
+
+        transactionService.Verify(t => t.AddTransactions(It.Is<IEnumerable<Transaction>>(t =>
+            t.Any(x => x.ItemId == TradeDetect.IdForCoins && x.Amount == 11_520_000_000)
+        )), Times.Once);
+    }
+
     [TestCase("""["Trade completed with VakarisRu!"," + 110M coins"," - 13x Raw Beef"]""", 1, TestName = "AddsReceivedCoinsFromChatWhenSnapshotPredatesOffer")]
     [TestCase("""["Trade completed with VakarisRu!"," + 110M coins"," - 1x Ancient Maxor's Boots","Trade completed with VakarisRu!"," - 13x Raw Beef"]""", 0, TestName = "IgnoresCoinsOfEarlierTradeInSameChatBatch")]
     public async Task ReconcilesReceivedCoinsWithLatestTradeCompletedChat(string chatBatch, int expectedCoinReceives)

@@ -11,13 +11,36 @@ public class CoinParser
 {
     private static readonly Regex MinecraftFormattingRegex = new("§.", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
+    private static readonly Regex ExactAmountRegex = new(@"^\((\d{1,3}(?:,\d{3})*)\)$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Amount in tenths of a coin. Prefers the exact figure from the lore, e.g. "(1,152,000,000)",
+    /// because the item name only holds an abbreviation like "1.2B".
+    /// </summary>
     public long GetCoinAmount(Item item)
     {
-        if (IsCoins(item))
+        if (!IsCoins(item))
+            return 0;
+        if (TryParseExactAmount(item.Description, out var exact))
+            return exact * 10;
+        return ParseCoinAmount(ExtractAmountFromName(item.ItemName!));
+    }
+
+    private static bool TryParseExactAmount(string? description, out long coins)
+    {
+        coins = 0;
+        if (string.IsNullOrEmpty(description))
+            return false;
+        var lines = MinecraftFormattingRegex.Replace(description, string.Empty).Split('\n');
+        for (var i = lines.Length - 1; i >= 0; i--)
         {
-            return ParseCoinAmount(ExtractAmountFromName(item.ItemName!));
+            var match = ExactAmountRegex.Match(lines[i].Trim());
+            if (!match.Success)
+                continue;
+            return long.TryParse(match.Groups[1].Value, NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out coins)
+                && coins <= long.MaxValue / 10;
         }
-        return 0;
+        return false;
     }
 
     /// <summary>

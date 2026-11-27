@@ -178,6 +178,38 @@ public class CoinCounterParserTests
     }
 
     [Test]
+    public void GetCoinAmountPrefersExactAmountFromDescription()
+    {
+        // regression: "§61.2B coins" was stored as 1.2B instead of the exact 1,152,000,000
+        var coinParser = new CoinParser();
+        var item = new Item
+        {
+            ItemName = "§61.2B coins",
+            Description = "§7Lump-sum amount\n\n§6Total Coins Offered:\n§71.2B\n§8(1,152,000,000)"
+        };
+
+        ClassicAssert.AreEqual(11_520_000_000, coinParser.GetCoinAmount(item));
+    }
+
+    [Test]
+    public void GetCoinAmountFallsBackToNameWithoutExactFigure()
+    {
+        var coinParser = new CoinParser();
+        var item = new Item { ItemName = "§67M coins", Description = "§6Total Coins Offered:\n§77M" };
+
+        ClassicAssert.AreEqual(70000000, coinParser.GetCoinAmount(item));
+    }
+
+    [Test]
+    public void GetCoinAmountOverflowingExactFigureFallsBackToName()
+    {
+        var coinParser = new CoinParser();
+        var item = new Item { ItemName = "§67M coins", Description = "§8(999,999,999,999,999,999,999)" };
+
+        ClassicAssert.AreEqual(70000000, coinParser.GetCoinAmount(item));
+    }
+
+    [Test]
     public void GetCoinAmountEmptyAmountDoesNotThrow()
     {
         // regression: an empty amount must not throw and crash the whole state update
