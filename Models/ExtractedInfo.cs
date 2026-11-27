@@ -295,6 +295,8 @@ public class ExtractedInfo
             PurseAtOpen = extractedInfo.PendingDungeonChestCharge.PurseAtOpen,
             SeenAt = extractedInfo.PendingDungeonChestCharge.SeenAt,
             Floor = extractedInfo.PendingDungeonChestCharge.Floor,
+            MaxCostCoins = extractedInfo.PendingDungeonChestCharge.MaxCostCoins,
+            PurchasesAtOpen = extractedInfo.PendingDungeonChestCharge.PurchasesAtOpen,
             Essences = extractedInfo.PendingDungeonChestCharge.Essences == null ? null : new Dictionary<string, int>(extractedInfo.PendingDungeonChestCharge.Essences)
         };
         LastTransferViewAt = extractedInfo.LastTransferViewAt;
@@ -579,6 +581,13 @@ public class PendingDungeonChestCharge
     /// Nullable/optional so states persisted before this field existed still deserialize.
     /// </summary>
     [Key(5)] public Dictionary<string, int>? Essences { get; set; }
+    /// <summary>
+    /// Highest purse drop that still confirms the charge, 0 for exactly <see cref="CostCoins"/> or more (dungeon chests).
+    /// A Kuudra paid chest's key costs between its full reputation price and its listed price; the drop is booked.
+    /// </summary>
+    [Key(6)] public long MaxCostCoins { get; set; }
+    /// <summary>Bazaar and auction purchase coins in the collected items when the chest was viewed, see <see cref="MaxCostCoins"/>.</summary>
+    [Key(7)] public long PurchasesAtOpen { get; set; }
 }
 
 /// <summary>

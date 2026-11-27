@@ -90,7 +90,7 @@ public class KuudraCostsTests
     [Test]
     public void FormulaRate_T5_IsTheGuaranteedLootMinusFiveInfernalKeys()
     {
-        var loot = 11_000 * 1_000 + 15 * 10_000 + 5 * 100_000;
+        var loot = 16 * 10_000 + 11_000 * 1_000 + 5 * 100_000;
 
         TaskEstimator.FormulaRate(T5, Prices).Should().BeApproximately(loot - 5 * InfernalKeyValue, 1);
     }
@@ -108,32 +108,87 @@ public class KuudraCostsTests
         TaskEstimator.FormulaRate(T5, production).Should().BePositive("the guaranteed paid chest loot pays for the key");
     }
 
-    [Test]
-    public void ScaledFormulaCost_WithoutAnObservedChestCost_ChargesOneKeyPerRunOfEssence()
+    /// <summary>3.2 teeth stand for one paid chest; the cost is the window total, like the base scaling's.</summary>
+    private static Dictionary<string, double> Chests(double paidChests, double confirmedCoins = 0, double inventoryKeys = 0)
     {
-        // 2,200 essence is one run at the T5 seed (11,000 essence/h over 5 runs/h), whatever the period length
-        var oneRun = new Dictionary<string, double> { ["ESSENCE_CRIMSON"] = 2_200 };
-        var threeRuns = new Dictionary<string, double> { ["ESSENCE_CRIMSON"] = 6_600 };
+        var counts = new Dictionary<string, double> { ["KUUDRA_TEETH"] = 3.2 * paidChests, ["ESSENCE_CRIMSON"] = 500 };
+        if (confirmedCoins > 0)
+            counts[PseudoItems.DUNGEON_CHEST_COST] = -confirmedCoins;
+        if (inventoryKeys > 0)
+            counts[InfernalKey] = -inventoryKeys;
+        return counts;
+    }
 
-        T5.ScaledFormulaCost(oneRun, 0.25, PriceOf).Should().BeApproximately(InfernalKeyValue, 1);
-        T5.ScaledFormulaCost(threeRuns, 0.5, PriceOf).Should().BeApproximately(3 * InfernalKeyValue, 1);
+    private static double ChestCostValued(string tag) => tag == PseudoItems.DUNGEON_CHEST_COST ? 1 : PriceOf(tag);
+
+    private const double Materials = 80 * 1_000 + 2 * 50_000;
+
+    [Test]
+    public void ScaledFormulaCost_ChargesAKeyPerPaidChestTheTeethStandFor()
+    {
+        T5.ScaledFormulaCost(Chests(1), 0.25, PriceOf).Should().BeApproximately(InfernalKeyValue, 1);
+        T5.ScaledFormulaCost(Chests(3), 0.5, PriceOf).Should().BeApproximately(3 * InfernalKeyValue, 1);
+    }
+
+    /// <summary>Review probe: 50 runs with one confirmed open turned the whole key estimate off (-11.46M/h to +1.03M/h).</summary>
+    [Test]
+    public void ScaledFormulaCost_PartialConfirmation_StillChargesTheUnconfirmedChests()
+    {
+        var cost = T5.ScaledFormulaCost(Chests(50, confirmedCoins: 2_328_000), 6, ChestCostValued);
+
+        cost.Should().BeApproximately(49 * InfernalKeyValue + Materials, 1, "the confirmed chest's coins are in the counts, its materials are not");
     }
 
     [Test]
-    public void ScaledFormulaCost_WithAnObservedChestCost_EstimatesNothing()
-    {
-        var observed = new Dictionary<string, double> { ["ESSENCE_CRIMSON"] = 2_000, [PseudoItems.DUNGEON_CHEST_COST] = -2_328_000 };
+    public void ScaledFormulaCost_AllConfirmed_ChargesOnlyTheMaterials()
+        => T5.ScaledFormulaCost(Chests(2, confirmedCoins: 2 * 2_328_000), 0.5, ChestCostValued)
+            .Should().BeApproximately(2 * Materials, 1);
 
-        T5.ScaledFormulaCost(observed, 0.2, PriceOf).Should().Be(0, "the key bought on opening is already counted");
+    [Test]
+    public void ScaledFormulaCost_ChestCostValuedAtZero_IsNoConfirmation()
+    {
+        // with FullValueRates off the chest cost is worth 0 when a rate is read, so the estimate must charge the key
+        T5.ScaledFormulaCost(Chests(2, confirmedCoins: 2 * 2_328_000), 0.5, PriceOf)
+            .Should().BeApproximately(2 * InfernalKeyValue, 1);
+    }
+
+    [Test]
+    public void ScaledFormulaCost_KeyTakenFromTheInventory_IsChargedInFull()
+    {
+        T5.ScaledFormulaCost(Chests(2, inventoryKeys: 1), 0.5, PriceOf).Should().BeApproximately(2 * InfernalKeyValue, 1,
+            "one chest opened with an inventory key, the other estimated");
+        T5.ScaledFormulaCost(Chests(0, inventoryKeys: 2), 0.5, PriceOf).Should().BeApproximately(2 * InfernalKeyValue, 1,
+            "consumed keys count even without teeth");
+    }
+
+    [Test]
+    public void ScaledFormulaCost_LowerTier_ChargesOnlyConsumedKeys()
+    {
+        var t2 = new KuudraT2Task();
+        var hotKey = KuudraKeyCost.OfTier(2);
+        var counts = new Dictionary<string, double> { ["KUUDRA_TEETH"] = 30, [hotKey.Tag] = -1 };
+
+        t2.ScaledFormulaCost(counts, 1, PriceOf).Should().BeApproximately(hotKey.Coins + 4 * 1_000 + 2 * 50_000, 1,
+            "T2 declares no paid chest teeth to estimate from");
     }
 
     [Test]
     public void ScaledFormulaCost_KeyValueResolvesBeforeTheMarketPrice()
     {
-        var oneRun = new Dictionary<string, double> { ["ESSENCE_CRIMSON"] = 2_200 };
         double WithBogusKeyPrice(string tag) => tag == InfernalKey ? 99 : PriceOf(tag);
 
-        T5.ScaledFormulaCost(oneRun, 1, WithBogusKeyPrice).Should().BeApproximately(InfernalKeyValue, 1);
+        T5.ScaledFormulaCost(Chests(1), 1, WithBogusKeyPrice).Should().BeApproximately(InfernalKeyValue, 1);
+    }
+
+    [Test]
+    public void TeethAreTheCostReference_SoRowTrimmingKeepsThem()
+        => T5.CostReferenceTag(Chests(1)).Should().Be("KUUDRA_TEETH");
+
+    [Test]
+    public void KeyOfTier_OutsideTheTiers_IsNull()
+    {
+        KuudraKeyCost.OfTier(0).Should().BeNull();
+        new KuudraChestClaimsTask().ScaledFormulaCost(Chests(5), 1, PriceOf).Should().Be(0);
     }
 
     [Test]
@@ -202,7 +257,19 @@ public class KuudraCostsTests
     {
         var items = new Dictionary<string, int> { [supply] = 3, ["ESSENCE_WITHER"] = 300 };
 
-        TaskPeriodFolder.FilterOwnedItems(items, new F5Task()).Should().NotContainKey(supply);
+        TaskPeriodFolder.FilterOwnedItems(items, new F3Task()).Should().NotContainKey(supply);
+    }
+
+    /// <summary>Dungeon Secrets drop the Dungeon Chest Key (0.6%) from Floor IV on (wiki Dungeon_Chest_Key).</summary>
+    [Test]
+    public void Dungeon_ChestKeyFromASecret_IsLootFromFloorFour()
+    {
+        var found = new Dictionary<string, int> { ["DUNGEON_CHEST_KEY"] = 1, ["ESSENCE_WITHER"] = 300 };
+        var bought = new Dictionary<string, int> { ["DUNGEON_CHEST_KEY"] = 1, [PseudoItems.BAZAAR_PURCHASE] = 2_000_000 };
+
+        TaskPeriodFolder.FilterOwnedItems(found, new F5Task()).Should().ContainKey("DUNGEON_CHEST_KEY");
+        TaskPeriodFolder.FilterOwnedItems(found, new M4Task()).Should().ContainKey("DUNGEON_CHEST_KEY");
+        TaskPeriodFolder.FilterOwnedItems(bought, new F5Task()).Should().NotContainKey("DUNGEON_CHEST_KEY", "bought to be used");
     }
 
     [Test]

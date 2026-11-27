@@ -100,6 +100,18 @@ public class KuudraRewardAttributionTests
         KuudraRewardAttribution.ResolveLocation(location, items, null, default, Base).Should().Be("Kuudra's Hollow (T2)");
     }
 
+    /// <summary>
+    /// Regression (audit 2026-11-27): keys are lava fishing treasure, and a Crimson Isle fishing period that caught one
+    /// was moved to the tier zone with all its fish (4-9 such periods per tier).
+    /// </summary>
+    [TestCase("Blazing Volcano")]
+    [TestCase("Scarleton")]
+    public void KeyCaughtWhileLavaFishingOnTheCrimsonIsle_StaysWhereItIs(string location)
+    {
+        var items = new Dictionary<string, int> { { "KUUDRA_TIER_KEY", 1 }, { "MAGMA_FISH", 300 }, { "LUMP_OF_MAGMA", 12 } };
+        KuudraRewardAttribution.ResolveLocation(location, items, null, default, Base).Should().Be(location);
+    }
+
     [Test]
     public void KeyGainOutsideTheCrimsonIsle_WithOtherRealItem_NotAttributed()
     {

@@ -39,7 +39,7 @@ public class KuudraListener : UpdateListener
         if (essence != null)
         {
             var essenceValue = value.Last(); // last index is last added
-            if (int.TryParse(essence.ItemName.Split('x').Last(), out var count))
+            if (EssenceCount(essence.ItemName) is { } count)
                 essenceValue.Median = essenceValue.Median * count;
         }
         var coinSum = value.Sum(v => v.Median);
@@ -66,6 +66,10 @@ public class KuudraListener : UpdateListener
             args.SendMessage($"Kuudra chest is worth {coinSum - keyWorth:N0} coins");
         Logger.LogDebug("Got kuudra paid chest {playerId} {type} {items}", args.msg.PlayerId, type, JsonConvert.SerializeObject(args.msg.Chest.Items.Take(30)));
     }
+
+    /// <summary>The amount of an essence item name ("§dCrimson Essence §8x2,000" is 2000), null when it has none.</summary>
+    internal static int? EssenceCount(string itemName)
+        => int.TryParse(itemName?.Split('x').Last().Replace(",", ""), out var count) ? count : null;
 
     public static string GetTag(Models.Item essence)
     {

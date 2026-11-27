@@ -125,7 +125,7 @@ public class KuudraChestChargeTests
     }
 
     [Test]
-    public async Task PaidChest_ConfirmedByChat_WithoutAPurseReading()
+    public async Task PaidChest_ChatLine_CreditsOnlyTheEssence_AndThePurseStillBooksTheKey()
     {
         var state = InTier();
         var listener = new DungeonRewardListener();
@@ -133,7 +133,64 @@ public class KuudraChestChargeTests
         await listener.Process(Inventory(state, KuudraChest("Paid Chest", "Burning Kuudra Key")));
         await listener.Process(Chat(state, "  PAID CHEST REWARDS"));
 
+        state.ItemsCollectedRecently.Should().BeEquivalentTo(new Dictionary<string, int> { ["ESSENCE_CRIMSON"] = 500 },
+            "a pre-bought key shows up as its own -1 inventory delta, so the chat line books no coins");
+
+        await listener.Process(Scoreboard(state, Purse - BurningKeyCoins));
+
         ChestCost(state).Should().Be(-BurningKeyCoins);
+        state.ItemsCollectedRecently["ESSENCE_CRIMSON"].Should().Be(500, "the essence is credited once");
+    }
+
+    [Test]
+    public async Task PaidChest_BooksTheActualDrop_UpToTheListedPrice()
+    {
+        var state = InTier();
+        var listener = new DungeonRewardListener();
+
+        await listener.Process(Inventory(state, KuudraChest("Paid Chest", "Burning Kuudra Key")));
+        await listener.Process(Scoreboard(state, Purse - 675_000)); // 10% reputation discount
+
+        ChestCost(state).Should().Be(-675_000);
+    }
+
+    [TestCase(100_000, Description = "too small: a cheaper purchase")]
+    [TestCase(1_000_000, Description = "above the listed 750k: something else was paid")]
+    public async Task PaidChest_DropOutsideTheKeyPrice_ChargesNothing(long drop)
+    {
+        var state = InTier();
+        var listener = new DungeonRewardListener();
+
+        await listener.Process(Inventory(state, KuudraChest("Paid Chest", "Burning Kuudra Key")));
+        await listener.Process(Scoreboard(state, Purse - drop));
+
+        state.ItemsCollectedRecently.Should().NotContainKey(PseudoItems.DUNGEON_CHEST_COST);
+    }
+
+    [Test]
+    public async Task PaidChest_BazaarPurchaseSinceTheView_IsTakenOutOfTheDrop()
+    {
+        var state = InTier();
+        var listener = new DungeonRewardListener();
+
+        await listener.Process(Inventory(state, KuudraChest("Paid Chest", "Burning Kuudra Key")));
+        // a 600k bazaar buy alone would look like the key
+        state.ItemsCollectedRecently[PseudoItems.BAZAAR_PURCHASE] = 600_000;
+        await listener.Process(Scoreboard(state, Purse - 600_000));
+
+        state.ItemsCollectedRecently.Should().NotContainKey(PseudoItems.DUNGEON_CHEST_COST);
+
+        await listener.Process(Scoreboard(state, Purse - 600_000 - BurningKeyCoins));
+
+        ChestCost(state).Should().Be(-BurningKeyCoins, "the key bought after the bazaar order still confirms");
+    }
+
+    [Test]
+    public void Essence_WithThousandsSeparator_IsParsed()
+    {
+        DungeonRewardListener.ParseEssences(["Crimson Essence x2,000", "Wither Essence x54"])
+            .Should().BeEquivalentTo(new Dictionary<string, int> { ["ESSENCE_CRIMSON"] = 2_000, ["ESSENCE_WITHER"] = 54 });
+        KuudraListener.EssenceCount("§dCrimson Essence §8x2,000").Should().Be(2_000);
     }
 
     [Test]

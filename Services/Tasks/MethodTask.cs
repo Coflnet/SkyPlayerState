@@ -384,6 +384,12 @@ public abstract class MethodTask : ProfitTask
         => new(FormulaCosts.Select(c => c.ItemTag).Concat(ObservedCostItems), StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Unit price of a cost line in the result breakdowns, the market price by default. A task whose cost has no market
+    /// price (a Kuudra key) prices it here, so the cost line shows and nets like the rate does.
+    /// </summary>
+    protected virtual double CostPriceOf(string tag, Dictionary<string, float> prices) => prices.GetValueOrDefault(tag, 0);
+
+    /// <summary>
     /// True when <paramref name="count"/> of <paramref name="tag"/> is a consumed item this task pays for: a negative count
     /// of a <see cref="KeepableCostTags"/> tag, or, with <see cref="TaskRateOptions.FullValueRates"/>, of a
     /// <see cref="FullValueCostItems"/> tag or of any item when <see cref="ConsumedItemsAreCosts"/>.
@@ -778,7 +784,7 @@ public abstract class MethodTask : ProfitTask
         // needed by consumers).
         var costs = costItems.Select(i =>
         {
-            var priceEach = PseudoItems.IsCost(i.Key) ? 1 : prices.GetValueOrDefault(i.Key, 0);
+            var priceEach = PseudoItems.IsCost(i.Key) ? 1 : CostPriceOf(i.Key, prices);
             var rate = totalHours > 0 ? i.Value / totalHours : 0;
             return new DropInfo
             {
@@ -867,7 +873,7 @@ public abstract class MethodTask : ProfitTask
         var totalCostPerHour = 0.0;
         foreach (var cost in FormulaCosts)
         {
-            var price = prices.GetValueOrDefault(cost.ItemTag, 0);
+            var price = CostPriceOf(cost.ItemTag, prices);
             if (price <= 0) continue;
             var contribution = cost.RatePerHour * price;
             totalCostPerHour += contribution;
@@ -1110,7 +1116,7 @@ public abstract class MethodTask : ProfitTask
         {
             if (IsObservedCost(itemRatesPerHour, cost.ItemTag))
                 continue; // the observed negative drop already shows this cost
-            var price = PriceOf(cost.ItemTag);
+            var price = CostPriceOf(cost.ItemTag, prices);
             if (price <= 0) continue;
             var rate = cost.RatePerHour * scale;
             costs.Add(new DropInfo

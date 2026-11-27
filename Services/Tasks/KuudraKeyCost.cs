@@ -7,8 +7,10 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 /// <summary>
 /// Coin value of a Kuudra key, which has no market price (Co-op Soulbound). Opening a Kuudra paid chest buys the key on the
 /// spot: Odin's KuudraTracker takes a counted paid chest back on "You cannot afford this!" in the chest GUI, and
-/// production never shows a key leaving the inventory. <see cref="Services.DungeonRewardListener"/> therefore charges the
-/// coins of a confirmed paid chest open, and <see cref="BaseKuudraTask"/>'s formula baseline charges the whole key.
+/// production never shows a key leaving the inventory. <see cref="Services.DungeonRewardListener"/> therefore books the
+/// coins of a confirmed paid chest open; <see cref="BaseKuudraTask.ScaledFormulaCost"/> adds that open's materials, charges a
+/// key taken from the inventory and every unconfirmed paid chest in full. Keys are valued nowhere else: a key gained
+/// outside Kuudra (lava fishing treasure) must not become loot.
 /// <para>
 /// Sources: the coins are what the Kuudra profit trackers of Odin (Vesuvius.kt keys: 155,200 / 310,400 / 582,000 /
 /// 1,164,000 / 2,328,000) and vexo (KuudraProfitTracker.kt: 2,328,000 for Infernal) charge, i.e. the listed Emissary
@@ -52,8 +54,8 @@ public static class KuudraKeyCost
     /// <summary>Every key tag, Basic first.</summary>
     public static IEnumerable<string> KeyTags => Tiers.Select(t => t.Tag);
 
-    /// <summary>The key opening the paid chest of <paramref name="tier"/> (1 Basic .. 5 Infernal).</summary>
-    public static KeyPrice OfTier(int tier) => Tiers[tier - 1];
+    /// <summary>The key opening the paid chest of <paramref name="tier"/> (1 Basic .. 5 Infernal), null for any other tier.</summary>
+    public static KeyPrice OfTier(int tier) => tier >= 1 && tier <= Tiers.Length ? Tiers[tier - 1] : null;
 
     /// <summary>The key a paid chest's Cost line names ("Infernal Kuudra Key"), null for any other line.</summary>
     public static KeyPrice OfName(string costLine)
@@ -70,9 +72,13 @@ public static class KuudraKeyCost
         value = 0;
         if (tag == null || !ByTag.TryGetValue(tag, out var key))
             return false;
-        value = key.Coins + key.FactionMaterial * CheapestFactionMaterial(priceOf) + NetherStarsPerKey * PositivePrice(priceOf, NetherStar);
+        value = key.Coins + MaterialValue(key, priceOf);
         return true;
     }
+
+    /// <summary>Current value of the materials one <paramref name="key"/> takes besides its coins.</summary>
+    public static double MaterialValue(KeyPrice key, Func<string, double> priceOf)
+        => key.FactionMaterial * CheapestFactionMaterial(priceOf) + NetherStarsPerKey * PositivePrice(priceOf, NetherStar);
 
     /// <summary>
     /// <paramref name="priceOf"/> with the Kuudra keys resolved to <see cref="TryGetValue"/> first, before whatever price the

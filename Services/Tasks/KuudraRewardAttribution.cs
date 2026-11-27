@@ -56,8 +56,8 @@ public static class KuudraRewardAttribution
         => items != null && items.Any(kv => kv.Value > 0 && ClaimLootTags.Contains(kv.Key));
 
     /// <summary>
-    /// The location a period should be attributed to: the matching tier zone for a key purchase on
-    /// the Crimson Isle, the last Kuudra tier (within <see cref="MaxClaimDelay"/>) for claim loot at
+    /// The location a period should be attributed to: the matching tier zone for a key purchase (a
+    /// period gaining nothing but keys), the last Kuudra tier (within <see cref="MaxClaimDelay"/>) for claim loot at
     /// the Dungeon Hub / Forgotten Skull, otherwise <paramref name="location"/> unchanged.
     /// </summary>
     public static string ResolveLocation(string location, IReadOnlyDictionary<string, int> items,
@@ -77,12 +77,10 @@ public static class KuudraRewardAttribution
         }
         if (KeyTierGained(items) is not { } tier)
             return location;
-        // On the Crimson Isle (Scarleton) a key gain is a key purchase whatever else the period
-        // holds; anywhere else (production: a KUUDRA_HOT_TIER_KEY at "Village") only a period that
-        // is nothing but the key - a farming period that happens to receive one stays where it is.
-        if (SkyblockZones.IslandOf(location) == "Crimson Isle" || !HasOtherRealGain(items))
-            return TierZone(tier);
-        return location;
+        // Only a period that is nothing but the key is a key purchase (production: a KUUDRA_HOT_TIER_KEY at "Village").
+        // Keys are also lava fishing treasure: a Crimson Isle fishing period that caught one stays where it is
+        // (production 2026-11-27: 4-9 such periods per tier had pulled their fishing loot into the Kuudra tasks).
+        return HasOtherRealGain(items) ? location : TierZone(tier);
     }
 
     /// <summary>True when the items hold a positive count of something that is neither a Kuudra key nor a pseudo tag.</summary>

@@ -78,7 +78,11 @@ public abstract class BaseDungeonTask : MethodTask
     // has no formula rate (production: -27 keys on M5, -41 drafts)
     protected override HashSet<string> ObservedCostItems => ["KISMET_FEATHER", "DUNGEON_CHEST_KEY", "ARCHITECT_FIRST_DRAFT"];
     // the floor's chest loot (RNG meter list): the rare pool may only hold what the floor's chests give
-    protected override HashSet<string> RareDrops => DeclaredLoot.CatacombsFloor(FloorLabel);
+    // plus the Dungeon Chest Key, which Dungeon Secrets drop (0.6%) from Floor IV on (wiki Dungeon_Chest_Key): gained
+    // there it is loot, not a supply; bought in the same period it still is one (TaskPeriodFolder.IsBoughtInput)
+    protected override HashSet<string> RareDrops => FloorOfTask is { Floor: >= 4 }
+        ? [.. DeclaredLoot.CatacombsFloor(FloorLabel), "DUNGEON_CHEST_KEY"]
+        : DeclaredLoot.CatacombsFloor(FloorLabel);
     private string FloorLabel => FloorOfTask is { } f ? (f.Master ? "M" : "F") + f.Floor : null;
     protected override List<DropEffect> Effects =>
     [

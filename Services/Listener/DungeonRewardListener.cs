@@ -138,8 +138,8 @@ public static class DungeonRewardChestParser
                 coins = parsed;
                 break;
             }
-            // anything else (a key item line, e.g. "Burning Kuudra Key"/"Dungeon Chest Key") is
-            // ignored - the key's cost shows up as its own negative item delta separately.
+            // anything else is a key line: a "Dungeon Chest Key" shows up as its own negative item delta; a Kuudra key
+            // ("Burning Kuudra Key") is bought when the chest opens and is read into RewardChest.KuudraKey below.
         }
 
         var isDungeonChest = DungeonChestTiers.Contains(chestType);
@@ -230,7 +230,7 @@ public class DungeonRewardListener : UpdateListener
     private static readonly TimeSpan SameStayDuplicateWindow = TimeSpan.FromMinutes(2);
     private static readonly Regex FloorHeaderRegex = new(@"^(Master Mode )?The Catacombs - (?:Floor ([IVX]+)|(Entrance))$", RegexOptions.Compiled);
     private static readonly Regex TeamScoreRegex = new(@"^Team Score: (\d+) \(([A-Z+]+)\)(?: \(NEW RECORD!\))?$", RegexOptions.Compiled);
-    private static readonly Regex EssenceLineRegex = new(@"^(\w+) Essence x(\d+)$", RegexOptions.Compiled);
+    private static readonly Regex EssenceLineRegex = new(@"^(\w+) Essence x([\d,]+)$", RegexOptions.Compiled);
     // PAID/FREE: Kuudra's chests (wording from vexo's Kuudra ChestTracker, unverified); the chat regex does not pass them yet
     private static readonly Regex ChestRewardsRegex = new(@"^(WOOD|GOLD|DIAMOND|EMERALD|OBSIDIAN|BEDROCK|PAID|FREE) CHEST REWARDS$", RegexOptions.Compiled);
 
@@ -339,7 +339,26 @@ public class DungeonRewardListener : UpdateListener
             info.PendingDungeonChestCharge = null;
             return;
         }
+        if (IsKuudraPaidCharge(pending))
+        {
+            CreditEssencesOnly(args, pending);
+            return;
+        }
         Charge(args, pending);
+    }
+
+    /// <summary>A Kuudra paid chest: its key's coins are only known from the purse, see <see cref="KuudraKeyCoinsPaid"/>.</summary>
+    private static bool IsKuudraPaidCharge(PendingDungeonChestCharge pending) => pending.MaxCostCoins > 0;
+
+    /// <summary>
+    /// The chat line proves a Kuudra paid chest was opened, but not that its key was bought then: a key from the inventory
+    /// shows up as its own negative item delta. Credits the essence and leaves the coins to the purse drop.
+    /// </summary>
+    private static void CreditEssencesOnly(UpdateArgs args, PendingDungeonChestCharge pending)
+    {
+        foreach (var (tag, amount) in pending.Essences ?? [])
+            Tasks.ItemCountMath.Add(args.currentState.ItemsCollectedRecently, tag, amount);
+        pending.Essences = null;
     }
 
     /// <summary>
@@ -353,7 +372,7 @@ public class DungeonRewardListener : UpdateListener
         foreach (var line in contents ?? [])
         {
             var match = EssenceLineRegex.Match(line.Trim());
-            if (!match.Success || !int.TryParse(match.Groups[2].Value, out var amount))
+            if (!match.Success || !int.TryParse(match.Groups[2].Value.Replace(",", ""), out var amount))
                 continue;
             var tag = "ESSENCE_" + match.Groups[1].Value.ToUpperInvariant();
             result[tag] = result.GetValueOrDefault(tag) + amount;
@@ -455,7 +474,9 @@ public class DungeonRewardListener : UpdateListener
             PurseAtOpen = info.Purse,
             SeenAt = now,
             Essences = ParseEssences(chest.Contents),
-            Floor = chest.KuudraKey != null ? $"Kuudra T{chest.KuudraKey.Tier}" : "Kuudra"
+            Floor = chest.KuudraKey != null ? $"Kuudra T{chest.KuudraKey.Tier}" : "Kuudra",
+            MaxCostCoins = coins == 0 ? 0 : (long)(chest.KuudraKey.ListedCoins * MaxKeyPriceTolerance),
+            PurchasesAtOpen = PurchaseCoins(args)
         };
     }
 
@@ -551,9 +572,50 @@ public class DungeonRewardListener : UpdateListener
             return; // free chest: only the "<TIER> CHEST REWARDS" chat line confirms it (a purse drop would be meaningless)
         if (currentPurse is null or <= 0)
             return; // purse unknown - wait for a later valid reading, or expiry
-        if (pending.PurseAtOpen - currentPurse.Value < pending.CostCoins)
+        var drop = pending.PurseAtOpen - currentPurse.Value;
+        if (IsKuudraPaidCharge(pending))
+        {
+            ChargeKuudraKey(args, pending, drop);
+            return;
+        }
+        if (drop < pending.CostCoins)
             return; // purse has not dropped enough (yet) to confirm the purchase
 
         Charge(args, pending);
+    }
+
+    /// <summary>A purse reading above this share of the listed key price still confirms a Kuudra paid chest.</summary>
+    private const double MaxKeyPriceTolerance = 1.01;
+
+    /// <summary>
+    /// Charges a Kuudra paid chest once the purse dropped by the key's price: <see cref="KuudraKeyCoinsPaid"/> books the
+    /// coins actually paid, between the full reputation and the listed price. A larger drop waits (another purchase may
+    /// still be told apart) and expires with the pending charge.
+    /// </summary>
+    private void ChargeKuudraKey(UpdateArgs args, PendingDungeonChestCharge pending, long drop)
+    {
+        if (KuudraKeyCoinsPaid(pending, drop, PurchaseCoins(args)) is not { } paid)
+            return;
+        pending.CostCoins = paid;
+        Charge(args, pending);
+    }
+
+    /// <summary>
+    /// Coins a purse drop of <paramref name="drop"/> paid for the pending key, null when it is no key purchase: Bazaar and
+    /// auction purchases recorded since the chest was viewed are taken out first, the rest must lie between the key's full
+    /// reputation price (<see cref="PendingDungeonChestCharge.CostCoins"/>) and its listed price.
+    /// </summary>
+    internal static long? KuudraKeyCoinsPaid(PendingDungeonChestCharge pending, long drop, long purchaseCoinsNow)
+    {
+        var purchasesSinceView = purchaseCoinsNow >= pending.PurchasesAtOpen ? purchaseCoinsNow - pending.PurchasesAtOpen : purchaseCoinsNow;
+        var paid = drop - purchasesSinceView;
+        return paid >= pending.CostCoins && paid <= pending.MaxCostCoins ? paid : null;
+    }
+
+    /// <summary>Bazaar and auction purchase coins collected so far (the evidence tags count coins spent).</summary>
+    private static long PurchaseCoins(UpdateArgs args)
+    {
+        var collected = args.currentState.ItemsCollectedRecently;
+        return (long)collected.GetValueOrDefault(Tasks.PseudoItems.BAZAAR_PURCHASE) + collected.GetValueOrDefault(Tasks.PseudoItems.AUCTION_PURCHASE);
     }
 }

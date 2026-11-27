@@ -50,31 +50,55 @@ public abstract class BaseKuudraTask : MethodTask
     protected override HashSet<string> ObservedCostItems =>
         ["TOXIC_ARROW_POISON", "TWILIGHT_ARROW_POISON", "ARROW_BUNDLE_MAGMA", "KISMET_FEATHER", .. KuudraKeyCost.KeyTags];
     /// <summary>
-    /// True when <see cref="FormulaDrops"/> hold the paid chest's guaranteed loot, so the formula baseline may charge the
-    /// key that buys it. Without that loot the baseline would charge the key against the free chest alone.
+    /// Kuudra Teeth one paid chest gives on average, 0 when not known: the paid chest's guaranteed teeth plus the expected
+    /// teeth of its rolled slots. A tier that knows it declares the paid chest's guaranteed loot in its
+    /// <see cref="FormulaDrops"/> and charges the key in the formula baseline.
     /// </summary>
-    protected virtual bool FormulaHasPaidChestLoot => false;
+    protected virtual double TeethPerPaidChest => 0;
+    private bool EstimatesPaidChests => TeethPerPaidChest > 0 && KuudraKeyCost.OfTier(KuudraTier) != null;
     /// <summary>
-    /// The formula baseline's key, one per run. Observed runs are charged the coins of each confirmed paid chest open
-    /// instead (<see cref="PseudoItems.DUNGEON_CHEST_COST"/>, see DungeonRewardListener), so this cost is never
-    /// estimated for them, see <see cref="ScaledFormulaCost"/>.
+    /// The formula baseline's key, one per run. Observed data is charged per paid chest instead, see
+    /// <see cref="ScaledFormulaCost"/>.
     /// </summary>
     protected override List<MethodDrop> FormulaCosts =>
-        FormulaHasPaidChestLoot ? [new(KuudraKeyCost.OfTier(KuudraTier).Tag, ActionsPerHour)] : [];
+        EstimatesPaidChests ? [new(KuudraKeyCost.OfTier(KuudraTier).Tag, ActionsPerHour)] : [];
 
     /// <summary>
-    /// No estimate once a paid chest's cost was observed: the key is bought when the chest opens and that purchase is
-    /// already in the counts. Otherwise the base scaling, with the keys valued by <see cref="KuudraKeyCost"/>.
+    /// The keys of this tier's paid chests in <paramref name="itemCounts"/> (absolute counts over the window, or per hour
+    /// rates with <paramref name="hours"/> = 1):
+    /// <list type="bullet">
+    /// <item>A chest whose key Hypixel bought on opening (a confirmed <see cref="PseudoItems.DUNGEON_CHEST_COST"/>, see
+    /// DungeonRewardListener) already carries its coins; only its materials are charged here. Counted only while the
+    /// caller values the cost (<paramref name="priceOf"/> &gt; 0, i.e. with <see cref="TaskRateOptions.FullValueRates"/>).</item>
+    /// <item>A key taken from the inventory (a negative key count) is charged in full: soulbound, it has no market price.</item>
+    /// <item>The paid chests the teeth stand for (<see cref="TeethPerPaidChest"/>; teeth come with the claimed loot whether
+    /// or not the open was confirmed) beyond those two are charged in full.</item>
+    /// </list>
     /// </summary>
     public override double ScaledFormulaCost(Dictionary<string, double> itemCounts, double hours, Func<string, double> priceOf)
     {
-        if (ObservedChestCost(itemCounts))
+        var key = KuudraKeyCost.OfTier(KuudraTier);
+        if (key == null || hours <= 0 || itemCounts == null)
             return 0;
-        return base.ScaledFormulaCost(itemCounts, hours, KuudraKeyCost.WithKeyValues(priceOf));
+        var boughtOnOpening = ChestsBoughtOnOpening(itemCounts, key, priceOf);
+        var fromInventory = Math.Max(0, -itemCounts.GetValueOrDefault(key.Tag));
+        var unconfirmed = Math.Max(0, EstimatedPaidChests(itemCounts) - boughtOnOpening - fromInventory);
+        var keyValue = key.Coins + KuudraKeyCost.MaterialValue(key, priceOf);
+        return (fromInventory + unconfirmed) * keyValue + boughtOnOpening * KuudraKeyCost.MaterialValue(key, priceOf);
     }
 
-    private static bool ObservedChestCost(Dictionary<string, double> itemCounts)
-        => itemCounts != null && itemCounts.TryGetValue(PseudoItems.DUNGEON_CHEST_COST, out var coins) && coins < 0;
+    private double EstimatedPaidChests(Dictionary<string, double> itemCounts)
+        => EstimatesPaidChests ? Math.Max(0, itemCounts.GetValueOrDefault("KUUDRA_TEETH")) / TeethPerPaidChest : 0;
+
+    private static double ChestsBoughtOnOpening(Dictionary<string, double> itemCounts, KuudraKeyCost.KeyPrice key, Func<string, double> priceOf)
+    {
+        var coins = -itemCounts.GetValueOrDefault(PseudoItems.DUNGEON_CHEST_COST) * priceOf(PseudoItems.DUNGEON_CHEST_COST);
+        return coins > 0 ? coins / key.Coins : 0;
+    }
+
+    /// <summary>The breakdowns price this tier's keys like the rate does, see <see cref="KuudraKeyCost"/>.</summary>
+    protected override double CostPriceOf(string tag, Dictionary<string, float> prices)
+        => KuudraKeyCost.WithKeyValues(t => prices.GetValueOrDefault(t, 0))(tag);
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "AURORA_CHESTPLATE", Reason = "Mage armor for Hyperion clears; use Terror for bow damage" },
         new() { ItemTag = "HYPERION", Reason = "Weapon" }
@@ -135,11 +159,15 @@ public class KuudraT5Task : BaseKuudraTask
     /// Per run: 200 Crimson Essence from the free chest (wiki Kuudra loot table) plus the paid chest's guaranteed 2,000
     /// Crimson Essence, 3 Kuudra Teeth and a Kraken Shard (vexo KuudraProfitTracker INFERNAL_GUARANTEED_DROPS, Odin's
     /// tracker example shows the same "Crimson Essence x2000"), at 5 runs/h. The rolled loot (armor, books, shards) is
-    /// left to the rare pool.
+    /// left to the rare pool. Teeth first: they are the cost reference, see <see cref="TeethPerPaidChest"/>.
     /// </summary>
     protected override List<MethodDrop> FormulaDrops =>
-        [new("ESSENCE_CRIMSON", 2_200 * RunsPerHour), new("KUUDRA_TEETH", 3 * RunsPerHour), new("SHARD_KRAKEN", RunsPerHour)];
-    protected override bool FormulaHasPaidChestLoot => true;
+        [new("KUUDRA_TEETH", TeethPerPaidChest * RunsPerHour), new("ESSENCE_CRIMSON", 2_200 * RunsPerHour), new("SHARD_KRAKEN", RunsPerHour)];
+    /// <summary>
+    /// 3 guaranteed plus the rolled slots' 25 (0.59%) and 100 (0.06%) teeth (vexo INFERNAL_SLOT tables): 3.2. Consistent
+    /// with production: 2,900 teeth over the 817 T5 instances of the 2026-11-27 audit, 3.5 per instance.
+    /// </summary>
+    protected override double TeethPerPaidChest => 3.2;
     private const double RunsPerHour = 5;
     protected override double ActionsPerHour => RunsPerHour;
     protected override string HowTo => "Queue for Kuudra Infernal (T5). Needs Fiery cleared and 12,000 reputation. Bring an experienced party of 4 and gear for the final Kuudra damage phase. Compare paid chest loot with the Infernal Kuudra Key cost before claiming.";
