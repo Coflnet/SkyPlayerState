@@ -26,6 +26,8 @@ public static class GearSetupBasis
 public class TaskGearModel
 {
     public string TaskName { get; set; } = "";
+    /// <summary>True when the estimates were left out because prices were incomplete (not serialized); the response must not be cached.</summary>
+    internal bool EstimatesPending { get; set; }
     /// <summary>Gear category of the task (the bound profile id, "other" for unbound tasks).</summary>
     public string Category { get; set; } = "";
     /// <summary>When the model was derived (hourly); null before the first derivation after a restart.</summary>

@@ -56,7 +56,10 @@ public class GearSetupService
 
     private async Task<CachedResult> GetCurrent(CancellationToken cancellationToken)
     {
-        var priceLookup = await prices.GetPrices(cancellationToken);
+        var priceSet = await prices.GetPriceSet(cancellationToken);
+        if (!priceSet.IsComplete)
+            throw new PricesUnavailableException();
+        var priceLookup = priceSet.Prices;
         var community = await estimator.GetCommunityEstimates(priceLookup, cancellationToken);
         var current = cached;
         if (current != null && ReferenceEquals(current.Source, community))

@@ -75,8 +75,10 @@ public class GearModelService
             return null;
         var measured = GetMeasured(name);
         var category = measured?.Category ?? GearCategories.ForTask(name) ?? GearModifierTable.Other;
+        var (estimates, pending) = await TryEstimates(name, cancellationToken);
         return new TaskGearModel
         {
+            EstimatesPending = pending,
             TaskName = name,
             Category = category,
             ComputedAt = measured?.ComputedAt,
@@ -90,7 +92,7 @@ public class GearModelService
             Pieces = measured?.Pieces ?? new(),
             RecommendedEndgame = measured?.Recommended,
             ModifierEffects = measured?.Effects ?? new(),
-            Estimates = await TryEstimates(name, cancellationToken)
+            Estimates = estimates
         };
     }
 
@@ -100,16 +102,21 @@ public class GearModelService
     private static GearScoreFormulaInfo FormulaInfo(GearScorer? scorer)
         => scorer == null ? GearModelPublisher.NoFormula() : GearModelPublisher.Formula(scorer.Formula, scorer.Effects.Count);
 
-    private async Task<TaskGearSetups?> TryEstimates(string taskName, CancellationToken cancellationToken)
+    private async Task<(TaskGearSetups? Estimates, bool Pending)> TryEstimates(string taskName, CancellationToken cancellationToken)
     {
         try
         {
-            return await setups.Get(taskName, cancellationToken);
+            return (await setups.Get(taskName, cancellationToken), false);
+        }
+        catch (PricesUnavailableException)
+        {
+            logger.LogDebug("Gear setup estimates of {Task} wait for prices, returning the measured model only", taskName);
+            return (null, true);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             logger.LogWarning(e, "Gear setup estimates of {Task} failed, returning the measured model only", taskName);
-            return null;
+            return (null, false);
         }
     }
 

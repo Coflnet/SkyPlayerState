@@ -381,8 +381,8 @@ public class CollectionListenerInventoryTests
             };
             args.AddService<ILogger<CollectionListener>>(Microsoft.Extensions.Logging.Abstractions.NullLogger<CollectionListener>.Instance);
             args.AddService(profitService.Object);
-            args.AddService(sniperApi.Object);
-            args.AddService(bazaarApi.Object);
+            args.AddService(new Coflnet.Sky.PlayerState.Tasks.TaskPriceService(sniperApi.Object, bazaarApi.Object,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<Coflnet.Sky.PlayerState.Tasks.TaskPriceService>.Instance) { MinSourceEntries = 0 });
             await new RecentViewsUpdate().Process(args);
             await listener.Process(args);
         }

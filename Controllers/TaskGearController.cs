@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Coflnet.Sky.Core;
 using Coflnet.Sky.PlayerState.Models;
 using Coflnet.Sky.PlayerState.Services.Gear;
+using Coflnet.Sky.PlayerState.Tasks;
 using Coflnet.Sky.PlayerState.Tasks.Gear;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -41,7 +42,21 @@ public class TaskGearController : ControllerBase
     [ProducesResponseType(typeof(List<TaskGearSetups>), StatusCodes.Status200OK)]
     public async Task<ActionResult<List<TaskGearSetups>>> GetAll(CancellationToken cancellationToken)
     {
-        return await gearSetups.GetAll(cancellationToken);
+        try
+        {
+            return await gearSetups.GetAll(cancellationToken);
+        }
+        catch (PricesUnavailableException)
+        {
+            return PricesUnavailable();
+        }
+    }
+
+    /// <summary>503 no cache may keep: setups valued with incomplete prices would be wrong.</summary>
+    private ObjectResult PricesUnavailable()
+    {
+        Response.Headers.CacheControl = "no-store";
+        return StatusCode(StatusCodes.Status503ServiceUnavailable, "Prices are not available yet, retry shortly");
     }
 
     /// <summary>
@@ -56,7 +71,15 @@ public class TaskGearController : ControllerBase
     {
         if (!gearSetups.IsKnownTask(taskName))
             return NotFound(new ErrorResponse { Slug = TaskNotFound, Message = $"No task named '{taskName}' is registered." });
-        var setups = await gearSetups.Get(taskName, cancellationToken);
+        TaskGearSetups? setups;
+        try
+        {
+            setups = await gearSetups.Get(taskName, cancellationToken);
+        }
+        catch (PricesUnavailableException)
+        {
+            return PricesUnavailable();
+        }
         if (setups == null)
             return NotFound(new ErrorResponse { Slug = NoGearSetups, Message = $"No gear setups are researched for '{taskName}' yet." });
         return setups;
@@ -95,7 +118,8 @@ public class TaskGearController : ControllerBase
         var model = await gearModels.GetResponse(taskName, cancellationToken);
         if (model == null)
             return NotFound(new ErrorResponse { Slug = TaskNotFound, Message = $"No task named '{taskName}' is registered." });
-        if (model.ComputedAt == null && Response != null)
+        // the measured model is useful without estimates, so 200 - but it must not be cached with the estimates missing
+        if ((model.ComputedAt == null || model.EstimatesPending) && Response != null)
             Response.Headers.CacheControl = "no-cache";
         return model;
     }

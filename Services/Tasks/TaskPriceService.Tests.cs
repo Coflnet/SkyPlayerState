@@ -30,7 +30,7 @@ public class TaskPriceServiceTests
         var bazaarApi = new Mock<IBazaarApi>();
         bazaarApi.Setup(b => b.GetAllPricesAsync(0, It.IsAny<CancellationToken>())).ReturnsAsync(prices);
 
-        var service = new TaskPriceService(null, bazaarApi.Object, NullLogger<TaskPriceService>.Instance);
+        var service = new TaskPriceService(null, bazaarApi.Object, NullLogger<TaskPriceService>.Instance) { MinSourceEntries = 0 };
         var result = await service.GetBazaarPrices();
 
         result.Should().BeEquivalentTo(prices,
@@ -49,5 +49,19 @@ public class TaskPriceServiceTests
 
         result.Should().NotBeNull().And.BeEmpty(
             "a first-ever failed fetch has no prior value to fall back to, so it must degrade to empty, not throw and take the whole task run down with it");
+    }
+
+    [Test]
+    public async Task GetBazaarPrices_EmptyAnswerKeepsTheLastGoodList()
+    {
+        var good = new List<ItemPrice> { new() { ProductId = "A", BuyPrice = 2, SellPrice = 1 } };
+        var bazaarApi = new Mock<IBazaarApi>();
+        bazaarApi.SetupSequence(b => b.GetAllPricesAsync(0, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(good).ReturnsAsync(new List<ItemPrice>());
+        var service = new TaskPriceService(null, bazaarApi.Object, NullLogger<TaskPriceService>.Instance) { MinSourceEntries = 1 };
+        await service.GetBazaarPrices();
+        service.ExpireBazaarPricesForTest();
+
+        (await service.GetBazaarPrices()).Should().BeEquivalentTo(good, "SkyBazaar answers [] before its first pull after a restart");
     }
 }

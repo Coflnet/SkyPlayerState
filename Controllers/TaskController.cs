@@ -71,10 +71,21 @@ public class TaskController : ControllerBase
     [HttpGet("estimates")]
     [ResponseCache(Duration = 120)]
     [ProducesResponseType(typeof(List<TaskEstimate>), StatusCodes.Status200OK)]
-    public async Task<List<TaskEstimate>> GetCommunityEstimates(CancellationToken cancellationToken)
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<List<TaskEstimate>>> GetCommunityEstimates(CancellationToken cancellationToken)
     {
-        var priceLookup = await prices.GetPrices(cancellationToken);
-        return await estimator.GetCommunityEstimates(priceLookup, cancellationToken);
+        var priceSet = await prices.GetPriceSet(cancellationToken);
+        if (!priceSet.IsComplete)
+            return PricesUnavailable();
+        return await estimator.GetCommunityEstimates(priceSet.Prices, cancellationToken);
+    }
+
+    /// <summary>503 that no cache (response cache, proxies) may keep: priced with missing sources, every drop would be valued wrong.</summary>
+    private ObjectResult PricesUnavailable()
+    {
+        Response.Headers.CacheControl = "no-store";
+        logger.LogWarning("task prices incomplete, answering 503");
+        return StatusCode(StatusCodes.Status503ServiceUnavailable, "Prices are not available yet, retry shortly");
     }
 
     private async Task<StateObject> LoadState(string playerId, CancellationToken cancellationToken)
@@ -182,12 +193,13 @@ public class TaskController : ControllerBase
         var task = registry.GetByName(taskName) as MethodTask;
         if (task == null)
             return NotFound($"No task named '{taskName}' is registered.");
-        var priceLookup = await prices.GetPrices(cancellationToken);
-        return BuildAggregateInfo(task, aggregates.GetSnapshot(), priceLookup);
+        var priceSet = await prices.GetPriceSet(cancellationToken);
+        return BuildAggregateInfo(task, aggregates.GetSnapshot(), priceSet.Prices, priceSet.FetchedAt);
     }
 
     internal static List<TaskAggregateInfo> BuildAggregateInfo(MethodTask task,
-        Dictionary<(string task, byte bucket), BucketAggregate> snapshot, Dictionary<string, double> priceLookup)
+        Dictionary<(string task, byte bucket), BucketAggregate> snapshot, Dictionary<string, double> priceLookup,
+        DateTime? pricesFetchedAt = null)
     {
         var name = task.GetDetectionSignature().MethodName;
         var buckets = snapshot.Where(e => string.Equals(e.Key.task, name, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -202,6 +214,7 @@ public class TaskController : ControllerBase
                 return new TaskAggregateInfo
                 {
                     Bucket = e.Key.bucket,
+                    PricesFetchedAt = pricesFetchedAt,
                     WSeconds = agg.WSeconds,
                     Hours = agg.WSeconds / 3600.0,
                     WPeriods = agg.WPeriods,
@@ -315,6 +328,8 @@ public class MethodMetadata
 public class TaskAggregateInfo
 {
     public byte Bucket { get; set; }
+    /// <summary>When the prices this rate was valued with were fetched (differs between pods, see PriceHistory).</summary>
+    public DateTime? PricesFetchedAt { get; set; }
     public double WSeconds { get; set; }
     public double Hours { get; set; }
     public double WPeriods { get; set; }

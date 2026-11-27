@@ -25,7 +25,7 @@ public class TaskGearControllerTests
 {
     private static readonly TaskRegistry Registry = new();
 
-    private static GearSetupService MakeService(GearProfileCatalog? catalog = null)
+    private static GearSetupService MakeService(GearProfileCatalog? catalog = null, bool pricesUp = true)
     {
         var session = new Mock<global::Cassandra.ISession>().Object;
         var aggregates = new TaskAggregateService(session, NullLogger<TaskAggregateService>.Instance);
@@ -35,8 +35,15 @@ public class TaskGearControllerTests
                 NullLogger<TaskActivityService>.Instance),
             new CoinValueRegistry(session, NullLogger<CoinValueRegistry>.Instance),
             NullLogger<TaskEstimator>.Instance);
-        var prices = new TaskPriceService(new Mock<ISniperApi>().Object, new Mock<IBazaarApi>().Object,
-            NullLogger<TaskPriceService>.Instance);
+        var sniper = new Mock<ISniperApi>();
+        sniper.Setup(s => s.ApiSniperPricesCleanGetAsync(0, It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(new Dictionary<string, long>());
+        var bazaar = new Mock<IBazaarApi>();
+        bazaar.Setup(b => b.GetAllPricesAsync(0, It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(new List<Coflnet.Sky.Bazaar.Client.Model.ItemPrice>());
+        if (!pricesUp)
+            bazaar.Setup(b => b.GetAllPricesAsync(0, It.IsAny<System.Threading.CancellationToken>())).ThrowsAsync(new Exception("down"));
+        var prices = new TaskPriceService(sniper.Object, bazaar.Object, NullLogger<TaskPriceService>.Instance) { MinSourceEntries = 0 };
         return catalog == null
             ? new GearSetupService(estimator, aggregates, prices, Registry, NullLogger<GearSetupService>.Instance)
             : new GearSetupService(estimator, aggregates, prices, Registry, catalog, NullLogger<GearSetupService>.Instance);
@@ -66,6 +73,21 @@ public class TaskGearControllerTests
         all.Should().OnlyContain(s => s.Setups.Count >= 1 && s.Setups.Count <= 3 && s.Baseline.Id == GearTiers.Baseline);
         all.Single(s => s.TaskName == "Kuudra T4").Setups.Select(s => s.Id).Should().Equal("budget", "mid", "endgame");
         all.Single(s => s.TaskName == "Kuudra T5").Setups.Select(s => s.Id).Should().Equal("mid", "endgame");
+    }
+
+    [Test]
+    public async Task GetAll_AnswersNoStore503WhenPricesAreIncomplete()
+    {
+        var controller = Controller(MakeService(GearFixtures.All(), pricesUp: false));
+        controller.ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+        {
+            HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext()
+        };
+
+        var result = await controller.GetAll(CancellationToken.None);
+
+        result.Result.Should().BeOfType<Microsoft.AspNetCore.Mvc.ObjectResult>().Which.StatusCode.Should().Be(503);
+        controller.Response.Headers.CacheControl.ToString().Should().Contain("no-store");
     }
 
     [Test]

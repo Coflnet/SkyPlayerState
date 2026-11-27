@@ -14,18 +14,12 @@ namespace Coflnet.Sky.PlayerState.Services;
 public class CollectionListener : UpdateListener
 {
     private Dictionary<string, string> NametoTagLookup;
-    // Clean item prices are global (identical for every player), so fetching the
-    // full sniper + bazaar price lists per location change was the main processing
-    // bottleneck. Cache the merged lookup and refresh it at most once per interval.
+    // Clean item prices are global (identical for every player) and come from the shared TaskPriceService,
+    // which caches and merges them. This is the last usable lookup for the paths that must not fetch.
     private Dictionary<string, double> cachedCleanPrices;
-    private DateTime cleanPricesFetchedAt = DateTime.MinValue;
-    private DateTime cleanPricesRetryAfter = DateTime.MinValue;
-    private readonly System.Threading.SemaphoreSlim cleanPricesLock = new(1, 1);
-    private static readonly TimeSpan CleanPricesCacheDuration = TimeSpan.FromMinutes(2);
-    // when a refresh fails, wait this long before hitting the (failing) dependency again
-    // instead of retrying on every single scoreboard message
-    private static readonly TimeSpan CleanPricesFailureBackoff = TimeSpan.FromSeconds(15);
     private static readonly Dictionary<string, double> EmptyCleanPrices = new();
+    private static readonly Prometheus.Counter FoldSkippedNoPricesCounter = Prometheus.Metrics.CreateCounter(
+        "sky_playerstate_task_fold_skipped_no_prices_total", "Task sessions not folded because no prices were available");
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> lastLiveClassification = new();
     private static readonly TimeSpan MaxCopperReadingAge = TimeSpan.FromMinutes(30);
     // only a parse-glitch guard: a single Crop Analyzer mass analysis can give thousands
@@ -1225,60 +1219,40 @@ public class CollectionListener : UpdateListener
     }
 
     /// <summary>
-    /// Returns the merged clean price lookup (bazaar sell price overlaid with auction prices),
-    /// refreshing the cached copy at most once per <see cref="CleanPricesCacheDuration"/>.
+    /// Returns the merged clean price lookup from the shared <see cref="Tasks.TaskPriceService"/>. When no market
+    /// price is known (both sources down, nothing cached) the empty lookup is returned: valuing with it would
+    /// price every item at 0, see <see cref="HasPrices"/>. Never throws, a failing price service must not fail the state update.
     /// </summary>
     private async Task<Dictionary<string, double>> GetCleanPrices(UpdateArgs args)
     {
-        if (cachedCleanPrices != null && DateTime.UtcNow - cleanPricesFetchedAt < CleanPricesCacheDuration)
-            return cachedCleanPrices;
-        await cleanPricesLock.WaitAsync();
         try
         {
-            // double check now that we hold the lock so only one caller refreshes
-            if (cachedCleanPrices != null && DateTime.UtcNow - cleanPricesFetchedAt < CleanPricesCacheDuration)
-                return cachedCleanPrices;
-            // a recent refresh failed; serve stale/empty rather than hammering a failing dependency
-            // (and rather than throwing, which would fail the entire state update and trigger backoff)
-            if (DateTime.UtcNow < cleanPricesRetryAfter)
+            var set = await args.GetService<Tasks.TaskPriceService>().GetPriceSet();
+            // folding with a missing source would value its drops at 0 into the persisted aggregates
+            if (!set.IsComplete || !set.HasMarketPrices)
                 return cachedCleanPrices ?? EmptyCleanPrices;
-            try
-            {
-                var cleanPrices = new Dictionary<string, double>();
-                var ahPrices = await args.GetService<ISniperApi>().ApiSniperPricesCleanGetAsync();
-                var bazaarPrices = await args.GetService<IBazaarApi>().GetAllPricesAsync();
-                foreach (var item in bazaarPrices)
-                {
-                    // keep the full precision: an (int) cast floored fractional prices and, worse,
-                    // dropped every sub-1-coin bazaar item to 0 so it valued as unpriced and fell
-                    // out of the period total. Matches TaskPriceService, which uses the double.
-                    cleanPrices[item.ProductId] = (double)item.SellPrice;
-                }
-                foreach (var item in ahPrices)
-                {
-                    if (item.Value > 0)
-                        cleanPrices[item.Key] = item.Value;
-                }
-                // copper is no market item: value it from the SkyMart derivation (at most one cache period stale)
-                cleanPrices[Tasks.PseudoItems.COPPER] = Tasks.CopperValue.Current;
-                cachedCleanPrices = cleanPrices;
-                cleanPricesFetchedAt = DateTime.UtcNow;
-                return cachedCleanPrices;
-            }
-            catch (Exception e)
-            {
-                // Degrade gracefully: a failing price service must not fail location-profit tracking
-                // for every player. Serve the last known prices (or nothing) and back off.
-                cleanPricesRetryAfter = DateTime.UtcNow + CleanPricesFailureBackoff;
-                Logger.LogError(e, "failed to refresh clean prices, serving {count} stale entries until {retryAfter:O}",
-                    cachedCleanPrices?.Count ?? 0, cleanPricesRetryAfter);
-                return cachedCleanPrices ?? EmptyCleanPrices;
-            }
+            cachedCleanPrices = set.Prices;
+            return set.Prices;
         }
-        finally
+        catch (Exception e)
         {
-            cleanPricesLock.Release();
+            Logger.LogError(e, "failed to get clean prices, serving {count} stale entries", cachedCleanPrices?.Count ?? 0);
+            return cachedCleanPrices ?? EmptyCleanPrices;
         }
+    }
+
+    /// <summary>False for the empty lookup, folding with it would value every drop at 0 coins.</summary>
+    internal static bool HasPrices(Dictionary<string, double> prices) => prices is { Count: > 0 };
+
+    private async Task FoldLateRewardPriced(UpdateArgs args, TrackedProfitService.Period period, Dictionary<string, double> cleanPrices)
+    {
+        cleanPrices ??= await GetCleanPrices(args);
+        if (!HasPrices(cleanPrices))
+        {
+            FoldSkippedNoPricesCounter.Inc();
+            return;
+        }
+        await args.GetService<Tasks.TaskPeriodFolder>().FoldLateReward(period, args.currentState, cleanPrices);
     }
 
     internal const string AlphaFooter = "alpha.hypixel.net";
@@ -1845,7 +1819,7 @@ public class CollectionListener : UpdateListener
                 // running session of another task stays untouched
                 Logger.LogInformation("Credited late dungeon claim of {playerId} to {task} without claim time", state.PlayerId, lateClaimPeriod.DetectedTask);
                 PeriodClassifiedCounter.WithLabels(lateClaimPeriod.DetectedTask).Inc();
-                await args.GetService<Tasks.TaskPeriodFolder>().FoldLateReward(lateClaimPeriod, state, cleanPrices ?? await GetCleanPrices(args));
+                await FoldLateRewardPriced(args, lateClaimPeriod, cleanPrices);
                 return;
             }
             if (lateRewardPeriod != null && state.ExtractedInfo.CurrentSession == null)
@@ -1853,7 +1827,7 @@ public class CollectionListener : UpdateListener
                 // a reward-only hand-in (Galatea coupons) after the work that earned it, whose session already
                 // ended: value for the earning task, no session of its own and none of its hand-in seconds
                 PeriodClassifiedCounter.WithLabels(lateRewardPeriod.DetectedTask).Inc();
-                await args.GetService<Tasks.TaskPeriodFolder>().FoldLateReward(lateRewardPeriod, state, cleanPrices ?? await GetCleanPrices(args));
+                await FoldLateRewardPriced(args, lateRewardPeriod, cleanPrices);
                 return;
             }
             var fragment = new TrackedProfitService.Period()
@@ -1899,7 +1873,7 @@ public class CollectionListener : UpdateListener
     }
 
     /// <summary>Folds one flushed session (or counts it as unclassified). Returns the clean prices, fetched at most once.</summary>
-    private async Task<Dictionary<string, double>?> FoldFlush(UpdateArgs args, TrackedProfitService.Period flush, Dictionary<string, double>? cleanPrices)
+    internal async Task<Dictionary<string, double>?> FoldFlush(UpdateArgs args, TrackedProfitService.Period flush, Dictionary<string, double>? cleanPrices)
     {
         if (flush.DetectedTask == null)
         {
@@ -1909,6 +1883,12 @@ public class CollectionListener : UpdateListener
         LogNucleusRun(args, flush);
         PeriodClassifiedCounter.WithLabels(flush.DetectedTask).Inc();
         cleanPrices ??= await GetCleanPrices(args);
+        if (!HasPrices(cleanPrices))
+        {
+            FoldSkippedNoPricesCounter.Inc();
+            Logger.LogWarning("Not folding {task} of {player}: no prices available", flush.DetectedTask, flush.PlayerUuid);
+            return cleanPrices;
+        }
         await args.GetService<Tasks.TaskPeriodFolder>().Fold(flush, args.currentState, cleanPrices);
         return cleanPrices;
     }
