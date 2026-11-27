@@ -16,7 +16,8 @@ public class UndeclaredDropLog
 
     private static readonly Prometheus.Counter ExcludedValue = Prometheus.Metrics.CreateCounter(
         "sky_playerstate_task_undeclared_drop_value_total",
-        "Coin value of expensive gains excluded from a task's fold because the task does not declare them", ["task"]);
+        "Coin value of expensive gains excluded from a task's fold because the task does not declare them (they go to its undeclared pool); promoted: enough players found the tag for it to count as a rare drop",
+        ["task", "promoted"]);
 
     private readonly ILogger logger;
     private readonly Func<DateTime> now;
@@ -30,17 +31,28 @@ public class UndeclaredDropLog
         public double Value;
     }
 
+    private void LogLine(string task, string tag, int count, double value, string playerUuid, bool promoted, Pending entry)
+    {
+        var what = promoted ? "Counted promoted undeclared drop for" : "Excluded undeclared expensive drop from";
+        logger.LogInformation(
+            "{what} {task}: {count}x {tag} worth {value:N0} coins (player {player}); {periods} periods, {totalCount} items, {totalValue:N0} coins since the last line",
+            what, task, count, tag, value, playerUuid, entry.Periods, entry.Count, entry.Value);
+    }
+
     public UndeclaredDropLog(ILogger logger, Func<DateTime> now = null)
     {
         this.logger = logger;
         this.now = now ?? (() => DateTime.UtcNow);
     }
 
-    /// <summary>Records one excluded gain, logging it (with what was summed since the last line) when the interval allows.</summary>
-    public void Record(string task, string tag, int count, double value, string playerUuid)
+    /// <summary>
+    /// Records one excluded gain, logging it (with what was summed since the last line) when the interval allows.
+    /// <paramref name="promoted"/>: the tag has the independent evidence of <see cref="UndeclaredPool.PromotionPlayers"/> players.
+    /// </summary>
+    public void Record(string task, string tag, int count, double value, string playerUuid, bool promoted = false)
     {
         if (double.IsFinite(value) && value > 0)
-            ExcludedValue.WithLabels(task).Inc(value);
+            ExcludedValue.WithLabels(task, promoted ? "true" : "false").Inc(value);
         var entry = pending.GetOrAdd((task, tag), _ => new Pending());
         lock (entry)
         {
@@ -50,9 +62,7 @@ public class UndeclaredDropLog
             var at = now();
             if (at - entry.LoggedAt < Interval)
                 return;
-            logger.LogInformation(
-                "Excluded undeclared expensive drop from {task}: {count}x {tag} worth {value:N0} coins (player {player}); {periods} periods, {totalCount} items, {totalValue:N0} coins since the last line",
-                task, count, tag, value, playerUuid, entry.Periods, entry.Count, entry.Value);
+            LogLine(task, tag, count, value, playerUuid, promoted, entry);
             entry.LoggedAt = at;
             entry.Periods = 0;
             entry.Count = 0;

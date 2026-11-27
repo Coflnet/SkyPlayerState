@@ -117,19 +117,24 @@ public class TaskPeriodFolder
 
             var bucket = await statScore.GetBucket(factors, state);
             span?.SetTag("bucket", bucket);
-            var bucketAgg = aggregates.GetSnapshot().GetValueOrDefault((task, bucket));
+            var snapshot = aggregates.GetSnapshot();
+            var bucketAgg = snapshot.GetValueOrDefault((task, bucket));
 
-            // a rare pool candidate the task does not declare is no evidence of its rate (bought books, foreign claims)
+            // a rare pool candidate the task does not declare is no evidence of its rate (bought books, foreign claims):
+            // it goes to the undeclared pool, which only counts once enough players found the tag (see UndeclaredPool)
             var undeclared = UndeclaredExpensive(owned, methodTask, tag => coinValues.Value(tag, prices),
                 tag => IsInfrequent(tag, bucketAgg));
-            owned = WithoutUndeclared(owned, undeclared, task, period.PlayerUuid, span);
-            if (undeclared.Count > 0 && IsLeftoverWithoutLoot(owned))
+            var promoted = UndeclaredPool.PromotedOf(snapshot, task).Where(undeclared.ContainsKey).ToHashSet();
+            owned = WithoutUndeclared(owned, undeclared, promoted, task, period.PlayerUuid, span);
+            var gated = new GatedPeriod(task, bucket, period, owned, undeclared, promoted, minutes, prices);
+            if (gated.IsUnpromotedLeftover)
             {
-                DropUndeclaredLeftover(task, period, owned, minutes * 60, span);
+                await KeepUndeclaredLeftover(gated, span);
                 return;
             }
             // the player's own ledger keeps what they really earned, the gate only guards the task's rate
-            var realizedExtra = undeclared.Values.Sum(e => e.Value);
+            var realizedExtra = gated.UndeclaredValue;
+            var promotedCoins = gated.PromotedCoins;
 
             // value each item; separate rare, high value, infrequent drops into an EV pool
             var (commonCounts, rareCoins, itemValue, rareItemCoins) = SplitRareAndCommon(
@@ -155,18 +160,18 @@ public class TaskPeriodFolder
                 }
             }
 
-            // AFK contamination: coin rate far below the community rate for the task, compared without the rare
-            // EV pools (see IsAfk)
-            if (!lateReward && IsAfk(methodTask, bucketAgg, commonCounts, commonValue, hours, prices))
-            {
-                span?.SetTag("dropped", "afk");
-                FoldMetrics.Record(task, FoldMetrics.Afk, minutes * 60, itemValue);
-                return;
-            }
-
             var seconds = minutes * 60;
             var weight = Ramp(await GetCumulativeMinutes(period.PlayerUuid, task) + minutes);
             span?.SetTag("ramp_weight", weight);
+
+            // AFK contamination: coin rate far below the community rate for the task, compared without the rare
+            // EV pools (see IsAfk); a period whose gains are all rare loot is the loot of a claim, not idle time
+            if (!lateReward && !HasOnlyRareGains(commonCounts, rareCoins + promotedCoins)
+                && IsAfk(methodTask, bucketAgg, commonCounts, commonValue, hours, prices))
+            {
+                await KeepAfkPeriod(gated, itemValue, weight, span);
+                return;
+            }
 
             var weightedItemCounts = commonCounts.ToDictionary(c => c.Key, c => c.Value * weight);
             var residual = 0.0; // reserved for value not covered by tracked items (currently all items tracked)
@@ -174,18 +179,21 @@ public class TaskPeriodFolder
             aggregates.AddContribution(task, bucket, period.PlayerUuid, seconds * weight, weightedItemCounts,
                 residual * weight, rareCoins * weight, itemValue * weight,
                 TaskEstimator.ItemValues(weightedItemCounts, prices), span?.TraceId.ToString(),
-                rareItemCoins: rareItemCoins.ToDictionary(e => e.Key, e => e.Value * weight));
+                rareItemCoins: rareItemCoins.ToDictionary(e => e.Key, e => e.Value * weight),
+                undeclaredItemCoins: WeightedValues(undeclared, weight));
 
-            await UpdatePlayerStat(period.PlayerUuid, task, seconds, commonCounts, residual, rareCoins, itemValue, minutes, prices);
+            // a promoted undeclared tag counts like a rare drop in the personal rate too, the others stay out of it
+            await UpdatePlayerStat(period.PlayerUuid, task, seconds, commonCounts, residual, rareCoins + promotedCoins,
+                itemValue + promotedCoins, minutes, prices);
 
             if (!lateReward)
                 gearObservations?.Record(new Services.Gear.GearFoldInput(period, task, bucket, seconds, weight,
-                    commonValue * winsorScale, rareCoins, itemValue, state?.ExtractedInfo));
+                    commonValue * winsorScale, rareCoins + promotedCoins, itemValue + promotedCoins, state?.ExtractedInfo));
 
             if (!lateReward)
                 AddZoneShares(task, period, weight, winsorScale);
 
-            FoldMetrics.Record(task, lateReward ? FoldMetrics.LateReward : FoldMetrics.Folded, seconds, itemValue);
+            FoldMetrics.Record(task, lateReward ? FoldMetrics.LateReward : FoldMetrics.Folded, seconds, itemValue + promotedCoins);
             await RecordRealized(period.PlayerUuid, task, itemValue + realizedExtra);
 
             if (!lateReward)
@@ -202,9 +210,9 @@ public class TaskPeriodFolder
     /// <summary>
     /// Appends the period's realized coin value (items kept after external-item subtraction, net of costs,
     /// before ramp weighting or winsorizing, including what the declared drop gate kept out of the task's rate) to the per
-    /// player ledger. Only called for the Folded and
-    /// LateReward outcomes: those are periods the player really earned the value in. TooShort, NoOwnedItems and
-    /// NotAMethodTask carry no counted value, and Afk periods are classified as not-played time. Derived
+    /// player ledger. Only called for the Folded, LateReward, UndeclaredLeftover and Afk outcomes: those are periods the
+    /// player really earned the value in (an Afk period is not-played time for the rate, but what it earned was earned).
+    /// TooShort, NoOwnedItems and NotAMethodTask carry no counted value. Derived
     /// tasks are never recorded, they re-express the primary's items and would double count. A ledger failure
     /// must not turn a successful fold into an Error outcome, so it is swallowed here.
     /// </summary>
@@ -380,7 +388,8 @@ public class TaskPeriodFolder
     /// The rare pool candidates (worth more than <see cref="RarePriceThreshold"/> a unit and <paramref name="isInfrequent"/>,
     /// see <see cref="SplitRareAndCommon"/>) that <paramref name="task"/> does not declare as a drop
     /// (<see cref="MethodTask.DeclaredDrops"/>), with their coin value. A frequent item is backed by the bucket's own counts
-    /// and stays. The candidates are excluded from the fold: a rate must be
+    /// and stays. The candidates are kept out of the common and rare pools and go to the undeclared pool instead (see
+    /// <see cref="UndeclaredPool"/>), which counts a tag only once enough players found it: a rate must be
     /// backed by drop data, an unknown expensive item is far more likely bought, moved or another activity's loot (26 bazaar
     /// bought Bobbin' Time books made Helix Honey Lathering 484M coins/h). Hidden accounting tasks keep everything:
     /// absorbing such items is their job and they are never shown.
@@ -409,23 +418,88 @@ public class TaskPeriodFolder
     internal static bool IsLeftoverWithoutLoot(Dictionary<string, int> owned)
         => owned.Values.Any(c => c < 0) || !owned.Values.Any(c => c > 0);
 
-    private void DropUndeclaredLeftover(string task, Period period, Dictionary<string, int> owned, double seconds, Activity span)
+    /// <summary>
+    /// A period after the declared drop gate: what is left of it (<see cref="Owned"/>), its undeclared expensive gains and
+    /// which of them are promoted (see <see cref="UndeclaredPool"/>).
+    /// </summary>
+    private sealed record GatedPeriod(string Task, byte Bucket, Period Period, Dictionary<string, int> Owned,
+        Dictionary<string, (int Count, double Value)> Undeclared, HashSet<string> Promoted, double Minutes,
+        Dictionary<string, double> Prices)
+    {
+        public double UndeclaredValue => Undeclared.Values.Sum(e => e.Value);
+        public double PromotedCoins => Undeclared.Where(e => Promoted.Contains(e.Key)).Sum(e => e.Value.Value);
+        /// <summary>Gains were gated, none is promoted, and the rest holds a cost or nothing (see <see cref="IsLeftoverWithoutLoot"/>).</summary>
+        public bool IsUnpromotedLeftover => Undeclared.Count > 0 && Promoted.Count == 0 && IsLeftoverWithoutLoot(Owned);
+    }
+
+    /// <summary>
+    /// A period whose only gains went to the undeclared pool and that is left with a cost or nothing: its common/cost
+    /// remainder is not folded into the rate (a paid chest would fold as a pure cost), but nothing is lost. The gated
+    /// items go to the undeclared pool net of the remainder's cost (see <see cref="NetOfRemainder"/>) with the period's
+    /// ramp weight, the player's ledger gets the whole value. Its seconds are not added anywhere: such periods are mostly
+    /// claims a few seconds long, and the pool has no time of its own (the rate's hours come from folded periods).
+    /// </summary>
+    private async Task KeepUndeclaredLeftover(GatedPeriod gated, Activity span)
     {
         span?.SetTag("dropped", FoldMetrics.UndeclaredLeftover);
-        FoldMetrics.Record(task, FoldMetrics.UndeclaredLeftover, seconds, 0);
-        logger.LogInformation("Dropped a {task} period of {player}: its undeclared expensive gains were excluded, leaving {leftover}",
-            task, period.PlayerUuid, string.Join(", ", owned.Select(e => $"{e.Value}x {e.Key}")));
+        FoldMetrics.Record(gated.Task, FoldMetrics.UndeclaredLeftover, gated.Minutes * 60, 0);
+        logger.LogInformation("Did not fold a {task} period of {player}: its undeclared expensive gains went to the undeclared pool, leaving {leftover}",
+            gated.Task, gated.Period.PlayerUuid, string.Join(", ", gated.Owned.Select(e => $"{e.Value}x {e.Key}")));
+        var weight = Ramp(await GetCumulativeMinutes(gated.Period.PlayerUuid, gated.Task) + gated.Minutes);
+        var remainder = gated.Owned.Sum(e => coinValues.Value(e.Key, gated.Prices) * e.Value);
+        aggregates.AddUndeclared(gated.Task, gated.Bucket, gated.Period.PlayerUuid,
+            NetOfRemainder(gated.Undeclared, remainder, weight));
+        await RecordRealized(gated.Period.PlayerUuid, gated.Task, remainder + gated.UndeclaredValue);
     }
+
+    /// <summary>
+    /// An AFK period is not folded into the rate, but its undeclared gains still go to the pool (gross, ramp weighted)
+    /// and its whole value to the player's ledger.
+    /// </summary>
+    private async Task KeepAfkPeriod(GatedPeriod gated, double itemValue, double weight, Activity span)
+    {
+        span?.SetTag("dropped", FoldMetrics.Afk);
+        FoldMetrics.Record(gated.Task, FoldMetrics.Afk, gated.Minutes * 60, itemValue + gated.PromotedCoins);
+        aggregates.AddUndeclared(gated.Task, gated.Bucket, gated.Period.PlayerUuid, WeightedValues(gated.Undeclared, weight));
+        await RecordRealized(gated.Period.PlayerUuid, gated.Task, itemValue + gated.UndeclaredValue);
+    }
+
+    /// <summary>
+    /// The gated gains of a leftover period, net of its <paramref name="remainder"/> value (the chest cost they came with,
+    /// negative), shared over the tags by value and times <paramref name="weight"/>. Never above the gross gains (common
+    /// gains of the remainder are not the tag's) and never below 0 (the pool holds no negative coins).
+    /// </summary>
+    internal static Dictionary<string, double> NetOfRemainder(Dictionary<string, (int Count, double Value)> undeclared,
+        double remainder, double weight)
+    {
+        var gross = undeclared.Values.Sum(e => e.Value);
+        var scale = gross > 0 ? Math.Clamp((gross + remainder) / gross, 0, 1) : 0;
+        return undeclared.ToDictionary(e => e.Key, e => e.Value.Value * scale * weight);
+    }
+
+    /// <summary>
+    /// True when all of a period's gains are rare loot (declared rare drops or promoted undeclared ones) and the common
+    /// remainder is only costs or nothing: the loot of a claim or a paid chest. The AFK check compares common gains, so it
+    /// would class such a period AFK against a warm bucket and lose the loot.
+    /// </summary>
+    internal static bool HasOnlyRareGains(Dictionary<string, double> commonCounts, double rareGains)
+        => rareGains > 0 && !commonCounts.Values.Any(c => c > 0);
+
+    private static Dictionary<string, double> WeightedValues(Dictionary<string, (int Count, double Value)> items, double weight)
+        => items.ToDictionary(e => e.Key, e => e.Value.Value * weight);
 
     /// <summary>Removes the <paramref name="undeclared"/> items from <paramref name="owned"/> and logs them.</summary>
     private Dictionary<string, int> WithoutUndeclared(Dictionary<string, int> owned,
-        Dictionary<string, (int Count, double Value)> undeclared, string task, string playerUuid, Activity span)
+        Dictionary<string, (int Count, double Value)> undeclared, HashSet<string> promoted, string task, string playerUuid,
+        Activity span)
     {
         if (undeclared.Count == 0)
             return owned;
         span?.SetTag("undeclared_excluded", string.Join(",", undeclared.Keys));
+        if (promoted.Count > 0)
+            span?.SetTag("undeclared_promoted", string.Join(",", promoted));
         foreach (var (tag, (count, value)) in undeclared)
-            undeclaredLog.Record(task, tag, count, value, playerUuid);
+            undeclaredLog.Record(task, tag, count, value, playerUuid, promoted.Contains(tag));
         return owned.Where(e => !undeclared.ContainsKey(e.Key)).ToDictionary(e => e.Key, e => e.Value);
     }
 
@@ -442,7 +516,7 @@ public class TaskPeriodFolder
         var hours = agg.WSeconds / 3600.0;
         var itemValue = TaskEstimator.LiveValue(agg.ItemCounts, prices);
         var cost = task?.ScaledFormulaCost(agg.ItemCounts, hours, tag => TaskEstimator.UnitValue(tag, prices)) ?? 0;
-        return (itemValue - cost + agg.ResidualCoins + agg.RareCoins) / hours;
+        return (itemValue - cost + agg.ResidualCoins + agg.EffectiveRareCoins) / hours;
     }
 
     /// <summary>
@@ -709,7 +783,11 @@ public static class FoldMetrics
     public const string Afk = "afk";
     public const string NoOwnedItems = "no_owned_items";
     public const string NotAMethodTask = "not_a_method_task";
-    /// <summary>The declared drop gate excluded gains and what is left holds a cost or nothing (see TaskPeriodFolder.IsLeftoverWithoutLoot).</summary>
+    /// <summary>
+    /// The declared drop gate excluded gains (none promoted) and what is left holds a cost or nothing (see
+    /// TaskPeriodFolder.IsLeftoverWithoutLoot): the gains go to the undeclared pool, the value to the realized ledger, the
+    /// remainder is not folded.
+    /// </summary>
     public const string UndeclaredLeftover = "undeclared_leftover";
     public const string Error = "error";
 

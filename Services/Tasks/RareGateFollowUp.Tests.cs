@@ -178,9 +178,12 @@ public class RareGateFollowUpTests
         aggregates.Realized.Should().Equal(2 * 67_000_000 + 4 * 20_000);
     }
 
-    /// <summary>A paid chest whose content is undeclared must not fold as a pure cost and push the floor's rate down.</summary>
+    /// <summary>
+    /// A paid chest whose content is undeclared must not fold as a pure cost and push the floor's rate down; its content
+    /// is kept in the undeclared pool instead.
+    /// </summary>
     [Test]
-    public async Task Fold_PaidChestWithUndeclaredContent_IsDropped()
+    public async Task Fold_PaidChestWithUndeclaredContent_IsNotFolded_ButPooled()
     {
         var aggregates = new FakeAggregates();
         var before = FoldMetrics.CountOf("F7", FoldMetrics.UndeclaredLeftover);
@@ -189,7 +192,10 @@ public class RareGateFollowUpTests
                 new() { { PseudoItems.DUNGEON_CHEST_COST, -6_000_000 }, { "HYPERION", 1 }, { "ESSENCE_WITHER", 40 } }), new StateObject(),
             new() { ["HYPERION"] = 900_000_000, ["ESSENCE_WITHER"] = 2000 });
 
-        aggregates.PendingRowForTest("F7", StatScoreService.UnknownBucket).Should().BeNull();
+        var row = aggregates.PendingRowForTest("F7", StatScoreService.UnknownBucket);
+        row.WSeconds.Should().Be(0, "the cost is not folded into the rate");
+        row.ItemCounts.Should().BeEmpty();
+        row.UndeclaredPlayerCoins.Should().ContainKey($"HYPERION|{Player}", "the gated gain is kept in the undeclared pool");
         FoldMetrics.CountOf("F7", FoldMetrics.UndeclaredLeftover).Should().Be(before + 1);
     }
 

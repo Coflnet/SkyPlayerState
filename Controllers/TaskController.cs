@@ -190,7 +190,10 @@ public class TaskController : ControllerBase
         Dictionary<(string task, byte bucket), BucketAggregate> snapshot, Dictionary<string, double> priceLookup)
     {
         var name = task.GetDetectionSignature().MethodName;
-        return snapshot.Where(e => string.Equals(e.Key.task, name, StringComparison.OrdinalIgnoreCase))
+        var buckets = snapshot.Where(e => string.Equals(e.Key.task, name, StringComparison.OrdinalIgnoreCase)).ToList();
+        var undeclaredPlayers = UndeclaredPool.TaskPlayerCoins(buckets.Select(e => e.Value))
+            .ToDictionary(e => e.Key, e => UndeclaredPool.EvidencePlayers(e.Value));
+        return buckets
             .OrderBy(e => e.Key.bucket)
             .Select(e =>
             {
@@ -214,7 +217,12 @@ public class TaskController : ControllerBase
                     ScaledResidualCoins = parts.ScaledResidualCoins,
                     ScaledRareCoins = parts.ScaledRareCoins,
                     RareItemCoins = new Dictionary<string, double>(agg.RareItemCoins),
-                    UntracedRareCoins = agg.RareCoins - agg.RareItemCoins.Values.Sum()
+                    UntracedRareCoins = agg.RareCoins - agg.RareItemCoins.Values.Sum(),
+                    UndeclaredItemCoins = agg.UndeclaredItemCoins(),
+                    UndeclaredPlayers = agg.UndeclaredPlayerCoins.Keys.ToDictionary(tag => tag, tag => undeclaredPlayers.GetValueOrDefault(tag)),
+                    PromotedUndeclaredItemCoins = new Dictionary<string, double>(agg.PromotedUndeclaredItemCoins),
+                    PromotedUndeclaredCoins = agg.PromotedUndeclaredCoins,
+                    UntracedUndeclaredCoins = agg.UndeclaredTrimmedCoins
                 };
             }).ToList();
     }
@@ -322,10 +330,29 @@ public class TaskAggregateInfo
     public double DriftScale { get; set; }
     /// <summary>Residual pool after drift scaling.</summary>
     public double ScaledResidualCoins { get; set; }
-    /// <summary>Rare EV pool after drift scaling.</summary>
+    /// <summary>Rare EV pool after drift scaling, the promoted undeclared coins included.</summary>
     public double ScaledRareCoins { get; set; }
     /// <summary>The rare pool per item tag (unscaled, like <see cref="RareCoins"/>).</summary>
     public Dictionary<string, double> RareItemCoins { get; set; }
     /// <summary>Rare coins no tag explains: rows written before the pool was itemized.</summary>
     public double UntracedRareCoins { get; set; }
+    /// <summary>
+    /// The undeclared pool per item tag (unscaled, uncapped): expensive gains the task does not declare. Not in
+    /// <see cref="RareCoins"/>; only <see cref="PromotedUndeclaredItemCoins"/> count in the rate.
+    /// </summary>
+    public Dictionary<string, double> UndeclaredItemCoins { get; set; }
+    /// <summary>
+    /// Players per tag of <see cref="UndeclaredItemCoins"/> over all buckets of the task with at least
+    /// UndeclaredPool.MinPlayerCoins of it (the promotion evidence; capped per day row).
+    /// </summary>
+    public Dictionary<string, int> UndeclaredPlayers { get; set; }
+    /// <summary>
+    /// The counted coins of this bucket's promoted tags (found by UndeclaredPool.PromotionPlayers players, each player
+    /// capped at the second largest player's coins), unscaled; part of the rate's rare pool.
+    /// </summary>
+    public Dictionary<string, double> PromotedUndeclaredItemCoins { get; set; }
+    /// <summary>Sum of <see cref="PromotedUndeclaredItemCoins"/>.</summary>
+    public double PromotedUndeclaredCoins { get; set; }
+    /// <summary>Undeclared coins cut off by the per day row bounds: kept here, never counted in the rate.</summary>
+    public double UntracedUndeclaredCoins { get; set; }
 }

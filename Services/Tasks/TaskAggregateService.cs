@@ -47,9 +47,57 @@ public class BucketAggregate
     /// <see cref="RareCoins"/>; the difference is the untraced legacy pool.
     /// </summary>
     public Dictionary<string, double> RareItemCoins = new();
+    /// <summary>
+    /// The rare pool candidates the task does not declare (see <see cref="TaskPeriodFolder.UndeclaredExpensive"/>): coins
+    /// per tag and player, ramp weighted and decayed like <see cref="RareItemCoins"/> but not part of
+    /// <see cref="RareCoins"/>. Only the <see cref="PromotedUndeclaredItemCoins"/> count in the rate.
+    /// </summary>
+    public Dictionary<string, Dictionary<string, double>> UndeclaredPlayerCoins = new();
+    /// <summary>Undeclared coins cut off by the per row bounds (see <see cref="UndeclaredPool.Trim"/>): kept, never counted.</summary>
+    public double UndeclaredTrimmedCoins;
+    /// <summary>
+    /// The undeclared tags with independent evidence over all buckets of the task (<see cref="UndeclaredPool.PromoteAll"/>):
+    /// they count like declared rare drops, in the rate and in the drops.
+    /// </summary>
+    public HashSet<string> PromotedUndeclared = new();
+    /// <summary>The counted (per player capped, see <see cref="UndeclaredPool"/>) coins of this bucket's promoted tags.</summary>
+    public Dictionary<string, double> PromotedUndeclaredItemCoins = new();
 
     /// <summary>Distinct players that contributed data to this task+bucket.</summary>
     public int ContributorCount => Contributors.Count;
+
+    /// <summary>The whole undeclared pool per tag, promoted or not, uncapped.</summary>
+    public Dictionary<string, double> UndeclaredItemCoins()
+        => UndeclaredPlayerCoins.ToDictionary(e => e.Key, e => e.Value.Values.Sum());
+
+    /// <summary>The counted coins of the promoted undeclared tags.</summary>
+    public double PromotedUndeclaredCoins => PromotedUndeclaredItemCoins.Values.Sum();
+
+    /// <summary>The rare pool the rate counts: <see cref="RareCoins"/> plus the promoted undeclared coins.</summary>
+    public double EffectiveRareCoins => RareCoins + PromotedUndeclaredCoins;
+
+    /// <summary><see cref="EffectiveRareCoins"/> per tag: <see cref="RareItemCoins"/> plus the promoted undeclared tags.</summary>
+    public Dictionary<string, double> EffectiveRareItemCoins()
+    {
+        var result = new Dictionary<string, double>(RareItemCoins);
+        foreach (var (tag, coins) in PromotedUndeclaredItemCoins)
+            result[tag] = result.GetValueOrDefault(tag) + coins;
+        return result;
+    }
+
+    /// <summary>
+    /// Players behind <see cref="EffectiveRareCoins"/>: <see cref="RareContributors"/> plus those with counted coins of a
+    /// promoted tag. Read only: without promoted tags it is <see cref="RareContributors"/> itself.
+    /// </summary>
+    public HashSet<string> EffectiveRareContributors()
+    {
+        if (PromotedUndeclaredItemCoins.Count == 0)
+            return RareContributors;
+        var result = new HashSet<string>(RareContributors);
+        foreach (var tag in PromotedUndeclaredItemCoins.Keys)
+            result.UnionWith((UndeclaredPlayerCoins.GetValueOrDefault(tag) ?? new()).Where(p => p.Value > 0).Select(p => p.Key));
+        return result;
+    }
 }
 
 /// <summary>Merged, decayed view of how much time and coin value one task accumulated in one zone.</summary>
@@ -115,6 +163,8 @@ public class TaskAggregateService
         public readonly ConcurrentDictionary<string, double> ItemCounts = new();
         public readonly ConcurrentDictionary<string, double> ItemRefValues = new();
         public readonly Dictionary<string, double> RareItemCoins = new();
+        /// <summary>coins per <see cref="UndeclaredPool.PlayerEntry"/></summary>
+        public readonly Dictionary<string, double> UndeclaredPlayerCoins = new();
         public readonly HashSet<string> Players = new();
         public readonly HashSet<string> RarePlayers = new();
         public readonly List<string> TraceIds = new();
@@ -161,12 +211,13 @@ public class TaskAggregateService
     /// by the ramp. <paramref name="refItemValue"/> is the period's whole item value at fold time (see
     /// <see cref="BucketAggregate.RefItemValue"/>), <paramref name="weightedItemRefValues"/> the fold time market value
     /// of each of <paramref name="weightedItemCounts"/>, null when unknown. <paramref name="instance"/> overrides this
-    /// instance's row (the backfill). <paramref name="rareItemCoins"/> splits <paramref name="rareCoins"/> by item tag.
+    /// instance's row (the backfill). <paramref name="rareItemCoins"/> splits <paramref name="rareCoins"/> by item tag,
+    /// <paramref name="undeclaredItemCoins"/> are the period's weighted undeclared pool coins (see <see cref="UndeclaredPool"/>).
     /// </summary>
     public void AddContribution(string task, byte bucket, string playerUuid, double wSeconds,
         Dictionary<string, double> weightedItemCounts, double residualCoins, double rareCoins,
         double refItemValue, Dictionary<string, double> weightedItemRefValues, string traceId, string instance = null,
-        Dictionary<string, double> rareItemCoins = null)
+        Dictionary<string, double> rareItemCoins = null, Dictionary<string, double> undeclaredItemCoins = null)
     {
         var delta = pending.GetOrAdd((task, bucket, instance), _ => new PendingDelta());
         lock (delta.gate)
@@ -186,9 +237,22 @@ public class TaskAggregateService
             if (rareItemCoins != null)
                 AddInto(delta.RareItemCoins, rareItemCoins.Where(e => e.Value > 0 && double.IsFinite(e.Value))
                     .ToDictionary(e => e.Key, e => e.Value));
+            UndeclaredPool.Add(delta.UndeclaredPlayerCoins, undeclaredItemCoins, playerUuid);
             if (traceId != null && delta.TraceIds.Count < 5)
                 delta.TraceIds.Add(traceId);
         }
+    }
+
+    /// <summary>
+    /// Adds only to the undeclared pool (see <see cref="UndeclaredPool"/>): a period whose rate data is not folded (an
+    /// AFK or leftover period), but whose weighted <paramref name="undeclaredItemCoins"/> must not be lost. No seconds,
+    /// periods or players are added.
+    /// </summary>
+    public void AddUndeclared(string task, byte bucket, string playerUuid, Dictionary<string, double> undeclaredItemCoins)
+    {
+        var delta = pending.GetOrAdd((task, bucket, null), _ => new PendingDelta());
+        lock (delta.gate)
+            UndeclaredPool.Add(delta.UndeclaredPlayerCoins, undeclaredItemCoins, playerUuid);
     }
 
     /// <summary>Adds per item fold values to the delta, or marks its reference unknown when there are none. Under its gate.</summary>
@@ -291,6 +355,7 @@ public class TaskAggregateService
                 Players = new HashSet<string>(delta.Players),
                 RarePlayers = new HashSet<string>(delta.RarePlayers),
                 RareItemCoins = new Dictionary<string, double>(delta.RareItemCoins),
+                UndeclaredPlayerCoins = new Dictionary<string, double>(delta.UndeclaredPlayerCoins),
                 LastFoldTraceIds = delta.TraceIds.ToList()
             };
         }
@@ -317,6 +382,7 @@ public class TaskAggregateService
         if (existing != null)
             AddExisting(row, existing);
         TrimRareItems(row);
+        UndeclaredPool.Trim(row);
         if (!refKnown)
         {
             TrimLegacyRow(row, limit, rules);
@@ -349,6 +415,7 @@ public class TaskAggregateService
             (row.RarePlayers ??= new()).UnionWith(existing.RarePlayers);
         if (existing.RareItemCoins != null)
             AddInto(row.RareItemCoins ??= new(), existing.RareItemCoins);
+        UndeclaredPool.AddExisting(row, existing);
     }
 
     /// <summary>Rare tags kept per day row. A rare pool rarely holds more; the coins of a trimmed tag stay in the pool, untraced.</summary>
@@ -471,6 +538,7 @@ public class TaskAggregateService
     /// <summary>Replaces the read snapshot, for tests.</summary>
     internal void SetSnapshotForTest(Dictionary<(string task, byte bucket), BucketAggregate> s)
     {
+        UndeclaredPool.PromoteAll(s);
         snapshot = s;
         snapshotAt = DateTime.UtcNow;
     }
@@ -525,6 +593,7 @@ public class TaskAggregateService
                     AddRow(agg, row, weight);
                 }
             }
+            UndeclaredPool.PromoteAll(merged);
             snapshot = merged;
             snapshotAt = DateTime.UtcNow;
             await RefreshZoneSnapshot();
@@ -562,6 +631,7 @@ public class TaskAggregateService
         if (row.RareItemCoins != null)
             foreach (var (tag, coins) in row.RareItemCoins)
                 agg.RareItemCoins[tag] = agg.RareItemCoins.GetValueOrDefault(tag) + coins * weight;
+        UndeclaredPool.AddRow(agg, row, weight);
     }
 
     /// <summary>Merge-reads the zone rows of the last 8 days with the same 7 day half life decay. A failure keeps the previous zone snapshot.</summary>
@@ -694,6 +764,8 @@ public class TaskAggregateService
         await AddColumnIfMissing("task_bucket_aggregates", "itemrefvalues", "map<text, double>");
         await AddColumnIfMissing("task_bucket_aggregates", "rareplayers", "set<text>");
         await AddColumnIfMissing("task_bucket_aggregates", "rareitemcoins", "map<text, double>");
+        await AddColumnIfMissing("task_bucket_aggregates", "undeclaredplayercoins", "map<text, double>");
+        await AddColumnIfMissing("task_bucket_aggregates", "undeclaredtrimmedcoins", "double");
 
         var playerMapping = new MappingConfiguration().Define(new Map<TaskPlayerStatRow>()
             .TableName("task_player_stats")
@@ -754,6 +826,10 @@ public class TaskBucketAggregateRow
     public HashSet<string> RarePlayers { get; set; } = new();
     /// <summary>rare pool coins per item tag; null on rows written before it existed</summary>
     public Dictionary<string, double> RareItemCoins { get; set; } = new();
+    /// <summary>undeclared pool coins per "TAG|player" (<see cref="UndeclaredPool.PlayerEntry"/>); null on rows written before it existed</summary>
+    public Dictionary<string, double> UndeclaredPlayerCoins { get; set; } = new();
+    /// <summary>undeclared coins cut off by <see cref="UndeclaredPool.Trim"/>, never counted; null on rows written before it existed</summary>
+    public double? UndeclaredTrimmedCoins { get; set; }
     public List<string> LastFoldTraceIds { get; set; } = new();
 }
 
