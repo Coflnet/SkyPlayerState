@@ -103,6 +103,9 @@ public class ExperimentationTableTask : LimitedTask
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Experimentation_Table";
     protected override HashSet<string> DetectionItems => ["GRAND_EXP_BOTTLE", "TITANIC_EXP_BOTTLE", "COLOSSAL_EXP_BOTTLE", "EXPERIMENT_THE_FISH", "METAPHYSICAL_SERUM"];
     protected override List<MethodDrop> FormulaDrops => [new("GRAND_EXP_BOTTLE", 3), new("TITANIC_EXP_BOTTLE", 1)];
+    // the tier VI Superpairs books (audit 2026-11-27: 32-39 players each); single tier VII books were bought, not won
+    protected override HashSet<string> RareDrops =>
+        ["ENCHANTMENT_GROWTH_6", "ENCHANTMENT_PROTECTION_6", "ENCHANTMENT_SHARPNESS_6", "ENCHANTMENT_POWER_6"];
     protected override string Category => "Daily";
     protected override string HowTo => "Place an Experimentation Table on your Private Island (recipe unlocked at Enchanting X). " +
         "Complete Chronomatron and Ultrasequencer, then Superpairs for enchanting XP and rewards. Charges regenerate 24 hours after the last charge is consumed; extra charges cost Bits. Bottle and unique item rewards are tracked; book-only rewards may be missed.";

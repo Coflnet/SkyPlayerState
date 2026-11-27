@@ -279,6 +279,8 @@ public class BarbarianDukeXTask : MethodTask
 // Demonlord comment above.
 public class T4VoidgloomsTask : MethodTask
 {
+    // the boss's RNG meter drops
+    protected override HashSet<string> RareDrops => DeclaredLoot.Slayer("Voidgloom Seraph");
     // Terminator (the listed weapon) needs Enderman Slayer 7; recommended, not needed to fight the boss
     protected override List<TaskRequirement> Requirements =>
         [.. SlayerRequirements.ForTier("enderman", 4), TaskRequirement.SlayerLevel("enderman", 7, hard: false)];
@@ -328,6 +330,8 @@ public class T4VoidgloomsTask : MethodTask
 /// </summary>
 public class RevenantSlayerTask : MethodTask
 {
+    // the boss's RNG meter drops
+    protected override HashSet<string> RareDrops => DeclaredLoot.Slayer("Revenant Horror");
     protected override string MethodName => "Revenant Slayer";
     protected override HashSet<string> Locations => ["Crypts", "Graveyard"];
     protected override HashSet<string> DetectionItems =>
@@ -361,6 +365,8 @@ public class RevenantSlayerTask : MethodTask
 /// </summary>
 public class SvenSlayerTask : MethodTask
 {
+    // the boss's RNG meter drops
+    protected override HashSet<string> RareDrops => DeclaredLoot.Slayer("Sven Packmaster");
     protected override List<TaskRequirement> Requirements => SlayerRequirements.Unlock("wolf");
     protected override string MethodName => "Sven Slayer";
     protected override HashSet<string> Locations => ["Howling Cave", "Soul Cave", "Spirit Cave", "Ruins"];
@@ -388,6 +394,8 @@ public class SvenSlayerTask : MethodTask
 /// </summary>
 public class TarantulaSlayerCrimsonIsleTask : MethodTask
 {
+    // the boss's RNG meter drops
+    protected override HashSet<string> RareDrops => DeclaredLoot.Slayer("Tarantula Broodfather");
     protected override List<TaskRequirement> Requirements => SlayerRequirements.Unlock("spider");
     protected override LateRewardSpec LateReward => SlayerBossDrops.TarantulaWeb;
     protected override string MethodName => "Tarantula Slayer (Crimson Isle)";
@@ -417,6 +425,8 @@ public class TarantulaSlayerCrimsonIsleTask : MethodTask
 /// </summary>
 public class TarantulaSlayerTask : MethodTask
 {
+    // the boss's RNG meter drops
+    protected override HashSet<string> RareDrops => DeclaredLoot.Slayer("Tarantula Broodfather");
     protected override List<TaskRequirement> Requirements => SlayerRequirements.Unlock("spider");
     protected override LateRewardSpec LateReward => SlayerBossDrops.TarantulaWeb;
     protected override string MethodName => "Tarantula Slayer";
@@ -439,6 +449,8 @@ public class TarantulaSlayerTask : MethodTask
 
 public class T4VoidgloomsFdTask : MethodTask
 {
+    // the boss's RNG meter drops
+    protected override HashSet<string> RareDrops => DeclaredLoot.Slayer("Voidgloom Seraph");
     // Terminator (the listed weapon) needs Enderman Slayer 7; recommended, not needed to fight the boss
     protected override List<TaskRequirement> Requirements =>
         [.. SlayerRequirements.ForTier("enderman", 4), TaskRequirement.SlayerLevel("enderman", 7, hard: false)];

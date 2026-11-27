@@ -453,6 +453,8 @@ public class GhostMistTask : MethodTask
 // Chamber and Mystic Marsh, not just the Tomb.
 public class BlazeSlayerTask : MethodTask
 {
+    // the boss's RNG meter drops
+    protected override HashSet<string> RareDrops => DeclaredLoot.Slayer("Inferno Demonlord");
     protected override List<TaskRequirement> Requirements => SlayerRequirements.Unlock("blaze");
     protected override string MethodName => "Blaze Slayer";
     protected override string Category => "Slayer";

@@ -56,6 +56,8 @@ public class EnderDragonTask : MethodTask
     ];
     // about 6 fights an hour with 2 own eyes each
     protected override List<MethodDrop> FormulaCosts => [new("SUMMONING_EYE", 12)];
+    // the Ender Dragon pet (wiki: dropped by every dragon type)
+    protected override HashSet<string> RareDrops => ["PET_ENDER_DRAGON"];
     protected override string Category => "Combat";
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Ender_Dragon";
     protected override string HowTo => "Place Summoning Eyes (from Zealots or the Bazaar) on the altar in the Dragon's Nest to summon the Ender Dragon and deal damage for loot quality. More own eyes placed means better drops. Formula-based estimate.";

@@ -34,7 +34,11 @@ public static class TaskDataResets
         // every Crystal Hollows session with a Divan Fragment was labelled Crystal Nucleus (selection on outcome, 46M/h)
         { "Crystal Nucleus", CrystalNucleusCutoff },
         // a 1.7B Divan's Alloy claim (nucleus bundle loot, 2026-11-10) folded into its rare pool: 55.8M/h from 2.3 hours
-        { "Yog and Bal", YogAndBalCutoff }
+        { "Yog and Bal", YogAndBalCutoff },
+        // 26 bazaar bought Bobbin' Time books (1.7B), Behemoth pots booked as loot and a merged dungeon chest claim: 484M/h
+        // from 3.9 hours, 2.84B of it an untraced rare pool (see TaskPeriodFolder.UndeclaredExpensive)
+        // 11-29, not 11-28: pods of the old version may still write rows on the deploy day
+        { "Helix Honey Lathering", new DateTime(2026, 11, 29, 0, 0, 0, DateTimeKind.Utc) }
     };
 
     public static bool IsBeforeReset(string task, DateTime at)

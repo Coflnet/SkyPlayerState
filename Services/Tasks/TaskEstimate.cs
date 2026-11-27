@@ -77,6 +77,16 @@ public class TaskDropRate
     public double RatePerHour { get; set; }
     public double PriceEach { get; set; }
     public double ContributionPerHour { get; set; }
+    /// <summary>
+    /// Null for a regular drop; <see cref="RareKind"/> for an item of the rare/EV pool, whose rate is its share of the
+    /// pool (drift and evidence scaled like the coins/hour) divided by its price.
+    /// </summary>
+    public string Kind { get; set; }
+
+    /// <summary>Value of <see cref="Kind"/> for a rare pool drop.</summary>
+    public const string RareKind = "rare";
+    /// <summary>Display label of a <see cref="RareKind"/> drop.</summary>
+    public const string RareLabel = "Rare drop";
 }
 
 /// <summary>A zone with the coins/hour observed there and the distinct players it came from.</summary>

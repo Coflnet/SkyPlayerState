@@ -38,6 +38,9 @@ public abstract class BaseKuudraTask : MethodTask
     // mean that one tier, so a couple of essence/attribute shard items is already unambiguous
     // evidence, unlike a shared open-world zone. See DungeonTasks.BaseDungeonTask for the same idea.
     protected override int MinLocationOnlyItems => 1;
+    // the paid chest's loot; its shard is a named SHARD_* tag of any kind, declared by family
+    protected override HashSet<string> RareDrops => DeclaredLoot.KuudraChest;
+    protected override bool DeclaresDropFamily(string tag) => tag.StartsWith("SHARD_", StringComparison.Ordinal);
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "AURORA_CHESTPLATE", Reason = "Mage armor for Hyperion clears; use Terror for bow damage" },
         new() { ItemTag = "HYPERION", Reason = "Weapon" }

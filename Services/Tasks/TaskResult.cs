@@ -215,7 +215,8 @@ public class DropInfo
     /// <summary>
     /// Null for an ordinary drop of the activity itself. "late_reward" for an item that arrives after the
     /// work that earned it (Galatea contest coupons, a slayer boss drop - see MethodTask.LateReward), so a
-    /// client can show it as its own part of the task's total.
+    /// client can show it as its own part of the task's total. "rare" (<see cref="TaskDropRate.RareKind"/>) for an item of
+    /// the community rare/EV pool.
     /// </summary>
     public string Kind { get; set; }
     /// <summary>Short display label of <see cref="Kind"/> (e.g. "Contest reward", "Boss drop"); null when <see cref="Kind"/> is null.</summary>

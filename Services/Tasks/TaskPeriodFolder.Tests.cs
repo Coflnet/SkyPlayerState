@@ -169,7 +169,9 @@ public class TaskPeriodFolderTests
 
         TaskPeriodFolder.FilterOwnedItems(bought, new EnderDragonTask()).Keys.Should().BeEquivalentTo(new[] { "STRONG_FRAGMENT" });
         TaskPeriodFolder.FilterOwnedItems(new() { { "SUMMONING_EYE", 4 }, { "STRONG_FRAGMENT", 8 } }, new EnderDragonTask())
-            .Should().ContainKey("SUMMONING_EYE", "without purchase evidence the eyes may be Zealot drops of the same session");
+            .Should().NotContainKey("SUMMONING_EYE", "the eyes are the dragon's supply, not its loot, even without purchase evidence");
+        TaskPeriodFolder.FilterOwnedItems(new() { { "SUMMONING_EYE", -4 } }, new EnderDragonTask())
+            .Should().Contain("SUMMONING_EYE", -4, "placed eyes stay a cost");
     }
 
     /// <summary>Regression: a corpse-droppable key (rare drop) bought for a mineshaft counted as loot, cancelling its cost.</summary>

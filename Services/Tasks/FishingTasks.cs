@@ -79,6 +79,8 @@ public abstract class BaseFishingTask : MethodTask
         new("pet:FLYING_FISH", 0.10, 100)
     ];
     protected override string Category => "Fishing";
+    // sea creature drops every water body can give (Jawbus' vial, the festival shark's tooth, ...)
+    protected override HashSet<string> RareDrops => DeclaredLoot.SeaCreatures;
     protected override string ActionUnit => "catches";
     // fishing on Galatea fills the contests too (the coupons are handed in minutes later)
     protected override LateRewardSpec LateReward => GalateaContestRewards.ForLocations(Locations);
@@ -106,6 +108,7 @@ public class BayouFishingTask : BaseFishingTask
 {
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Backwater_Bayou";
     protected override string MethodName => "Bayou Fishing";
+    protected override HashSet<string> RareDrops => DeclaredLoot.BayouSeaCreatures;
     protected override HashSet<string> Locations => ["Backwater Bayou"];
     protected override bool ExcludeShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 200), new("WATER_LILY", 80)];
@@ -122,6 +125,7 @@ public class SpookyFishingTask : BaseFishingTask
 {
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Spooky_Festival";
     protected override string MethodName => "Spooky Fishing";
+    protected override HashSet<string> RareDrops => DeclaredLoot.SpookySeaCreatures;
     // Spooky sea creatures spawn wherever water fishing works (Spooky Festival is not a zone).
     // Backwater Bayou is included: most festival fishers fish there. Plain Bayou fishing keeps Bayou Fishing because
     // the exclusive drops are mandatory, and Bayou Hotspot Fishing still wins hotspot periods without them.
@@ -187,6 +191,7 @@ public class CrimsonFishingTask : BaseFishingTask
 {
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Fishing";
     protected override string MethodName => "Crimson Fishing";
+    protected override HashSet<string> RareDrops => DeclaredLoot.LavaSeaCreatures;
     // "Stronghold", "Crimson Fields", "Dragontail" and the bare "Crimson Isle" island key are
     // data-derived (production log analysis 2026-09-27 showed 110 Magma Fish periods at Stronghold
     // alone) - the wiki only documents Blazing Volcano as the lava fishing hotspot, but the
@@ -245,6 +250,8 @@ public class LotusAtollTask : BaseFishingTask
 {
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Lotus_Atoll";
     protected override string MethodName => "Lotus Atoll";
+    // the Frog Prince's crown jewel (NEU lore: thrown into the Lotus Eater's pond)
+    protected override HashSet<string> RareDrops => [.. DeclaredLoot.SeaCreatures, "PRINCE_CROWN_JEWEL"];
     // Island key: the trophy frogs are caught at Lotus Highlands, Lotus Eater's Cave and Tewtil Tunnel as well.
     protected override HashSet<string> Locations => ["Lotus Atoll"];
     // The lily pads pushed together are WATER_LILY/LOTUS; the pile explodes into Lotus, Lily Pads, a frog and sea
@@ -368,6 +375,7 @@ public class BayouFishingHuntingTask : BaseFishingTask
     internal const string BayouShardHowTo =
         "Fish in Backwater Bayou and kill the sea creatures with a Salt active. Their shards are charmed: Bayou Sludge, Titanoboa, Dumpster Diver and Alligator all drop here.";
     protected override string MethodName => "Bayou Fishing (Hunting)";
+    protected override HashSet<string> RareDrops => DeclaredLoot.BayouSeaCreatures;
     protected override HashSet<string> Locations => ["Backwater Bayou"];
     protected override bool RequireShardItems => true;
     // Alligator/Titanoboa sea creatures drop attribute shards; that is the value, not raw fish.
@@ -377,6 +385,7 @@ public class BayouFishingHuntingTask : BaseFishingTask
 public class BayouHotspotFishingHuntingTask : BaseFishingTask
 {
     protected override string MethodName => "Bayou Hotspot Fishing (Hunting)";
+    protected override HashSet<string> RareDrops => DeclaredLoot.BayouSeaCreatures;
     protected override HashSet<string> Locations => ["Backwater Bayou"];
     protected override bool RequireShardItems => true;
     protected override List<MethodDrop> FormulaDrops => [new("RAW_FISH", 300), new("WATER_LILY", 120)];
@@ -385,6 +394,7 @@ public class BayouHotspotFishingHuntingTask : BaseFishingTask
 public class SpookyFishingHuntingTask : BaseFishingTask
 {
     protected override string MethodName => "Spooky Fishing (Hunting)";
+    protected override HashSet<string> RareDrops => DeclaredLoot.SpookySeaCreatures;
     // See SpookyFishingTask.
     protected override HashSet<string> Locations => ["Hub", "Village", "Forest", "Birch Park", "The Park", "Spider's Den", "Crystal Hollows"];
     protected override HashSet<string> DetectionItems => SpookyFishingEvidence.Exclusive;
@@ -435,6 +445,7 @@ public class CrimsonFishingHuntingTask : BaseFishingTask
 {
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Fishing";
     protected override string MethodName => "Crimson Fishing (Hunting)";
+    protected override HashSet<string> RareDrops => DeclaredLoot.LavaSeaCreatures;
     // Same Locations as CrimsonFishingTask - see its own comment for the data-derived zones.
     protected override HashSet<string> Locations =>
         ["Blazing Volcano", "Burning Desert", "Mystic Marsh", "Magma Chamber", "Stronghold", "Crimson Fields", "Dragontail", "Crimson Isle"];
@@ -485,6 +496,8 @@ public class GalateaFishingHuntingTask : CritterHuntingTask
 public class MoongladeSeaCreaturesHuntingTask : BaseFishingTask
 {
     protected override string MethodName => "Moonglade Sea Creatures (Hunting)";
+    // Diver Fragments and Nessie's seagrass come from the Moonglade sea creatures (audit 2026-11-27: 15 players)
+    protected override HashSet<string> RareDrops => [.. DeclaredLoot.SeaCreatures, "DIVER_FRAGMENT", "MOUND_OF_SEAGRASS"];
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Moonglade_Marsh#Fishing_Mechanics";
     protected override HashSet<string> Locations => ["Moonglade"];
     protected override string Where => "Murkwater Loch";

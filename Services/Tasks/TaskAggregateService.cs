@@ -42,6 +42,11 @@ public class BucketAggregate
     /// add none, so it can only undercount (see <see cref="TaskEstimator.RareEvidenceScale"/>).
     /// </summary>
     public HashSet<string> RareContributors = new();
+    /// <summary>
+    /// <see cref="RareCoins"/> per item tag. Rows written before it was stored add none, so its sum can be below
+    /// <see cref="RareCoins"/>; the difference is the untraced legacy pool.
+    /// </summary>
+    public Dictionary<string, double> RareItemCoins = new();
 
     /// <summary>Distinct players that contributed data to this task+bucket.</summary>
     public int ContributorCount => Contributors.Count;
@@ -109,6 +114,7 @@ public class TaskAggregateService
         public bool RefUnknown;
         public readonly ConcurrentDictionary<string, double> ItemCounts = new();
         public readonly ConcurrentDictionary<string, double> ItemRefValues = new();
+        public readonly Dictionary<string, double> RareItemCoins = new();
         public readonly HashSet<string> Players = new();
         public readonly HashSet<string> RarePlayers = new();
         public readonly List<string> TraceIds = new();
@@ -155,11 +161,12 @@ public class TaskAggregateService
     /// by the ramp. <paramref name="refItemValue"/> is the period's whole item value at fold time (see
     /// <see cref="BucketAggregate.RefItemValue"/>), <paramref name="weightedItemRefValues"/> the fold time market value
     /// of each of <paramref name="weightedItemCounts"/>, null when unknown. <paramref name="instance"/> overrides this
-    /// instance's row (the backfill).
+    /// instance's row (the backfill). <paramref name="rareItemCoins"/> splits <paramref name="rareCoins"/> by item tag.
     /// </summary>
     public void AddContribution(string task, byte bucket, string playerUuid, double wSeconds,
         Dictionary<string, double> weightedItemCounts, double residualCoins, double rareCoins,
-        double refItemValue, Dictionary<string, double> weightedItemRefValues, string traceId, string instance = null)
+        double refItemValue, Dictionary<string, double> weightedItemRefValues, string traceId, string instance = null,
+        Dictionary<string, double> rareItemCoins = null)
     {
         var delta = pending.GetOrAdd((task, bucket, instance), _ => new PendingDelta());
         lock (delta.gate)
@@ -176,6 +183,9 @@ public class TaskAggregateService
             foreach (var (tag, count) in weightedItemCounts)
                 delta.ItemCounts.AddOrUpdate(tag, count, (_, prev) => prev + count);
             AddRefValues(delta, weightedItemRefValues);
+            if (rareItemCoins != null)
+                AddInto(delta.RareItemCoins, rareItemCoins.Where(e => e.Value > 0 && double.IsFinite(e.Value))
+                    .ToDictionary(e => e.Key, e => e.Value));
             if (traceId != null && delta.TraceIds.Count < 5)
                 delta.TraceIds.Add(traceId);
         }
@@ -280,6 +290,7 @@ public class TaskAggregateService
                 ItemRefValues = delta.RefUnknown ? null : new Dictionary<string, double>(delta.ItemRefValues),
                 Players = new HashSet<string>(delta.Players),
                 RarePlayers = new HashSet<string>(delta.RarePlayers),
+                RareItemCoins = new Dictionary<string, double>(delta.RareItemCoins),
                 LastFoldTraceIds = delta.TraceIds.ToList()
             };
         }
@@ -305,6 +316,7 @@ public class TaskAggregateService
             && (existing == null || !IsLegacyRef(existing.ItemCounts, existing.ItemRefValues));
         if (existing != null)
             AddExisting(row, existing);
+        TrimRareItems(row);
         if (!refKnown)
         {
             TrimLegacyRow(row, limit, rules);
@@ -335,6 +347,19 @@ public class TaskAggregateService
             row.Players.UnionWith(existing.Players);
         if (existing.RarePlayers != null)
             (row.RarePlayers ??= new()).UnionWith(existing.RarePlayers);
+        if (existing.RareItemCoins != null)
+            AddInto(row.RareItemCoins ??= new(), existing.RareItemCoins);
+    }
+
+    /// <summary>Rare tags kept per day row. A rare pool rarely holds more; the coins of a trimmed tag stay in the pool, untraced.</summary>
+    internal const int RareItemLimit = 40;
+
+    private static void TrimRareItems(TaskBucketAggregateRow row)
+    {
+        if (row.RareItemCoins == null || row.RareItemCoins.Count <= RareItemLimit)
+            return;
+        row.RareItemCoins = row.RareItemCoins.OrderByDescending(e => e.Value).Take(RareItemLimit)
+            .ToDictionary(e => e.Key, e => e.Value);
     }
 
     private static void TrimRow(TaskBucketAggregateRow row, int limit, TrimRules rules)
@@ -534,6 +559,9 @@ public class TaskAggregateService
             agg.Contributors.UnionWith(row.Players);
         if (row.RarePlayers != null)
             agg.RareContributors.UnionWith(row.RarePlayers);
+        if (row.RareItemCoins != null)
+            foreach (var (tag, coins) in row.RareItemCoins)
+                agg.RareItemCoins[tag] = agg.RareItemCoins.GetValueOrDefault(tag) + coins * weight;
     }
 
     /// <summary>Merge-reads the zone rows of the last 8 days with the same 7 day half life decay. A failure keeps the previous zone snapshot.</summary>
@@ -665,6 +693,7 @@ public class TaskAggregateService
         await created.CreateIfNotExistsAsync();
         await AddColumnIfMissing("task_bucket_aggregates", "itemrefvalues", "map<text, double>");
         await AddColumnIfMissing("task_bucket_aggregates", "rareplayers", "set<text>");
+        await AddColumnIfMissing("task_bucket_aggregates", "rareitemcoins", "map<text, double>");
 
         var playerMapping = new MappingConfiguration().Define(new Map<TaskPlayerStatRow>()
             .TableName("task_player_stats")
@@ -723,6 +752,8 @@ public class TaskBucketAggregateRow
     public HashSet<string> Players { get; set; } = new();
     /// <summary>players whose periods added rare coins; null on rows written before it existed</summary>
     public HashSet<string> RarePlayers { get; set; } = new();
+    /// <summary>rare pool coins per item tag; null on rows written before it existed</summary>
+    public Dictionary<string, double> RareItemCoins { get; set; } = new();
     public List<string> LastFoldTraceIds { get; set; } = new();
 }
 

@@ -317,7 +317,8 @@ public class TaskEstimator
             Contributors = globalContributors,
             CurrentDoers = doers,
             DoersChange20m = deltas.GetValueOrDefault(name),
-            Drops = BuildDrops(task, dropCounts, dropSeconds, prices),
+            Drops = WithRareDrops(BuildDrops(task, dropCounts, dropSeconds, prices),
+                p > 0.5 && personal != null ? null : BuildRareDrops(task, dropAgg, prices)),
             Requirements = task.AllRequirements.Select(TaskRequirementInfo.From).ToList(),
             TraceId = span?.TraceId.ToString() ?? System.Diagnostics.Activity.Current?.TraceId.ToString(),
             WikiUrl = task.WikiUrlForTest,
@@ -460,6 +461,8 @@ public class TaskEstimator
                 merged.ItemCounts[tag] = merged.ItemCounts.GetValueOrDefault(tag) + count;
             merged.Contributors.UnionWith(agg.Contributors);
             merged.RareContributors.UnionWith(agg.RareContributors);
+            foreach (var (tag, coins) in agg.RareItemCoins)
+                merged.RareItemCoins[tag] = merged.RareItemCoins.GetValueOrDefault(tag) + coins;
         }
         return merged;
     }
@@ -582,6 +585,61 @@ public class TaskEstimator
     internal static Dictionary<string, double> ItemValues(Dictionary<string, double> counts, Dictionary<string, double> prices)
         => counts.ToDictionary(e => e.Key, e => LivePrice(e.Key, prices) * e.Value);
 
+    /// <summary>Most rare pool drops listed per task, besides the <see cref="PublishedDropLimit"/> regular ones.</summary>
+    internal const int PublishedRareDropLimit = 10;
+
+    /// <summary>
+    /// The regular drops plus the rare pool drops, one entry per tag, most valuable first. A tag that is both (common in
+    /// one bucket's counts, rare in another period) gets one entry whose rate and contribution are the sum of both, so
+    /// the list stays explainable and every consumer can key it by tag.
+    /// </summary>
+    internal static List<TaskDropRate> WithRareDrops(List<TaskDropRate> drops, List<TaskDropRate> rareDrops)
+    {
+        var byTag = drops.ToDictionary(d => d.ItemTag, StringComparer.OrdinalIgnoreCase);
+        foreach (var rare in rareDrops ?? [])
+        {
+            if (!byTag.TryGetValue(rare.ItemTag, out var regular))
+            {
+                byTag[rare.ItemTag] = rare;
+                continue;
+            }
+            regular.RatePerHour += rare.RatePerHour;
+            regular.ContributionPerHour += rare.ContributionPerHour;
+        }
+        return byTag.Values.OrderByDescending(d => d.ContributionPerHour).ToList();
+    }
+
+    /// <summary>
+    /// The items of <paramref name="agg"/>'s rare/EV pool as drops, each contributing its share of the pool exactly as
+    /// <see cref="RateParts"/> counts it (drift scale times evidence scale per hour), so the listed drops explain the rate.
+    /// Empty for an aggregate without itemized rare coins.
+    /// </summary>
+    internal static List<TaskDropRate> BuildRareDrops(MethodTask task, BucketAggregate agg, Dictionary<string, double> prices)
+    {
+        if (agg == null || agg.WSeconds <= 0 || agg.RareItemCoins.Count == 0)
+            return [];
+        var parts = RateParts(task, agg, prices);
+        var perHour = parts.DriftScale * parts.RareEvidenceScale / (agg.WSeconds / 3600.0);
+        return agg.RareItemCoins.Where(e => e.Value > 0)
+            .OrderByDescending(e => e.Value)
+            .Take(PublishedRareDropLimit)
+            .Select(e => RareDrop(e.Key, e.Value * perHour, prices))
+            .ToList();
+    }
+
+    private static TaskDropRate RareDrop(string tag, double contributionPerHour, Dictionary<string, double> prices)
+    {
+        var price = LivePrice(tag, prices);
+        return new TaskDropRate
+        {
+            ItemTag = tag,
+            PriceEach = price,
+            RatePerHour = price > 0 ? contributionPerHour / price : 0,
+            ContributionPerHour = contributionPerHour,
+            Kind = TaskDropRate.RareKind
+        };
+    }
+
     /// <summary>Most drops listed per task in the public breakdown.</summary>
     internal const int PublishedDropLimit = 20;
 
@@ -608,7 +666,10 @@ public class TaskEstimator
         var hours = wSeconds / 3600.0;
         // pseudo tags (purchase evidence, dungeon runs, costs) are accounting signal, never drops shown to users; consumed
         // items (negative counts: hand-ins, keys, eyes) are costs, not drops at a negative rate
-        foreach (var (tag, count) in itemCounts.Where(e => e.Value > 0 && !PseudoItems.IsPseudo(e.Key)).OrderByDescending(e => e.Value).Take(PublishedDropLimit))
+        // most valuable first: by count, cheap bulk items pushed the valuable low count drops out of the list
+        foreach (var (tag, count) in itemCounts.Where(e => e.Value > 0 && !PseudoItems.IsPseudo(e.Key))
+                     .OrderByDescending(e => e.Value * (prices?.GetValueOrDefault(e.Key) ?? 0)).ThenByDescending(e => e.Value)
+                     .Take(PublishedDropLimit))
         {
             var price = prices?.GetValueOrDefault(tag) ?? 0;
             var rate = count / hours;

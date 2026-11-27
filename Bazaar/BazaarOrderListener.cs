@@ -837,9 +837,10 @@ public class BazaarOrderListener : UpdateListener
         // before _1), so the generic scoring below would always pick the max tier. If a
         // deterministically built ENCHANTMENT_<NAME>_<level> tag is actually present among the
         // results, prefer it; otherwise fall back to the existing scoring.
-        var enchantTagCandidate = GetEnchantTagCandidate(plainName);
-        var tag = (enchantTagCandidate == null ? null : searchResult.FirstOrDefault(
-                s => string.Equals(s.Tag, enchantTagCandidate, StringComparison.OrdinalIgnoreCase)))?.Tag
+        var enchantTagCandidates = GetEnchantTagCandidates(plainName);
+        var tag = enchantTagCandidates.Select(candidate => searchResult.FirstOrDefault(
+                s => string.Equals(s.Tag, candidate, StringComparison.OrdinalIgnoreCase))?.Tag)
+                .FirstOrDefault(t => t != null)
             ?? searchResult.OrderByDescending(s => (itemName.Equals(s.Text ?? "", StringComparison.OrdinalIgnoreCase) ? 2 : 0)
             + (s.Flags.HasValue && s.Flags.Value.HasFlag(Items.Client.Model.ItemFlags.BAZAAR) ? 1 :0)).First().Tag;
 
@@ -903,11 +904,32 @@ public class BazaarOrderListener : UpdateListener
             return null;
         var namePart = EnchantNameOverrides.TryGetValue(match.Groups[1].Value, out var overridden)
             ? overridden
-            : string.Join("_", match.Groups[1].Value.Split(new[] { ' ', '-' }, StringSplitOptions.RemoveEmptyEntries))
+            : string.Join("_", match.Groups[1].Value.Replace("'", "").Split(new[] { ' ', '-' }, StringSplitOptions.RemoveEmptyEntries))
                 .ToUpperInvariant();
         if (namePart.Length == 0)
             return null;
         return $"ENCHANTMENT_{namePart}_{level}";
+    }
+
+    /// <summary>
+    /// Ultimate enchantments are named without the word "Ultimate" in chat ("Bobbin' Time III", "Habanero Tactics IV") but
+    /// their product id carries it (ENCHANTMENT_ULTIMATE_BOBBIN_TIME_3). Without that candidate the search ranking picked
+    /// another tier, the bought books were not discounted and became loot of the running task.
+    /// </summary>
+    private const string UltimatePrefix = "ENCHANTMENT_ULTIMATE_";
+
+    /// <summary>
+    /// The tags an enchanted book display name can stand for, most likely first: <see cref="GetEnchantTagCandidate"/> and,
+    /// unless it already is one, its ultimate variant. Empty for a name without a roman numeral level.
+    /// </summary>
+    internal static List<string> GetEnchantTagCandidates(string plainName)
+    {
+        var candidate = GetEnchantTagCandidate(plainName);
+        if (candidate == null)
+            return [];
+        if (candidate.StartsWith(UltimatePrefix, StringComparison.Ordinal))
+            return [candidate];
+        return [candidate, UltimatePrefix + candidate["ENCHANTMENT_".Length..]];
     }
 
     private static async Task RecordBuyOrderForProfit(UpdateArgs args, string itemName, int amount, long price)

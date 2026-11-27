@@ -389,6 +389,49 @@ public abstract class MethodTask : ProfitTask
     internal bool DropsByFormula(string tag)
         => FormulaDrops.Any(d => string.Equals(d.ItemTag, tag, StringComparison.OrdinalIgnoreCase));
 
+    private HashSet<string> declaredDrops;
+
+    /// <summary>
+    /// Every item this task declares it can yield: <see cref="FormulaDrops"/>, <see cref="RareDrops"/>, the detection and
+    /// evidence items (also per zone) and the late reward tags. An item worth more than the rare threshold only counts for
+    /// the task when it is listed here (see <see cref="TaskPeriodFolder.UndeclaredExpensive"/>): the declarations are the
+    /// drop data an estimate must be backed by. Pseudo tags are no drops; a listed supply is still dropped by
+    /// <see cref="IsSupplyTag"/> first.
+    /// </summary>
+    internal HashSet<string> DeclaredDrops()
+        => declaredDrops ??= BuildDeclaredDrops();
+
+    private HashSet<string> BuildDeclaredDrops()
+    {
+        var tags = FormulaDrops.Select(d => d.ItemTag)
+            .Concat(RareDrops)
+            .Concat(DetectionItems)
+            .Concat(ZoneDetectionItems.Values.SelectMany(v => v))
+            .Concat(EvidenceItems)
+            .Concat(LateRewardDeclaration?.Tags ?? new HashSet<string>());
+        return new(tags.Where(t => !PseudoItems.IsPseudo(t)), StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>True when <paramref name="tag"/> is declared as a drop of this task, see <see cref="DeclaredDrops"/>.</summary>
+    internal bool DeclaresDrop(string tag) => DeclaredDrops().Contains(tag) || DeclaresDropFamily(tag);
+
+    /// <summary>
+    /// A whole family of tags this task can drop when a list would never be complete (a Kuudra chest's shard can be any
+    /// SHARD_*). Default: every shard for a task that requires shard items (<see cref="RequireShardItems"/>, the fishing
+    /// "(Hunting)" variants whose shard is whatever sea creature was caught, Thunder and Jawbus included), else none.
+    /// </summary>
+    protected virtual bool DeclaresDropFamily(string tag)
+        => RequireShardItems && tag.StartsWith("SHARD_", StringComparison.Ordinal);
+
+    /// <summary>
+    /// True when <paramref name="tag"/> is a supply of this task (<see cref="KeepableCostTags"/>, e.g. a Pot of Honeycomb)
+    /// that it does not also yield (<see cref="ProducesItem"/>): a positive count of it was bought or moved into the
+    /// inventory, not looted. A supply the task also drops (keys from mineshaft corpses, Automaton parts) stays loot unless
+    /// it was bought in the same period (see TaskPeriodFolder.IsBoughtInput).
+    /// </summary>
+    internal bool IsSupplyTag(string tag, HashSet<string> costTags)
+        => costTags.Contains(tag) && !ProducesItem(tag);
+
     /// <summary>
     /// Tie break priority when multiple tasks match the same location and items,
     /// higher wins. Only relevant for classification.
@@ -936,17 +979,31 @@ public abstract class MethodTask : ProfitTask
     /// arrives here already net; render it as-is. Never called for a Source == "formula" estimate -
     /// see Execute(), which falls through to ComputeFromFormula for those instead.
     /// </summary>
+    /// <summary>
+    /// One breakdown line for the estimate's entries of one tag. The estimator lists every tag once, but a duplicate (the
+    /// same tag as regular and rare drop) is summed here rather than breaking the per tag dictionaries below.
+    /// </summary>
+    private static DropInfo ToDropInfo(List<TaskDropRate> entries, TaskParams parameters)
+    {
+        var first = entries[0];
+        return new DropInfo
+        {
+            ItemTag = first.ItemTag,
+            Name = parameters.Names.GetValueOrDefault(first.ItemTag, first.ItemTag),
+            RatePerHour = entries.Sum(d => d.RatePerHour),
+            PriceEach = first.PriceEach,
+            ContributionPerHour = entries.Sum(d => d.ContributionPerHour),
+            Kind = entries.Count == 1 ? first.Kind : null,
+            Label = entries.Count == 1 && first.Kind == TaskDropRate.RareKind ? TaskDropRate.RareLabel : null
+        };
+    }
+
     protected Task<TaskResult> ComputeFromServerEstimate(TaskParams parameters, TaskEstimate estimate)
     {
         var fmt = parameters.Formatter;
-        var drops = (estimate.Drops ?? []).Where(d => !PseudoItems.IsPseudo(d.ItemTag)).Select(d => new DropInfo
-        {
-            ItemTag = d.ItemTag,
-            Name = parameters.Names.GetValueOrDefault(d.ItemTag, d.ItemTag),
-            RatePerHour = d.RatePerHour,
-            PriceEach = d.PriceEach,
-            ContributionPerHour = d.ContributionPerHour
-        }).ToList();
+        var drops = (estimate.Drops ?? []).Where(d => !PseudoItems.IsPseudo(d.ItemTag))
+            .GroupBy(d => d.ItemTag, StringComparer.OrdinalIgnoreCase)
+            .Select(g => ToDropInfo(g.ToList(), parameters)).ToList();
 
         // estimate.CoinsPerHour is already net of ingredient cost (netted once, upstream, in
         // TaskEstimator - see the doc comment above). Build a Costs list purely for display, scaled

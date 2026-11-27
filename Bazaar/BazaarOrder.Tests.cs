@@ -789,6 +789,26 @@ public class BazaarOrderTests
         Assert.That(await BazaarOrderListener.GetTagForName(args, "Ultimate Wise V"), Is.EqualTo("ENCHANTMENT_ULTIMATE_WISE_5"));
     }
 
+    /// <summary>
+    /// Regression: ultimate enchantments are named without "Ultimate" in chat, so the candidate ENCHANTMENT_BOBBIN_TIME_3
+    /// matched nothing and the ranking picked tier 5. The purchase discount then took the wrong tag off the drops and 26
+    /// bought Bobbin' Time III books (1.7B coins) became Helix Honey Lathering loot (production 2026-11-26).
+    /// </summary>
+    [TestCase("Bobbin' Time III", "ENCHANTMENT_ULTIMATE_BOBBIN_TIME_3")]
+    [TestCase("Habanero Tactics IV", "ENCHANTMENT_ULTIMATE_HABANERO_TACTICS_4")]
+    public async Task UltimateEnchantWithoutUltimateInItsName_PicksTheUltimateTagOfThatLevel(string name, string expected)
+    {
+        var args = CreateArgs();
+        var baseTag = expected[..^2];
+        itemsApi.Setup(i => i.ItemsSearchTermGetAsync(It.IsAny<string>(), null, 0, default))
+            .ReturnsAsync(() => Enumerable.Range(1, 5).Reverse().Select(level => new Items.Client.Model.SearchResult
+            {
+                Text = $"{name} {level} enchant - bazaar", Tag = $"{baseTag}_{level}", Flags = Items.Client.Model.ItemFlags.BAZAAR
+            }).ToList());
+
+        Assert.That(await BazaarOrderListener.GetTagForName(args, name), Is.EqualTo(expected));
+    }
+
     [Test]
     public async Task HyphenatedEnchantRomanNumeralPicksMatchingLevelTag()
     {

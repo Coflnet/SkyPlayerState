@@ -130,7 +130,8 @@ public class TaskSessionService
             info.CurrentIsland, info.CurrentIslandAt, info.CurrentLocationSince, info.CurrentLocationSeenAt)?.TaskName;
 
         var differentTask = session.DetectedTask != null && newTask != null && newTask != session.DetectedTask;
-        if (differentTask || CarriesForeignPurchase(session, fragment) || LeftIsland(session, fragment, newTask))
+        if (differentTask || CarriesForeignPurchase(session, fragment) || LeftIsland(session, fragment, newTask)
+            || IsForeignAdoption(session, fragment, newTask))
         {
             // the fragment belongs to a different task -> flush the pre-merge session,
             // begin a fresh session from this fragment.
@@ -182,16 +183,35 @@ public class TaskSessionService
             && !classifier.IsPurchaseSink(session.DetectedTask);
 
     /// <summary>
+    /// A session no task was found for yet (its fragments were too short to classify) is about to be named by
+    /// <paramref name="newTask"/> only through the new fragment. Its items are not that task's when the session is a
+    /// shopping trip (purchase evidence: 26 bazaar bought books became Helix Honey Lathering loot) or was collected on
+    /// another island (a dungeon chest claim at the Dungeon Hub, then lathering on Torrhus). Without this, the first task
+    /// found after a short foreign fragment adopts all of it.
+    /// </summary>
+    private bool IsForeignAdoption(TaskSession session, Period fragment, string newTask)
+    {
+        if (session.DetectedTask != null || newTask == null)
+            return false;
+        var shopping = session.Items.Any(e => e.Value != 0 && PseudoItems.IsPurchase(e.Key)) && !classifier.IsPurchaseSink(newTask);
+        return shopping || IslandsDiffer(session.Location, fragment.Location);
+    }
+
+    /// <summary>True when both zones resolve to an island and the islands differ.</summary>
+    private static bool IslandsDiffer(string fromZone, string toZone)
+    {
+        var from = IslandOfZone(fromZone);
+        var to = IslandOfZone(toZone);
+        return from != null && to != null && from != to;
+    }
+
+    /// <summary>
     /// A fragment from another island that the classifier cannot name (null classification) would otherwise
     /// be absorbed by whatever session is running. Only applies when both islands are known and differ.
     /// </summary>
     private static bool LeftIsland(TaskSession session, Period fragment, string newTask)
     {
-        if (newTask != null)
-            return false;
-        var from = IslandOfZone(session.Location);
-        var to = IslandOfZone(fragment.Location);
-        return from != null && to != null && from != to;
+        return newTask == null && IslandsDiffer(session.Location, fragment.Location);
     }
 
     /// <summary>

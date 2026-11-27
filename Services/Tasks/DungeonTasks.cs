@@ -76,6 +76,9 @@ public abstract class BaseDungeonTask : MethodTask
     // rerolling the end chest with a Kismet Feather is the player's choice on any floor: a consumed feather is
     // a real cost of the run, but has no formula rate
     protected override HashSet<string> ObservedCostItems => ["KISMET_FEATHER"];
+    // the floor's chest loot (RNG meter list): the rare pool may only hold what the floor's chests give
+    protected override HashSet<string> RareDrops => DeclaredLoot.CatacombsFloor(FloorLabel);
+    private string FloorLabel => FloorOfTask is { } f ? (f.Master ? "M" : "F") + f.Floor : null;
     protected override List<DropEffect> Effects =>
     [
         new() { Name = "Dungeon Class Level", Description = "Higher class level increases damage and survivability", EstimatedMultiplier = 1.2 },

@@ -212,7 +212,9 @@ public class TaskController : ControllerBase
                     FormulaCost = parts.FormulaCost,
                     DriftScale = parts.DriftScale,
                     ScaledResidualCoins = parts.ScaledResidualCoins,
-                    ScaledRareCoins = parts.ScaledRareCoins
+                    ScaledRareCoins = parts.ScaledRareCoins,
+                    RareItemCoins = new Dictionary<string, double>(agg.RareItemCoins),
+                    UntracedRareCoins = agg.RareCoins - agg.RareItemCoins.Values.Sum()
                 };
             }).ToList();
     }
@@ -322,4 +324,8 @@ public class TaskAggregateInfo
     public double ScaledResidualCoins { get; set; }
     /// <summary>Rare EV pool after drift scaling.</summary>
     public double ScaledRareCoins { get; set; }
+    /// <summary>The rare pool per item tag (unscaled, like <see cref="RareCoins"/>).</summary>
+    public Dictionary<string, double> RareItemCoins { get; set; }
+    /// <summary>Rare coins no tag explains: rows written before the pool was itemized.</summary>
+    public double UntracedRareCoins { get; set; }
 }

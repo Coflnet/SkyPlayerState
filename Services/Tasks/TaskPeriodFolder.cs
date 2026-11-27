@@ -24,6 +24,7 @@ public class TaskPeriodFolder
     private readonly ITransactionService transactions;
     private readonly ILogger<TaskPeriodFolder> logger;
     private readonly Services.Gear.IGearObservationSink gearObservations;
+    private readonly UndeclaredDropLog undeclaredLog;
 
     private const double RarePriceThreshold = 1_000_000;
     private const double RareAppearanceRatio = 0.05;
@@ -42,6 +43,7 @@ public class TaskPeriodFolder
         this.coinValues = coinValues;
         this.transactions = transactions;
         this.logger = logger;
+        undeclaredLog = new UndeclaredDropLog(logger);
     }
 
     /// <summary>
@@ -115,10 +117,22 @@ public class TaskPeriodFolder
 
             var bucket = await statScore.GetBucket(factors, state);
             span?.SetTag("bucket", bucket);
+            var bucketAgg = aggregates.GetSnapshot().GetValueOrDefault((task, bucket));
+
+            // a rare pool candidate the task does not declare is no evidence of its rate (bought books, foreign claims)
+            var undeclared = UndeclaredExpensive(owned, methodTask, tag => coinValues.Value(tag, prices),
+                tag => IsInfrequent(tag, bucketAgg));
+            owned = WithoutUndeclared(owned, undeclared, task, period.PlayerUuid, span);
+            if (undeclared.Count > 0 && IsLeftoverWithoutLoot(owned))
+            {
+                DropUndeclaredLeftover(task, period, owned, minutes * 60, span);
+                return;
+            }
+            // the player's own ledger keeps what they really earned, the gate only guards the task's rate
+            var realizedExtra = undeclared.Values.Sum(e => e.Value);
 
             // value each item; separate rare, high value, infrequent drops into an EV pool
-            var bucketAgg = aggregates.GetSnapshot().GetValueOrDefault((task, bucket));
-            var (commonCounts, rareCoins, itemValue) = SplitRareAndCommon(
+            var (commonCounts, rareCoins, itemValue, rareItemCoins) = SplitRareAndCommon(
                 owned, tag => coinValues.Value(tag, prices), tag => IsInfrequent(tag, bucketAgg));
 
             // winsorize the common coin rate against the current bucket estimate
@@ -159,7 +173,8 @@ public class TaskPeriodFolder
             // two drift references: the whole item value (used today) and the market value of exactly the stored counts
             aggregates.AddContribution(task, bucket, period.PlayerUuid, seconds * weight, weightedItemCounts,
                 residual * weight, rareCoins * weight, itemValue * weight,
-                TaskEstimator.ItemValues(weightedItemCounts, prices), span?.TraceId.ToString());
+                TaskEstimator.ItemValues(weightedItemCounts, prices), span?.TraceId.ToString(),
+                rareItemCoins: rareItemCoins.ToDictionary(e => e.Key, e => e.Value * weight));
 
             await UpdatePlayerStat(period.PlayerUuid, task, seconds, commonCounts, residual, rareCoins, itemValue, minutes, prices);
 
@@ -171,7 +186,7 @@ public class TaskPeriodFolder
                 AddZoneShares(task, period, weight, winsorScale);
 
             FoldMetrics.Record(task, lateReward ? FoldMetrics.LateReward : FoldMetrics.Folded, seconds, itemValue);
-            await RecordRealized(period.PlayerUuid, task, itemValue);
+            await RecordRealized(period.PlayerUuid, task, itemValue + realizedExtra);
 
             if (!lateReward)
                 await FoldDerivedTasks(task, commonCounts, hours, minutes, seconds, weight, period.PlayerUuid, state, prices, span);
@@ -186,7 +201,8 @@ public class TaskPeriodFolder
 
     /// <summary>
     /// Appends the period's realized coin value (items kept after external-item subtraction, net of costs,
-    /// before ramp weighting or winsorizing) to the per player ledger. Only called for the Folded and
+    /// before ramp weighting or winsorizing, including what the declared drop gate kept out of the task's rate) to the per
+    /// player ledger. Only called for the Folded and
     /// LateReward outcomes: those are periods the player really earned the value in. TooShort, NoOwnedItems and
     /// NotAMethodTask carry no counted value, and Afk periods are classified as not-played time. Derived
     /// tasks are never recorded, they re-express the primary's items and would double count. A ledger failure
@@ -282,6 +298,8 @@ public class TaskPeriodFolder
     /// the rare/EV pool (a high value, infrequent drop, valued separately so one lucky drop doesn't
     /// blow out the winsorized common rate) - pulled out of <see cref="Fold"/> as a pure static so
     /// this split is unit testable without the Cassandra-backed dependencies the rest of Fold needs.
+    /// The rare pool is also returned per tag (<see cref="PoolSplit.RareItemCoins"/>), so every rare coin stays traceable
+    /// to the item that earned it.
     /// <para>
     /// A negative <paramref name="owned"/> count is a real cost (see <see cref="FilterOwnedItems"/> -
     /// a <see cref="PseudoItems.IsCost"/> tag, or a FormulaCosts consumable like KISMET_FEATHER) - its
@@ -290,35 +308,125 @@ public class TaskPeriodFolder
     /// regardless of its unit price - a cost is not a "rare drop".
     /// </para>
     /// </summary>
-    internal static (Dictionary<string, double> CommonCounts, double RareCoins, double ItemValue) SplitRareAndCommon(
+    internal static PoolSplit SplitRareAndCommon(
         Dictionary<string, int> owned, Func<string, double> unitPriceOf, Func<string, bool> isInfrequent)
     {
-        var commonCounts = new Dictionary<string, double>();
-        double rareCoins = 0, itemValue = 0;
+        var split = new PoolSplit();
         foreach (var (tag, count) in owned)
         {
             var unit = unitPriceOf(tag);
-            var total = unit * count;
-            itemValue += total;
-            bool isRare = count > 0 && unit > RarePriceThreshold && isInfrequent(tag);
-            if (isRare)
-                rareCoins += total;
+            if (count > 0 && unit > RarePriceThreshold && isInfrequent(tag))
+                split.AddRare(tag, unit * count);
             else
-                commonCounts[tag] = count;
+                split.AddCommon(tag, count, unit * count);
         }
-        return (commonCounts, rareCoins, itemValue);
+        return split;
     }
 
-    private static bool IsInfrequent(string tag, BucketAggregate bucketAgg)
+    /// <summary>The pools of one period: common counts, the rare/EV coins (in total and per tag) and the whole item value.</summary>
+    internal sealed class PoolSplit
+    {
+        public Dictionary<string, double> CommonCounts { get; } = new();
+        public Dictionary<string, double> RareItemCoins { get; } = new();
+        public double RareCoins { get; private set; }
+        public double ItemValue { get; private set; }
+
+        public void AddCommon(string tag, int count, double value)
+        {
+            CommonCounts[tag] = count;
+            ItemValue += value;
+        }
+
+        public void AddRare(string tag, double coins)
+        {
+            RareItemCoins[tag] = RareItemCoins.GetValueOrDefault(tag) + coins;
+            RareCoins += coins;
+            ItemValue += coins;
+        }
+
+        public void Deconstruct(out Dictionary<string, double> commonCounts, out double rareCoins, out double itemValue)
+        {
+            commonCounts = CommonCounts;
+            rareCoins = RareCoins;
+            itemValue = ItemValue;
+        }
+
+        public void Deconstruct(out Dictionary<string, double> commonCounts, out double rareCoins, out double itemValue,
+            out Dictionary<string, double> rareItemCoins)
+        {
+            Deconstruct(out commonCounts, out rareCoins, out itemValue);
+            rareItemCoins = RareItemCoins;
+        }
+    }
+
+    /// <summary>
+    /// True when <paramref name="tag"/> makes up less than <see cref="RareAppearanceRatio"/> of the bucket's gains. Only
+    /// positive counts are gains: a cost in the counts (DUNGEON_CHEST_COST -552k) made the total negative, and then every
+    /// expensive item counted as infrequent.
+    /// </summary>
+    internal static bool IsInfrequent(string tag, BucketAggregate bucketAgg)
     {
         if (bucketAgg == null || bucketAgg.WPeriods <= 0)
             return true; // no history yet, treat expensive drops as rare EV
         // if the item barely shows up in the aggregate item counts it is infrequent
-        var total = bucketAgg.ItemCounts.Values.Sum();
+        var total = bucketAgg.ItemCounts.Values.Where(c => c > 0).Sum();
         if (total <= 0)
             return true;
-        var share = bucketAgg.ItemCounts.GetValueOrDefault(tag) / total;
+        var share = Math.Max(0, bucketAgg.ItemCounts.GetValueOrDefault(tag)) / total;
         return share < RareAppearanceRatio;
+    }
+
+    /// <summary>
+    /// The rare pool candidates (worth more than <see cref="RarePriceThreshold"/> a unit and <paramref name="isInfrequent"/>,
+    /// see <see cref="SplitRareAndCommon"/>) that <paramref name="task"/> does not declare as a drop
+    /// (<see cref="MethodTask.DeclaredDrops"/>), with their coin value. A frequent item is backed by the bucket's own counts
+    /// and stays. The candidates are excluded from the fold: a rate must be
+    /// backed by drop data, an unknown expensive item is far more likely bought, moved or another activity's loot (26 bazaar
+    /// bought Bobbin' Time books made Helix Honey Lathering 484M coins/h). Hidden accounting tasks keep everything:
+    /// absorbing such items is their job and they are never shown.
+    /// </summary>
+    internal static Dictionary<string, (int Count, double Value)> UndeclaredExpensive(Dictionary<string, int> owned,
+        MethodTask task, Func<string, double> unitPriceOf, Func<string, bool> isInfrequent = null)
+    {
+        var result = new Dictionary<string, (int, double)>();
+        if (task == null || task.IsHidden)
+            return result;
+        foreach (var (tag, count) in owned)
+        {
+            if (count <= 0 || PseudoItems.IsPseudo(tag) || task.DeclaresDrop(tag))
+                continue;
+            var unit = unitPriceOf(tag);
+            if (unit > RarePriceThreshold && (isInfrequent?.Invoke(tag) ?? true))
+                result[tag] = (count, unit * count);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// True when what the declared drop gate left of a period holds a cost or no gain at all: a paid dungeon chest whose
+    /// content was undeclared would otherwise fold as a pure cost and push the floor's rate down.
+    /// </summary>
+    internal static bool IsLeftoverWithoutLoot(Dictionary<string, int> owned)
+        => owned.Values.Any(c => c < 0) || !owned.Values.Any(c => c > 0);
+
+    private void DropUndeclaredLeftover(string task, Period period, Dictionary<string, int> owned, double seconds, Activity span)
+    {
+        span?.SetTag("dropped", FoldMetrics.UndeclaredLeftover);
+        FoldMetrics.Record(task, FoldMetrics.UndeclaredLeftover, seconds, 0);
+        logger.LogInformation("Dropped a {task} period of {player}: its undeclared expensive gains were excluded, leaving {leftover}",
+            task, period.PlayerUuid, string.Join(", ", owned.Select(e => $"{e.Value}x {e.Key}")));
+    }
+
+    /// <summary>Removes the <paramref name="undeclared"/> items from <paramref name="owned"/> and logs them.</summary>
+    private Dictionary<string, int> WithoutUndeclared(Dictionary<string, int> owned,
+        Dictionary<string, (int Count, double Value)> undeclared, string task, string playerUuid, Activity span)
+    {
+        if (undeclared.Count == 0)
+            return owned;
+        span?.SetTag("undeclared_excluded", string.Join(",", undeclared.Keys));
+        foreach (var (tag, (count, value)) in undeclared)
+            undeclaredLog.Record(task, tag, count, value, playerUuid);
+        return owned.Where(e => !undeclared.ContainsKey(e.Key)).ToDictionary(e => e.Key, e => e.Value);
     }
 
     /// <summary>
@@ -447,9 +555,10 @@ public class TaskPeriodFolder
     /// tag <paramref name="methodTask"/> declares in its own <see cref="MethodTask.FormulaCostsForTest"/>
     /// or <see cref="MethodTask.ObservedCostItemsForTest"/> (e.g. KISMET_FEATHER on a Catacombs floor), or any negative count
     /// of a task whose consumed items are all costs (Garden Visitors hand-ins). Any other negative count is dropped.
-    /// Two kinds of gains are not loot of the task either: a Forge-only output the task's formula does not list as a
+    /// Some gains are not loot of the task either: a Forge-only output the task's formula does not list as a
     /// drop (<see cref="IsForeignForgeOutput"/>) or Crystal Nucleus loot outside that task (<see cref="IsForeignNucleusLoot"/>),
-    /// and an input of the task bought in the same period (<see cref="IsBoughtInput"/>).
+    /// a supply of the task (<see cref="MethodTask.IsSupplyTag"/>: Pots of Honeycomb bought for lathering, 8 Behemoth pots
+    /// booked as 168M of loot) and an input it also drops but that was bought in the same period (<see cref="IsBoughtInput"/>).
     /// </summary>
     internal static Dictionary<string, int> FilterOwnedItems(Dictionary<string, int> itemsCollected, MethodTask methodTask)
     {
@@ -465,13 +574,14 @@ public class TaskPeriodFolder
 
     private static bool IsOwnedCount(string tag, int count, MethodTask task, HashSet<string> costTags, bool boughtSomething)
     {
+        // a cost pseudo tag is a cost by construction (negative); a positive count of one is no loot
         if (PseudoItems.IsCost(tag))
-            return true;
+            return count < 0;
         if (count <= 0)
             return task?.IsConsumedCost(tag, count, costTags) ?? false;
         if (task == null)
             return true;
-        return !IsForeignForgeOutput(tag, task) && !IsForeignNucleusLoot(tag, task)
+        return !task.IsSupplyTag(tag, costTags) && !IsForeignForgeOutput(tag, task) && !IsForeignNucleusLoot(tag, task)
             && !IsBoughtInput(tag, task, costTags, boughtSomething);
     }
 
@@ -599,6 +709,8 @@ public static class FoldMetrics
     public const string Afk = "afk";
     public const string NoOwnedItems = "no_owned_items";
     public const string NotAMethodTask = "not_a_method_task";
+    /// <summary>The declared drop gate excluded gains and what is left holds a cost or nothing (see TaskPeriodFolder.IsLeftoverWithoutLoot).</summary>
+    public const string UndeclaredLeftover = "undeclared_leftover";
     public const string Error = "error";
 
     private static readonly string[] Labels = ["task", "outcome"];

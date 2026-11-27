@@ -322,6 +322,11 @@ public class GardenVisitorsTask : MethodTask
     // serving visitors stands for at least one spawn interval, not the seconds spent claiming rewards
     protected override TimeSpan MinimumPeriodDuration => TimeSpan.FromMinutes(15);
     protected override List<MethodDrop> FormulaDrops => [new("JACOBS_TICKET", 5)];
+    // the rare visitor reward books worth more than the rare threshold (wiki Garden Visitors rewards)
+    protected override HashSet<string> RareDrops =>
+        ["ENCHANTMENT_DEDICATION_4", "ENCHANTMENT_CULTIVATING_1", "ENCHANTMENT_GREEN_THUMB_1", "ENCHANTMENT_DELICATE_5",
+            // a visitor reward potion (audit 2026-11-27: 31 players)
+            "POTION_harvest_harbinger"];
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Garden_Visitors";
     protected override string HowTo => "Talk to a visitor at your Garden, review the requested items and rewards, then accept the offer with those items in your inventory or sacks. The requested items are consumed.";
     public override string Description =>

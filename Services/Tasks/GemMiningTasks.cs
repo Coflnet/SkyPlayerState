@@ -23,6 +23,15 @@ public abstract class BaseMiningTask : MethodTask
     ];
     protected override string Category => "Mining";
     protected override string ActionUnit => "mines";
+    // a compactor (or a lucky treasure) turns the mined gems into Flawless and Perfect ones (audit 2026-11-27)
+    protected override HashSet<string> RareDrops => UpgradedGems(DetectionItems.Concat(FormulaDrops.Select(d => d.ItemTag)));
+
+    private static readonly System.Text.RegularExpressions.Regex GemTag = new(@"^(ROUGH|FLAWED|FINE)_([A-Z]+)_GEM$");
+
+    /// <summary>FLAWLESS_ and PERFECT_ of every gemstone type among <paramref name="tags"/>.</summary>
+    protected static HashSet<string> UpgradedGems(IEnumerable<string> tags)
+        => tags.Select(tag => GemTag.Match(tag)).Where(m => m.Success).Select(m => m.Groups[2].Value)
+            .SelectMany(gem => new[] { $"FLAWLESS_{gem}_GEM", $"PERFECT_{gem}_GEM" }).ToHashSet();
     protected override List<DropEffect> Effects => [
         new() { Name = "Mining Speed", Description = "Faster block breaking", EstimatedMultiplier = 1.3 },
         new() { Name = "Mining Fortune", Description = "More drops per block", EstimatedMultiplier = 1.5 }
@@ -471,6 +480,7 @@ public class ScathaMiningTask : BaseMiningTask
 public class PrecursorCityPowderMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Precursor City Powder Mining";
+    protected override HashSet<string> RareDrops => [.. base.RareDrops, "JADERALD"];
     protected override HashSet<string> Locations => ["Precursor Remnants", "Lost Precursor City"];
     protected override HashSet<string> DetectionItems =>
         new(PowderMiningEvidence.ChestLoot) { "MITHRIL_ORE", "ENCHANTED_MITHRIL", "ROUGH_SAPPHIRE_GEM" };
@@ -508,6 +518,8 @@ public class MithrilDepositsPowderMiningTask : BaseMiningTask
 public class GoblinHoldoutPowderMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Goblin Holdout Powder Mining";
+    // the rare blue goblin egg (audit 2026-11-27: 30 players)
+    protected override HashSet<string> RareDrops => [.. base.RareDrops, "GOBLIN_EGG_BLUE"];
     protected override HashSet<string> Locations => ["Goblin Holdout", "Goblin Queen's Den"];
     protected override HashSet<string> DetectionItems => new(PowderMiningEvidence.ChestLoot) { "MITHRIL_ORE", "ENCHANTED_MITHRIL" };
     // Treasure chests spawned while mining hardstone here drop Goblin Eggs (the real profit driver).
@@ -526,6 +538,9 @@ public class GoblinHoldoutPowderMiningTask : BaseMiningTask
 public class CrystalHollowsPowderMiningTask : BaseMiningTask
 {
     protected override string MethodName => "Crystal Hollows Powder Mining";
+    // treasure chests give Flawless gemstones, and the Jaderald is only found in the Crystal Hollows (audit 2026-11-27)
+    protected override HashSet<string> RareDrops =>
+        [.. UpgradedGems(new[] { "SAPPHIRE", "JASPER", "TOPAZ", "JADE", "AMBER", "AMETHYST", "RUBY" }.Select(g => $"FINE_{g}_GEM")), "JADERALD"];
     protected override HashSet<string> Locations => ["Crystal Hollows"];
     protected override HashSet<string> DetectionItems => PowderMiningEvidence.ChestLoot;
     protected override int Priority => -1;
