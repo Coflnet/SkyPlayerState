@@ -85,7 +85,39 @@ public class KuudraChestChargeTests
 
         ChestCost(state).Should().Be(-BurningKeyCoins);
         state.ItemsCollectedRecently.GetValueOrDefault("ESSENCE_CRIMSON").Should().Be(500);
+        state.ItemsCollectedRecently.GetValueOrDefault(PseudoItems.KUUDRA_PAID_CHEST).Should().Be(-1, "one confirmed open");
         state.ExtractedInfo.PendingDungeonChestCharge.Should().BeNull();
+    }
+
+    /// <summary>A key taken from the inventory was not bought: a later purse drop in the key's price band is no charge.</summary>
+    [Test]
+    public async Task PaidChest_OpenedWithAnInventoryKey_ChargesNoCoins()
+    {
+        var state = InTier();
+        var listener = new DungeonRewardListener();
+
+        await listener.Process(Inventory(state, KuudraChest("Paid Chest", "Burning Kuudra Key")));
+        state.ItemsCollectedRecently["KUUDRA_BURNING_TIER_KEY"] = -1; // the inventory diff of the open
+        await listener.Process(Scoreboard(state, Purse - 650_000));    // an unrelated spend in the key's band
+
+        state.ItemsCollectedRecently.Should().NotContainKey(PseudoItems.DUNGEON_CHEST_COST);
+        state.ItemsCollectedRecently.Should().NotContainKey(PseudoItems.KUUDRA_PAID_CHEST);
+        state.ItemsCollectedRecently["ESSENCE_CRIMSON"].Should().Be(500);
+        state.ExtractedInfo.PendingDungeonChestCharge.Should().BeNull();
+    }
+
+    [Test]
+    public async Task PaidChest_ChatLineAfterAnInventoryKey_ClosesThePendingCharge()
+    {
+        var state = InTier();
+        var listener = new DungeonRewardListener();
+
+        await listener.Process(Inventory(state, KuudraChest("Paid Chest", "Burning Kuudra Key")));
+        state.ItemsCollectedRecently["KUUDRA_BURNING_TIER_KEY"] = -1;
+        await listener.Process(Chat(state, "PAID CHEST REWARDS"));
+
+        state.ExtractedInfo.PendingDungeonChestCharge.Should().BeNull("nothing is left to charge");
+        state.ItemsCollectedRecently["ESSENCE_CRIMSON"].Should().Be(500);
     }
 
     [Test]

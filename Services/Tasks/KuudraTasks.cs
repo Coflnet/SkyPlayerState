@@ -45,10 +45,14 @@ public abstract class BaseKuudraTask : MethodTask
     /// Consumables a run burns (production: 104 h of T5 periods consumed 47k Toxic Arrow Poison, Twilight Arrow Poison,
     /// Magma Arrow Bundles and Kismet Feathers for paid chest rerolls) and the Kuudra keys. How much depends on the
     /// player's class and bow, so they have no formula rate; a positive count of one is a supply, not loot (a key gained
-    /// is bought or fished, see KuudraRewardAttribution).
+    /// is bought or fished, see KuudraRewardAttribution). <see cref="PseudoItems.KUUDRA_PAID_CHEST"/> counts the confirmed
+    /// paid chest opens for <see cref="ScaledFormulaCost"/>, worth nothing itself.
     /// </summary>
     protected override HashSet<string> ObservedCostItems =>
-        ["TOXIC_ARROW_POISON", "TWILIGHT_ARROW_POISON", "ARROW_BUNDLE_MAGMA", "KISMET_FEATHER", .. KuudraKeyCost.KeyTags];
+    [
+        "TOXIC_ARROW_POISON", "TWILIGHT_ARROW_POISON", "ARROW_BUNDLE_MAGMA", "KISMET_FEATHER", PseudoItems.KUUDRA_PAID_CHEST,
+        .. KuudraKeyCost.KeyTags
+    ];
     /// <summary>
     /// Kuudra Teeth one paid chest gives on average, 0 when not known: the paid chest's guaranteed teeth plus the expected
     /// teeth of its rolled slots. A tier that knows it declares the paid chest's guaranteed loot in its
@@ -67,9 +71,10 @@ public abstract class BaseKuudraTask : MethodTask
     /// The keys of this tier's paid chests in <paramref name="itemCounts"/> (absolute counts over the window, or per hour
     /// rates with <paramref name="hours"/> = 1):
     /// <list type="bullet">
-    /// <item>A chest whose key Hypixel bought on opening (a confirmed <see cref="PseudoItems.DUNGEON_CHEST_COST"/>, see
-    /// DungeonRewardListener) already carries its coins; only its materials are charged here. Counted only while the
-    /// caller values the cost (<paramref name="priceOf"/> &gt; 0, i.e. with <see cref="TaskRateOptions.FullValueRates"/>).</item>
+    /// <item>A chest whose key Hypixel bought on opening (<see cref="PseudoItems.KUUDRA_PAID_CHEST"/>, see
+    /// DungeonRewardListener) booked its coins as <see cref="PseudoItems.DUNGEON_CHEST_COST"/>. While the caller values that
+    /// cost (with <see cref="TaskRateOptions.FullValueRates"/>) only the chest's materials are charged here, otherwise also
+    /// its booked coins.</item>
     /// <item>A key taken from the inventory (a negative key count) is charged in full: soulbound, it has no market price.</item>
     /// <item>The paid chests the teeth stand for (<see cref="TeethPerPaidChest"/>; teeth come with the claimed loot whether
     /// or not the open was confirmed) beyond those two are charged in full.</item>
@@ -80,22 +85,29 @@ public abstract class BaseKuudraTask : MethodTask
         var key = KuudraKeyCost.OfTier(KuudraTier);
         if (key == null || hours <= 0 || itemCounts == null)
             return 0;
-        var boughtOnOpening = ChestsBoughtOnOpening(itemCounts, key, priceOf);
+        var confirmed = Math.Max(0, -itemCounts.GetValueOrDefault(PseudoItems.KUUDRA_PAID_CHEST));
         var fromInventory = Math.Max(0, -itemCounts.GetValueOrDefault(key.Tag));
-        var unconfirmed = Math.Max(0, EstimatedPaidChests(itemCounts) - boughtOnOpening - fromInventory);
-        var keyValue = key.Coins + KuudraKeyCost.MaterialValue(key, priceOf);
-        return (fromInventory + unconfirmed) * keyValue + boughtOnOpening * KuudraKeyCost.MaterialValue(key, priceOf);
+        var unconfirmed = Math.Max(0, EstimatedPaidChests(itemCounts) - confirmed - fromInventory);
+        var materials = KuudraKeyCost.MaterialValue(key, priceOf);
+        var fullKeys = (fromInventory + unconfirmed) * (key.Coins + materials);
+        return fullKeys + confirmed * materials + UnvaluedBookedCoins(itemCounts, key, confirmed, priceOf);
     }
 
     private double EstimatedPaidChests(Dictionary<string, double> itemCounts)
         => EstimatesPaidChests ? Math.Max(0, itemCounts.GetValueOrDefault("KUUDRA_TEETH")) / TeethPerPaidChest : 0;
 
-    private static double ChestsBoughtOnOpening(Dictionary<string, double> itemCounts, KuudraKeyCost.KeyPrice key, Func<string, double> priceOf)
+    /// <summary>
+    /// The coins booked for the confirmed opens when the caller values the chest cost at 0 (rate mode off): at most the
+    /// highest price a confirmed key may have cost, so a stray dungeon chest cost in the counts is not charged.
+    /// </summary>
+    private static double UnvaluedBookedCoins(Dictionary<string, double> itemCounts, KuudraKeyCost.KeyPrice key,
+        double confirmed, Func<string, double> priceOf)
     {
-        var coins = -itemCounts.GetValueOrDefault(PseudoItems.DUNGEON_CHEST_COST) * priceOf(PseudoItems.DUNGEON_CHEST_COST);
-        return coins > 0 ? coins / key.Coins : 0;
+        if (confirmed <= 0 || priceOf(PseudoItems.DUNGEON_CHEST_COST) > 0)
+            return 0;
+        var booked = Math.Max(0, -itemCounts.GetValueOrDefault(PseudoItems.DUNGEON_CHEST_COST));
+        return Math.Min(booked, confirmed * key.MaxCoins);
     }
-
     /// <summary>The breakdowns price this tier's keys like the rate does, see <see cref="KuudraKeyCost"/>.</summary>
     protected override double CostPriceOf(string tag, Dictionary<string, float> prices)
         => KuudraKeyCost.WithKeyValues(t => prices.GetValueOrDefault(t, 0))(tag);
@@ -165,7 +177,9 @@ public class KuudraT5Task : BaseKuudraTask
         [new("KUUDRA_TEETH", TeethPerPaidChest * RunsPerHour), new("ESSENCE_CRIMSON", 2_200 * RunsPerHour), new("SHARD_KRAKEN", RunsPerHour)];
     /// <summary>
     /// 3 guaranteed plus the rolled slots' 25 (0.59%) and 100 (0.06%) teeth (vexo INFERNAL_SLOT tables): 3.2. Consistent
-    /// with production: 2,900 teeth over the 817 T5 instances of the 2026-11-27 audit, 3.5 per instance.
+    /// with production (2026-11-27 audit, 104 h of T5): 2,900 teeth over 1,311 player runs (distinct player and server;
+    /// party members share a server, the 817 distinct servers are no run count) are 2.2 per run, 2.9 per run for the 14
+    /// players who claimed any loot, so 3.2 per chest stands for fewer chests than runs.
     /// </summary>
     protected override double TeethPerPaidChest => 3.2;
     private const double RunsPerHour = 5;

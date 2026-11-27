@@ -297,6 +297,8 @@ public class ExtractedInfo
             Floor = extractedInfo.PendingDungeonChestCharge.Floor,
             MaxCostCoins = extractedInfo.PendingDungeonChestCharge.MaxCostCoins,
             PurchasesAtOpen = extractedInfo.PendingDungeonChestCharge.PurchasesAtOpen,
+            KuudraKeyTag = extractedInfo.PendingDungeonChestCharge.KuudraKeyTag,
+            KuudraKeysAtOpen = extractedInfo.PendingDungeonChestCharge.KuudraKeysAtOpen,
             Essences = extractedInfo.PendingDungeonChestCharge.Essences == null ? null : new Dictionary<string, int>(extractedInfo.PendingDungeonChestCharge.Essences)
         };
         LastTransferViewAt = extractedInfo.LastTransferViewAt;
@@ -588,6 +590,10 @@ public class PendingDungeonChestCharge
     [Key(6)] public long MaxCostCoins { get; set; }
     /// <summary>Bazaar and auction purchase coins in the collected items when the chest was viewed, see <see cref="MaxCostCoins"/>.</summary>
     [Key(7)] public long PurchasesAtOpen { get; set; }
+    /// <summary>The Kuudra key a paid chest asks for (KUUDRA_INFERNAL_TIER_KEY ...), null for any other chest.</summary>
+    [Key(8)] public string? KuudraKeyTag { get; set; }
+    /// <summary>Collected count of <see cref="KuudraKeyTag"/> when the chest was viewed: a drop since means the key came from the inventory.</summary>
+    [Key(9)] public int KuudraKeysAtOpen { get; set; }
 }
 
 /// <summary>

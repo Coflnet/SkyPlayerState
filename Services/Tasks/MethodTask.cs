@@ -754,7 +754,8 @@ public abstract class MethodTask : ProfitTask
         // never as a negative-rate "drop".
         var formulaCostTags = KeepableCostTags();
         var items = allItems.Where(i => !PseudoItems.IsPseudo(i.Key) && i.Value > 0).OrderByDescending(i => i.Value);
-        var costItems = allItems.Where(i => PseudoItems.IsCost(i.Key) || IsConsumedCost(i.Key, i.Value, formulaCostTags)).ToList();
+        var costItems = allItems.Where(i => PseudoItems.IsCost(i.Key)
+            || (!PseudoItems.IsEvidence(i.Key) && IsConsumedCost(i.Key, i.Value, formulaCostTags))).ToList();
 
         var fmt = parameters.Formatter;
         var formattedDuration = fmt.FormatTime(TimeSpan.FromHours(totalHours));

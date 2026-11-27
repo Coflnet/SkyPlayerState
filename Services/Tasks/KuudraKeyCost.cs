@@ -36,6 +36,8 @@ public static class KuudraKeyCost
     {
         /// <summary>Coins paid for the key at full reputation.</summary>
         public long Coins => (long)Math.Round(ListedCoins * FullReputationPriceShare);
+        /// <summary>The most a key may cost: its listed price (no reputation) plus 1% tolerance.</summary>
+        public long MaxCoins => (long)(ListedCoins * 1.01);
     }
 
     /// <summary>Key prices by Kuudra tier, index 0 is Basic (T1).</summary>

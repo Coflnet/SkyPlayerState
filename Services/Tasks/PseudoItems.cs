@@ -48,6 +48,13 @@ public static class PseudoItems
     /// <see cref="NucleusRunRouter"/>), never a raw fragment, so the classifier can never pick the task by itself. Worth 0 coins.
     /// </summary>
     public const string NUCLEUS_RUN = "NUCLEUS_RUN";
+    /// <summary>
+    /// EVIDENCE tag, -1 per Kuudra paid chest whose key was bought on opening (confirmed by the purse, see
+    /// DungeonRewardListener). Worth 0 coins. Negative like a consumed item: the Kuudra tiers keep it as an observed cost
+    /// (TaskPeriodFolder.FilterOwnedItems) and row trimming always keeps negative counts, so BaseKuudraTask.ScaledFormulaCost
+    /// can count the confirmed opens in either rate mode.
+    /// </summary>
+    public const string KUUDRA_PAID_CHEST = "KUUDRA_PAID_CHEST";
     public const string DUNGEON_CHEST_COST = "DUNGEON_CHEST_COST";
     /// <summary>
     /// Copper (Garden currency) earned, +N per scoreboard increase. NOT evidence/cost: it is a real currency valued in
@@ -61,7 +68,8 @@ public static class PseudoItems
         AUCTION_PURCHASE,
         DUNGEON_RUN,
         SAFARI_LOOT_SHARE,
-        NUCLEUS_RUN
+        NUCLEUS_RUN,
+        KUUDRA_PAID_CHEST
     };
 
     private static readonly HashSet<string> CostTags = new(StringComparer.OrdinalIgnoreCase)

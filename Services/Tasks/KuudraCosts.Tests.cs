@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using AwesomeAssertions;
 using NUnit.Framework;
 
@@ -108,17 +109,25 @@ public class KuudraCostsTests
         TaskEstimator.FormulaRate(T5, production).Should().BePositive("the guaranteed paid chest loot pays for the key");
     }
 
-    /// <summary>3.2 teeth stand for one paid chest; the cost is the window total, like the base scaling's.</summary>
-    private static Dictionary<string, double> Chests(double paidChests, double confirmedCoins = 0, double inventoryKeys = 0)
+    /// <summary>
+    /// 3.2 teeth stand for one paid chest. <paramref name="confirmed"/> opens booked <paramref name="coinsEach"/> each (the
+    /// listener books the actual purse drop) and one KUUDRA_PAID_CHEST each. The cost is the window total.
+    /// </summary>
+    private static Dictionary<string, double> Chests(double paidChests, int confirmed = 0, double inventoryKeys = 0,
+        double coinsEach = 2_328_000)
     {
         var counts = new Dictionary<string, double> { ["KUUDRA_TEETH"] = 3.2 * paidChests, ["ESSENCE_CRIMSON"] = 500 };
-        if (confirmedCoins > 0)
-            counts[PseudoItems.DUNGEON_CHEST_COST] = -confirmedCoins;
+        if (confirmed > 0)
+        {
+            counts[PseudoItems.DUNGEON_CHEST_COST] = -confirmed * coinsEach;
+            counts[PseudoItems.KUUDRA_PAID_CHEST] = -confirmed;
+        }
         if (inventoryKeys > 0)
             counts[InfernalKey] = -inventoryKeys;
         return counts;
     }
 
+    /// <summary>The read time lookup with FullValueRates on: the chest cost is worth a coin per unit.</summary>
     private static double ChestCostValued(string tag) => tag == PseudoItems.DUNGEON_CHEST_COST ? 1 : PriceOf(tag);
 
     private const double Materials = 80 * 1_000 + 2 * 50_000;
@@ -134,22 +143,42 @@ public class KuudraCostsTests
     [Test]
     public void ScaledFormulaCost_PartialConfirmation_StillChargesTheUnconfirmedChests()
     {
-        var cost = T5.ScaledFormulaCost(Chests(50, confirmedCoins: 2_328_000), 6, ChestCostValued);
+        var cost = T5.ScaledFormulaCost(Chests(50, confirmed: 1), 6, ChestCostValued);
 
         cost.Should().BeApproximately(49 * InfernalKeyValue + Materials, 1, "the confirmed chest's coins are in the counts, its materials are not");
     }
 
     [Test]
     public void ScaledFormulaCost_AllConfirmed_ChargesOnlyTheMaterials()
-        => T5.ScaledFormulaCost(Chests(2, confirmedCoins: 2 * 2_328_000), 0.5, ChestCostValued)
+        => T5.ScaledFormulaCost(Chests(2, confirmed: 2), 0.5, ChestCostValued)
             .Should().BeApproximately(2 * Materials, 1);
 
+    /// <summary>
+    /// Review probe (flag on): 5 chests, 4 confirmed at 3M each. Derived from the coins, the 12M counted as 5.15 chests at
+    /// 2.328M and the 5th chest went free; the open count says 4.
+    /// </summary>
     [Test]
-    public void ScaledFormulaCost_ChestCostValuedAtZero_IsNoConfirmation()
+    public void ScaledFormulaCost_ConfirmedAboveTheFullReputationPrice_StillChargesTheFifthChest()
+        => T5.ScaledFormulaCost(Chests(5, confirmed: 4, coinsEach: 3_000_000), 1, ChestCostValued)
+            .Should().BeApproximately(InfernalKeyValue + 4 * Materials, 1);
+
+    /// <summary>
+    /// With FullValueRates off (production now) the chest cost is worth 0 when a rate is read: the confirmed opens are
+    /// charged their booked coins here, besides their materials.
+    /// </summary>
+    [Test]
+    public void ScaledFormulaCost_ChestCostValuedAtZero_ChargesTheBookedCoins()
+        => T5.ScaledFormulaCost(Chests(2, confirmed: 2, coinsEach: 2_400_000), 0.5, PriceOf)
+            .Should().BeApproximately(2 * (2_400_000 + Materials), 1);
+
+    [Test]
+    public void ScaledFormulaCost_ChestCostValuedAtZero_ChargesNoStrayDungeonChestCost()
     {
-        // with FullValueRates off the chest cost is worth 0 when a rate is read, so the estimate must charge the key
-        T5.ScaledFormulaCost(Chests(2, confirmedCoins: 2 * 2_328_000), 0.5, PriceOf)
-            .Should().BeApproximately(2 * InfernalKeyValue, 1);
+        var counts = Chests(1, confirmed: 1);
+        counts[PseudoItems.DUNGEON_CHEST_COST] -= 8_000_000; // a dungeon chest cost attributed into the Kuudra period
+
+        T5.ScaledFormulaCost(counts, 0.5, PriceOf).Should().BeApproximately(3_030_000 + Materials, 1,
+            "at most the listed key price (+1%) per confirmed open");
     }
 
     [Test]
@@ -170,6 +199,48 @@ public class KuudraCostsTests
 
         t2.ScaledFormulaCost(counts, 1, PriceOf).Should().BeApproximately(hotKey.Coins + 4 * 1_000 + 2 * 50_000, 1,
             "T2 declares no paid chest teeth to estimate from");
+    }
+
+    /// <summary>
+    /// Review probe (flag off): T3 at 8 confirmed runs/h credited their essence with no key cost, because T3 estimates no
+    /// chests and the chest cost was worth 0 (+4.72M/h).
+    /// </summary>
+    [TestCase(false)]
+    [TestCase(true)]
+    public void ScaledFormulaCost_LowerTier_ChargesEveryConfirmedOpen(bool chestCostValued)
+    {
+        var t3 = new KuudraT3Task();
+        var burning = KuudraKeyCost.OfTier(3);
+        var counts = new Dictionary<string, double>
+        {
+            ["ESSENCE_CRIMSON"] = 4_000, [PseudoItems.DUNGEON_CHEST_COST] = -8 * 600_000, [PseudoItems.KUUDRA_PAID_CHEST] = -8
+        };
+        var materials = 16 * 1_000 + 2 * 50_000;
+
+        var cost = t3.ScaledFormulaCost(counts, 1, chestCostValued ? ChestCostValued : PriceOf);
+
+        cost.Should().BeApproximately(chestCostValued ? 8 * materials : 8 * (600_000 + materials), 1);
+        burning.Coins.Should().BeLessThan(600_000);
+    }
+
+    [Test]
+    public void FilterOwnedItems_KeepsTheConfirmedOpenCount_AndItIsNoLoot()
+    {
+        var items = new Dictionary<string, int> { [PseudoItems.KUUDRA_PAID_CHEST] = -2, ["ESSENCE_CRIMSON"] = 4_000 };
+
+        TaskPeriodFolder.FilterOwnedItems(items, T5).Should().BeEquivalentTo(items);
+        PseudoItems.TryGetCoinValue(PseudoItems.KUUDRA_PAID_CHEST, out var value).Should().BeTrue();
+        value.Should().Be(0);
+        T5.ProducesItem(PseudoItems.KUUDRA_PAID_CHEST).Should().BeFalse();
+    }
+
+    [Test]
+    public void RowTrimming_KeepsTheConfirmedOpenCount()
+    {
+        var counts = Enumerable.Range(0, 40).ToDictionary(i => $"LOOT_{i}", i => 1_000.0 + i);
+        counts[PseudoItems.KUUDRA_PAID_CHEST] = -3;
+
+        TaskAggregateService.KeepCostsAndTop(counts, 20, tag => 1).Should().ContainKey(PseudoItems.KUUDRA_PAID_CHEST);
     }
 
     [Test]
