@@ -43,21 +43,38 @@ public abstract class BaseKuudraTask : MethodTask
     protected override bool DeclaresDropFamily(string tag) => tag.StartsWith("SHARD_", StringComparison.Ordinal);
     /// <summary>
     /// Consumables a run burns (production: 104 h of T5 periods consumed 47k Toxic Arrow Poison, Twilight Arrow Poison,
-    /// Magma Arrow Bundles and Kismet Feathers for paid chest rerolls). How much depends on the player's class and bow,
-    /// so they have no formula rate; a positive count of one is a supply, not loot.
+    /// Magma Arrow Bundles and Kismet Feathers for paid chest rerolls) and the Kuudra keys. How much depends on the
+    /// player's class and bow, so they have no formula rate; a positive count of one is a supply, not loot (a key gained
+    /// is bought or fished, see KuudraRewardAttribution).
     /// </summary>
     protected override HashSet<string> ObservedCostItems =>
-        ["TOXIC_ARROW_POISON", "TWILIGHT_ARROW_POISON", "ARROW_BUNDLE_MAGMA", "KISMET_FEATHER"];
+        ["TOXIC_ARROW_POISON", "TWILIGHT_ARROW_POISON", "ARROW_BUNDLE_MAGMA", "KISMET_FEATHER", .. KuudraKeyCost.KeyTags];
     /// <summary>
-    /// One tier key per run opens the paid chest. The key is used from the Kuudra menu, so it never shows up as a consumed
-    /// item and can only be charged here, priced by <see cref="KuudraKeyCost"/>. Tasks not tied to one tier pay none.
+    /// True when <see cref="FormulaDrops"/> hold the paid chest's guaranteed loot, so the formula baseline may charge the
+    /// key that buys it. Without that loot the baseline would charge the key against the free chest alone.
+    /// </summary>
+    protected virtual bool FormulaHasPaidChestLoot => false;
+    /// <summary>
+    /// The formula baseline's key, one per run. Observed runs are charged the coins of each confirmed paid chest open
+    /// instead (<see cref="PseudoItems.DUNGEON_CHEST_COST"/>, see DungeonRewardListener), so this cost is never
+    /// estimated for them, see <see cref="ScaledFormulaCost"/>.
     /// </summary>
     protected override List<MethodDrop> FormulaCosts =>
-        KuudraTier == 0 ? [] : [new(KuudraKeyCost.OfTier(KuudraTier).Tag, ActionsPerHour)];
+        FormulaHasPaidChestLoot ? [new(KuudraKeyCost.OfTier(KuudraTier).Tag, ActionsPerHour)] : [];
 
-    /// <summary>The base scaling with the keys valued by <see cref="KuudraKeyCost"/>: they have no market price.</summary>
+    /// <summary>
+    /// No estimate once a paid chest's cost was observed: the key is bought when the chest opens and that purchase is
+    /// already in the counts. Otherwise the base scaling, with the keys valued by <see cref="KuudraKeyCost"/>.
+    /// </summary>
     public override double ScaledFormulaCost(Dictionary<string, double> itemCounts, double hours, Func<string, double> priceOf)
-        => base.ScaledFormulaCost(itemCounts, hours, KuudraKeyCost.WithKeyValues(priceOf));
+    {
+        if (ObservedChestCost(itemCounts))
+            return 0;
+        return base.ScaledFormulaCost(itemCounts, hours, KuudraKeyCost.WithKeyValues(priceOf));
+    }
+
+    private static bool ObservedChestCost(Dictionary<string, double> itemCounts)
+        => itemCounts != null && itemCounts.TryGetValue(PseudoItems.DUNGEON_CHEST_COST, out var coins) && coins < 0;
     protected override List<RequiredItem> RequiredItems => [
         new() { ItemTag = "AURORA_CHESTPLATE", Reason = "Mage armor for Hyperion clears; use Terror for bow damage" },
         new() { ItemTag = "HYPERION", Reason = "Weapon" }
@@ -114,8 +131,17 @@ public class KuudraT5Task : BaseKuudraTask
     protected override string MethodName => "Kuudra T5";
     protected override int KuudraTier => 5;
     protected override HashSet<string> Locations => ["Kuudra's Hollow (T5)"];
-    protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 2000)];
-    protected override double ActionsPerHour => 5;
+    /// <summary>
+    /// Per run: 200 Crimson Essence from the free chest (wiki Kuudra loot table) plus the paid chest's guaranteed 2,000
+    /// Crimson Essence, 3 Kuudra Teeth and a Kraken Shard (vexo KuudraProfitTracker INFERNAL_GUARANTEED_DROPS, Odin's
+    /// tracker example shows the same "Crimson Essence x2000"), at 5 runs/h. The rolled loot (armor, books, shards) is
+    /// left to the rare pool.
+    /// </summary>
+    protected override List<MethodDrop> FormulaDrops =>
+        [new("ESSENCE_CRIMSON", 2_200 * RunsPerHour), new("KUUDRA_TEETH", 3 * RunsPerHour), new("SHARD_KRAKEN", RunsPerHour)];
+    protected override bool FormulaHasPaidChestLoot => true;
+    private const double RunsPerHour = 5;
+    protected override double ActionsPerHour => RunsPerHour;
     protected override string HowTo => "Queue for Kuudra Infernal (T5). Needs Fiery cleared and 12,000 reputation. Bring an experienced party of 4 and gear for the final Kuudra damage phase. Compare paid chest loot with the Infernal Kuudra Key cost before claiming.";
 }
 

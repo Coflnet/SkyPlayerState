@@ -19,11 +19,14 @@ public class RewardChest
     public List<string> Contents { get; set; } = [];
     /// <summary>True for a Catacombs chest tier ("Wood Chest".."Bedrock Chest"); false for anything
     /// else that also carries an "Open Reward Chest" button (currently only Kuudra's "Paid
-    /// Chest"/"Free Chest") - those must never be charged, see <see cref="DungeonRewardListener"/>.</summary>
+    /// Chest"/"Free Chest") - those never get a floor or a floor's coin cost, only their key's, see
+    /// <see cref="DungeonRewardListener"/>.</summary>
     public bool IsDungeonChest { get; set; }
     /// <summary>True when the chest lore says "Can't open another chest!" - the player already opened
-    /// one this run and has no key, so nothing can be charged for this view.</summary>
+    /// one this run and has no key - or "Already opened!", so nothing can be charged for this view.</summary>
     public bool CannotOpen { get; set; }
+    /// <summary>The Kuudra key the Cost section asks for ("Infernal Kuudra Key"), null when it names none.</summary>
+    public Tasks.KuudraKeyCost.KeyPrice KuudraKey { get; set; }
 }
 
 /// <summary>
@@ -150,6 +153,8 @@ public static class DungeonRewardChestParser
             Contents = contents,
             IsDungeonChest = isDungeonChest,
             CannotOpen = stripped.Contains("Can't open another chest", StringComparison.OrdinalIgnoreCase)
+                || stripped.Contains("Already opened!", StringComparison.OrdinalIgnoreCase),
+            KuudraKey = costLines.Select(Tasks.KuudraKeyCost.OfName).FirstOrDefault(k => k != null)
         };
         return true;
     }
@@ -226,7 +231,8 @@ public class DungeonRewardListener : UpdateListener
     private static readonly Regex FloorHeaderRegex = new(@"^(Master Mode )?The Catacombs - (?:Floor ([IVX]+)|(Entrance))$", RegexOptions.Compiled);
     private static readonly Regex TeamScoreRegex = new(@"^Team Score: (\d+) \(([A-Z+]+)\)(?: \(NEW RECORD!\))?$", RegexOptions.Compiled);
     private static readonly Regex EssenceLineRegex = new(@"^(\w+) Essence x(\d+)$", RegexOptions.Compiled);
-    private static readonly Regex ChestRewardsRegex = new(@"^(WOOD|GOLD|DIAMOND|EMERALD|OBSIDIAN|BEDROCK) CHEST REWARDS$", RegexOptions.Compiled);
+    // PAID/FREE: Kuudra's chests (wording from vexo's Kuudra ChestTracker, unverified); the chat regex does not pass them yet
+    private static readonly Regex ChestRewardsRegex = new(@"^(WOOD|GOLD|DIAMOND|EMERALD|OBSIDIAN|BEDROCK|PAID|FREE) CHEST REWARDS$", RegexOptions.Compiled);
 
     /// <summary>In-memory only (like <see cref="discoveryLogThrottle"/>): last counted run header per player, for the 60s duplicate window.</summary>
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> lastRunHeader = new();
@@ -393,6 +399,7 @@ public class DungeonRewardListener : UpdateListener
             // (which does not always reach us); at Croesus' hub it is just a claim and completes nothing
             if (Tasks.KuudraRewardAttribution.IsTierZone(info.CurrentLocation))
                 info.LastKuudraRunCompletedAt = DateTime.UtcNow;
+            RememberKuudraChest(args, chest);
             return;
         }
 
@@ -422,6 +429,44 @@ public class DungeonRewardListener : UpdateListener
             Essences = ParseEssences(chest.Contents),
             Floor = Tasks.DungeonRewardAttribution.FloorOf(info.LastDungeonFloor) ?? info.LastDungeonFloor
         };
+    }
+
+    /// <summary>
+    /// A Kuudra chest the player can still open becomes the pending charge, like a dungeon chest: a paid chest costs the
+    /// coins of its key, which Hypixel buys when the chest is opened (see <see cref="Tasks.KuudraKeyCost"/>), and is
+    /// confirmed by the purse dropping by them; a free chest only by its "FREE CHEST REWARDS" line. Either credits the
+    /// chest's essence once confirmed, which is the only way Crimson Essence is counted: it goes to the essence storage.
+    /// </summary>
+    private void RememberKuudraChest(UpdateArgs args, RewardChest chest)
+    {
+        if (chest.CannotOpen || KuudraChestCoins(chest) is not { } coins)
+            return;
+        var info = args.currentState.ExtractedInfo;
+        // a free chest is only confirmed by chat, it must not push out a paid chest still waiting for the purse
+        if (coins == 0 && info.PendingDungeonChestCharge != null)
+            return;
+        var now = DateTime.UtcNow;
+        if (info.PendingDungeonChestCharge != null)
+            EvaluatePending(args, info.Purse > 0 ? info.Purse : null, now);
+        info.PendingDungeonChestCharge = new PendingDungeonChestCharge
+        {
+            ChestType = chest.ChestType,
+            CostCoins = coins,
+            PurseAtOpen = info.Purse,
+            SeenAt = now,
+            Essences = ParseEssences(chest.Contents),
+            Floor = chest.KuudraKey != null ? $"Kuudra T{chest.KuudraKey.Tier}" : "Kuudra"
+        };
+    }
+
+    /// <summary>Coins a Kuudra chest costs: its key's for the paid chest, 0 for the free one, null for a paid chest naming no key.</summary>
+    private static long? KuudraChestCoins(RewardChest chest)
+    {
+        if (chest.ChestType == KuudraFreeChest)
+            return 0;
+        if (chest.ChestType != KuudraPaidChest || chest.KuudraKey == null)
+            return null;
+        return chest.KuudraKey.Coins;
     }
 
     /// <summary>
