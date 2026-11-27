@@ -272,9 +272,7 @@ public abstract class MethodTask : ProfitTask
     /// Mythological Ritual), null when it is always doable. Drives <see cref="AvailabilityAt"/>, the
     /// default <see cref="CheckAccessibility"/> and the public list hiding unavailable tasks.
     /// </summary>
-    protected virtual SkyblockEvent RequiredEvent => null;
-    /// <summary>Public accessor for the estimator/tests - see <see cref="RequiredEvent"/>.</summary>
-    public SkyblockEvent RequiredEventForTest => RequiredEvent;
+    public virtual SkyblockEvent RequiredEvent => null;
 
     /// <summary>Whether the <see cref="RequiredEvent"/> runs at <paramref name="utcNow"/>; always available without one.</summary>
     public TaskAvailability AvailabilityAt(DateTime utcNow, MayorSnapshot mayor) =>
@@ -283,7 +281,7 @@ public abstract class MethodTask : ProfitTask
     // an unset TestTime is no point in time: don't lock the task on it
     private TaskAvailability EventAvailability(TaskParams parameters) => parameters.TestTime == default
         ? TaskAvailability.Always
-        : AvailabilityAt(parameters.TestTime, MayorSnapshot.FromName(parameters.CurrentMayor));
+        : AvailabilityAt(parameters.TestTime, parameters.Mayor ?? MayorSnapshot.FromName(parameters.CurrentMayor));
 
     // ── "Where do I go / what do I click" metadata (helpful task list) ──
     // WikiUrl/Island/WhereWikiUrl/EffectiveWarpCommand/PopulateGuidanceFields are inherited as-is
@@ -370,6 +368,7 @@ public abstract class MethodTask : ProfitTask
     /// Public accessor for tests to check if this task has formula drops
     /// </summary>
     public List<MethodDrop> FormulaDropsForTest => FormulaDrops;
+    public HashSet<string> LocationsForTest => Locations;
     /// <summary>
     /// Public accessor for tests to check if this task has formula costs
     /// </summary>

@@ -62,7 +62,7 @@ public class SkyblockEventsTests
         var availability = SkyblockEvents.SpookyFestival.Check(now, Diaz);
 
         availability.Available.Should().BeFalse();
-        availability.Note.Should().Contain("Spooky Festival").And.Contain("Possible again in 5d");
+        availability.Note.Should().Contain("Spooky Festival").And.NotContain("Possible again", "a relative time goes stale in web caches");
         availability.NextAvailableAt.Should().Be(SkyblockCalendar.NextStartOf(SkyblockCalendar.Day(SkyblockCalendar.Autumn, 26), now));
         SkyblockCalendar.DayOfYear(availability.NextAvailableAt!.Value).Should().Be(SkyblockCalendar.Day(SkyblockCalendar.Autumn, 26));
     }
@@ -135,8 +135,8 @@ public class SkyblockEventsTests
     public void EventBoundTasks_DeclareTheirEvent()
     {
         var events = new TaskRegistry().PublicMethodTasks
-            .Where(t => t.RequiredEventForTest != null)
-            .ToDictionary(TaskEstimator.GetTaskName, t => t.RequiredEventForTest);
+            .Where(t => t.RequiredEvent != null)
+            .ToDictionary(TaskEstimator.GetTaskName, t => t.RequiredEvent);
 
         events.Should().BeEquivalentTo(new Dictionary<string, SkyblockEvent>
         {
@@ -148,13 +148,82 @@ public class SkyblockEventsTests
     }
 
     [Test]
+    public void EveryTaskWithALocationOnJerrysWorkshop_DeclaresAnEvent()
+    {
+        // any location on the seasonal island counts, also for tasks that are not registered (yet)
+        var onJerry = AllMethodTasks().Where(t => t.LocationsForTest.Any(l => SkyblockZones.IslandOfLocation(l) == "Jerry")).ToList();
+
+        onJerry.Select(t => t.GetType().Name).Should().Contain(["WinterFishingTask", "GlacialCaveTask", "FestivalFishingTask", "FestivalFishingHuntingTask"]);
+        onJerry.Should().OnlyContain(t => t.RequiredEvent != null);
+    }
+
+    private static IEnumerable<MethodTask> AllMethodTasks() => typeof(MethodTask).Assembly.GetTypes()
+        .Where(t => !t.IsAbstract && t.IsSubclassOf(typeof(MethodTask)) && t.GetConstructor(Type.EmptyTypes) != null)
+        .Select(t => (MethodTask)Activator.CreateInstance(t));
+
+    [Test]
+    public void FishingFestival_RunsTheFirstThreeDaysOfAMonth_WithMarinasPerk()
+    {
+        var marina = new MayorSnapshot("marina", [new(FishingFestivalEvent.PerkName, "")]);
+        var month = SkyblockCalendar.Day(SkyblockCalendar.Autumn, 1);
+
+        SkyblockEvents.FishingFestival.Check(At(month), marina).Should().Be(TaskAvailability.Always);
+        SkyblockEvents.FishingFestival.Check(At(month + 2), marina).Should().Be(TaskAvailability.Always);
+        var after = SkyblockEvents.FishingFestival.Check(At(month + 3), marina);
+        after.Available.Should().BeFalse();
+        after.NextAvailableAt.Should().Be(SkyblockCalendar.NextStartOf(SkyblockCalendar.Day(SkyblockCalendar.LateAutumn, 1), At(month + 3)));
+    }
+
+    [Test]
+    public void FishingFestival_NextMonthWrapsIntoTheNextYear()
+    {
+        var marina = new MayorSnapshot("marina", [new(FishingFestivalEvent.PerkName, "")]);
+        var now = At(SkyblockCalendar.Day(SkyblockCalendar.LateWinter, 10));
+
+        var next = SkyblockEvents.FishingFestival.Check(now, marina).NextAvailableAt;
+
+        SkyblockCalendar.DayOfYear(next!.Value).Should().Be(0);
+        next.Should().BeAfter(now);
+    }
+
+    [Test]
+    public void FishingFestival_FailsOpenOnWhatTheMayorDataCannotShow()
+    {
+        var festivalDay = At(SkyblockCalendar.Day(SkyblockCalendar.Autumn, 2));
+        var otherDay = At(SkyblockCalendar.Day(SkyblockCalendar.Autumn, 10));
+        var fishingFoxy = new MayorSnapshot("foxy", [new("Extra Event", "Schedules an extra §bFishing Festival §7event during the year.")]);
+
+        // a Marina minister may grant it, which the mayor data does not show
+        SkyblockEvents.FishingFestival.Check(festivalDay, Diaz).Should().Match<TaskAvailability>(a => a.Available && a.Note.Contains("minister"));
+        SkyblockEvents.FishingFestival.Check(otherDay, null).Should().Match<TaskAvailability>(a => a.Available && a.Note.Contains("could not be checked"));
+        SkyblockEvents.FishingFestival.Check(otherDay, fishingFoxy).Should().Match<TaskAvailability>(a => a.Available && a.Note.Contains("Foxy"));
+        var diaz = SkyblockEvents.FishingFestival.Check(otherDay, Diaz);
+        diaz.Available.Should().BeFalse();
+        diaz.NextAvailableAt.Should().BeNull("the next month only has a festival if a Marina minister grants it");
+    }
+
+    [Test]
+    public async Task CofLTaskPath_UsesTheMayorsPerks()
+    {
+        // Foxy's actual extra event decides, not just the name: a Mining Fiesta Foxy can't give a Spooky Festival
+        var miningFoxy = new MayorSnapshot("foxy", [new("Extra Event", "Schedules an extra §6Mining Fiesta §7event during the year.")]);
+        var parameters = Params(At(10));
+        parameters.CurrentMayor = "foxy";
+        parameters.Mayor = miningFoxy;
+
+        var result = await new SpookyFishingTask().Execute(parameters);
+
+        result.IsAccessible.Should().BeFalse();
+    }
+
+    [Test]
     public void EveryPublicTaskOnJerrysWorkshop_NeedsTheIslandOpen()
     {
         // a new task placed on the seasonal island must not show up in the public list all year round
         var onJerry = new TaskRegistry().PublicMethodTasks.Where(t => t.IslandForTest == "Jerry").ToList();
 
         onJerry.Should().NotBeEmpty();
-        onJerry.Should().OnlyContain(t => t.RequiredEventForTest == SkyblockEvents.JerrysWorkshop);
+        onJerry.Should().OnlyContain(t => t.RequiredEvent == SkyblockEvents.JerrysWorkshop);
     }
 
     [Test]
@@ -199,8 +268,10 @@ public class SkyblockEventsTests
     {
         var mayorApi = new Mock<Mayor.Client.Api.IMayorApi>();
         mayorApi.Setup(a => a.MayorCurrentGetAsync(It.IsAny<int>(), It.IsAny<System.Threading.CancellationToken>()))
-            .ReturnsAsync(new Mayor.Client.Model.CoflnetSkyMayorModelsModelCandidate("diaz", "Diaz",
-                [new("Shopping Spree", "Cheaper stuff", false)], 0));
+            .ReturnsAsync(new Mayor.Client.Model.CoflnetSkyMayorModelsModelCandidate
+            {
+                Key = "diaz", Name = "Diaz", Perks = [new() { Name = "Shopping Spree", Description = "Cheaper stuff" }]
+            });
         var mayors = new CurrentMayorService(mayorApi.Object, NullLogger<CurrentMayorService>.Instance);
         var registry = new TaskRegistry();
 

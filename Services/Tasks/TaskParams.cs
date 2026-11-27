@@ -27,6 +27,11 @@ public class TaskParams
     /// Null if unknown.
     /// </summary>
     public string CurrentMayor { get; set; }
+    /// <summary>
+    /// Current mayor with their perks for event gated tasks (see <see cref="MethodTask.RequiredEvent"/>); when null,
+    /// <see cref="CurrentMayor"/> is used without perks. Null if unknown.
+    /// </summary>
+    public MayorSnapshot Mayor { get; set; }
 
     /// <summary>
     /// Community-aggregated average drop rates per method name.

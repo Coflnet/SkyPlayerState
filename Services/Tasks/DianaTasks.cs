@@ -8,7 +8,7 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 public abstract class BaseDianaTask : MethodTask
 {
     protected override string Category => "Event";
-    protected override SkyblockEvent RequiredEvent => SkyblockEvents.MythologicalRitual;
+    public override SkyblockEvent RequiredEvent => SkyblockEvents.MythologicalRitual;
 }
 
 /// <summary>

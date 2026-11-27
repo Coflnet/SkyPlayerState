@@ -171,7 +171,7 @@ public class TaskEstimator
     internal static TaskEstimate WithAvailability(TaskEstimate estimate, MethodTask task, DateTime utcNow, MayorSnapshot mayor)
     {
         var availability = task.AvailabilityAt(utcNow, mayor);
-        estimate.RequiredEvent = task.RequiredEventForTest?.Name;
+        estimate.RequiredEvent = task.RequiredEvent?.Name;
         estimate.Available = availability.Available;
         estimate.AvailabilityNote = availability.Note;
         estimate.NextAvailableAt = availability.NextAvailableAt;

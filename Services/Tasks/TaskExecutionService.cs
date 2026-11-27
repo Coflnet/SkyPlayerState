@@ -138,11 +138,11 @@ public class TaskExecutionService
         var pricesTask = priceService.GetPrices(cancellationToken);
         var bazaarPricesTask = priceService.GetBazaarPrices(cancellationToken);
         var namesTask = GetNames(cancellationToken);
-        // GetCurrentMayor neither times out nor honours a cancellation token internally (it only
+        // GetCurrentMayorSnapshot neither times out nor honours a cancellation token internally (it only
         // guards against the mayor API returning an error, not against it hanging) - guard it here
         // the same way as the state/history reads below instead of letting a stuck mayor API call
         // hang the whole request.
-        var mayorTask = LoadOptional(() => mayorService.GetCurrentMayor(), (string)null,
+        var mayorTask = LoadOptional(() => mayorService.GetCurrentMayorSnapshot(), (MayorSnapshot)null,
             "current mayor", playerId, PlayerDataReadTimeout, cancellationToken);
 
         // State is keyed by name and history by uuid (see LoadStateAndHistory), so history can only
@@ -183,7 +183,8 @@ public class TaskExecutionService
             Names = names,
             LocationProfit = locationProfit,
             MaxAvailableCoins = state?.ExtractedInfo?.Purse > 0 ? state.ExtractedInfo.Purse : 1_000_000_000,
-            CurrentMayor = mayor,
+            CurrentMayor = mayor?.Name,
+            Mayor = mayor,
             // Superseded by ServerEstimates: unlike SkyModCommands' in-memory-only global averages
             // (reset on every restart, not shared across replicas), this service's TaskAggregateService
             // already persists community data in Cassandra and TaskEstimator blends it above.

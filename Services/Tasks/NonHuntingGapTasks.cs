@@ -213,7 +213,7 @@ public class SandMiningTask : BaseBlockMiningTask
 /// <summary>Frozen Treasures in the ice of the Glacial Cave, only reachable in the Season of Jerry.</summary>
 public class GlacialCaveTask : BaseBlockMiningTask
 {
-    protected override SkyblockEvent RequiredEvent => SkyblockEvents.JerrysWorkshop;
+    public override SkyblockEvent RequiredEvent => SkyblockEvents.JerrysWorkshop;
     protected override string MethodName => "Glacial Cave";
     protected override HashSet<string> Locations => ["Glacial Cave"];
     // the treasure table of the wiki; Packed Ice and Enchanted Ice are left out, mining the ice itself gives them too

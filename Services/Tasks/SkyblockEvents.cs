@@ -70,6 +70,12 @@ public static class SkyblockEvents
         SkyblockCalendar.Day(SkyblockCalendar.LateWinter, 1), SkyblockCalendar.Day(SkyblockCalendar.LateWinter, 31),
         "the Season of Jerry, while Jerry's Workshop is open (all of Late Winter and real-world December)",
         realMonthOpen: 12);
+
+    /// <summary>
+    /// Marina's Fishing Festival perk (sharks), the first 3 days of each SkyBlock month. It is a minister perk too, which the
+    /// mayor data does not show, so outside the mayor's perks only the calendar decides.
+    /// </summary>
+    public static readonly SkyblockEvent FishingFestival = new FishingFestivalEvent();
 }
 
 /// <summary>
@@ -85,6 +91,7 @@ public static class SkyblockCalendar
     public static readonly TimeSpan YearLength = DayLength * DaysPerYear;
 
     // zero based month indices, Early Spring is 0
+    public const int Months = 12;
     public const int Autumn = 7;
     public const int LateAutumn = 8;
     public const int LateWinter = 11;
@@ -146,8 +153,8 @@ public class CalendarEvent : SkyblockEvent
         if (MayorMaySchedule(mayor))
             return new TaskAvailability(true,
                 $"Only possible during {window}. Foxy's Extra Event perk schedules an extra {Name} this year, check the in-game calendar.");
-        var next = NextStart(utcNow);
-        return new TaskAvailability(false, $"Only possible during {window}. Possible again {FormatIn(next - utcNow)}.", next);
+        // no relative time in the note: it is cached on the web, clients render NextAvailableAt themselves
+        return new TaskAvailability(false, $"Only possible during {window}.", NextStart(utcNow));
     }
 
     private bool MayorMaySchedule(MayorSnapshot mayor)
@@ -167,15 +174,6 @@ public class CalendarEvent : SkyblockEvent
         if (realStart < utc)
             realStart = realStart.AddYears(1);
         return realStart < next ? realStart : next;
-    }
-
-    internal static string FormatIn(TimeSpan diff)
-    {
-        if (diff.TotalHours < 1)
-            return $"in {Math.Max(1, (int)Math.Ceiling(diff.TotalMinutes))}m";
-        if (diff.TotalDays < 1)
-            return $"in {diff.Hours}h {diff.Minutes}m";
-        return $"in {diff.Days}d {diff.Hours}h";
     }
 }
 
@@ -198,5 +196,42 @@ public class MythologicalRitualEvent : SkyblockEvent
                 "Needs Mayor Diana's Mythological Ritual perk: only possible while Jerry's Perkpocalypse grants Diana's perks.");
         return new TaskAvailability(false,
             $"Needs Mayor Diana's Mythological Ritual perk (current mayor: {mayor.DisplayName}). Possible again once Diana wins an election.");
+    }
+}
+
+/// <summary>Marina's Fishing Festival perk, see <see cref="SkyblockEvents.FishingFestival"/>.</summary>
+public class FishingFestivalEvent : SkyblockEvent
+{
+    public const string PerkName = "Fishing Festival";
+    public const int FestivalDays = 3;
+    private const string Window = "the Fishing Festival, the first 3 days of each SkyBlock month while Marina's Fishing Festival perk is active (as mayor or minister)";
+
+    public override string Name => PerkName;
+
+    public override TaskAvailability Check(DateTime utcNow, MayorSnapshot mayor)
+    {
+        var perkActive = mayor != null && (mayor.HasPerk(PerkName) || mayor.Name == "marina" && mayor.Perks == null);
+        if (IsFestivalDay(utcNow))
+            return perkActive ? TaskAvailability.Always : new TaskAvailability(true, mayor?.Name == null
+                ? $"Only possible during {Window}. The current mayor could not be checked."
+                : $"Only possible during {Window}. The current mayor does not have the perk, it only runs if Marina is the minister (not checked).");
+        if (mayor?.Name == null)
+            return new TaskAvailability(true, $"Only possible during {Window}. The current mayor could not be checked.");
+        if (FoxyMaySchedule(mayor))
+            return new TaskAvailability(true,
+                $"Only possible during {Window}. Foxy's Extra Event perk schedules an extra Fishing Festival this year, check the in-game calendar.");
+        // without the perk on the mayor the next month only has a festival if the minister grants it
+        return new TaskAvailability(false, $"Only possible during {Window}.", perkActive ? NextMonthStart(utcNow) : null);
+    }
+
+    public static bool IsFestivalDay(DateTime utc) => SkyblockCalendar.DayOfYear(utc) % SkyblockCalendar.DaysPerMonth < FestivalDays;
+
+    private static bool FoxyMaySchedule(MayorSnapshot mayor) => mayor.Name == "foxy"
+        && (mayor.Perks == null || mayor.HasPerkMentioning("Extra Event", PerkName));
+
+    private static DateTime NextMonthStart(DateTime utc)
+    {
+        var month = SkyblockCalendar.DayOfYear(utc) / SkyblockCalendar.DaysPerMonth;
+        return SkyblockCalendar.NextStartOf((month + 1) % SkyblockCalendar.Months * SkyblockCalendar.DaysPerMonth, utc);
     }
 }
