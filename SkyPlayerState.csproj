@@ -29,21 +29,21 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Coflnet.Sky.Api.Client" Version="0.8.0" />
-    <PackageReference Include="Coflnet.Sky.Settings.Client" Version="0.3.0" />
+    <PackageReference Include="Coflnet.Sky.Api.Client" Version="0.8.1" />
+    <PackageReference Include="Coflnet.Sky.Settings.Client" Version="0.3.1" />
     <PackageReference Include="Coflnet.Sky.Sniper.Client" Version="0.14.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="10.0.14" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="10.0.15" />
     <PackageReference Include="Coflnet.Sky.Bazaar.Client" Version="0.11.0" />
-    <PackageReference Include="Coflnet.Sky.Crafts.Client" Version="0.14.0" />
+    <PackageReference Include="Coflnet.Sky.Crafts.Client" Version="0.14.1" />
     <PackageReference Include="Coflnet.Sky.Mayor.Client" Version="0.5.0" />
-    <PackageReference Include="Coflnet.Sky.EventBroker.Client" Version="0.6.0" />
+    <PackageReference Include="Coflnet.Sky.EventBroker.Client" Version="0.6.1" />
     <PackageReference Include="Coflnet.Core" Version="0.7.9" />
     <PackageReference Include="EFCore.Cassandra" Version="2.0.5" />
-    <PackageReference Include="Coflnet.Sky.PlayerName.Client" Version="0.2.4" />
-    <PackageReference Include="Coflnet.Sky.Proxy.Client" Version="1.2.0" />
+    <PackageReference Include="Coflnet.Sky.PlayerName.Client" Version="0.2.5" />
+    <PackageReference Include="Coflnet.Sky.Proxy.Client" Version="1.2.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="RestSharp" Version="112.1.0" />
-    <PackageReference Include="StackExchange.Redis" Version="2.13.17" />
+    <PackageReference Include="StackExchange.Redis" Version="2.13.23" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Release'">
@@ -53,7 +53,7 @@
     <PackageReference Include="Moq" Version="4.21.0" />
     <PackageReference Include="AwesomeAssertions" Version="9.6.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="6.3.1" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
   </ItemGroup>
 
 </Project>
