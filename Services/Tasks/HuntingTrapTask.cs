@@ -1,4 +1,5 @@
 using Coflnet.Sky.Commands.MC;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -79,14 +80,30 @@ public class HuntingTrapTask : MethodTask
     protected override List<RequiredItem> RequiredItems =>
         [new() { ItemTag = "RETIA_BASICA", Reason = "Place a Small Huntrap or better" }];
 
-    public override Task<TaskResult> Execute(TaskParams parameters)
-    {
-        var prices = parameters.GetPrices();
-        var bestShard = ShardLocations
-            .Select(s => (s.ShardTag, s.Locations, Price: prices.GetValueOrDefault(s.ShardTag, 0), Hours: CaptureHours(s.Rarity)))
+    /// <summary>The shard paying the most per hour of capture time at <paramref name="priceOf"/>; ShardTag null when none has a price.</summary>
+    private static (string ShardTag, string[] Locations, double Price, double Hours) BestShard(Func<string, double> priceOf)
+        => ShardLocations
+            .Select(s => (s.ShardTag, s.Locations, Price: priceOf(s.ShardTag), Hours: CaptureHours(s.Rarity)))
             .Where(s => s.Price > 0)
             .OrderByDescending(s => s.Price / s.Hours)
             .FirstOrDefault();
+
+    /// <summary>
+    /// The public estimate (TaskEstimator) sees the same upper bound Execute shows: one trap catching the best paying shard
+    /// every capture time. Without it the estimate had no drops and was 0.
+    /// </summary>
+    public override List<MethodDrop> FormulaDropsAt(IReadOnlyDictionary<string, double> prices)
+    {
+        if (prices == null)
+            return [];
+        var best = BestShard(tag => prices.GetValueOrDefault(tag, 0));
+        return best.ShardTag == null ? [] : [new MethodDrop(best.ShardTag, 1.0 / best.Hours)];
+    }
+
+    public override Task<TaskResult> Execute(TaskParams parameters)
+    {
+        var prices = parameters.GetPrices();
+        var bestShard = BestShard(tag => prices.GetValueOrDefault(tag, 0));
 
         if (bestShard.ShardTag == null)
             return Task.FromResult(new TaskResult

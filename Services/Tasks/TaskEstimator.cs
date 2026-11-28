@@ -427,7 +427,7 @@ public class TaskEstimator
     {
         double total = 0;
         var dropRates = new Dictionary<string, double>();
-        foreach (var drop in task.FormulaDropsForTest)
+        foreach (var drop in task.FormulaDropsAt(prices))
         {
             var price = prices?.GetValueOrDefault(drop.ItemTag) ?? 0;
             if (price > 0)
@@ -488,7 +488,7 @@ public class TaskEstimator
 
     /// <summary>Whether any <see cref="MethodTask.FormulaDrops"/> entry has a rate and a price, i.e. the formula rate means something.</summary>
     internal static bool HasPricedFormulaDrop(MethodTask task, Dictionary<string, double> prices)
-        => prices != null && task.FormulaDropsForTest.Any(d => d.RatePerHour > 0 && prices.GetValueOrDefault(d.ItemTag) > 0);
+        => prices != null && task.FormulaDropsAt(prices).Any(d => d.RatePerHour > 0 && prices.GetValueOrDefault(d.ItemTag) > 0);
 
     /// <summary>
     /// Effects-seeded prior multiplier for a bucket: M(E) = product(1 + (m_j-1)*E),
@@ -772,7 +772,7 @@ public class TaskEstimator
         // declared FormulaDrops as the breakdown instead of returning nothing.
         if (itemCounts == null || itemCounts.Count == 0 || wSeconds <= 0)
         {
-            foreach (var drop in task.FormulaDropsForTest.OrderByDescending(d => d.RatePerHour * (prices?.GetValueOrDefault(d.ItemTag) ?? 0)).Take(PublishedDropLimit))
+            foreach (var drop in task.FormulaDropsAt(prices).OrderByDescending(d => d.RatePerHour * (prices?.GetValueOrDefault(d.ItemTag) ?? 0)).Take(PublishedDropLimit))
             {
                 var price = prices?.GetValueOrDefault(drop.ItemTag) ?? 0;
                 drops.Add(new TaskDropRate

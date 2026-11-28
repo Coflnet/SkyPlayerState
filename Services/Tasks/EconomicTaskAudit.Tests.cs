@@ -44,6 +44,64 @@ public class EconomicTaskAuditTests
         TaskEstimator.FormulaRate(task, new() { ["SHARD_VIPER"] = price }).Should().BeApproximately(expected, 1);
     }
 
+    /// <summary>
+    /// Regression (2026-11-28): the Hunting Trap estimate was 0 coins/h because Execute picks the shard and the estimator only
+    /// saw the empty FormulaDrops. The estimator now prices the same pick: the best shard per capture hour.
+    /// </summary>
+    [Test]
+    public async Task HuntingTrapFormulaRate_IsTheBestShardPerCaptureHour_LikeExecute()
+    {
+        var task = new HuntingTrapTask();
+        var prices = new Dictionary<string, double> { ["SHARD_GIANT_ISOPOD"] = 55_141, ["SHARD_HELLWISP"] = 15_111, ["SHARD_XYZ"] = 32_949 };
+        var parameters = Parameters();
+        foreach (var (tag, price) in prices)
+            parameters.CleanPrices[tag] = (long)price;
+
+        var rate = TaskEstimator.FormulaRate(task, prices);
+        var shown = (await task.Execute(parameters)).ProfitPerHour;
+
+        rate.Should().BeApproximately(55_141 / HuntingTrapTask.CaptureHours(HuntingTrapTask.ShardRarity.Epic), 1);
+        shown.Should().Be((int)rate);
+        TaskEstimator.FormulaRate(task, new()).Should().Be(0, "no shard price, no estimate");
+    }
+
+    /// <summary>
+    /// Public tasks whose formula rate is 0 at any price: their estimate is 0 coins/h whenever their community data is too thin
+    /// (fewer than the minimum contributors). Pinned so a new task without a seed is a deliberate choice. Dive Ghast has no
+    /// sourced rate (16 periods with 1-3 shards each in 7 days, 2026-11-28).
+    /// </summary>
+    [Test]
+    public void TasksWithoutAFormulaSeed_AreKnown()
+    {
+        var unseeded = new TaskRegistry().PublicMethodTasks
+            .Where(t => !t.FormulaDropsAt(new AnyPrice()).Any(d => d.RatePerHour > 0))
+            .Select(t => t.GetDetectionSignature().MethodName)
+            .ToList();
+
+        unseeded.Should().BeEquivalentTo(
+        [
+            "Galatea Fishing", "Galatea Fishing (Hunting)", "Moonglade Sea Creatures (Hunting)", "Glacite Walker", "Chill (Hunting)",
+            "Honeybuzz (Hunting)", "Spring Critters (Hunting)", "Howling Spirit (Hunting)", "Lapis Zombie (Hunting)", "Yog and Bal",
+            "Barn Animals", "Farm and Barn Crops", "Pest (Hunting)", "Critter Safari Party (Loot Share)", "Critter Safari: Haunted",
+            "Critter Safari: Forest", "Critter Safari: Cavern", "Critter Safari: Icy", "Mangrove Honey Lathering", "Fig Honey Lathering",
+            "Tewtil (Hunting)", "Torrhus Sea Creatures (Hunting)", "Sepialot and Goldolot (Hunting)", "Ant (Hunting)",
+            "Dive Ghast (Hunting)", "Pest", "Arachne", "Kada Knight", "Red Sand Mining", "Quartz Mining", "Sand Mining", "Glacial Cave"
+        ]);
+    }
+
+    /// <summary>A price of 1 for every tag, so a price-picking formula (Hunting Trap) has something to pick.</summary>
+    private sealed class AnyPrice : IReadOnlyDictionary<string, double>
+    {
+        public double this[string key] => 1;
+        public IEnumerable<string> Keys => [];
+        public IEnumerable<double> Values => [];
+        public int Count => 0;
+        public bool ContainsKey(string key) => true;
+        public bool TryGetValue(string key, out double value) { value = 1; return true; }
+        public IEnumerator<KeyValuePair<string, double>> GetEnumerator() => Enumerable.Empty<KeyValuePair<string, double>>().GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
     [Test]
     public void HubCommunityCenter_LuminoFiberDoesNotProveAFactionQuest()
     {

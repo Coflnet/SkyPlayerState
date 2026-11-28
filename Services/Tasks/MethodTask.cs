@@ -406,6 +406,11 @@ public abstract class MethodTask : ProfitTask
     /// Public accessor for tests to check if this task has formula drops
     /// </summary>
     public List<MethodDrop> FormulaDropsForTest => FormulaDrops;
+    /// <summary>
+    /// The formula drops the estimate prices at <paramref name="prices"/>: <see cref="FormulaDrops"/>, unless the task picks
+    /// its drops by price (a Hunting Trap is placed where the best paying shard is). <paramref name="prices"/> may be null.
+    /// </summary>
+    public virtual List<MethodDrop> FormulaDropsAt(IReadOnlyDictionary<string, double> prices) => FormulaDrops;
     public HashSet<string> LocationsForTest => Locations;
     /// <summary>
     /// Public accessor for tests to check if this task has formula costs
