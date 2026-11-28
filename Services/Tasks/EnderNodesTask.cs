@@ -31,7 +31,7 @@ public class EnderNodesTask : BaseMiningTask
     ];
 
     /// <summary>
-    /// Pearls (raw-equivalent, an Enchanted Ender Pearl is 20) per node drop (Mite Gel or Grand bottle) above which a
+    /// Pearls (raw-equivalent, an Enchanted Ender Pearl is 20) per node drop (see <see cref="NodeDrops"/>) above which a
     /// period is pearl grinding with a node broken on the way. Production 2026-11-26..28: periods with gauntlets or bottles
     /// stay below ~55 (median ~8, nodes drop 5 Enchanted Ender Pearls themselves), Zealot and Voidgloom grinding with a little
     /// Mite Gel is at 85 to 2,100. Stonk miners get no Mite Gel but 5 Enchanted Ender Pearls per pearl drop, which is why
@@ -46,6 +46,13 @@ public class EnderNodesTask : BaseMiningTask
     private static readonly string[] NodeOnlyLoot =
         ["ENDER_GAUNTLET", "ENDSTONE_GEODE", "END_STONE_SHULKER", "RUNE_MAGIC", "SHRIMP_THE_FISH", "TITANIC_EXP_BOTTLE"];
     private const int PearlsPerEnchantedPearl = 20;
+    /// <summary>
+    /// Weight of an Enchanted End Stone or Obsidian as a node drop: nodes and their Nest Endermites give ~1.3 of them per node
+    /// (wiki), a Zealot only through the 2% Ender Chest Zealots. Stonk miners have no Mite Gel, so their blocks carry the
+    /// ratio (6 End Stone, 4 Obsidian, 3 bottles next to 21 Enchanted Ender Pearls). Half weight keeps a zealot period with
+    /// a stray gel and 3 End Stone above the ratio (200 pearls: 80 per drop).
+    /// </summary>
+    private const double CompactedBlockWeight = 0.5;
 
     protected override string MethodName => "Ender Nodes";
     protected override HashSet<string> Locations => ["The End"];
@@ -68,8 +75,10 @@ public class EnderNodesTask : BaseMiningTask
     private static long RawPearls(IReadOnlyDictionary<string, int> items)
         => Gained(items, "ENDER_PEARL") + (long)PearlsPerEnchantedPearl * Gained(items, "ENCHANTED_ENDER_PEARL");
 
-    private static long NodeDrops(IReadOnlyDictionary<string, int> items)
-        => Gained(items, "MITE_GEL") + Gained(items, "GRAND_EXP_BOTTLE");
+    /// <summary>Mite Gel and Grand bottles, plus the compacted blocks a node drops at <see cref="CompactedBlockWeight"/>.</summary>
+    private static double NodeDrops(IReadOnlyDictionary<string, int> items)
+        => Gained(items, "MITE_GEL") + Gained(items, "GRAND_EXP_BOTTLE")
+            + CompactedBlockWeight * (Gained(items, "ENCHANTED_ENDSTONE") + Gained(items, "ENCHANTED_OBSIDIAN"));
 
     // ~500 nodes/h: production 2026-11-26..28 (3.3 h of node periods, 21 players) gave ~480 Mite Gel/h and per Mite Gel
     // 1.08 Enchanted End Stone, 0.33 Enchanted Ender Pearls, 0.17 Grand and 0.08 Enchanted Obsidian. Titanic bottles drop

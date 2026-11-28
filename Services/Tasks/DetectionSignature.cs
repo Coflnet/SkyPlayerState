@@ -75,7 +75,11 @@ public record DetectionSignature(
 {
     /// <summary>True when <see cref="ForeignPeriod"/> calls the period another activity and <see cref="BulkClaim"/> does not claim it.</summary>
     public bool IsForeignPeriod(Dictionary<string, int> items, double minutes)
-        => ForeignPeriod != null && items != null && ForeignPeriod(items) && !(BulkClaim?.IsBulk(items, minutes) ?? false);
+        => ForeignPeriod != null && IsForeignUnlessClaimed(items, BulkClaim?.IsBulk(items, minutes) ?? false);
+
+    /// <summary><see cref="IsForeignPeriod(Dictionary{string, int}, double)"/> with the <see cref="BulkClaim"/> result already known.</summary>
+    public bool IsForeignUnlessClaimed(Dictionary<string, int> items, bool bulkClaimed)
+        => !bulkClaimed && ForeignPeriod != null && items != null && ForeignPeriod(items);
 
     /// <summary>True when <paramref name="zone"/> is in <see cref="Locations"/> and not in <see cref="ExcludedZones"/>.</summary>
     public bool MatchesZone(string zone) => SkyblockZones.Matches(Locations, zone, ExcludedZones);

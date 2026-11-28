@@ -43,19 +43,21 @@ public class EmptyChumBucketsTask : MethodTask
     // Empty bucket or Chum is only the supply, and lava fishers collect Chum as junk
     protected override HashSet<string> DetectionItems => ["FULL_CHUM_BUCKET"];
     /// <summary>
-    /// Consumed Chum per gained Full Chum Bucket that proves crafting (a craft takes 10; production crafts show 5-10 because
-    /// part of the Chum comes from sacks). A placed bucket fills from sea creatures: it books the Empty bucket as spent
-    /// and the Full one as gained, but no Chum, so a spent Empty bucket is no craft evidence (production 2026-11-21..28:
-    /// 5 Bayou fishing periods with "-1 Empty, +1 Full" and 0-3 Chum spent).
+    /// Fishing catches per gained Full Chum Bucket from which the buckets were placed while fishing, not crafted. A placed
+    /// bucket fills with the Chum of several sea creatures, so it comes with dozens of catches: production 2026-11-21..28
+    /// periods with placed buckets (Chum not spent) held 25-220 catches per Full bucket, crafts in a named zone none, and
+    /// crafts mixed into long fishing backlogs (10 Chum spent per bucket) up to 18. Gains only: sessions classify their
+    /// positive counts (costs ride along for the folder), so a consumed Chum can not be the evidence, and a couple of minion
+    /// items next to a craft stay far below.
     /// </summary>
-    private const int MinChumPerCraftedBucket = 5;
+    private const int MinCatchesPerPlacedBucket = 20;
 
-    // only crafting counts: next to fishing catches the period needs the Chum a craft consumes
+    // only crafting counts: buckets that come with a period's worth of fishing were placed while fishing
     protected override bool IsForeignPeriod(IReadOnlyDictionary<string, int> items)
-        => items.Any(kv => kv.Value > 0 && FishingCatches.Contains(kv.Key)) && !ConsumedCraftChum(items);
+        => Catches(items) >= MinCatchesPerPlacedBucket * (long)Math.Max(0, items.GetValueOrDefault("FULL_CHUM_BUCKET"));
 
-    private static bool ConsumedCraftChum(IReadOnlyDictionary<string, int> items)
-        => -items.GetValueOrDefault("CHUM") >= MinChumPerCraftedBucket * Math.Max(1, items.GetValueOrDefault("FULL_CHUM_BUCKET"));
+    private static long Catches(IReadOnlyDictionary<string, int> items)
+        => items.Where(kv => kv.Value > 0 && FishingCatches.Contains(kv.Key)).Sum(kv => (long)kv.Value);
 
     protected override List<MethodDrop> FormulaDrops => [new("FULL_CHUM_BUCKET", BucketsPerHour)];
     protected override List<MethodDrop> FormulaCosts =>

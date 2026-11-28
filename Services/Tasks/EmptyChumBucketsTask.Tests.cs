@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
 using AwesomeAssertions;
+using Coflnet.Sky.PlayerState.Models;
 using NUnit.Framework;
+using Period = Coflnet.Sky.PlayerState.Services.TrackedProfitService.Period;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
 
@@ -23,6 +26,69 @@ public class EmptyChumBucketsTaskTests
 
     private static string Classify(string zone, Dictionary<string, int> items)
         => Classifier.Classify(zone, items, 5, prices: Prices)?.TaskName;
+
+    /// <summary>
+    /// The production path: a session classifies only the gains of its items (costs ride along for the folder), and the
+    /// flushed period's DetectedTask is what gets folded.
+    /// </summary>
+    internal static string ClassifyAsSession(TaskClassifier classifier, string zone, Dictionary<string, int> items,
+        Dictionary<string, double> prices)
+    {
+        var service = new TaskSessionService(classifier);
+        var info = new ExtractedInfo();
+        var start = new DateTime(2026, 11, 28, 12, 0, 0, DateTimeKind.Utc);
+        var fragment = new Period
+        {
+            PlayerUuid = "00000000000000000000000000000001", Location = zone, Server = "test",
+            StartTime = start, EndTime = start.AddMinutes(5), ItemsCollected = new(items)
+        };
+        service.Accumulate(info, fragment.PlayerUuid, fragment, null, prices, fragment.EndTime);
+        var idle = new Period { PlayerUuid = fragment.PlayerUuid, Location = zone, Server = "test", StartTime = fragment.EndTime, EndTime = start.AddMinutes(11), ItemsCollected = new() };
+        var flushed = service.Accumulate(info, fragment.PlayerUuid, idle, null, prices, idle.EndTime);
+        flushed.Should().NotBeNull();
+        return flushed.DetectedTask;
+    }
+
+    private static string Session(string zone, Dictionary<string, int> items) => ClassifyAsSession(Classifier, zone, items, Prices);
+
+    /// <summary>Second review: sessions see no consumed Chum, so a consumed-Chum rule made every craft next to a catch foreign.</summary>
+    [Test]
+    public void CraftSession_NextToFishingOrMinionItems_IsEmptyChumBuckets()
+    {
+        Session("Backwater Bayou", new() { { "RAW_FISH", 60 }, { "CHUM", -130 }, { "EMPTY_CHUM_BUCKET", -13 }, { "FULL_CHUM_BUCKET", 13 } })
+            .Should().Be("Empty Chum Buckets");
+        Session("Your Island", new() { { "INK_SACK", 2 }, { "FULL_CHUM_BUCKET", 13 } }).Should().Be("Empty Chum Buckets");
+        Session("Hub", new() { { "CLAY_BALL", 3 }, { "FULL_CHUM_BUCKET", 13 } }).Should().Be("Empty Chum Buckets");
+    }
+
+    [Test]
+    public void PlacedBucketSession_StaysWithTheFishing()
+    {
+        Session("Backwater Bayou", new() { { "RAW_FISH", 60 }, { "WATER_LILY", 10 }, { "FULL_CHUM_BUCKET", 1 } }).Should().Be("Bayou Fishing");
+        Session("Hub", new() { { "RAW_FISH", 100 }, { "ENCHANTED_RAW_FISH", 5 }, { "PRISMARINE_SHARD", 10 }, { "FULL_CHUM_BUCKET", 1 } })
+            .Should().Be("Water Fishing");
+        Session("Backwater Bayou", new() { { "RAW_FISH", 14 }, { "WATER_LILY", 109 }, { "CLAY_BALL", 2 }, { "EMPTY_CHUM_BUCKET", -1 }, { "FULL_CHUM_BUCKET", 2 } })
+            .Should().Be("Bayou Fishing");
+    }
+
+    [Test]
+    public void PersonalView_AgreesWithTheSession()
+    {
+        Period Make(Dictionary<string, int> items) => new()
+        {
+            Location = "Backwater Bayou", ItemsCollected = items, PlayerUuid = "test",
+            StartTime = new DateTime(2026, 11, 28, 12, 0, 0), EndTime = new DateTime(2026, 11, 28, 12, 5, 0)
+        };
+        var matched = Task.FindMatchingPeriodsForAggregation(new TaskParams
+        {
+            TestTime = new DateTime(2026, 11, 28, 12, 10, 0),
+            LocationProfit = new()
+            {
+                { "Backwater Bayou", [Make(CraftPeriod()), Make(new() { { "RAW_FISH", 60 }, { "WATER_LILY", 10 }, { "FULL_CHUM_BUCKET", 1 } })] }
+            }
+        });
+        matched.Should().ContainSingle().Which.ItemsCollected.Should().ContainKey("CHUM");
+    }
 
     private static Dictionary<string, int> CraftPeriod() =>
         new() { { "CHUM", -130 }, { "EMPTY_CHUM_BUCKET", -13 }, { "FULL_CHUM_BUCKET", 13 } };

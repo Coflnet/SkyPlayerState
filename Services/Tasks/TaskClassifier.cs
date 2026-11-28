@@ -149,8 +149,6 @@ public class TaskClassifier
             var bulkClaimed = sig.BulkClaim?.IsBulk(itemsCollected, minutes) ?? false;
             if (sig.BulkYield?.IsBulk(itemsCollected, minutes) ?? false)
                 continue;
-            if (sig.IsForeignPeriod(itemsCollected, minutes))
-                continue;
             if (!bulkClaimed && sig.IsExcludedAt(location, itemsCollected.Where(kv => kv.Value > 0).Select(kv => kv.Key)))
                 continue;
             List<string> matched = null;
@@ -172,6 +170,9 @@ public class TaskClassifier
             if (sig.RequireShardItems && !hasShard)
                 continue;
             if (sig.ExcludeShardItems && hasShard)
+                continue;
+            // last, only for the signatures that matched so far (see MethodTask.IsForeignPeriod)
+            if (sig.IsForeignUnlessClaimed(itemsCollected, bulkClaimed))
                 continue;
             // evidence items (see DetectionSignature.EvidenceItems): a positive count, or a negative one that is a cost of
             // the task, strengthens the match but their absence never disqualified it above

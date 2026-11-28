@@ -106,6 +106,25 @@ public class EnderNodesTaskTests
             .Should().Be("Ender Nodes");
     }
 
+    /// <summary>Second review: Stonk node mining without rare loot went to Zealots (FD) through its Enchanted Ender Pearls.</summary>
+    [Test]
+    [TestCase("The End")]
+    [TestCase("Void Slate")]
+    public void StonkNodeMiningWithoutRareLoot_IsEnderNodes(string zone)
+    {
+        var items = new Dictionary<string, int>
+        {
+            { "ENCHANTED_ENDSTONE", 6 }, { "ENCHANTED_OBSIDIAN", 4 }, { "GRAND_EXP_BOTTLE", 3 }, { "ENCHANTED_ENDER_PEARL", 21 }
+        };
+        Classify(zone, items).Should().Be("Ender Nodes");
+        EmptyChumBucketsTaskTests.ClassifyAsSession(Classifier, zone, items, Prices).Should().Be("Ender Nodes");
+    }
+
+    [Test]
+    public void PearlGrindingSession_IsNotEnderNodes()
+        => EmptyChumBucketsTaskTests.ClassifyAsSession(Classifier, "Void Sepulture",
+            new() { { "ENDER_PEARL", 200 }, { "MITE_GEL", 1 }, { "ENCHANTED_ENDSTONE", 3 } }, Prices).Should().Be("Zealots (FD)");
+
     [Test]
     public void PersonalView_LeavesOutPearlGrinding()
     {
