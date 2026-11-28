@@ -150,8 +150,8 @@ public class KuudraCostsTests
     }
 
     /// <summary>
-    /// T1-T4 do not estimate paid chests from teeth: their paid chest's guaranteed loot is not sourced (see
-    /// BaseKuudraTask.TeethPerPaidChest), so neither the formula nor the teeth charge a key.
+    /// T1-T4 do not estimate paid chests from teeth: a claim's counts miss the paid chest's guaranteed essence and Kraken
+    /// Shard, worth about the key (see BaseKuudraTask.TeethPerPaidChest), so neither the formula nor the teeth charge a key.
     /// </summary>
     [Test]
     public void LowerTiers_EstimateNoPaidChestsFromTeeth()

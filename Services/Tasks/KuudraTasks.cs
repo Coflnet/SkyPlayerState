@@ -58,11 +58,23 @@ public abstract class BaseKuudraTask : MethodTask
     /// teeth of its rolled slots. A tier that knows it declares the paid chest's guaranteed loot in its
     /// <see cref="FormulaDrops"/> and charges the key in the formula baseline.
     /// <para>
-    /// T1-T4 stay at 0 although their teeth are known (2026-11-28 production, modal teeth of single armor piece claims and
-    /// the Paid Chest menu samples, plus the wiki's rolled teeth: T1 1.0, T2 1.0, T3 2.3, T4 2.4): their paid chest's
-    /// guaranteed Crimson Essence is not sourced (the wiki lists it for Infernal only), and without it the formula
-    /// baseline would charge a key per run against nothing but today's essence rate (T1: 600 essence/h against 12 keys/h,
-    /// about -1.5M/h at production prices).
+    /// Every tooth comes from the paid chest: the free chest holds only Crimson Essence (wiki Kuudra loot tables), so the
+    /// teeth of a claim count paid chests whether or not the free chest was looted too. T1-T4 teeth per paid chest are
+    /// known: 1 / 1 / 2 / 2 guaranteed (wiki Kuudra_Teeth, checked 2026-11-28; production 2026-11-21..28: the most common
+    /// nonzero teeth of single armor piece claims are 1 / 1 / 2 / 2, n = 29 / 63 / 13 / 10) plus rolled teeth (wiki
+    /// Kuudra: Burning 5 at 6.87%, Fiery 5 at 5.7% and 25 at 0.57%), i.e. 1.0 / 1.0 / 2.34 / 2.43.
+    /// </para>
+    /// <para>
+    /// T1-T4 still stay at 0, because charging the key is only half of a paid chest: the rest of its guaranteed loot never
+    /// reaches the counts of a claim. 80 / 200 / 400 / 800-1,000 Crimson Essence (Phantom-Addons KuudraLootTables,
+    /// LoliCatis sky-guide kuudra.txt; the wiki lists it for Infernal only) goes to the essence storage and is booked only
+    /// for an open DungeonRewardListener saw, and the guaranteed Kraken Shard is never booked (0 SHARD_KRAKEN in 3,733
+    /// Kuudra tier periods). At production prices that unseen loot (225k / 359k / 581k / 1.06-1.28M) is about what the key
+    /// costs (177k / 335k / 623k / 1.24M), so a teeth estimate charging the key alone turns a near-zero error into the
+    /// whole key: on the 2026-11-28 aggregates T1 -0.45M/h, T2 -2.2M/h, T3 -10.0M/h, T4 -14.8M/h. A tier may estimate
+    /// once an estimated chest is charged net of its unseen guaranteed loot, and then declares that loot in its
+    /// <see cref="FormulaDrops"/>. T5 already estimates with the key alone: each estimated chest misses its 2,000 essence
+    /// and shard, about 2.36M at those prices.
     /// </para>
     /// </summary>
     protected virtual double TeethPerPaidChest => 0;
