@@ -14,6 +14,12 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 /// </summary>
 public class FormulaCostTopUpTests
 {
+    [SetUp]
+    public void ScheduledChangesOn() => ScheduledChanges.SetNowForTest(ScheduledChanges.FormulaCostTopUpFrom);
+
+    [TearDown]
+    public void ScheduledChangesReset() => ScheduledChanges.SetNowForTest(null);
+
     private const double EyePrice = 1_200_000;
     private const double MoondewPrice = 733_000;
     private const double SunsetPrice = 404_000;

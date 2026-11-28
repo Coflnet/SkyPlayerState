@@ -449,7 +449,9 @@ public class TaskEstimator
     /// </summary>
     internal static double ShrinkTowardFormula(double hG, double rG, double rF, bool informative)
     {
-        var weight = PriorHours(hG, rG, rF, informative);
+        var weight = ScheduledChanges.IsOn(ScheduledChanges.FormulaPriorAgreementFrom)
+            ? PriorHours(hG, rG, rF, informative)
+            : GlobalPseudoHours; // before the start: the fixed weight, whatever the data or formula say
         return hG + weight > 0 ? (hG * rG + weight * rF) / (hG + weight) : rF;
     }
 

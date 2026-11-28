@@ -14,6 +14,12 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 /// </summary>
 public class FormulaPriorTests
 {
+    [SetUp]
+    public void ScheduledChangesOn() => ScheduledChanges.SetNowForTest(ScheduledChanges.FormulaPriorAgreementFrom);
+
+    [TearDown]
+    public void ScheduledChangesReset() => ScheduledChanges.SetNowForTest(null);
+
     private static double Estimate(double hG, double rG, double rF) => TaskEstimator.ShrinkTowardFormula(hG, rG, rF, informative: true);
 
     [Test]

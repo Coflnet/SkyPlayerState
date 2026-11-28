@@ -16,11 +16,18 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 [NonParallelizable]
 public class RarePoolEvidenceTests
 {
+    [SetUp]
+    public void ScheduledChangesOn() => ScheduledChanges.SetNowForTest(ScheduledChanges.FormulaCostTopUpFrom);
+
     private const string Task = "Mithril Mining";
     private static readonly Dictionary<string, double> Prices = new() { ["MITHRIL_ORE"] = 1000, ["TITANIUM_ORE"] = 5000 };
 
     [TearDown]
-    public void Reset() => TaskRateOptions.FullValueRates = false;
+    public void Reset()
+    {
+        TaskRateOptions.FullValueRates = false;
+        ScheduledChanges.SetNowForTest(null);
+    }
 
     private static HashSet<string> Players(int count) => Enumerable.Range(0, count).Select(i => "p" + i).ToHashSet();
 

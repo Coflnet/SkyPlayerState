@@ -581,6 +581,9 @@ public class TaskEstimatorDropPrivacyTests
 [NonParallelizable]
 public class TaskRateCostValuationTests
 {
+    [SetUp]
+    public void ScheduledChangesOn() => ScheduledChanges.SetNowForTest(ScheduledChanges.FormulaCostTopUpFrom);
+
     private static readonly Dictionary<string, double> Prices = new() { ["ESSENCE_WITHER"] = 2000 };
 
     [TearDown]
@@ -588,6 +591,7 @@ public class TaskRateCostValuationTests
     {
         TaskRateOptions.FullValueRates = false;
         CoinValueRegistry.ResetOverridesForTest();
+        ScheduledChanges.SetNowForTest(null);
     }
 
     private static BucketAggregate M6(bool withChestCost) => new()

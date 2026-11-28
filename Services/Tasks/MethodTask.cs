@@ -173,6 +173,8 @@ public abstract class MethodTask : ProfitTask
         // a cost tag observed with a negative count is already inside the caller's item value: only the part of the
         // formula estimate above it is charged, else the same cost would be subtracted twice
         var topUp = FormulaCosts.Sum(c => UnobservedCount(c, itemCounts, scaledHours) * priceOf(c.ItemTag));
+        if (!ScheduledChanges.IsOn(ScheduledChanges.FormulaCostTopUpFrom))
+            return topUp + LegacyWithheldReferenceValue(itemCounts, hours, reference, observedScale, priceOf);
         return topUp + WithheldReferenceValue(itemCounts, hours, reference, priceOf);
     }
 
@@ -191,7 +193,7 @@ public abstract class MethodTask : ProfitTask
     private double UnobservedCount(MethodDrop cost, Dictionary<string, double> counts, double scaledHours)
     {
         var observed = Math.Max(0, -counts.GetValueOrDefault(cost.ItemTag));
-        if (observed > 0 && !TopsUpObservedCosts)
+        if (observed > 0 && !(TopsUpObservedCosts && ScheduledChanges.IsOn(ScheduledChanges.FormulaCostTopUpFrom)))
             return 0;
         return Math.Max(0, cost.RatePerHour * scaledHours - observed);
     }
@@ -208,6 +210,20 @@ public abstract class MethodTask : ProfitTask
         var allowedScale = Math.Max(MaxCostScale, ObservedCostScale(itemCounts, hours));
         var allowedCount = allowedScale * reference.RatePerHour * hours;
         return Math.Max(0, itemCounts[reference.ItemTag] - allowedCount) * priceOf(reference.ItemTag);
+    }
+
+    /// <summary>
+    /// <see cref="WithheldReferenceValue"/> before <see cref="ScheduledChanges.FormulaCostTopUpFrom"/>: only while some cost is
+    /// still estimated (not observed) and the observed scale is above <see cref="MaxCostScale"/>, then everything above it.
+    /// </summary>
+    private double LegacyWithheldReferenceValue(Dictionary<string, double> itemCounts, double hours, MethodDrop reference,
+        double observedScale, Func<string, double> priceOf)
+    {
+        var costIsEstimated = FormulaCosts.Any(c => itemCounts.GetValueOrDefault(c.ItemTag) >= 0);
+        if (!costIsEstimated || observedScale <= MaxCostScale)
+            return 0;
+        var allowedCount = MaxCostScale * reference.RatePerHour * hours;
+        return (itemCounts[reference.ItemTag] - allowedCount) * priceOf(reference.ItemTag);
     }
 
     /// <summary>How many design-time hours of cost the observed spend covers: the largest over the <see cref="FormulaCosts"/>.</summary>

@@ -314,14 +314,17 @@ public class LunarMothTrappingTask : BaseHuntingTask
     /// guarantees a Lunar Moth - so at most 3 x 4 = 12 moths and Moondew an hour. The old seed of 60 was 5x that ceiling.
     /// </summary>
     internal const double BaitsPerHour = 12;
-    protected override List<MethodDrop> FormulaCosts => [new("MOONDEW", BaitsPerHour)];
+    /// <summary>The seed before <see cref="ScheduledChanges.FormulaCostTopUpFrom"/>.</summary>
+    internal const double LegacyBaitsPerHour = 60;
+    private static double Baits => ScheduledChanges.IsOn(ScheduledChanges.FormulaCostTopUpFrom) ? BaitsPerHour : LegacyBaitsPerHour;
+    protected override List<MethodDrop> FormulaCosts => [new("MOONDEW", Baits)];
     // Sunset I is 35% of the baits (wiki); one shard per moth is a rough seed (Hunting Fortune adds more).
     protected override List<MethodDrop> FormulaDrops =>
-        [new("ENCHANTMENT_ULTIMATE_SUNSET_1", BaitsPerHour * 0.35), new("SHARD_LUNAR_MOTH", BaitsPerHour)];
+        [new("ENCHANTMENT_ULTIMATE_SUNSET_1", Baits * 0.35), new("SHARD_LUNAR_MOTH", Baits)];
     // The traps cap the moths an hour, so Sunset I books above that (bought books booked here, a backlog of moths) do not
     // charge more bait than the traps can burn, and their value above the cap is withheld like Fossil Excavation's essence,
     // unless observed Moondew bought them (75 books an hour need about 214 Moondew).
-    protected override double MaxCostScale => 1;
+    protected override double MaxCostScale => ScheduledChanges.IsOn(ScheduledChanges.FormulaCostTopUpFrom) ? 1 : double.PositiveInfinity;
     // Trapping happens next to farming, and a period of 6,000+/h of one enchanted crop (production: ~13k enchanted crops/h) or 30,000+/h
     // of a raw one is a farming period that merely holds a stray moth drop or the spent bait; a baiting period holds far fewer.
     internal static readonly BulkItemRule CropBulk =
