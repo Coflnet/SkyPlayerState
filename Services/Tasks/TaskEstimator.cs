@@ -261,7 +261,7 @@ public class TaskEstimator
             hG = Math.Min(globalHours, GlobalHoursCap);
             rG = RateFromAggregate(task, globalAgg, prices);
         }
-        var rGlobalStar = (hG * rG + GlobalPseudoHours * rFormula) / (hG + GlobalPseudoHours);
+        var rGlobalStar = ShrinkTowardFormula(hG, rG, rFormula, HasPricedFormulaDrop(task, prices));
 
         // tier 2b: stat bucket, shrunk toward the stat-adjusted global. Unknown stats (no player, or a player whose
         // stats did not resolve) would land in the sparse "unknown" bucket, so they use the global tier as is.
@@ -442,6 +442,51 @@ public class TaskEstimator
         var cost = task.ScaledFormulaCost(dropRates, 1.0, tag => prices?.GetValueOrDefault(tag) ?? 0);
         return total - cost;
     }
+
+    /// <summary>
+    /// The global rate <paramref name="rG"/> over <paramref name="hG"/> hours shrunk toward the formula rate by
+    /// <see cref="PriorHours"/> pseudo-hours; the formula rate alone when neither has any weight.
+    /// </summary>
+    internal static double ShrinkTowardFormula(double hG, double rG, double rF, bool informative)
+    {
+        var weight = PriorHours(hG, rG, rF, informative);
+        return hG + weight > 0 ? (hG * rG + weight * rF) / (hG + weight) : rF;
+    }
+
+    /// <summary>
+    /// Pseudo-hours the formula rate <paramref name="rF"/> weighs against the global rate <paramref name="rG"/>. A fixed
+    /// <see cref="GlobalPseudoHours"/> pulled thin tasks toward 0 when the formula has no priced drop or a stale seed
+    /// (Lapis Zombie, Spring Critters; Ruby at 600 Rough for 2.5 coins) and toward a high seed elsewhere. Continuous in
+    /// both rates, the larger of:
+    /// <list type="bullet">
+    /// <item>agreement: <see cref="GlobalPseudoHours"/> at rF = rG, falling with |ln(rF/rG)| to 0 at a 4x ratio, for rates
+    /// of the same sign (two losses agree too);</item>
+    /// <item>a fade that gives any formula the full weight without data and none after <see cref="GlobalPseudoHours"/> hours.</item>
+    /// </list>
+    /// 0 when no formula drop has a price: the formula rate then only holds its costs.
+    /// </summary>
+    internal static double PriorHours(double hG, double rG, double rF, bool informative)
+    {
+        if (!informative)
+            return 0;
+        var fade = GlobalPseudoHours * Math.Max(0, 1 - hG / GlobalPseudoHours);
+        return Math.Max(fade, AgreementHours(rG, rF));
+    }
+
+    /// <summary>Ratio between the rates at which an agreeing formula has lost all its weight.</summary>
+    private const double FormulaDisagreementRatio = 4;
+
+    private static double AgreementHours(double rG, double rF)
+    {
+        if (rG == 0 || rF == 0 || Math.Sign(rG) != Math.Sign(rF))
+            return 0;
+        var distance = Math.Abs(Math.Log(rF / rG)) / Math.Log(FormulaDisagreementRatio);
+        return GlobalPseudoHours * Math.Max(0, 1 - distance);
+    }
+
+    /// <summary>Whether any <see cref="MethodTask.FormulaDrops"/> entry has a rate and a price, i.e. the formula rate means something.</summary>
+    internal static bool HasPricedFormulaDrop(MethodTask task, Dictionary<string, double> prices)
+        => prices != null && task.FormulaDropsForTest.Any(d => d.RatePerHour > 0 && prices.GetValueOrDefault(d.ItemTag) > 0);
 
     /// <summary>
     /// Effects-seeded prior multiplier for a bucket: M(E) = product(1 + (m_j-1)*E),

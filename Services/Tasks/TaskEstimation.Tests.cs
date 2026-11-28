@@ -247,7 +247,9 @@ public class TaskEstimationTests
 
     /// <summary>
     /// Sessions keep negative counts, so an observed SUSPICIOUS_SCRAP cost is already in the item value:
-    /// the formula estimate of the same cost must not be subtracted again.
+    /// the formula estimate of the same cost must not be subtracted again. 60 observed scraps cover the
+    /// scaled formula's 57 (600 essence an hour is 0.24x the seed of 2,520), see FormulaCostTopUpTests for
+    /// an observed spend below it.
     /// </summary>
     [Test]
     public void AggregateRate_CountsAnObservedFormulaCostOnce()
@@ -258,12 +260,12 @@ public class TaskEstimationTests
         var agg = new BucketAggregate
         {
             WSeconds = hours * 3600,
-            ItemCounts = new() { ["ESSENCE_FOSSIL"] = 1200, ["SUSPICIOUS_SCRAP"] = -10 },
+            ItemCounts = new() { ["ESSENCE_FOSSIL"] = 1200, ["SUSPICIOUS_SCRAP"] = -60 },
         };
 
         var rate = RateFromAggregate(agg, prices, task);
 
-        var expected = (1200 * 1_000.0 - 10 * 10_000_000.0) / hours;
+        var expected = (1200 * 1_000.0 - 60 * 10_000_000.0) / hours;
         rate.Should().BeApproximately(expected, 1e-6);
         task.ScaledFormulaCost(agg.ItemCounts, hours, t => prices.GetValueOrDefault(t)).Should().Be(0);
     }
@@ -662,11 +664,11 @@ public class TaskRateCostValuationTests
     }
 
     [Test]
-    public void FossilExcavation_ObservedScrapSpend_LetsTheEssenceCountInFull()
+    public void FossilExcavation_ObservedScrapSpend_LetsTheEssenceItBoughtCount()
     {
-        var cost = new FossilExcavationTask().ScaledFormulaCost(new() { ["ESSENCE_FOSSIL"] = 2520 * 7.2, ["SUSPICIOUS_SCRAP"] = -500 }, 1, FossilPrice);
+        var cost = new FossilExcavationTask().ScaledFormulaCost(new() { ["ESSENCE_FOSSIL"] = 2520 * 7.2, ["SUSPICIOUS_SCRAP"] = -864 }, 1, FossilPrice);
 
-        cost.Should().Be(0, "the scrap cost is observed, so neither side is estimated");
+        cost.Should().BeApproximately(0, 1e-6, "864 observed scraps bought all of the 7.2x essence, so neither side is estimated");
     }
 
     [Test]

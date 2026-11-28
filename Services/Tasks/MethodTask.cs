@@ -169,27 +169,52 @@ public abstract class MethodTask : ProfitTask
         if (reference == null)
             return 0;
         var observedScale = (itemCounts[reference.ItemTag] / hours) / reference.RatePerHour;
-        var scale = CostScale(observedScale);
-        // a cost tag observed with a negative count is already inside the caller's item value: charging
-        // its formula estimate on top would subtract the same cost twice
-        var estimatedCosts = FormulaCosts.Where(c => !IsObservedCost(itemCounts, c.ItemTag)).ToList();
-        var cost = estimatedCosts.Sum(c => priceOf(c.ItemTag) * c.RatePerHour) * scale * hours;
-        return cost + WithheldReferenceValue(itemCounts, hours, reference, observedScale, estimatedCosts.Count > 0, priceOf);
+        var scaledHours = CostScale(observedScale) * hours;
+        // a cost tag observed with a negative count is already inside the caller's item value: only the part of the
+        // formula estimate above it is charged, else the same cost would be subtracted twice
+        var topUp = FormulaCosts.Sum(c => UnobservedCount(c, itemCounts, scaledHours) * priceOf(c.ItemTag));
+        return topUp + WithheldReferenceValue(itemCounts, hours, reference, priceOf);
     }
 
     /// <summary>
-    /// Value of the reference drop above what <see cref="MaxCostScale"/> allows, charged next to the cost: capping only the cost
-    /// while the reference drop counts in full would turn an implausible observation (7x the seed) into a profit. Only while
-    /// the cost is estimated; an observed cost is real, and so is the revenue it was spent for.
+    /// When false, an observed spend of a formula cost tag replaces its whole formula estimate instead of being topped up to
+    /// it: for costs a listener books completely as they happen, where the observed count already is the real cost.
+    /// </summary>
+    protected virtual bool TopsUpObservedCosts => true;
+
+    /// <summary>
+    /// How many of <paramref name="cost"/>'s items the formula expects over <paramref name="scaledHours"/> (design-time
+    /// hours times the cost scale) beyond those observed as spent (a negative count) in <paramref name="counts"/>.
+    /// Before, any observed spend skipped the whole estimate, so a little spent bait undercharged the task many times over.
+    /// Without <see cref="TopsUpObservedCosts"/> any observed spend leaves nothing to estimate.
+    /// </summary>
+    private double UnobservedCount(MethodDrop cost, Dictionary<string, double> counts, double scaledHours)
+    {
+        var observed = Math.Max(0, -counts.GetValueOrDefault(cost.ItemTag));
+        if (observed > 0 && !TopsUpObservedCosts)
+            return 0;
+        return Math.Max(0, cost.RatePerHour * scaledHours - observed);
+    }
+
+    /// <summary>
+    /// Value of the reference drop above what the cost paid for, charged next to the cost: capping only the cost while the
+    /// reference drop counts in full would turn an implausible observation (7x the seed) into a profit. The drop is allowed up
+    /// to <see cref="MaxCostScale"/> times its seed, or further as far as an observed spend bought it (75 Sunset I books an
+    /// hour need about 214 Moondew observed); continuous in the observed counts, which are decayed doubles.
     /// </summary>
     private double WithheldReferenceValue(Dictionary<string, double> itemCounts, double hours, MethodDrop reference,
-        double observedScale, bool costIsEstimated, Func<string, double> priceOf)
+        Func<string, double> priceOf)
     {
-        if (!costIsEstimated || observedScale <= MaxCostScale)
-            return 0;
-        var allowedCount = MaxCostScale * reference.RatePerHour * hours;
-        return (itemCounts[reference.ItemTag] - allowedCount) * priceOf(reference.ItemTag);
+        var allowedScale = Math.Max(MaxCostScale, ObservedCostScale(itemCounts, hours));
+        var allowedCount = allowedScale * reference.RatePerHour * hours;
+        return Math.Max(0, itemCounts[reference.ItemTag] - allowedCount) * priceOf(reference.ItemTag);
     }
+
+    /// <summary>How many design-time hours of cost the observed spend covers: the largest over the <see cref="FormulaCosts"/>.</summary>
+    private double ObservedCostScale(Dictionary<string, double> counts, double hours)
+        => FormulaCosts.Where(c => c.RatePerHour > 0)
+            .Select(c => Math.Max(0, -counts.GetValueOrDefault(c.ItemTag)) / (c.RatePerHour * hours))
+            .DefaultIfEmpty(0).Max();
 
     /// <summary>
     /// The drop <see cref="ScaledFormulaCost"/> scales the costs by in <paramref name="itemCounts"/>, null for a task
@@ -210,9 +235,6 @@ public abstract class MethodTask : ProfitTask
 
     private MethodDrop CostReferenceDrop(Dictionary<string, double> itemCounts)
         => FormulaDrops.FirstOrDefault(d => d.RatePerHour > 0 && itemCounts.ContainsKey(d.ItemTag));
-
-    private static bool IsObservedCost(Dictionary<string, double> itemCounts, string tag)
-        => itemCounts.TryGetValue(tag, out var count) && count < 0;
 
     protected override string WarpCommand => null;
     /// <summary>
@@ -1115,11 +1137,10 @@ public abstract class MethodTask : ProfitTask
         var scale = reference == null ? 0 : CostScale(itemRatesPerHour[reference.ItemTag] / reference.RatePerHour);
         foreach (var cost in FormulaCosts)
         {
-            if (IsObservedCost(itemRatesPerHour, cost.ItemTag))
-                continue; // the observed negative drop already shows this cost
+            // the observed negative drop already shows the spent part of this cost
+            var rate = UnobservedCount(cost, itemRatesPerHour, scale);
             var price = CostPriceOf(cost.ItemTag, prices);
-            if (price <= 0) continue;
-            var rate = cost.RatePerHour * scale;
+            if (price <= 0 || rate <= 0) continue;
             costs.Add(new DropInfo
             {
                 ItemTag = cost.ItemTag,

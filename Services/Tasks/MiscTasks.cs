@@ -56,6 +56,10 @@ public class EnderDragonTask : MethodTask
     ];
     // about 6 fights an hour with 2 own eyes each
     protected override List<MethodDrop> FormulaCosts => [new("SUMMONING_EYE", 12)];
+    // CollectionListener.BookPlacedSummoningEyes books every eye placed in the Dragon's Nest as it happens, so observed eyes
+    // are the whole cost; topping them up to the fragment-scaled formula charged eyes nobody placed (a 15 minute row with 20
+    // Young fragments and 3 placed eyes: 17 more eyes, 20M against 6k of fragments).
+    protected override bool TopsUpObservedCosts => false;
     // the Ender Dragon pet (wiki: dropped by every dragon type)
     protected override HashSet<string> RareDrops => ["PET_ENDER_DRAGON"];
     protected override string Category => "Combat";

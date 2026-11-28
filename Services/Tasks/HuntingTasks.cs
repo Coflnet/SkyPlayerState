@@ -308,9 +308,20 @@ public class LunarMothTrappingTask : BaseHuntingTask
     protected override HashSet<string> DetectionItems => ["ENCHANTMENT_ULTIMATE_SUNSET_1", "SHARD_LUNAR_MOTH"];
     // Spent bait is a negative count: it classifies a period whose loot was booked elsewhere. Crafted Moondew alone is not loot.
     protected override HashSet<string> EvidenceItems => ["MOONDEW"];
-    protected override List<MethodDrop> FormulaCosts => [new("MOONDEW", 60)];
-    // Sunset I is 35% of 60 baits; the shards per moth are a rough seed.
-    protected override List<MethodDrop> FormulaDrops => [new("ENCHANTMENT_ULTIMATE_SUNSET_1", 21), new("SHARD_LUNAR_MOTH", 60)];
+    /// <summary>
+    /// Baits per hour. Wiki (hypixelskyblock.minecraft.wiki, Pests/Pest Trap/Lunar Moth, checked 2026-11-28): up to 3 traps,
+    /// "about 1 Pest per 15 Minutes" whether online or offline, every pest in a trap consumes one bait and Moondew
+    /// guarantees a Lunar Moth - so at most 3 x 4 = 12 moths and Moondew an hour. The old seed of 60 was 5x that ceiling.
+    /// </summary>
+    internal const double BaitsPerHour = 12;
+    protected override List<MethodDrop> FormulaCosts => [new("MOONDEW", BaitsPerHour)];
+    // Sunset I is 35% of the baits (wiki); one shard per moth is a rough seed (Hunting Fortune adds more).
+    protected override List<MethodDrop> FormulaDrops =>
+        [new("ENCHANTMENT_ULTIMATE_SUNSET_1", BaitsPerHour * 0.35), new("SHARD_LUNAR_MOTH", BaitsPerHour)];
+    // The traps cap the moths an hour, so Sunset I books above that (bought books booked here, a backlog of moths) do not
+    // charge more bait than the traps can burn, and their value above the cap is withheld like Fossil Excavation's essence,
+    // unless observed Moondew bought them (75 books an hour need about 214 Moondew).
+    protected override double MaxCostScale => 1;
     // Trapping happens next to farming, and a period of 6,000+/h of one enchanted crop (production: ~13k enchanted crops/h) or 30,000+/h
     // of a raw one is a farming period that merely holds a stray moth drop or the spent bait; a baiting period holds far fewer.
     internal static readonly BulkItemRule CropBulk =

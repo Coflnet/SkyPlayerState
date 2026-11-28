@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -100,10 +101,12 @@ public class RarePoolEvidenceTests
         var thin = await PublishedRate(Aggregate(6, 600_000_000, 1));
         var supported = await PublishedRate(Aggregate(50, 500_000_000, 5));
 
-        // 6 h of 3M/h common + a third of 100M/h rare, blended with 2 pseudo hours of the 4M/h formula; ungated it was 78M/h
-        thin.Should().BeApproximately((6 * (3e6 + 100e6 / 3) + 2 * 4e6) / 8, 1e3).And.BeLessThan(30_000_000);
-        // 50 h (all counted) blended with 2 pseudo hours of the 4M/h formula
-        supported.Should().BeApproximately((50 * 13e6 + 2 * 4e6) / 52, 1e3);
+        // 6 h of 3M/h common + a third of 100M/h rare; ungated it was 78M/h. The 4M/h formula is 9x below it, beyond the 4x
+        // agreement range, and the fade is over after 2 hours of data (TaskEstimator.PriorHours), so it has no weight
+        thin.Should().BeApproximately(3e6 + 100e6 / 3, 1e3).And.BeLessThan(40_000_000);
+        // 50 h, all counted, and the 4M/h formula 3.25x below them keeps a little weight
+        var weight = 2 * (1 - Math.Log(13e6 / 4e6) / Math.Log(4));
+        supported.Should().BeApproximately((50 * 13e6 + weight * 4e6) / (50 + weight), 1e3);
     }
 
     private static async Task<double> PublishedRate(BucketAggregate global)
