@@ -849,7 +849,8 @@ public class FossilExcavationTask : BaseMiningTask
     // listener (one credit per summary line, never through inventory or sacks), so the bound holds on both sides: the scrap
     // cost never exceeds the seeded 120 scraps an hour, and the essence beyond 1x its seed is not counted as revenue
     // either (MethodTask.WithheldReferenceValue). Spent scrap that was actually observed is a negative count and replaces
-    // this estimate, and then the essence counts in full.
+    // that much of this estimate, and it pays for as much essence as it bought: at 7.2x the seed the essence only counts in
+    // full once about 864 scraps an hour are observed.
     protected override double MaxCostScale => 1.0;
     // no gauntlet needed: the excavator is an NPC machine
     protected override List<RequiredItem> RequiredItems => [];
