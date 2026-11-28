@@ -379,6 +379,8 @@ internal static class TaskCatalog
         // Misc tasks
         tasks.Add<ZealotsFdTask>();
         tasks.Add<EnderDragonTask>();
+        tasks.Add<EnderNodesTask>();
+        tasks.Add<EmptyChumBucketsTask>();
         tasks.Add<RedMushroomTask>();
         tasks.Add<BrownMushroomTask>();
         tasks.Add<MyceliumTask>();

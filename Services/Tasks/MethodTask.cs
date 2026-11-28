@@ -633,7 +633,14 @@ public abstract class MethodTask : ProfitTask
     public DetectionSignature GetDetectionSignature() => new(
         MethodName, Locations, DetectionItems, RequireShardItems, ExcludeShardItems, Priority, Category, DerivedFrom,
         MinLocationOnlyItems, EvidenceItems, Fallback, ZoneDetectionItems, ZoneExcludedItems, Hidden, KeepableCostTags(),
-        ExcludedZones, BulkClaim, BulkYield);
+        ExcludedZones, BulkClaim, BulkYield, IsForeignPeriod);
+
+    /// <summary>
+    /// A rule a fixed veto list cannot express (a ratio of two items, a veto lifted by a consumed item): true when the
+    /// period's items show another activity, so it is never this task's unless <see cref="BulkClaim"/> calls it bulk.
+    /// Applies to classification and to <see cref="FindMatchingPeriods"/>. Default: no period is foreign.
+    /// </summary>
+    protected virtual bool IsForeignPeriod(IReadOnlyDictionary<string, int> items) => false;
 
     /// <summary>
     /// Periods this rule calls bulk belong to this task: they count as an item match and lift the <see cref="ZoneExcludedItems"/>
@@ -749,6 +756,7 @@ public abstract class MethodTask : ProfitTask
             : parameters.LocationProfit;
         IEnumerable<Period> candidates = zones.SelectMany(lp => lp.Value
             .Where(p => !signature.IsExcludedAt(lp.Key, p.ItemsCollected?.Where(i => i.Value > 0).Select(i => i.Key) ?? []))
+            .Where(p => !signature.IsForeignPeriod(p.ItemsCollected, (p.EndTime - p.StartTime).TotalMinutes))
             .Where(p =>
             {
                 var detection = signature.DetectionItemsAt(lp.Key);

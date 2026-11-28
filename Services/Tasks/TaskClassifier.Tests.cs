@@ -2155,8 +2155,7 @@ public class TaskClassifierTests
     {
         // production 2026-10-11: one Enchanted End Stone (254 coins) outvalued 33 pearls and took the period
         NameAtPriced("Void Sepulture", new() { { "ENDER_PEARL", 33 }, { "ENCHANTED_ENDSTONE", 1 } }, Round2Prices).Should().Be("Zealots (FD)");
-        NameAtPriced("The End", new() { { "MITE_GEL", 29 }, { "ENCHANTED_ENDSTONE", 36 }, { "ENDER_PEARL", 3 }, { "ENCHANTED_ENDER_PEARL", 1 } }, Round2Prices)
-            .Should().Be("Zealots (FD)");
+        // (a Mite Gel period like "29 Mite Gel, 36 Enchanted End Stone" is node mining, see EnderNodesTaskTests)
         NameAtPriced("Dragon's Nest", new() { { "ENCHANTED_ENDSTONE", 10 }, { "CRYSTAL_FRAGMENT", 2 }, { "ENCHANTED_ENDER_PEARL", 3 } }, Round2Prices)
             .Should().Be("Zealots (FD)");
     }

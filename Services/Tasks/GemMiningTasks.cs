@@ -214,17 +214,24 @@ public class ObsidianMiningTask : BaseMiningTask
     {
         ["The End"] = [.. EndEnemyDrops]
     };
-    /// <summary>What the enemies of The End drop; a period holding any of them is grinding, not mining.</summary>
+    /// <summary>
+    /// What the enemies and the Ender Nodes of The End drop (Mite Gel comes from the Nest Endermites of a node, the Ender
+    /// Gauntlet from the node itself); a period holding any of them is grinding or node mining, not block mining.
+    /// </summary>
     internal static readonly string[] EndEnemyDrops =
     [
         "ENDER_PEARL", "ENCHANTED_ENDER_PEARL", "SUMMONING_EYE", "CRYSTAL_FRAGMENT", "MITE_GEL", "NULL_SPHERE",
         "ENDER_GAUNTLET", "ENDER_BELT", "ENDER_NECKLACE", "ENDER_CLOAK"
     ];
-    private static readonly HashSet<string> FightMarkers = EndEnemyDrops.Except(["ENDER_PEARL", "ENCHANTED_ENDER_PEARL"]).ToHashSet();
+    // Ender Nodes sit in the End Stone and Obsidian, so a bulk miner breaks some of them on the way (Mite Gel, gauntlets).
+    // ObsidianBulk's 30 Enchanted Obsidian/h is low enough that a node mining period (nodes give ~40/h) is a bulk candidate
+    // of Obsidian Mining too; it stays Ender Nodes because its Mite Gel and bottles outvalue the obsidian.
+    private static readonly HashSet<string> FightMarkers =
+        EndEnemyDrops.Except(["ENDER_PEARL", "ENCHANTED_ENDER_PEARL", "MITE_GEL", "ENDER_GAUNTLET"]).ToHashSet();
     /// <summary>
     /// Mined obsidian of The End in bulk (mining runs ~32k/h, a zealot fight holds ~1.9k/h of it). Such a period belongs to
-    /// Obsidian Mining even with pearls in it (Endermen drop them while the player mines). Every other enemy drop
-    /// (eyes, Mite Gel, Null Sphere...) still marks a fight.
+    /// Obsidian Mining even with pearls or node loot in it (Endermen drop pearls while the player mines). Every other enemy
+    /// drop (eyes, Null Sphere...) still marks a fight.
     /// </summary>
     internal static readonly BulkItemRule ObsidianBulk = new(
         new Dictionary<string, int> { ["OBSIDIAN"] = 8000, ["ENCHANTED_OBSIDIAN"] = 30 }, FightMarkers);

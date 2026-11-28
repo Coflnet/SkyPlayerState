@@ -43,7 +43,7 @@ public class TaskCatalogRegistrationTests
         "CrimsonFishingHuntingTask", "CrimsonFishingTask", "CrimsonIsleTask",
         "CritterSafariTask", "CrystalHollowsPowderMiningTask",
         "DailyCrimsonQuestsTask", "DeepCavernsTask", "DiamondMiningTask", "DianaTask",
-        "DreadwingTask", "DrownedTask", "DwarvenMinesMiningTask", "EndStoneMiningTask", "EnderDragonTask", "ExperimentationTableTask",
+        "DreadwingTask", "DrownedTask", "DwarvenMinesMiningTask", "EmptyChumBucketsTask", "EndStoneMiningTask", "EnderDragonTask", "EnderNodesTask", "ExperimentationTableTask",
         "F1Task", "F2Task", "F3Task", "F4Task", "F5Task", "F6Task", "F7Task",
         "FigForagingTask", "FlamingSpiderHuntingTask", "FlamingWormFishingTask", "FlareHuntingTask", "FlintMiningTask", "ForgeClaimsTask", "ForgeTask",
         "GalateaDivingTask", "GalateaFishingHuntingTask", "MoongladeSeaCreaturesHuntingTask", "GalateaFishingMethodTask", "GalateaFishingTask",
