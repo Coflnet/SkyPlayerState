@@ -483,11 +483,19 @@ public class TaskEstimator
                 merged.ItemCounts[tag] = merged.ItemCounts.GetValueOrDefault(tag) + count;
             merged.Contributors.UnionWith(agg.Contributors);
             merged.RareContributors.UnionWith(agg.RareContributors);
-            foreach (var (tag, coins) in agg.RareItemCoins)
-                merged.RareItemCoins[tag] = merged.RareItemCoins.GetValueOrDefault(tag) + coins;
+            MergeRareItems(merged, agg);
             UndeclaredPool.Merge(merged, agg);
         }
         return merged;
+    }
+
+    private static void MergeRareItems(BucketAggregate merged, BucketAggregate agg)
+        => RareRepricing.AddStored(RareTags.Of(merged), RareTags.Of(agg), 1);
+
+    private static void AddInto(Dictionary<string, double> target, Dictionary<string, double> source)
+    {
+        foreach (var (tag, value) in source)
+            target[tag] = target.GetValueOrDefault(tag) + value;
     }
 
     /// <summary>
@@ -506,8 +514,9 @@ public class TaskEstimator
 
     /// <summary>
     /// The components <see cref="RateFromAggregate"/> sums, exposed for the read-only aggregate endpoint.
-    /// <see cref="ScaledRareCoins"/> is the drift scaled pool (promoted undeclared tags included, see
-    /// <see cref="BucketAggregate.EffectiveRareCoins"/>); the rate counts it times <see cref="RareEvidenceScale"/>.
+    /// <see cref="ScaledRareCoins"/> is the rare pool as the rate counts it (promoted undeclared tags included, see
+    /// <see cref="BucketAggregate.EffectiveRareCoins"/>, see <see cref="RarePoolCoins"/>); the rate counts it times
+    /// <see cref="RareEvidenceScale"/>.
     /// </summary>
     internal record AggregateRateParts(double Rate, double LiveItemValue, double FormulaCost, double DriftScale,
         double ScaledResidualCoins, double ScaledRareCoins, double RareEvidenceScale = 1);
@@ -521,10 +530,35 @@ public class TaskEstimator
         var cost = task?.ScaledFormulaCost(agg.ItemCounts, hours, tag => UnitValue(tag, prices)) ?? 0;
         var driftScale = DriftScale(MarketValue(agg.ItemCounts, prices), agg.RefItemValue, agg.ItemRefValue, agg.LegacyRefValue);
         var residual = agg.ResidualCoins * driftScale;
-        var rare = agg.EffectiveRareCoins * driftScale;
+        var rare = RarePoolCoins(agg, prices, driftScale);
         var evidence = RareEvidenceScale(agg.EffectiveRareContributors().Count);
         var rate = (liveItemValue - cost + residual + rare * evidence) / hours;
         return new AggregateRateParts(rate, liveItemValue, cost, driftScale, residual, rare, evidence);
+    }
+
+    /// <summary>
+    /// The aggregate's rare pool as its rate counts it, before <see cref="RareEvidenceScale"/>. With
+    /// <see cref="TaskRateOptions.FullValueRates"/> off the fold time coins times <paramref name="driftScale"/>, as before
+    /// (the drift floor damps the pool there in place of the evidence gate). On, every counted rare tag at its live price
+    /// (<see cref="RareRepricing"/>) and the rest (untraced legacy coins, promoted undeclared tags) at face value, never
+    /// scaled by the price drift of the common items: one wrong common price on one pod scaled the whole pool.
+    /// </summary>
+    internal static double RarePoolCoins(BucketAggregate agg, Dictionary<string, double> prices, double driftScale)
+    {
+        if (!TaskRateOptions.FullValueRates)
+            return agg.EffectiveRareCoins * driftScale;
+        return agg.EffectiveRareCoins + RareRepricing.LiveAdjustment(RareTags.Of(agg), tag => UnitValue(tag, prices));
+    }
+
+    /// <summary><see cref="RarePoolCoins"/> per tag, the promoted undeclared tags (coins only) at face value.</summary>
+    internal static Dictionary<string, double> RarePoolItemCoins(BucketAggregate agg, Dictionary<string, double> prices,
+        double driftScale)
+    {
+        if (!TaskRateOptions.FullValueRates)
+            return agg.EffectiveRareItemCoins().ToDictionary(e => e.Key, e => e.Value * driftScale);
+        var result = RareRepricing.LiveItemCoins(RareTags.Of(agg), tag => UnitValue(tag, prices));
+        AddInto(result, agg.PromotedUndeclaredItemCoins);
+        return result;
     }
 
     /// <summary>
@@ -548,6 +582,7 @@ public class TaskEstimator
     /// cost netting and price-drift scaling, applied to one player's decayed row instead of a
     /// shared bucket aggregate. Item counts are decayed the same as their coin value so the cost -
     /// computed from those same decayed counts - is discounted by the identical staleness factor.
+    /// The rare pool follows <see cref="RarePoolCoins"/>: drift scaled with the flag off, live priced per tag with it on.
     /// </summary>
     internal static double RateFromPlayerStat(MethodTask task, TaskPlayerStatRow row, Dictionary<string, double> prices,
         double decay)
@@ -562,8 +597,21 @@ public class TaskEstimator
         var legacy = TaskAggregateService.IsLegacyRef(row.ItemCounts, row.ItemRefValues);
         var itemRefValue = (row.ItemRefValues?.Values.Sum() ?? 0) * decay;
         var driftScale = DriftScale(MarketValue(decayedCounts, prices), row.RefItemValue * decay, itemRefValue, legacy);
-        var pools = (row.ResidualCoins + row.RareCoins) * decay * driftScale;
+        var pools = (row.ResidualCoins * driftScale + PlayerRareCoins(row, prices, driftScale)) * decay;
         return (liveItemValue - cost + pools) / hours;
+    }
+
+    /// <summary>
+    /// The undecayed rare pool of a player row as <see cref="RarePoolCoins"/> counts it, never below 0. Coins and counts
+    /// decay alike, so the live price ratio of the decayed row is that of the stored one. The tags are bounded by the
+    /// row's pool (<see cref="RareRepricing.BoundedBy"/>): older code decays the pool but not the tags.
+    /// </summary>
+    internal static double PlayerRareCoins(TaskPlayerStatRow row, Dictionary<string, double> prices, double driftScale)
+    {
+        if (!TaskRateOptions.FullValueRates)
+            return row.RareCoins * driftScale;
+        var tags = RareRepricing.BoundedBy(RareTags.Of(row), row.RareCoins);
+        return Math.Max(0, row.RareCoins + RareRepricing.LiveAdjustment(tags, tag => UnitValue(tag, prices)));
     }
 
     /// <summary>
@@ -635,7 +683,8 @@ public class TaskEstimator
 
     /// <summary>
     /// The items of <paramref name="agg"/>'s rare/EV pool as drops, each contributing its share of the pool exactly as
-    /// <see cref="RateParts"/> counts it (drift scale times evidence scale per hour), so the listed drops explain the rate.
+    /// <see cref="RateParts"/> counts it (<see cref="RarePoolItemCoins"/> times evidence scale per hour), so the listed
+    /// drops explain the rate.
     /// Promoted undeclared tags are part of the pool (<see cref="BucketAggregate.EffectiveRareItemCoins"/>), the others
     /// are not counted and not listed. Empty for an aggregate without itemized rare coins.
     /// </summary>
@@ -645,8 +694,8 @@ public class TaskEstimator
         if (agg == null || agg.WSeconds <= 0 || rareItemCoins.Count == 0)
             return [];
         var parts = RateParts(task, agg, prices);
-        var perHour = parts.DriftScale * parts.RareEvidenceScale / (agg.WSeconds / 3600.0);
-        return rareItemCoins.Where(e => e.Value > 0)
+        var perHour = parts.RareEvidenceScale / (agg.WSeconds / 3600.0);
+        return RarePoolItemCoins(agg, prices, parts.DriftScale).Where(e => e.Value > 0)
             .OrderByDescending(e => e.Value)
             .Take(PublishedRareDropLimit)
             .Select(e => RareDrop(e.Key, e.Value * perHour, prices))

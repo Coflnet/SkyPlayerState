@@ -48,6 +48,13 @@ public class BucketAggregate
     /// </summary>
     public Dictionary<string, double> RareItemCoins = new();
     /// <summary>
+    /// Units behind the counted part of <see cref="RareItemCoins"/> (<see cref="RareItemCountedCoins"/>), decayed like
+    /// them; the rate re-prices them live (see <see cref="RareRepricing"/>). Rows written before they were stored add none.
+    /// </summary>
+    public Dictionary<string, double> RareItemCounts = new();
+    /// <summary>The part of <see cref="RareItemCoins"/> per tag that came with <see cref="RareItemCounts"/>; the rest counts at face value.</summary>
+    public Dictionary<string, double> RareItemCountedCoins = new();
+    /// <summary>
     /// The rare pool candidates the task does not declare (see <see cref="TaskPeriodFolder.UndeclaredExpensive"/>): coins
     /// per tag and player, ramp weighted and decayed like <see cref="RareItemCoins"/> but not part of
     /// <see cref="RareCoins"/>. Only the <see cref="PromotedUndeclaredItemCoins"/> count in the rate.
@@ -163,6 +170,10 @@ public class TaskAggregateService
         public readonly ConcurrentDictionary<string, double> ItemCounts = new();
         public readonly ConcurrentDictionary<string, double> ItemRefValues = new();
         public readonly Dictionary<string, double> RareItemCoins = new();
+        /// <summary>units per tag behind <see cref="RareItemCoins"/>, see <see cref="RareTags"/></summary>
+        public readonly Dictionary<string, double> RareItemCounts = new();
+        /// <summary>the coins of <see cref="RareItemCoins"/> that came with <see cref="RareItemCounts"/></summary>
+        public readonly Dictionary<string, double> RareItemCountedCoins = new();
         /// <summary>coins per <see cref="UndeclaredPool.PlayerEntry"/></summary>
         public readonly Dictionary<string, double> UndeclaredPlayerCoins = new();
         public readonly HashSet<string> Players = new();
@@ -212,12 +223,14 @@ public class TaskAggregateService
     /// <see cref="BucketAggregate.RefItemValue"/>), <paramref name="weightedItemRefValues"/> the fold time market value
     /// of each of <paramref name="weightedItemCounts"/>, null when unknown. <paramref name="instance"/> overrides this
     /// instance's row (the backfill). <paramref name="rareItemCoins"/> splits <paramref name="rareCoins"/> by item tag,
+    /// <paramref name="rareItemCounts"/> are their weighted units (a tag without one counts at face value),
     /// <paramref name="undeclaredItemCoins"/> are the period's weighted undeclared pool coins (see <see cref="UndeclaredPool"/>).
     /// </summary>
     public void AddContribution(string task, byte bucket, string playerUuid, double wSeconds,
         Dictionary<string, double> weightedItemCounts, double residualCoins, double rareCoins,
         double refItemValue, Dictionary<string, double> weightedItemRefValues, string traceId, string instance = null,
-        Dictionary<string, double> rareItemCoins = null, Dictionary<string, double> undeclaredItemCoins = null)
+        Dictionary<string, double> rareItemCoins = null, Dictionary<string, double> undeclaredItemCoins = null,
+        Dictionary<string, double> rareItemCounts = null)
     {
         var delta = pending.GetOrAdd((task, bucket, instance), _ => new PendingDelta());
         lock (delta.gate)
@@ -234,9 +247,8 @@ public class TaskAggregateService
             foreach (var (tag, count) in weightedItemCounts)
                 delta.ItemCounts.AddOrUpdate(tag, count, (_, prev) => prev + count);
             AddRefValues(delta, weightedItemRefValues);
-            if (rareItemCoins != null)
-                AddInto(delta.RareItemCoins, rareItemCoins.Where(e => e.Value > 0 && double.IsFinite(e.Value))
-                    .ToDictionary(e => e.Key, e => e.Value));
+            RareRepricing.AddFresh(new RareTags(delta.RareItemCoins, delta.RareItemCounts, delta.RareItemCountedCoins),
+                rareItemCoins, rareItemCounts);
             UndeclaredPool.Add(delta.UndeclaredPlayerCoins, undeclaredItemCoins, playerUuid);
             if (traceId != null && delta.TraceIds.Count < 5)
                 delta.TraceIds.Add(traceId);
@@ -355,6 +367,8 @@ public class TaskAggregateService
                 Players = new HashSet<string>(delta.Players),
                 RarePlayers = new HashSet<string>(delta.RarePlayers),
                 RareItemCoins = new Dictionary<string, double>(delta.RareItemCoins),
+                RareItemCounts = new Dictionary<string, double>(delta.RareItemCounts),
+                RareItemCountedCoins = new Dictionary<string, double>(delta.RareItemCountedCoins),
                 UndeclaredPlayerCoins = new Dictionary<string, double>(delta.UndeclaredPlayerCoins),
                 LastFoldTraceIds = delta.TraceIds.ToList()
             };
@@ -413,20 +427,30 @@ public class TaskAggregateService
             row.Players.UnionWith(existing.Players);
         if (existing.RarePlayers != null)
             (row.RarePlayers ??= new()).UnionWith(existing.RarePlayers);
-        if (existing.RareItemCoins != null)
-            AddInto(row.RareItemCoins ??= new(), existing.RareItemCoins);
+        AddExistingRareItems(row, existing);
         UndeclaredPool.AddExisting(row, existing);
     }
 
-    /// <summary>Rare tags kept per day row. A rare pool rarely holds more; the coins of a trimmed tag stay in the pool, untraced.</summary>
+    /// <summary>
+    /// Rare tags kept per day row (and player row). A rare pool rarely holds more; the coins of a trimmed tag stay in the
+    /// pool, untraced, and its count goes with the tag.
+    /// </summary>
     internal const int RareItemLimit = 40;
 
     private static void TrimRareItems(TaskBucketAggregateRow row)
+        => RareRepricing.Trimmed(RareTags.Of(row), RareItemLimit).WriteTo(row);
+
+    /// <summary>
+    /// Adds the existing row's rare tags to the flushed row, normalized (see <see cref="RareRepricing.CountedPart"/>): the
+    /// coins older code added without units stay at face value.
+    /// </summary>
+    private static void AddExistingRareItems(TaskBucketAggregateRow row, TaskBucketAggregateRow existing)
     {
-        if (row.RareItemCoins == null || row.RareItemCoins.Count <= RareItemLimit)
+        if (existing.RareItemCoins == null)
             return;
-        row.RareItemCoins = row.RareItemCoins.OrderByDescending(e => e.Value).Take(RareItemLimit)
-            .ToDictionary(e => e.Key, e => e.Value);
+        var merged = RareRepricing.Normalized(RareTags.Of(row));
+        RareRepricing.AddStored(merged, RareTags.Of(existing), 1);
+        merged.WriteTo(row);
     }
 
     private static void TrimRow(TaskBucketAggregateRow row, int limit, TrimRules rules)
@@ -628,9 +652,7 @@ public class TaskAggregateService
             agg.Contributors.UnionWith(row.Players);
         if (row.RarePlayers != null)
             agg.RareContributors.UnionWith(row.RarePlayers);
-        if (row.RareItemCoins != null)
-            foreach (var (tag, coins) in row.RareItemCoins)
-                agg.RareItemCoins[tag] = agg.RareItemCoins.GetValueOrDefault(tag) + coins * weight;
+        RareRepricing.AddStored(RareTags.Of(agg), RareTags.Of(row), weight);
         UndeclaredPool.AddRow(agg, row, weight);
     }
 
@@ -764,6 +786,8 @@ public class TaskAggregateService
         await AddColumnIfMissing("task_bucket_aggregates", "itemrefvalues", "map<text, double>");
         await AddColumnIfMissing("task_bucket_aggregates", "rareplayers", "set<text>");
         await AddColumnIfMissing("task_bucket_aggregates", "rareitemcoins", "map<text, double>");
+        await AddColumnIfMissing("task_bucket_aggregates", "rareitemcounts", "map<text, double>");
+        await AddColumnIfMissing("task_bucket_aggregates", "rareitemcountedcoins", "map<text, double>");
         await AddColumnIfMissing("task_bucket_aggregates", "undeclaredplayercoins", "map<text, double>");
         await AddColumnIfMissing("task_bucket_aggregates", "undeclaredtrimmedcoins", "double");
 
@@ -774,6 +798,9 @@ public class TaskAggregateService
         var createdPlayers = new Table<TaskPlayerStatRow>(session, playerMapping);
         await createdPlayers.CreateIfNotExistsAsync();
         await AddColumnIfMissing("task_player_stats", "itemrefvalues", "map<text, double>");
+        await AddColumnIfMissing("task_player_stats", "rareitemcoins", "map<text, double>");
+        await AddColumnIfMissing("task_player_stats", "rareitemcounts", "map<text, double>");
+        await AddColumnIfMissing("task_player_stats", "rareitemcountedcoins", "map<text, double>");
         table = created;
         playerTable = createdPlayers;
     }
@@ -826,6 +853,16 @@ public class TaskBucketAggregateRow
     public HashSet<string> RarePlayers { get; set; } = new();
     /// <summary>rare pool coins per item tag; null on rows written before it existed</summary>
     public Dictionary<string, double> RareItemCoins { get; set; } = new();
+    /// <summary>
+    /// units per tag behind <see cref="RareItemCoins"/>, re-priced live at read; a tag without one counts at face value
+    /// (see <see cref="RareRepricing"/>). Null on rows written before it existed
+    /// </summary>
+    public Dictionary<string, double> RareItemCounts { get; set; } = new();
+    /// <summary>
+    /// the coins of <see cref="RareItemCoins"/> per tag that came with <see cref="RareItemCounts"/>; coins beyond them (added
+    /// by code without counts) count at face value. Null on rows written before it existed
+    /// </summary>
+    public Dictionary<string, double> RareItemCountedCoins { get; set; } = new();
     /// <summary>undeclared pool coins per "TAG|player" (<see cref="UndeclaredPool.PlayerEntry"/>); null on rows written before it existed</summary>
     public Dictionary<string, double> UndeclaredPlayerCoins { get; set; } = new();
     /// <summary>undeclared coins cut off by <see cref="UndeclaredPool.Trim"/>, never counted; null on rows written before it existed</summary>
@@ -866,6 +903,12 @@ public class TaskPlayerStatRow
     public Dictionary<string, double> ItemCounts { get; set; } = new();
     /// <summary>decayed fold time coin value of each stored item count; null on rows written before it existed</summary>
     public Dictionary<string, double> ItemRefValues { get; set; }
+    /// <summary>decayed <see cref="RareCoins"/> per rare tag; null on rows written before it existed (all untraced)</summary>
+    public Dictionary<string, double> RareItemCoins { get; set; }
+    /// <summary>decayed units behind <see cref="RareItemCoins"/> (see <see cref="RareRepricing"/>); null on rows written before it existed</summary>
+    public Dictionary<string, double> RareItemCounts { get; set; }
+    /// <summary>decayed coins of <see cref="RareItemCoins"/> that came with <see cref="RareItemCounts"/>; null on rows written before it existed</summary>
+    public Dictionary<string, double> RareItemCountedCoins { get; set; }
     /// <summary>decayed cumulative minutes on the task, drives the personal blend ramp</summary>
     public double CumulativeMinutes { get; set; }
     public DateTime LastFold { get; set; }
