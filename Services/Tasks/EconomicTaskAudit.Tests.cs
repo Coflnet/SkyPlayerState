@@ -33,15 +33,36 @@ public class EconomicTaskAuditTests
 
     /// <summary>
     /// Regression (2026-11-28): the flip had no FormulaDrops (Execute prices it), so the public estimate showed 0 coins/h even
-    /// at a bazaar price above Kiara's 100k. It is now the same margin: 10 shards per 3 minute run.
+    /// at a bazaar price above Kiara's 100k. It is now the same margin: 10 shards per 3 minute run, and 0 like Execute when
+    /// the flip would lose money.
     /// </summary>
     [TestCase(106_000, 1_200_000)]
-    [TestCase(90_000, -2_000_000)]
+    [TestCase(100_000, 0)]
+    [TestCase(90_000, 0)]
     public void ViperFormulaRate_IsTheMarginOfTenShardsPerRun(double price, double expected)
     {
         var task = new ViperShardNpcFlipTask();
 
         TaskEstimator.FormulaRate(task, new() { ["SHARD_VIPER"] = price }).Should().BeApproximately(expected, 1);
+    }
+
+    /// <summary>Review regression: without a shard price the formula charged 200 shards x 100k and no revenue (-20M/h).</summary>
+    [Test]
+    public void ViperFormulaRate_WithoutAShardPrice_IsZero()
+    {
+        var task = new ViperShardNpcFlipTask();
+
+        TaskEstimator.FormulaRate(task, new()).Should().Be(0);
+        TaskEstimator.FormulaRate(task, null).Should().Be(0);
+        TaskEstimator.HasPricedFormulaDrop(task, new() { ["SHARD_VIPER"] = 90_000 }).Should().BeFalse();
+    }
+
+    [Test]
+    public void ViperCommunityRate_WithoutAShardPrice_ChargesNoNpcPrice()
+    {
+        var aggregate = new BucketAggregate { WSeconds = 600, ItemCounts = new() { ["SHARD_VIPER"] = 10 } };
+
+        TaskEstimator.RateFromAggregate(new ViperShardNpcFlipTask(), aggregate, new()).Should().Be(0);
     }
 
     /// <summary>
@@ -89,15 +110,16 @@ public class EconomicTaskAuditTests
         ]);
     }
 
-    /// <summary>A price of 1 for every tag, so a price-picking formula (Hunting Trap) has something to pick.</summary>
+    /// <summary>A high price for every tag, so a price dependent formula (Hunting Trap, a profitable Viper flip) has drops.</summary>
     private sealed class AnyPrice : IReadOnlyDictionary<string, double>
     {
-        public double this[string key] => 1;
+        private const double Price = 1e9;
+        public double this[string key] => Price;
         public IEnumerable<string> Keys => [];
         public IEnumerable<double> Values => [];
         public int Count => 0;
         public bool ContainsKey(string key) => true;
-        public bool TryGetValue(string key, out double value) { value = 1; return true; }
+        public bool TryGetValue(string key, out double value) { value = Price; return true; }
         public IEnumerator<KeyValuePair<string, double>> GetEnumerator() => Enumerable.Empty<KeyValuePair<string, double>>().GetEnumerator();
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
