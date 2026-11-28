@@ -87,11 +87,18 @@ public abstract class BaseKuudraTask : MethodTask
             return 0;
         var confirmed = Math.Max(0, -itemCounts.GetValueOrDefault(PseudoItems.KUUDRA_PAID_CHEST));
         var fromInventory = Math.Max(0, -itemCounts.GetValueOrDefault(key.Tag));
-        var unconfirmed = Math.Max(0, EstimatedPaidChests(itemCounts) - confirmed - fromInventory);
+        var unconfirmed = Math.Max(0, Math.Min(EstimatedPaidChests(itemCounts), MaxPaidChests(hours)) - confirmed - fromInventory);
         var materials = KuudraKeyCost.MaterialValue(key, priceOf);
         var fullKeys = (fromInventory + unconfirmed) * (key.Coins + materials);
         return fullKeys + confirmed * materials + UnvaluedBookedCoins(itemCounts, key, confirmed, priceOf);
     }
+
+    /// <summary>
+    /// The most paid chests <paramref name="hours"/> of a player's time can hold: one per run at twice the formula's run
+    /// rate. Teeth also reach the counts without a paid chest open (2026-11-28: 2,000 teeth over 4.5 h of T5 charged 625
+    /// keys, -190 M/h), so their estimate never charges more chests than runs.
+    /// </summary>
+    private double MaxPaidChests(double hours) => 2 * ActionsPerHour * hours;
 
     private double EstimatedPaidChests(Dictionary<string, double> itemCounts)
         => EstimatesPaidChests ? Math.Max(0, itemCounts.GetValueOrDefault("KUUDRA_TEETH")) / TeethPerPaidChest : 0;

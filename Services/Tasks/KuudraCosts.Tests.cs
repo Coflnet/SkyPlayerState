@@ -139,6 +139,23 @@ public class KuudraCostsTests
         T5.ScaledFormulaCost(Chests(3), 0.5, PriceOf).Should().BeApproximately(3 * InfernalKeyValue, 1);
     }
 
+    /// <summary>
+    /// Production 2026-11-28: 2,000 teeth over 4.48 h of T5 stood for 625 paid chests (1.52B of keys, -190 M/h). A player
+    /// opens at most one paid chest per run, so the estimate is capped at twice the formula's 5 runs/h.
+    /// </summary>
+    [Test]
+    public void ScaledFormulaCost_TeethBeyondTheRunsAnHourCanHold_ChargeAtMostOneChestPerRun()
+    {
+        var cost = T5.ScaledFormulaCost(Chests(625), 4.48, PriceOf);
+
+        cost.Should().BeApproximately(2 * 5 * 4.48 * InfernalKeyValue, 1);
+    }
+
+    [Test]
+    public void ScaledFormulaCost_ConfirmedOpensCountTowardTheRunCap()
+        => T5.ScaledFormulaCost(Chests(100, confirmed: 8), 1, ChestCostValued)
+            .Should().BeApproximately(2 * InfernalKeyValue + 8 * Materials, 1, "10 chests fit into an hour, 8 of them confirmed");
+
     /// <summary>Review probe: 50 runs with one confirmed open turned the whole key estimate off (-11.46M/h to +1.03M/h).</summary>
     [Test]
     public void ScaledFormulaCost_PartialConfirmation_StillChargesTheUnconfirmedChests()
