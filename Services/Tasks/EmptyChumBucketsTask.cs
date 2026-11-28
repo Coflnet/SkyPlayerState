@@ -4,7 +4,7 @@ using System.Linq;
 namespace Coflnet.Sky.PlayerState.Tasks;
 
 /// <summary>
-/// Turning Empty Chum Buckets into Full Chum Buckets and selling those (community wiki "Chum Bucket", checked 2026-11-28:
+/// Crafting Empty Chum Buckets into Full Chum Buckets and selling those (community wiki "Chum Bucket", checked 2026-11-28:
 /// Moby in the Glowing Mushroom Cave sells an Empty Chum Bucket for 2,000 coins and 8 Glowing Mushrooms; one Empty Chum
 /// Bucket and 10 Chum craft a Full Chum Bucket, which players buy on the Bazaar to trade at Moby). Bazaar 2026-11-28:
 /// Full 18,005 sell price against Empty 10,000 and Chum 0.2, while an Empty bucket from Moby costs ~11,800 at the
@@ -27,11 +27,26 @@ public class EmptyChumBucketsTask : MethodTask
     private static readonly HashSet<string> AnyIsland =
         [.. SkyblockZones.IslandInfo.Keys.Where(island => island is not ("Rift" or "Jerry")), "Your Island"];
 
+    /// <summary>
+    /// Catches of fishing: a bucket placed while fishing fills up and is picked up full, which belongs to the fishing task
+    /// (one Full Chum Bucket outvalues a period of fish and would take it).
+    /// </summary>
+    private static readonly HashSet<string> FishingCatches =
+    [
+        .. FishingEvidence.Water, .. FishingEvidence.Lava, .. DeclaredLoot.BayouSeaCreatures, .. SpookyFishingEvidence.Exclusive
+    ];
+
     protected override string MethodName => "Empty Chum Buckets";
     protected override HashSet<string> Locations => AnyIsland;
     // a gained Full Chum Bucket marks the method (bucket purchases are taken off the counts by PurchaseDiscount); a positive
     // Empty bucket or Chum is only the supply, and lava fishers collect Chum as junk
     protected override HashSet<string> DetectionItems => ["FULL_CHUM_BUCKET"];
+    // only crafting/filling counts: next to fishing catches the period needs a consumed Empty bucket or Chum
+    protected override bool IsForeignPeriod(IReadOnlyDictionary<string, int> items)
+        => items.Any(kv => kv.Value > 0 && FishingCatches.Contains(kv.Key)) && !ConsumedCraftInput(items);
+
+    private static bool ConsumedCraftInput(IReadOnlyDictionary<string, int> items)
+        => items.GetValueOrDefault("EMPTY_CHUM_BUCKET") < 0 || items.GetValueOrDefault("CHUM") < 0;
     protected override List<MethodDrop> FormulaDrops => [new("FULL_CHUM_BUCKET", BucketsPerHour)];
     protected override List<MethodDrop> FormulaCosts =>
         [new("EMPTY_CHUM_BUCKET", BucketsPerHour), new("CHUM", BucketsPerHour * ChumPerBucket)];
@@ -40,7 +55,8 @@ public class EmptyChumBucketsTask : MethodTask
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Chum_Bucket";
     protected override string HowTo =>
         "Get Empty Chum Buckets from Moby in the Glowing Mushroom Cave (2,000 coins and 8 Glowing Mushrooms each) or with a Bazaar buy order. "
-        + "Fill each bucket with 10 Chum: craft it together with 10 Chum, or place it next to water while you fish and pick it up once it holds 10 Chum. "
+        + "Craft each Empty Chum Bucket together with 10 Chum into a Full Chum Bucket; Chum is fishing junk and cheap on the Bazaar. "
+        + "A bucket that fills up while placed next to you during fishing is counted with your fishing, not here. "
         + "Sell the Full Chum Buckets on the Bazaar, players buy them to trade at Moby. "
         + "Compare the prices first: the profit is the Full Chum Bucket price minus what the empty bucket and the 10 Chum cost you.";
     protected override string ActionUnit => "buckets";

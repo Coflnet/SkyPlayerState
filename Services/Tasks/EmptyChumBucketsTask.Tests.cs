@@ -41,6 +41,20 @@ public class EmptyChumBucketsTaskTests
             { "RED_MUSHROOM", -24 }, { "BUILDER_BROWN_MUSHROOM", -56 }, { "GLOWING_MUSHROOM", 24 }, { "CHUM", -60 }, { "FULL_CHUM_BUCKET", 12 }
         }).Should().Be("Empty Chum Buckets");
 
+    /// <summary>Review probes: a bucket placed while fishing and picked up full outvalued the fish.</summary>
+    [Test]
+    public void PlacedBucketPickedUpWhileFishing_StaysWithTheFishing()
+    {
+        Classify("Backwater Bayou", new() { { "RAW_FISH", 60 }, { "WATER_LILY", 10 }, { "FULL_CHUM_BUCKET", 1 } }).Should().Be("Bayou Fishing");
+        Classify("Hub", new() { { "RAW_FISH", 100 }, { "ENCHANTED_RAW_FISH", 5 }, { "PRISMARINE_SHARD", 10 }, { "FULL_CHUM_BUCKET", 1 } })
+            .Should().Be("Water Fishing");
+    }
+
+    [Test]
+    public void CraftingNextToFishingCatches_IsEmptyChumBuckets()
+        => Classify("Backwater Bayou", new() { { "RAW_FISH", 60 }, { "CHUM", -130 }, { "EMPTY_CHUM_BUCKET", -13 }, { "FULL_CHUM_BUCKET", 13 } })
+            .Should().Be("Empty Chum Buckets");
+
     [Test]
     public void StaleLocationDump_StaysUnknownLocation()
         => Classify("Unknown", new() { { "FULL_CHUM_BUCKET", 2 }, { "GLOWING_MUSHROOM", 40 }, { "RED_MUSHROOM", 300 } })

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -29,6 +30,15 @@ public class EnderNodesTask : BaseMiningTask
         "SHARD_OBSIDIAN_DEFENDER", .. T4VoidgloomsTask.BossDrops, .. EnderDragonTask.DragonLoot
     ];
 
+    /// <summary>
+    /// Pearls (raw-equivalent, an Enchanted Ender Pearl is 20) per node drop (Mite Gel or Grand bottle) above which a
+    /// period is pearl grinding with a node broken on the way. Production 2026-11-26..28: periods with gauntlets or bottles
+    /// stay below ~55 (median ~8, nodes drop 5 Enchanted Ender Pearls themselves), Zealot and Voidgloom grinding with a little
+    /// Mite Gel is at 85 to 2,100.
+    /// </summary>
+    internal const int MaxPearlsPerNodeDrop = 60;
+    private const int PearlsPerEnchantedPearl = 20;
+
     protected override string MethodName => "Ender Nodes";
     protected override HashSet<string> Locations => ["The End"];
     // Mite Gel, gauntlets, geodes, shulkers, Magical Runes and Shrimp only drop from nodes; Grand/Titanic exp bottles
@@ -40,6 +50,18 @@ public class EnderNodesTask : BaseMiningTask
     ];
     protected override Dictionary<string, HashSet<string>> ZoneExcludedItems => new() { ["The End"] = [.. FightDrops] };
     protected override BulkItemRule BulkClaim => NodeBulk;
+    // one Mite Gel is worth ~560 pearls, so without this a zealot period with a gel or two outvalued its pearls
+    protected override bool IsForeignPeriod(IReadOnlyDictionary<string, int> items)
+        => RawPearls(items) > MaxPearlsPerNodeDrop * NodeDrops(items);
+
+    private static int Gained(IReadOnlyDictionary<string, int> items, string tag)
+        => Math.Max(0, items.GetValueOrDefault(tag));
+
+    private static long RawPearls(IReadOnlyDictionary<string, int> items)
+        => Gained(items, "ENDER_PEARL") + (long)PearlsPerEnchantedPearl * Gained(items, "ENCHANTED_ENDER_PEARL");
+
+    private static long NodeDrops(IReadOnlyDictionary<string, int> items)
+        => Gained(items, "MITE_GEL") + Gained(items, "GRAND_EXP_BOTTLE");
     // ~500 nodes/h: production 2026-11-26..28 (3.3 h of node periods, 21 players) gave ~480 Mite Gel/h and per Mite Gel
     // 1.08 Enchanted End Stone, 0.33 Enchanted Ender Pearls, 0.17 Grand and 0.08 Enchanted Obsidian. Titanic bottles drop
     // from 1.31% of the obsidian nodes (wiki), about a quarter of the nodes mined.

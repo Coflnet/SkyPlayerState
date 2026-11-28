@@ -223,7 +223,9 @@ public class ObsidianMiningTask : BaseMiningTask
         "ENDER_PEARL", "ENCHANTED_ENDER_PEARL", "SUMMONING_EYE", "CRYSTAL_FRAGMENT", "MITE_GEL", "NULL_SPHERE",
         "ENDER_GAUNTLET", "ENDER_BELT", "ENDER_NECKLACE", "ENDER_CLOAK"
     ];
-    // Ender Nodes sit in the End Stone and Obsidian, so a bulk miner breaks some of them on the way (Mite Gel, gauntlets)
+    // Ender Nodes sit in the End Stone and Obsidian, so a bulk miner breaks some of them on the way (Mite Gel, gauntlets).
+    // ObsidianBulk's 30 Enchanted Obsidian/h is low enough that a node mining period (nodes give ~40/h) is a bulk candidate
+    // of Obsidian Mining too; it stays Ender Nodes because its Mite Gel and bottles outvalue the obsidian.
     private static readonly HashSet<string> FightMarkers =
         EndEnemyDrops.Except(["ENDER_PEARL", "ENCHANTED_ENDER_PEARL", "MITE_GEL", "ENDER_GAUNTLET"]).ToHashSet();
     /// <summary>

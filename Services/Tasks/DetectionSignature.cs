@@ -49,6 +49,9 @@ namespace Coflnet.Sky.PlayerState.Tasks;
 /// <param name="BulkYield">
 /// Classification only (see MethodTask.BulkYield): a period this rule calls bulk is never attributed to this task.
 /// </param>
+/// <param name="ForeignPeriod">
+/// See MethodTask.IsForeignPeriod: true for a period whose items show another activity; lifted by <see cref="BulkClaim"/>.
+/// </param>
 public record DetectionSignature(
     string MethodName,
     HashSet<string> Locations,
@@ -67,8 +70,13 @@ public record DetectionSignature(
     HashSet<string> CostItems = null,
     HashSet<string> ExcludedZones = null,
     BulkItemRule BulkClaim = null,
-    BulkItemRule BulkYield = null)
+    BulkItemRule BulkYield = null,
+    System.Func<IReadOnlyDictionary<string, int>, bool> ForeignPeriod = null)
 {
+    /// <summary>True when <see cref="ForeignPeriod"/> calls the period another activity and <see cref="BulkClaim"/> does not claim it.</summary>
+    public bool IsForeignPeriod(Dictionary<string, int> items, double minutes)
+        => ForeignPeriod != null && items != null && ForeignPeriod(items) && !(BulkClaim?.IsBulk(items, minutes) ?? false);
+
     /// <summary>True when <paramref name="zone"/> is in <see cref="Locations"/> and not in <see cref="ExcludedZones"/>.</summary>
     public bool MatchesZone(string zone) => SkyblockZones.Matches(Locations, zone, ExcludedZones);
 

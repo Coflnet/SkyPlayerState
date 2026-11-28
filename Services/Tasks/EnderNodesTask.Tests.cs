@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using Period = Coflnet.Sky.PlayerState.Services.TrackedProfitService.Period;
 using AwesomeAssertions;
 using NUnit.Framework;
 
@@ -69,6 +71,43 @@ public class EnderNodesTaskTests
         Classify("Dragon's Nest", new() { { "ENDER_PEARL", 400 }, { "SUMMONING_EYE", 1 }, { "MITE_GEL", 4 } }).Should().Be("Zealots (FD)");
         Classify("Dragon's Nest", new() { { "ENDER_PEARL", 1562 }, { "MITE_GEL", 4 }, { "SHARD_SPECIAL_ZEALOT", 3 }, { "SHARD_ZEALOT", 2 } })
             .Should().NotBe("Ender Nodes");
+    }
+
+    /// <summary>Review probes: one Mite Gel (1.8k) outvalued ~560 pearls of an eye-less, shard-less zealot period.</summary>
+    [Test]
+    public void PearlGrindingWithALittleMiteGel_IsNotEnderNodes()
+    {
+        Classify("Dragon's Nest", new() { { "ENDER_PEARL", 400 }, { "ENCHANTED_ENDER_PEARL", 3 }, { "MITE_GEL", 1 } }).Should().Be("Zealots (FD)");
+        Classify("Dragon's Nest", new() { { "ENDER_PEARL", 1562 }, { "MITE_GEL", 4 } }).Should().Be("Zealots (FD)");
+        Classify("The End", new() { { "ENCHANTED_ENDER_PEARL", 20 }, { "MITE_GEL", 2 } }).Should().Be("Zealots (FD)");
+        Classify("Void Sepulture", new() { { "ENDER_PEARL", 200 }, { "MITE_GEL", 1 }, { "ENCHANTED_ENDSTONE", 3 } }).Should().Be("Zealots (FD)");
+    }
+
+    [Test]
+    public void NodeMiningWithEndermanPearls_BelowTheRatio_StaysEnderNodes()
+    {
+        // production: 195 pearls + 4 Enchanted Ender Pearls next to 23 Mite Gel and 4 bottles = 10 raw pearls per node drop
+        Classify("The End", new() { { "ENDER_PEARL", 195 }, { "ENCHANTED_ENDER_PEARL", 4 }, { "MITE_GEL", 23 }, { "GRAND_EXP_BOTTLE", 4 }, { "ENDER_GAUNTLET", 1 } })
+            .Should().Be("Ender Nodes");
+        // 62.5 raw pearls per node drop, but 40 Mite Gel in 5 minutes (240/h when rated over the 10 minute floor) is node mining
+        Classify("The End", new() { { "ENCHANTED_ENDER_PEARL", 125 }, { "MITE_GEL", 40 } }).Should().Be("Ender Nodes");
+    }
+
+    [Test]
+    public void PersonalView_LeavesOutPearlGrinding()
+    {
+        Period Make(Dictionary<string, int> items) => new()
+        {
+            Location = "The End", ItemsCollected = items, PlayerUuid = "test",
+            StartTime = new DateTime(2026, 11, 28, 12, 0, 0), EndTime = new DateTime(2026, 11, 28, 12, 5, 0)
+        };
+        var task = (MethodTask)Registry.GetByName("Ender Nodes");
+        var matched = task.FindMatchingPeriodsForAggregation(new TaskParams
+        {
+            TestTime = new DateTime(2026, 11, 28, 12, 10, 0),
+            LocationProfit = new() { { "The End", [Make(NodePeriod()), Make(new() { { "ENDER_PEARL", 400 }, { "MITE_GEL", 1 } })] } }
+        });
+        matched.Should().ContainSingle().Which.ItemsCollected.Should().ContainKey("ENDER_GAUNTLET");
     }
 
     [Test]

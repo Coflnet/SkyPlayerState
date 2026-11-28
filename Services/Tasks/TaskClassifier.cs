@@ -149,6 +149,8 @@ public class TaskClassifier
             var bulkClaimed = sig.BulkClaim?.IsBulk(itemsCollected, minutes) ?? false;
             if (sig.BulkYield?.IsBulk(itemsCollected, minutes) ?? false)
                 continue;
+            if (sig.IsForeignPeriod(itemsCollected, minutes))
+                continue;
             if (!bulkClaimed && sig.IsExcludedAt(location, itemsCollected.Where(kv => kv.Value > 0).Select(kv => kv.Key)))
                 continue;
             List<string> matched = null;
