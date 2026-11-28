@@ -641,18 +641,19 @@ public class TaskRateCostValuationTests
     }
 
     private static double FossilPrice(string tag) => tag == "SUSPICIOUS_SCRAP" ? 74_000 : tag == "ESSENCE_FOSSIL" ? 1_000 : 0;
+    private const double FossilSeed = FossilExcavationTask.EssencePerScrap * FossilExcavationTask.ScrapsPerHour;
 
     /// <summary>Regression: chat-credited ESSENCE_FOSSIL at 7.2x its seed scaled the scrap cost to 864 scraps an hour (-19M/h).</summary>
     [Test]
     public void FossilExcavation_ScrapCostIsNeverScaledAboveTheSeededSpend()
     {
         var task = new FossilExcavationTask();
-        var observed = new Dictionary<string, double> { ["ESSENCE_FOSSIL"] = 2520 * 7.2 };
+        var observed = new Dictionary<string, double> { ["ESSENCE_FOSSIL"] = FossilSeed * 7.2 };
 
         var cost = task.ScaledFormulaCost(observed, 1, FossilPrice);
 
         var scrapCost = 120 * 74_000;
-        var withheldEssence = (2520 * 7.2 - 2520) * 1_000;
+        var withheldEssence = (FossilSeed * 7.2 - FossilSeed) * 1_000;
         cost.Should().BeApproximately(scrapCost + withheldEssence, 1);
     }
 
@@ -663,14 +664,14 @@ public class TaskRateCostValuationTests
         var task = new FossilExcavationTask();
         double Net(double essence) => essence * 1_000 - task.ScaledFormulaCost(new() { ["ESSENCE_FOSSIL"] = essence }, 1, FossilPrice);
 
-        Net(2520 * 7.2).Should().BeApproximately(Net(2520), 1);
-        Net(2520 * 7.2).Should().BeApproximately(2520 * 1_000 - 120 * 74_000, 1);
+        Net(FossilSeed * 7.2).Should().BeApproximately(Net(FossilSeed), 1);
+        Net(FossilSeed * 7.2).Should().BeApproximately(FossilSeed * 1_000 - 120 * 74_000, 1);
     }
 
     [Test]
     public void FossilExcavation_ObservedScrapSpend_LetsTheEssenceItBoughtCount()
     {
-        var cost = new FossilExcavationTask().ScaledFormulaCost(new() { ["ESSENCE_FOSSIL"] = 2520 * 7.2, ["SUSPICIOUS_SCRAP"] = -864 }, 1, FossilPrice);
+        var cost = new FossilExcavationTask().ScaledFormulaCost(new() { ["ESSENCE_FOSSIL"] = FossilSeed * 7.2, ["SUSPICIOUS_SCRAP"] = -864 }, 1, FossilPrice);
 
         cost.Should().BeApproximately(0, 1e-6, "864 observed scraps bought all of the 7.2x essence, so neither side is estimated");
     }
@@ -678,7 +679,7 @@ public class TaskRateCostValuationTests
     [Test]
     public void FossilExcavation_ScrapCostStillScalesDown_WhenEssenceIsBelowTheSeed()
     {
-        var cost = new FossilExcavationTask().ScaledFormulaCost(new() { ["ESSENCE_FOSSIL"] = 1260 }, 1, _ => 1000);
+        var cost = new FossilExcavationTask().ScaledFormulaCost(new() { ["ESSENCE_FOSSIL"] = FossilSeed / 2 }, 1, _ => 1000);
 
         cost.Should().BeApproximately(60 * 1000, 1e-6);
     }

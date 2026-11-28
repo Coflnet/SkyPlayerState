@@ -146,12 +146,29 @@ public class ViperShardNpcFlipTask : LimitedTask
     protected override HashSet<string> Locations => ["North Reaches"];
     protected override HashSet<string> DetectionItems => ["SHARD_VIPER"];
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Kiara";
-    protected override List<MethodDrop> FormulaDrops => []; // overriding Execute for custom calc
+    // Execute prices the flip itself; this seed is what the public estimate (TaskEstimator.FormulaRate) sees: 10 shards per
+    // ~3 minute run, each charged Kiara's 100k by ScaledFormulaCost below. Without it the estimate was 0 at any price.
+    protected override List<MethodDrop> FormulaDrops => [new("SHARD_VIPER", ShardsPerRun * 60 / MinutesPerRun)];
+    private const int ShardsPerRun = 10;
+    private const double MinutesPerRun = 3;
+    private const double KiaraPrice = 100_000;
+
+    /// <summary>
+    /// Nobody flips at a loss: like Execute (0 and inaccessible), the formula has no drops while the shard sells for Kiara's
+    /// price or less, or has no price, so the estimate is 0 instead of negative.
+    /// </summary>
+    public override List<MethodDrop> FormulaDropsAt(IReadOnlyDictionary<string, double> prices)
+        => prices != null && prices.GetValueOrDefault("SHARD_VIPER") > KiaraPrice ? FormulaDrops : [];
     protected override string Category => "Daily";
     protected override double ActionsPerHour => 20; // ~3 minutes per run = 20 runs/hour
     // This task's acquired shards are bought from Kiara for a fixed coin price, not a market-priced ingredient.
+    // Unpriced shards add no revenue, so they are not charged either (a lone cost made a thin task -20M/h).
     public override double ScaledFormulaCost(Dictionary<string, double> itemCounts, double hours, Func<string, double> priceOf)
-        => hours > 0 ? Math.Max(0, itemCounts?.GetValueOrDefault("SHARD_VIPER") ?? 0) * 100_000 : 0;
+    {
+        if (hours <= 0 || priceOf("SHARD_VIPER") <= 0)
+            return 0;
+        return Math.Max(0, itemCounts?.GetValueOrDefault("SHARD_VIPER") ?? 0) * KiaraPrice;
+    }
     protected override string HowTo => "Buy up to 10 Viper Shards per day from Kiara at North Reaches for 100k coins each (1M total), " +
         "then sell them on the Bazaar if the current sale price covers the cost and tax. Kiara's Abiphone contact increases stock to 11; this estimate uses 10. Allow about 3 minutes.";
 
@@ -160,8 +177,8 @@ public class ViperShardNpcFlipTask : LimitedTask
         var prices = parameters.GetPrices();
         var viperPrice = parameters.BazaarPrices?.FirstOrDefault(p => p.ProductId == "SHARD_VIPER")?.SellPrice
             ?? prices.GetValueOrDefault("SHARD_VIPER", 0);
-        var npcBuyPrice = 100_000f;
-        var quantity = 10;
+        var npcBuyPrice = (float)KiaraPrice;
+        var quantity = ShardsPerRun;
 
         if (viperPrice <= npcBuyPrice)
             return Task.FromResult(new TaskResult
@@ -175,7 +192,7 @@ public class ViperShardNpcFlipTask : LimitedTask
             });
 
         var profitPerRun = (viperPrice - npcBuyPrice) * quantity;
-        var minutesPerRun = 3.0;
+        var minutesPerRun = MinutesPerRun;
         var profitPerHour = profitPerRun / minutesPerRun * 60;
 
         var accessibilityIssue = CheckAccessibility(parameters);

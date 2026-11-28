@@ -361,7 +361,7 @@ public class TaskRequirementTests
 
         result.IsAccessible.Should().BeTrue();
         result.Breakdown.RequirementsMet.Should().BeTrue("only hard requirements count");
-        var recommended = result.Breakdown.Requirements.Single(r => !r.Hard);
+        var recommended = result.Breakdown.Requirements.Single(r => !r.Hard && r.Kind == RequirementKinds.SlayerLevel);
         recommended.Met.Should().BeFalse();
         recommended.CurrentText.Should().Be("5");
     }

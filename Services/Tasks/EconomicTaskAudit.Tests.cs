@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using AwesomeAssertions;
 using Coflnet.Sky.Crafts.Client.Model;
@@ -28,6 +29,99 @@ public class EconomicTaskAuditTests
         TaskEstimator.RateFromAggregate(task, aggregate, new() { ["SHARD_VIPER"] = 200_000 })
             .Should().BeApproximately(6_000_000, 0.01);
         task.ScaledFormulaCost(new() { ["SHARD_VIPER"] = -10 }, 1, _ => 200_000).Should().Be(0);
+    }
+
+    /// <summary>
+    /// Regression (2026-11-28): the flip had no FormulaDrops (Execute prices it), so the public estimate showed 0 coins/h even
+    /// at a bazaar price above Kiara's 100k. It is now the same margin: 10 shards per 3 minute run, and 0 like Execute when
+    /// the flip would lose money.
+    /// </summary>
+    [TestCase(106_000, 1_200_000)]
+    [TestCase(100_000, 0)]
+    [TestCase(90_000, 0)]
+    public void ViperFormulaRate_IsTheMarginOfTenShardsPerRun(double price, double expected)
+    {
+        var task = new ViperShardNpcFlipTask();
+
+        TaskEstimator.FormulaRate(task, new() { ["SHARD_VIPER"] = price }).Should().BeApproximately(expected, 1);
+    }
+
+    /// <summary>Review regression: without a shard price the formula charged 200 shards x 100k and no revenue (-20M/h).</summary>
+    [Test]
+    public void ViperFormulaRate_WithoutAShardPrice_IsZero()
+    {
+        var task = new ViperShardNpcFlipTask();
+
+        TaskEstimator.FormulaRate(task, new()).Should().Be(0);
+        TaskEstimator.FormulaRate(task, null).Should().Be(0);
+        TaskEstimator.HasPricedFormulaDrop(task, new() { ["SHARD_VIPER"] = 90_000 }).Should().BeFalse();
+    }
+
+    [Test]
+    public void ViperCommunityRate_WithoutAShardPrice_ChargesNoNpcPrice()
+    {
+        var aggregate = new BucketAggregate { WSeconds = 600, ItemCounts = new() { ["SHARD_VIPER"] = 10 } };
+
+        TaskEstimator.RateFromAggregate(new ViperShardNpcFlipTask(), aggregate, new()).Should().Be(0);
+    }
+
+    /// <summary>
+    /// Regression (2026-11-28): the Hunting Trap estimate was 0 coins/h because Execute picks the shard and the estimator only
+    /// saw the empty FormulaDrops. The estimator now prices the same pick: the best shard per capture hour.
+    /// </summary>
+    [Test]
+    public async Task HuntingTrapFormulaRate_IsTheBestShardPerCaptureHour_LikeExecute()
+    {
+        var task = new HuntingTrapTask();
+        var prices = new Dictionary<string, double> { ["SHARD_GIANT_ISOPOD"] = 55_141, ["SHARD_HELLWISP"] = 15_111, ["SHARD_XYZ"] = 32_949 };
+        var parameters = Parameters();
+        foreach (var (tag, price) in prices)
+            parameters.CleanPrices[tag] = (long)price;
+
+        var rate = TaskEstimator.FormulaRate(task, prices);
+        var shown = (await task.Execute(parameters)).ProfitPerHour;
+
+        rate.Should().BeApproximately(55_141 / HuntingTrapTask.CaptureHours(HuntingTrapTask.ShardRarity.Epic), 1);
+        shown.Should().Be((int)rate);
+        TaskEstimator.FormulaRate(task, new()).Should().Be(0, "no shard price, no estimate");
+    }
+
+    /// <summary>
+    /// Public tasks whose formula rate is 0 at any price: their estimate is 0 coins/h whenever their community data is too thin
+    /// (fewer than the minimum contributors). Pinned so a new task without a seed is a deliberate choice. Dive Ghast has no
+    /// sourced rate (16 periods with 1-3 shards each in 7 days, 2026-11-28).
+    /// </summary>
+    [Test]
+    public void TasksWithoutAFormulaSeed_AreKnown()
+    {
+        var unseeded = new TaskRegistry().PublicMethodTasks
+            .Where(t => !t.FormulaDropsAt(new AnyPrice()).Any(d => d.RatePerHour > 0))
+            .Select(t => t.GetDetectionSignature().MethodName)
+            .ToList();
+
+        unseeded.Should().BeEquivalentTo(
+        [
+            "Galatea Fishing", "Galatea Fishing (Hunting)", "Moonglade Sea Creatures (Hunting)", "Glacite Walker", "Chill (Hunting)",
+            "Honeybuzz (Hunting)", "Spring Critters (Hunting)", "Howling Spirit (Hunting)", "Lapis Zombie (Hunting)", "Yog and Bal",
+            "Barn Animals", "Farm and Barn Crops", "Pest (Hunting)", "Critter Safari Party (Loot Share)", "Critter Safari: Haunted",
+            "Critter Safari: Forest", "Critter Safari: Cavern", "Critter Safari: Icy", "Mangrove Honey Lathering", "Fig Honey Lathering",
+            "Tewtil (Hunting)", "Torrhus Sea Creatures (Hunting)", "Sepialot and Goldolot (Hunting)", "Ant (Hunting)",
+            "Dive Ghast (Hunting)", "Pest", "Arachne", "Kada Knight", "Red Sand Mining", "Quartz Mining", "Sand Mining", "Glacial Cave"
+        ]);
+    }
+
+    /// <summary>A high price for every tag, so a price dependent formula (Hunting Trap, a profitable Viper flip) has drops.</summary>
+    private sealed class AnyPrice : IReadOnlyDictionary<string, double>
+    {
+        private const double Price = 1e9;
+        public double this[string key] => Price;
+        public IEnumerable<string> Keys => [];
+        public IEnumerable<double> Values => [];
+        public int Count => 0;
+        public bool ContainsKey(string key) => true;
+        public bool TryGetValue(string key, out double value) { value = Price; return true; }
+        public IEnumerator<KeyValuePair<string, double>> GetEnumerator() => Enumerable.Empty<KeyValuePair<string, double>>().GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     [Test]

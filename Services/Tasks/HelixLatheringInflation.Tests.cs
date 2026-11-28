@@ -246,4 +246,21 @@ public class HelixLatheringInflationTests
         TaskDataResets.IsBeforeReset("Helix Honey Lathering", cutoff.AddSeconds(-1)).Should().BeTrue();
         TaskDataResets.IsBeforeReset("Helix Honey Lathering", cutoff).Should().BeFalse();
     }
+    /// <summary>
+    /// Regression (2026-11-28): the task had no FormulaDrops, so while the data reset hides its old rows the public estimate was
+    /// 0 coins/h. The seed (sibling Fig Honey Lathering rates) gives a few million an hour at bazaar prices of 2026-11-28.
+    /// </summary>
+    [Test]
+    public void FormulaSeed_GivesAnEstimateWhileTheResetHidesTheOldRows()
+    {
+        var task = (MethodTask)new TaskRegistry().GetByName("Helix Honey Lathering");
+        var prices = new Dictionary<string, double>
+        {
+            ["SHARD_POLLENDART"] = 3_005, ["SHARD_PARCHED"] = 5_998, ["SHARD_HIVETHIEF"] = 109,
+            ["ENCHANTED_HONEYCOMB"] = 15_260, ["ENCHANTED_HELIX_LOG"] = 3_200, ["HELIXIS"] = 509_357
+        };
+
+        TaskEstimator.HasPricedFormulaDrop(task, prices).Should().BeTrue();
+        TaskEstimator.FormulaRate(task, prices).Should().BeInRange(3_000_000, 10_000_000);
+    }
 }

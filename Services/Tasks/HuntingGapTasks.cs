@@ -80,6 +80,15 @@ public class HelixHoneyLatheringTask : CritterHuntingTask
     protected override string Where => "Torrhus Canyon";
     protected override HashSet<string> DetectionItems => ["SHARD_HIVETHIEF", "SHARD_PARCHED", "SHARD_POLLENDART"];
     protected override HashSet<string> ObservedCostItems => HoneyPots.Tags;
+    // Without a seed the estimate was 0 while the data reset (TaskDataResets, 2026-11-29) hides the old rows. Seeded from Fig Honey
+    // Lathering, the same mechanic on Moonglade (9.5 h, 30 players, 2026-11-28): about 70 critters an hour at the 1/2 : 1/3 : 1/6
+    // spawn odds, 3 Enchanted Honeycomb per catch, 274 enchanted logs and 2 Figstones (here Helixis) an hour. The pots are not
+    // charged: how many applications one pot gives is unsourced, as for the other two lathering tasks.
+    protected override List<MethodDrop> FormulaDrops =>
+    [
+        new("SHARD_POLLENDART", 35), new("SHARD_PARCHED", 23), new("SHARD_HIVETHIEF", 12),
+        new("ENCHANTED_HONEYCOMB", 200), new("ENCHANTED_HELIX_LOG", 270), new("HELIXIS", 2)
+    ];
     protected override string WikiUrl => "https://hypixelskyblock.minecraft.wiki/w/Hivethief";
     protected override string HowTo => HuntingText.Steps(
         "Buy Pots of Honeycomb on the bazaar and warp to Torrhus.",

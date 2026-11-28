@@ -202,12 +202,13 @@ public abstract class MethodTask : ProfitTask
     /// Value of the reference drop above what the cost paid for, charged next to the cost: capping only the cost while the
     /// reference drop counts in full would turn an implausible observation (7x the seed) into a profit. The drop is allowed up
     /// to <see cref="MaxCostScale"/> times its seed, or further as far as an observed spend bought it (75 Sunset I books an
-    /// hour need about 214 Moondew observed); continuous in the observed counts, which are decayed doubles.
+    /// hour need about 214 Moondew observed), at up to <see cref="ObservedSpendYieldBound"/> times the seed's yield per cost
+    /// unit; continuous in the observed counts, which are decayed doubles.
     /// </summary>
     private double WithheldReferenceValue(Dictionary<string, double> itemCounts, double hours, MethodDrop reference,
         Func<string, double> priceOf)
     {
-        var allowedScale = Math.Max(MaxCostScale, ObservedCostScale(itemCounts, hours));
+        var allowedScale = Math.Max(MaxCostScale, ObservedCostScale(itemCounts, hours) * ObservedSpendYieldBound);
         var allowedCount = allowedScale * reference.RatePerHour * hours;
         return Math.Max(0, itemCounts[reference.ItemTag] - allowedCount) * priceOf(reference.ItemTag);
     }
@@ -246,6 +247,14 @@ public abstract class MethodTask : ProfitTask
     /// drop above the bound is withheld from the revenue as well, see <see cref="WithheldReferenceValue"/>.
     /// </summary>
     protected virtual double MaxCostScale => double.PositiveInfinity;
+
+    /// <summary>
+    /// The most reference drops an observed cost unit can buy in the withheld bound, as a multiple of the seed's ratio (the
+    /// formula's average yield, 1 by default). A task whose yield per unit depends on gear (Fossil Excavation: the chisel) sets
+    /// the best gear's ratio, so a well geared player's real payout is not withheld. Only <see cref="WithheldReferenceValue"/>
+    /// reads it; the cost scale and the formula keep the average.
+    /// </summary>
+    protected virtual double ObservedSpendYieldBound => 1;
 
     private double CostScale(double observedScale) => Math.Min(observedScale, MaxCostScale);
 
@@ -406,6 +415,13 @@ public abstract class MethodTask : ProfitTask
     /// Public accessor for tests to check if this task has formula drops
     /// </summary>
     public List<MethodDrop> FormulaDropsForTest => FormulaDrops;
+    /// <summary>
+    /// The formula drops the estimate prices at <paramref name="prices"/>: <see cref="FormulaDrops"/>, unless the task picks
+    /// its drops by price (a Hunting Trap is placed where the best paying shard is). <paramref name="prices"/> may be null.
+    /// Estimator only (formula rate, priced-drop check, cold start drops): Execute, the cost scaling and the fold paths read
+    /// <see cref="FormulaDrops"/> directly.
+    /// </summary>
+    public virtual List<MethodDrop> FormulaDropsAt(IReadOnlyDictionary<string, double> prices) => FormulaDrops;
     public HashSet<string> LocationsForTest => Locations;
     /// <summary>
     /// Public accessor for tests to check if this task has formula costs
