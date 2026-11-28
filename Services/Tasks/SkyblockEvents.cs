@@ -16,24 +16,46 @@ public record TaskAvailability(bool Available, string Note = null, DateTime? Nex
     public static readonly TaskAvailability Always = new(true);
 }
 
-/// <summary>The current mayor (lowercase name, as <see cref="CurrentMayorService"/> stores it) and the names and descriptions of their perks.</summary>
-public record MayorSnapshot(string Name, IReadOnlyList<MayorPerk> Perks = null)
+/// <summary>
+/// The current mayor (lowercase name, as <see cref="CurrentMayorService"/> stores it) and the names and descriptions of their
+/// perks, plus the minister when known: the election's runner-up, who grants one perk of theirs for the same term.
+/// </summary>
+public record MayorSnapshot(string Name, IReadOnlyList<MayorPerk> Perks = null, MinisterSnapshot Minister = null)
 {
     /// <summary>Null when the mayor is unknown, perks unknown for a known name.</summary>
     public static MayorSnapshot FromName(string name) => name == null ? null : new MayorSnapshot(name);
 
+    /// <summary>Whether the mayor or the minister grants <paramref name="perkName"/>.</summary>
     public bool HasPerk(string perkName) =>
-        Perks?.Any(p => string.Equals(p.Name, perkName, StringComparison.OrdinalIgnoreCase)) ?? false;
+        (Perks?.Any(p => IsPerk(p, perkName)) ?? false) || IsPerk(Minister?.Perk, perkName);
 
+    private static bool IsPerk(MayorPerk perk, string perkName) =>
+        perk != null && string.Equals(perk.Name, perkName, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Whether the mayor or the minister grants <paramref name="perkName"/> with <paramref name="text"/> in its description.</summary>
     public bool HasPerkMentioning(string perkName, string text) =>
-        Perks?.Any(p => string.Equals(p.Name, perkName, StringComparison.OrdinalIgnoreCase)
-            && (p.Description?.Contains(text, StringComparison.OrdinalIgnoreCase) ?? false)) ?? false;
+        (Perks?.Any(p => IsPerkMentioning(p, perkName, text)) ?? false) || IsPerkMentioning(Minister?.Perk, perkName, text);
+
+    /// <summary>
+    /// Whether Foxy's Extra Event perk may schedule an extra <paramref name="eventKeyword"/> event: granted by the mayor or the
+    /// minister, or a Foxy term whose perks are unknown (don't hide on uncertainty).
+    /// </summary>
+    public bool MayScheduleExtraEvent(string eventKeyword) =>
+        Name == "foxy" && Perks == null || HasPerkMentioning(ExtraEventPerk, eventKeyword);
+
+    public const string ExtraEventPerk = "Extra Event";
+
+    private static bool IsPerkMentioning(MayorPerk perk, string perkName, string text) =>
+        IsPerk(perk, perkName) && (perk.Description?.Contains(text, StringComparison.OrdinalIgnoreCase) ?? false);
 
     /// <summary>The name with a capital first letter, for notes.</summary>
     public string DisplayName => string.IsNullOrEmpty(Name) ? Name : char.ToUpperInvariant(Name[0]) + Name[1..];
 }
 
 public record MayorPerk(string Name, string Description);
+
+/// <summary>The minister (lowercase name) and the one perk they grant.</summary>
+public record MinisterSnapshot(string Name, MayorPerk Perk);
 
 /// <summary>
 /// A SkyBlock event or mayor perk a task can only be done during (see <see cref="MethodTask.RequiredEvent"/>).
@@ -51,8 +73,9 @@ public abstract class SkyblockEvent
 public static class SkyblockEvents
 {
     /// <summary>
-    /// Diana's Mythological Ritual perk. It is no minister perk (the election API marks it minister: false), so only a
-    /// Diana term has it, or Jerry's Perkpocalypse while it rotates to Diana (not visible in the mayor data).
+    /// Diana's Mythological Ritual perk. The election API marks it minister: false today, so normally only a Diana term has
+    /// it, or Jerry's Perkpocalypse while it rotates to Diana (not visible in the mayor data); a minister granting it counts
+    /// as well, should Hypixel ever make it a minister perk.
     /// </summary>
     public static readonly SkyblockEvent MythologicalRitual = new MythologicalRitualEvent();
 
@@ -72,8 +95,8 @@ public static class SkyblockEvents
         realMonthOpen: 12);
 
     /// <summary>
-    /// Marina's Fishing Festival perk (sharks), the first 3 days of each SkyBlock month. It is a minister perk too, which the
-    /// mayor data does not show, so outside the mayor's perks only the calendar decides.
+    /// Marina's Fishing Festival perk (sharks), the first 3 days of each SkyBlock month, granted by the mayor or the minister.
+    /// When the minister could not be loaded, only the calendar decides outside the mayor's perks.
     /// </summary>
     public static readonly SkyblockEvent FishingFestival = new FishingFestivalEvent();
 }
@@ -158,12 +181,7 @@ public class CalendarEvent : SkyblockEvent
     }
 
     private bool MayorMaySchedule(MayorSnapshot mayor)
-    {
-        if (extraEventKeyword == null || mayor?.Name != "foxy")
-            return false;
-        // without perk data a Foxy term may have the extra event, don't hide on uncertainty
-        return mayor.Perks == null || mayor.HasPerkMentioning("Extra Event", extraEventKeyword);
-    }
+        => extraEventKeyword != null && mayor?.Name != null && mayor.MayScheduleExtraEvent(extraEventKeyword);
 
     private DateTime NextStart(DateTime utc)
     {
@@ -212,22 +230,34 @@ public class FishingFestivalEvent : SkyblockEvent
     {
         var perkActive = mayor != null && (mayor.HasPerk(PerkName) || mayor.Name == "marina" && mayor.Perks == null);
         if (IsFestivalDay(utcNow))
-            return perkActive ? TaskAvailability.Always : new TaskAvailability(true, mayor?.Name == null
-                ? $"Only possible during {Window}. The current mayor could not be checked."
-                : $"Only possible during {Window}. The current mayor does not have the perk, it only runs if Marina is the minister (not checked).");
+            return perkActive ? TaskAvailability.Always : FestivalDayWithoutPerk(mayor);
         if (mayor?.Name == null)
             return new TaskAvailability(true, $"Only possible during {Window}. The current mayor could not be checked.");
         if (FoxyMaySchedule(mayor))
-            return new TaskAvailability(true,
-                $"Only possible during {Window}. Foxy's Extra Event perk schedules an extra Fishing Festival this year, check the in-game calendar.");
+            return FoxyExtraEvent;
         // without the perk on the mayor the next month only has a festival if the minister grants it
         return new TaskAvailability(false, $"Only possible during {Window}.", perkActive ? NextMonthStart(utcNow) : null);
     }
 
+    private static readonly TaskAvailability FoxyExtraEvent = new(true,
+        $"Only possible during {Window}. Foxy's Extra Event perk schedules an extra Fishing Festival this year, check the in-game calendar.");
+
+    private static TaskAvailability FestivalDayWithoutPerk(MayorSnapshot mayor)
+    {
+        if (mayor?.Name == null)
+            return new TaskAvailability(true, $"Only possible during {Window}. The current mayor could not be checked.");
+        if (FoxyMaySchedule(mayor))
+            return FoxyExtraEvent;
+        // neither the mayor nor the known minister grants the perk, so no festival runs this month
+        if (mayor.Minister != null)
+            return new TaskAvailability(false, $"Only possible during {Window}.");
+        return new TaskAvailability(true,
+            $"Only possible during {Window}. The current mayor does not have the perk, it only runs if Marina is the minister (not checked).");
+    }
+
     public static bool IsFestivalDay(DateTime utc) => SkyblockCalendar.DayOfYear(utc) % SkyblockCalendar.DaysPerMonth < FestivalDays;
 
-    private static bool FoxyMaySchedule(MayorSnapshot mayor) => mayor.Name == "foxy"
-        && (mayor.Perks == null || mayor.HasPerkMentioning("Extra Event", PerkName));
+    private static bool FoxyMaySchedule(MayorSnapshot mayor) => mayor.MayScheduleExtraEvent(PerkName);
 
     private static DateTime NextMonthStart(DateTime utc)
     {
