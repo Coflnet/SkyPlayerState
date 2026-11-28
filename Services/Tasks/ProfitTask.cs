@@ -19,9 +19,39 @@ public abstract class ProfitTask
     /// <summary>The zones the task is done in, used for the automatic area requirements. Defaults to <see cref="Where"/>.</summary>
     protected virtual IEnumerable<string> AreaZones => string.IsNullOrEmpty(Where) ? [] : [Where];
 
-    /// <summary>Area requirements first (get there), then the task's own, duplicates merged.</summary>
-    public List<TaskRequirement> AllRequirements =>
-        RequirementEvaluator.Merge(AreaRequirements.ForZones(AreaZones).Concat(Requirements));
+    /// <summary>
+    /// Area requirements first (get there), then the recommended spot's extra ones, then the task's own, duplicates merged.
+    /// </summary>
+    public List<TaskRequirement> AllRequirements
+    {
+        get
+        {
+            var area = AreaRequirements.ForZones(AreaZones);
+            return RequirementEvaluator.Merge(area.Concat(SpotRequirements(area)).Concat(Requirements));
+        }
+    }
+
+    /// <summary>
+    /// What the recommended spot (<see cref="Where"/>) needs beyond the hard <paramref name="area"/> requirements, as
+    /// recommended ones: a task doable in an open zone too (Coal Mining in the Hub Coal Mine) is not blocked, but its
+    /// shown spot (Magma Fields in the Crystal Hollows) still names what it takes to get there.
+    /// </summary>
+    private List<TaskRequirement> SpotRequirements(List<TaskRequirement> area)
+    {
+        if (string.IsNullOrEmpty(Where))
+            return [];
+        return AreaRequirements.ForZone(Where).Where(r => !IsCoveredBy(r, area)).Select(AsRecommended).ToList();
+    }
+
+    private static bool IsCoveredBy(TaskRequirement spot, List<TaskRequirement> hard)
+        => hard.Any(r => r.Kind == spot.Kind && r.Key == spot.Key && r.Target >= spot.Target);
+
+    private static TaskRequirement AsRecommended(TaskRequirement requirement)
+    {
+        var copy = requirement.Clone();
+        copy.Hard = false;
+        return copy;
+    }
 
     /// <summary>
     /// <see cref="Execute"/> plus the requirement check against <see cref="TaskParams.ProfileSnapshot"/>: fills

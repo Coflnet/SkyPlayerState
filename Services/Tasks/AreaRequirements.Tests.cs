@@ -49,6 +49,48 @@ public class AreaRequirementsTests
             tasks[name].AllRequirements.Select(r => r.Label).Should().Contain("Heart of the Mountain 7", name);
     }
 
+    /// <summary>
+    /// Regression (2026-11-28): Coal Mining is shown at Magma Fields (Crystal Hollows) but listed no requirements, because its
+    /// Hub zones (Coal Mine, Gold Mine) need nothing and only what every zone needs applied. The shown spot's requirements are
+    /// recommended now; nothing blocks the task, it is still doable in the Hub.
+    /// </summary>
+    [TestCase("Coal Mining")]
+    [TestCase("Gold Mining")]
+    public void ATaskShownInTheCrystalHollows_RecommendsItsRequirements(string name)
+    {
+        var task = Public(name);
+
+        task.AllRequirements.Where(r => !r.Hard).Select(r => r.Label).Should().Equal("Mining 12", "Heart of the Mountain 3");
+        task.AllRequirements.Should().NotContain(r => r.Hard, "the Hub mines are open to everyone");
+        task.Description.Should().EndWith("Recommended: Mining 12, Heart of the Mountain 3.");
+    }
+
+    [Test]
+    public void ASpotRequirementTheZonesAlreadyNeedIsNotRepeated()
+    {
+        var fossil = Public("Fossil Excavation");
+
+        fossil.AllRequirements.Select(r => (r.Label, r.Hard)).Should().Equal(("Mining 12", true), ("Heart of the Mountain 7", true));
+    }
+
+    [Test]
+    public void EveryPublicTaskListsWhatItsShownSpotNeeds()
+    {
+        var missing = new TaskRegistry().PublicMethodTasks
+            .Where(t => !string.IsNullOrEmpty(WhereOf(t)))
+            .SelectMany(t => AreaRequirements.ForZone(WhereOf(t))
+                .Where(spot => !t.AllRequirements.Any(r => r.Kind == spot.Kind && r.Key == spot.Key && r.Target >= spot.Target))
+                .Select(spot => $"{t.GetDetectionSignature().MethodName}: {spot.Label}"))
+            .ToList();
+        missing.Should().BeEmpty();
+    }
+
+    private static MethodTask Public(string name)
+        => new TaskRegistry().PublicMethodTasks.Single(t => t.GetDetectionSignature().MethodName == name);
+
+    private static string WhereOf(ProfitTask task) =>
+        (string)typeof(ProfitTask).GetProperty("Where", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(task);
+
     [Test]
     public void IslandsWithAnOddShortNameGetADisplayName()
     {
