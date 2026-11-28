@@ -7,6 +7,7 @@ using Coflnet.Sky.Core;
 using Coflnet.Sky.PlayerName.Client.Api;
 using Coflnet.Sky.PlayerState.Models;
 using Coflnet.Sky.PlayerState.Tests;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -190,6 +191,60 @@ public class TradeDetectTests
             It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
         logger.Verify(l => l.Log(LogLevel.Error, It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(), It.IsAny<Exception>(),
             It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Never);
+    }
+
+    [NonParallelizable] // swaps the static database connection factory
+    [TestCase(1, 2, 1, TestName = "ItemIdLookupRecoversOnRetryAndRecordsOnce")]
+    [TestCase(int.MaxValue, 3, 0, TestName = "ItemIdLookupOutageSkipsOnlyAffectedTransaction")]
+    public async Task FailingItemIdLookupDoesNotFailTheUpdate(int failures, int expectedLookups, int expectedBeefRemovals)
+    {
+        const int beefId = 1234;
+        var service = new TradeDetect(NullLogger<TradeDetect>.Instance);
+        var args = GetUpdateArgs(ChatUpdate);
+        var transactionService = new Mock<ITransactionService>();
+        var nameService = new Mock<IPlayerNameApi>();
+        var tradeService = new Mock<ITradeService>();
+        var itemsApi = new Mock<Coflnet.Sky.Items.Client.Api.IItemsApi>();
+        var calls = 0;
+        itemsApi.Setup(a => a.ItemsSearchTermIdGetAsync("RAW_BEEF", It.IsAny<int>(), default))
+            .Returns(() => ++calls <= failures ? throw new InvalidOperationException("database unavailable") : Task.FromResult(beefId));
+        var itemDetails = new ItemDetails(itemsApi.Object);
+        itemDetails.TagLookup["OTHER_ITEM"] = 1;
+        var recorded = new List<Transaction>();
+        transactionService.Setup(t => t.AddTransactions(It.IsAny<IEnumerable<Transaction>>()))
+            .Callback<IEnumerable<Transaction>>(recorded.AddRange).Returns(Task.CompletedTask);
+        nameService.Setup(s => s.PlayerNameUuidNameGetAsync(It.IsAny<string>(), 0, default)).ReturnsAsync(Guid.Empty.ToString());
+        args.AddService(transactionService.Object);
+        args.AddService(nameService.Object);
+        args.AddService(tradeService.Object);
+        args.AddService(itemDetails);
+        args.AddService<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?> { ["UPDATE_RETRY_DELAYS_MS"] = "0,0" }).Build());
+        args.currentState.RecentViews.Enqueue(JsonConvert.DeserializeObject<UpdateMessage>(Inventory)!.Chest!);
+
+        // the lookup falls back to the database when the items api fails: fail that without any connection
+        var originalFactory = HypixelContext.ConnectionFactory;
+        var databaseFallbacks = 0;
+        HypixelContext.ConnectionFactory = _ =>
+        {
+            databaseFallbacks++;
+            throw new InvalidOperationException("database unavailable");
+        };
+        try
+        {
+            await service.Process(args);
+        }
+        finally
+        {
+            HypixelContext.ConnectionFactory = originalFactory;
+        }
+
+        Assert.That(calls, Is.EqualTo(expectedLookups), "lookups are bounded by the retry schedule");
+        Assert.That(databaseFallbacks, Is.EqualTo(expectedLookups - expectedBeefRemovals));
+        Assert.That(recorded.Count(t => t.ItemId == beefId && t.Type.HasFlag(Transaction.TransactionType.REMOVE)), Is.EqualTo(expectedBeefRemovals));
+        Assert.That(recorded.Count(t => t.ItemId == TradeDetect.IdForCoins), Is.EqualTo(2), "the coin side of the trade is kept");
+        transactionService.Verify(t => t.AddTransactions(It.IsAny<IEnumerable<Transaction>>()), Times.Once);
+        tradeService.Verify(s => s.ProduceTrade(It.IsAny<TradeModel>()), Times.Once);
     }
 
     private MockedUpdateArgs GetUpdateArgs(string json)

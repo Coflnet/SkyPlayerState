@@ -3,6 +3,7 @@ using Coflnet.Sky.PlayerState.Models;
 using System.Linq;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Coflnet.Sky.PlayerName.Client.Api;
 
@@ -77,21 +78,24 @@ public class TradeDetect : UpdateListener
             Logger.LogDebug("got {itemName}", item.ItemName);
         }
         var timestamp = DateTime.UtcNow;
+        // resolved before anything is recorded and retried here: a failure escaping this handler would make
+        // the update retry re-run every earlier handler of this message
+        var itemIds = await ResolveItemIds(args, spent.Concat(received));
         var transactions = new List<Transaction>();
         transactions.AddRange(spent.Select(s =>
         {
-            return CreateTransaction(args, s, timestamp, Transaction.TransactionType.TRADE | Transaction.TransactionType.REMOVE);
+            return CreateTransaction(args, s, itemIds, timestamp, Transaction.TransactionType.TRADE | Transaction.TransactionType.REMOVE);
         }));
         transactions.AddRange(received.Select(s =>
         {
-            return CreateTransaction(args, s, timestamp, Transaction.TransactionType.TRADE | Transaction.TransactionType.RECEIVE);
+            return CreateTransaction(args, s, itemIds, timestamp, Transaction.TransactionType.TRADE | Transaction.TransactionType.RECEIVE);
         }));
 
         // other player
         try
         {
             var playerName = ResolveOtherSideName(args, tradeView);
-            await AddOtherSideOfTrade(args, spent, received, timestamp, transactions, playerName);
+            await AddOtherSideOfTrade(args, spent, received, itemIds, timestamp, transactions, playerName);
         }
         catch (Exception e)
         {
@@ -289,7 +293,7 @@ public class TradeDetect : UpdateListener
         service.StoreUuidToItemMapping(itemUuidAndItemId);
     }
 
-    private async Task AddOtherSideOfTrade(UpdateArgs args, List<Item> spent, List<Item> received, DateTime timestamp, List<Transaction> transactions, string playerName)
+    private async Task AddOtherSideOfTrade(UpdateArgs args, List<Item> spent, List<Item> received, IReadOnlyDictionary<Item, int> itemIds, DateTime timestamp, List<Transaction> transactions, string playerName)
     {
         var nameService = args.GetService<IPlayerNameApi>();
         var uuidString = await nameService.PlayerNameUuidNameGetAsync(playerName);
@@ -302,29 +306,29 @@ public class TradeDetect : UpdateListener
         logger.LogInformation("other side of trade is {playerName} {uuid}", playerName, uuid);
         transactions.AddRange(spent.Select(s =>
         {
-            return CreateTransaction(uuid, s, timestamp, Transaction.TransactionType.TRADE | Transaction.TransactionType.RECEIVE);
+            return CreateTransaction(uuid, s, itemIds, timestamp, Transaction.TransactionType.TRADE | Transaction.TransactionType.RECEIVE);
         }));
         transactions.AddRange(received.Select(s =>
         {
-            return CreateTransaction(uuid, s, timestamp, Transaction.TransactionType.TRADE | Transaction.TransactionType.REMOVE);
+            return CreateTransaction(uuid, s, itemIds, timestamp, Transaction.TransactionType.TRADE | Transaction.TransactionType.REMOVE);
         }));
     }
 
-    private Transaction CreateTransaction(UpdateArgs args, Item s, DateTime timestamp, Transaction.TransactionType type)
+    private Transaction CreateTransaction(UpdateArgs args, Item s, IReadOnlyDictionary<Item, int> itemIds, DateTime timestamp, Transaction.TransactionType type)
     {
         var playerUuid = args.currentState.McInfo.Uuid;
-        var trnsaction = CreateTransaction(playerUuid, s, timestamp, type);
+        var trnsaction = CreateTransaction(playerUuid, s, itemIds, timestamp, type);
         logger.LogInformation($"Creating transaction for {playerUuid} with {s.ItemName} {s.Id} {s.Tag}");
         return trnsaction;
     }
 
-    private Transaction CreateTransaction(Guid playerUuid, Item s, DateTime timestamp, Transaction.TransactionType type)
+    private Transaction CreateTransaction(Guid playerUuid, Item s, IReadOnlyDictionary<Item, int> itemIds, DateTime timestamp, Transaction.TransactionType type)
     {
         var transaction = new Transaction()
         {
             PlayerUuid = playerUuid,
             Type = type,
-            ItemId = s.Id ?? GetIdForItem(s),
+            ItemId = s.Id ?? itemIds.GetValueOrDefault(s), // 0 (unresolved) is filtered before storing
             TimeStamp = timestamp,
             Amount = s.Count ?? -1
         };
@@ -338,6 +342,55 @@ public class TradeDetect : UpdateListener
         }
 
         return transaction;
+    }
+
+    /// <summary>
+    /// Looks up the ids of all items without one, retrying failed lookups on the update retry schedule.
+    /// Items still unresolved afterwards are absent from the result, so only their transactions are skipped.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<Item, int>> ResolveItemIds(UpdateArgs args, IEnumerable<Item> items)
+    {
+        var ids = new Dictionary<Item, int>(ReferenceEqualityComparer.Instance);
+        var pending = items.Where(i => i.Id == null).ToList();
+        var lastErrors = new Dictionary<Item, Exception>(ReferenceEqualityComparer.Instance);
+        TryResolvePending(pending, ids, lastErrors);
+        if (pending.Count > 0)
+        {
+            var configured = args.GetService<IConfiguration>()["UPDATE_RETRY_DELAYS_MS"];
+            foreach (var delay in PlayerStateBackgroundService.ParseRetryDelays(configured, logger))
+            {
+                if (pending.Count == 0)
+                    break;
+                await Task.Delay(delay);
+                TryResolvePending(pending, ids, lastErrors);
+            }
+        }
+        foreach (var item in pending)
+            logger.LogError(lastErrors[item], "Skipping trade transaction of {playerId}, item id lookup failed for {tag}", args.currentState.PlayerId, item.Tag);
+        return ids;
+    }
+
+    /// <summary>Removes every item whose lookup succeeded or can never succeed from <paramref name="pending"/>.</summary>
+    private void TryResolvePending(List<Item> pending, Dictionary<Item, int> ids, Dictionary<Item, Exception> lastErrors)
+    {
+        pending.RemoveAll(item =>
+        {
+            try
+            {
+                ids[item] = GetIdForItem(item);
+                return true;
+            }
+            catch (Core.CoflnetException e)
+            {
+                logger.LogWarning(e, "Skipping trade transaction, item {tag} is unknown", item.Tag);
+                return true;
+            }
+            catch (Exception e)
+            {
+                lastErrors[item] = e;
+                return false;
+            }
+        });
     }
 
     private int GetIdForItem(Item item)
