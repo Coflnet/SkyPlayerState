@@ -95,7 +95,7 @@ public static class KuudraKeyCost
         return priced.Count == 0 ? 0 : priced.Min();
     }
 
-    private static double PositivePrice(Func<string, double> priceOf, string tag)
+    internal static double PositivePrice(Func<string, double> priceOf, string tag)
     {
         var price = priceOf?.Invoke(tag) ?? 0;
         return price > 0 ? price : 0;

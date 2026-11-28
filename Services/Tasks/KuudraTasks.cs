@@ -56,29 +56,43 @@ public abstract class BaseKuudraTask : MethodTask
     /// <summary>
     /// Kuudra Teeth one paid chest gives on average, 0 when not known: the paid chest's guaranteed teeth plus the expected
     /// teeth of its rolled slots. A tier that knows it declares the paid chest's guaranteed loot in its
-    /// <see cref="FormulaDrops"/> and charges the key in the formula baseline.
+    /// <see cref="FormulaDrops"/> (<see cref="PaidChestFormulaDrops"/>) and charges the key in the formula baseline.
     /// <para>
     /// Every tooth comes from the paid chest: the free chest holds only Crimson Essence (wiki Kuudra loot tables), so the
-    /// teeth of a claim count paid chests whether or not the free chest was looted too. T1-T4 teeth per paid chest are
-    /// known: 1 / 1 / 2 / 2 guaranteed (wiki Kuudra_Teeth, checked 2026-11-28; production 2026-11-21..28: the most common
-    /// nonzero teeth of single armor piece claims are 1 / 1 / 2 / 2, n = 29 / 63 / 13 / 10) plus rolled teeth (wiki
-    /// Kuudra: Burning 5 at 6.87%, Fiery 5 at 5.7% and 25 at 0.57%), i.e. 1.0 / 1.0 / 2.34 / 2.43.
-    /// </para>
-    /// <para>
-    /// T1-T4 still stay at 0, because charging the key is only half of a paid chest: the rest of its guaranteed loot never
-    /// reaches the counts of a claim. 80 / 200 / 400 / 800-1,000 Crimson Essence (Phantom-Addons KuudraLootTables,
-    /// LoliCatis sky-guide kuudra.txt; the wiki lists it for Infernal only) goes to the essence storage and is booked only
-    /// for an open DungeonRewardListener saw, and the guaranteed Kraken Shard is never booked (0 SHARD_KRAKEN in 3,733
-    /// Kuudra tier periods). At production prices that unseen loot (225k / 359k / 581k / 1.06-1.28M) is about what the key
-    /// costs (177k / 335k / 623k / 1.24M), so a teeth estimate charging the key alone turns a near-zero error into the
-    /// whole key: on the 2026-11-28 aggregates T1 -0.45M/h, T2 -2.2M/h, T3 -10.0M/h, T4 -14.8M/h. A tier may estimate
-    /// once an estimated chest is charged net of its unseen guaranteed loot, and then declares that loot in its
-    /// <see cref="FormulaDrops"/>. T5 already estimates with the key alone: each estimated chest misses its 2,000 essence
-    /// and shard, about 2.36M at those prices.
+    /// teeth of a claim count paid chests whether or not the free chest was looted too. 1 / 1 / 2 / 2 / 3 guaranteed (wiki
+    /// Kuudra_Teeth, checked 2026-11-28; production 2026-11-21..28: the most common nonzero teeth of single armor piece
+    /// claims are 1 / 1 / 2 / 2, n = 29 / 63 / 13 / 10) plus the rolled teeth (wiki Kuudra: Burning 5 at 6.87%, Fiery 5 at
+    /// 5.7% and 25 at 0.57%).
     /// </para>
     /// </summary>
     protected virtual double TeethPerPaidChest => 0;
+    /// <summary>
+    /// Crimson Essence the paid chest guarantees, credited for the estimated chests whose essence the counts lack, see
+    /// <see cref="UnseenGuaranteedLoot"/>. Sources (checked 2026-11-28): Phantom-Addons KuudraLootTables 80 / 200 / 400 /
+    /// 1,000 / 2,000, LoliCatis sky-guide kuudra.txt 80 / 200 / 400 / 800 / 2,000, the wiki only Infernal's 2,000. Where they
+    /// disagree the lower value counts (Fiery 800): the credit adds revenue nobody observed. Production showed 250 for one
+    /// confirmed Hot open (an essence bonus, or a higher base); 200 stays the conservative value.
+    /// </summary>
+    protected virtual double PaidChestEssence => 0;
+    /// <summary>
+    /// Kraken Shards the paid chest guarantees: 1 per tier by both trackers, but Fiery 1.25 (1-2) by both, Infernal 1-2 by
+    /// the wiki, 1.25 by Phantom-Addons, 1.5 by LoliCatis and 1 by vexo's INFERNAL_GUARANTEED_DROPS; 1 everywhere, the lower
+    /// value. Never seen in the counts (0 SHARD_KRAKEN in 3,733 Kuudra tier periods, 2026-11-21..28), so an estimated
+    /// chest's shard is always credited.
+    /// </summary>
+    protected virtual double PaidChestKrakenShards => 0;
     private bool EstimatesPaidChests => TeethPerPaidChest > 0 && KuudraKeyCost.OfTier(KuudraTier) != null;
+
+    /// <summary>
+    /// Formula drops of one paid chest and one free chest (<paramref name="freeChestEssence"/>) per run. Teeth first: they
+    /// are the cost reference.
+    /// </summary>
+    protected List<MethodDrop> PaidChestFormulaDrops(double freeChestEssence) =>
+    [
+        new("KUUDRA_TEETH", TeethPerPaidChest * ActionsPerHour),
+        new("ESSENCE_CRIMSON", (PaidChestEssence + freeChestEssence) * ActionsPerHour),
+        new("SHARD_KRAKEN", PaidChestKrakenShards * ActionsPerHour)
+    ];
     /// <summary>
     /// The formula baseline's key, one per run. Observed data is charged per paid chest instead, see
     /// <see cref="ScaledFormulaCost"/>.
@@ -96,7 +110,8 @@ public abstract class BaseKuudraTask : MethodTask
     /// its booked coins.</item>
     /// <item>A key taken from the inventory (a negative key count) is charged in full: soulbound, it has no market price.</item>
     /// <item>The paid chests the teeth stand for (<see cref="TeethPerPaidChest"/>; teeth come with the claimed loot whether
-    /// or not the open was confirmed) beyond those two are charged in full.</item>
+    /// or not the open was confirmed) beyond those two are charged in full, less the guaranteed loot the counts lack for
+    /// them (<see cref="UnseenGuaranteedLoot"/>). The result is negative when that loot is worth more than the keys.</item>
     /// </list>
     /// </summary>
     public override double ScaledFormulaCost(Dictionary<string, double> itemCounts, double hours, Func<string, double> priceOf)
@@ -109,7 +124,33 @@ public abstract class BaseKuudraTask : MethodTask
         var unconfirmed = Math.Max(0, Math.Min(EstimatedPaidChests(itemCounts), MaxPaidChests(hours)) - confirmed - fromInventory);
         var materials = KuudraKeyCost.MaterialValue(key, priceOf);
         var fullKeys = (fromInventory + unconfirmed) * (key.Coins + materials);
-        return fullKeys + confirmed * materials + UnvaluedBookedCoins(itemCounts, key, confirmed, priceOf);
+        var unseenLoot = UnseenGuaranteedLoot(itemCounts, confirmed + fromInventory + unconfirmed, unconfirmed, priceOf);
+        return fullKeys + confirmed * materials + UnvaluedBookedCoins(itemCounts, key, confirmed, priceOf) - unseenLoot;
+    }
+
+    /// <summary>
+    /// Value of the guaranteed paid chest loot of the <paramref name="unconfirmed"/> chests that the counts lack. Essence goes
+    /// to the essence storage and DungeonRewardListener books it only for an open it saw (a confirmed one, a key from the
+    /// inventory, a "PAID CHEST REWARDS" line); the Kraken Shard never reaches the counts. All <paramref name="chests"/>
+    /// should have booked their guaranteed amount: what is missing of it is credited, at most the unconfirmed chests'
+    /// share, so a confirmed open's booked essence is never credited twice. Free chest essence in the counts lowers the
+    /// credit too, which errs low. Priced like the key materials: an unpriced item adds nothing.
+    /// </summary>
+    private double UnseenGuaranteedLoot(Dictionary<string, double> itemCounts, double chests, double unconfirmed,
+        Func<string, double> priceOf)
+    {
+        var essence = UnseenCount(itemCounts, "ESSENCE_CRIMSON", PaidChestEssence, chests, unconfirmed);
+        var shards = UnseenCount(itemCounts, "SHARD_KRAKEN", PaidChestKrakenShards, chests, unconfirmed);
+        return essence * KuudraKeyCost.PositivePrice(priceOf, "ESSENCE_CRIMSON")
+            + shards * KuudraKeyCost.PositivePrice(priceOf, "SHARD_KRAKEN");
+    }
+
+    /// <summary>The guaranteed <paramref name="tag"/> of <paramref name="chests"/> not in the counts, at most the unconfirmed chests'.</summary>
+    private static double UnseenCount(Dictionary<string, double> itemCounts, string tag, double perChest, double chests,
+        double unconfirmed)
+    {
+        var booked = Math.Max(0, itemCounts.GetValueOrDefault(tag));
+        return Math.Clamp(chests * perChest - booked, 0, unconfirmed * perChest);
     }
 
     /// <summary>
@@ -157,7 +198,11 @@ public class KuudraT1Task : BaseKuudraTask
     protected override string MethodName => "Kuudra T1";
     protected override int KuudraTier => 1;
     protected override HashSet<string> Locations => ["Kuudra's Hollow (T1)"];
-    protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 600)];
+    /// <summary>Paid chest loot, see <see cref="BaseKuudraTask.TeethPerPaidChest"/>; free chest essence: wiki Kuudra, Basic 1 or 2 (average).</summary>
+    protected override List<MethodDrop> FormulaDrops => PaidChestFormulaDrops(1.5);
+    protected override double TeethPerPaidChest => 1;
+    protected override double PaidChestEssence => 80;
+    protected override double PaidChestKrakenShards => 1;
     protected override double ActionsPerHour => 12;
     protected override string HowTo => "Have Elle take you to Kuudra Basic (T1) from the Forgotten Skull on the Crimson Isle. Fish up supply crates with a lava rod, build and fuel the ballista, then fire at Kuudra. A matching Kuudra Key opens the paid chest; compare its cost with the loot.";
 }
@@ -166,7 +211,11 @@ public class KuudraT2Task : BaseKuudraTask
     protected override string MethodName => "Kuudra T2";
     protected override int KuudraTier => 2;
     protected override HashSet<string> Locations => ["Kuudra's Hollow (T2)"];
-    protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 900)];
+    /// <summary>Paid chest loot, see <see cref="BaseKuudraTask.TeethPerPaidChest"/>; free chest essence: wiki Kuudra, Hot 14, 18 or 22 (average).</summary>
+    protected override List<MethodDrop> FormulaDrops => PaidChestFormulaDrops(18);
+    protected override double TeethPerPaidChest => 1;
+    protected override double PaidChestEssence => 200;
+    protected override double PaidChestKrakenShards => 1;
     protected override double ActionsPerHour => 10;
     protected override string HowTo => "Queue for Kuudra Hot (T2). Needs Basic cleared and 1,000 reputation; better gear than T1 is recommended, drops more Crimson Essence.";
 }
@@ -175,7 +224,11 @@ public class KuudraT3Task : BaseKuudraTask
     protected override string MethodName => "Kuudra T3";
     protected override int KuudraTier => 3;
     protected override HashSet<string> Locations => ["Kuudra's Hollow (T3)"];
-    protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 1200)];
+    /// <summary>Paid chest loot, see <see cref="BaseKuudraTask.TeethPerPaidChest"/>; free chest essence: wiki Kuudra, Burning 25 or 30 (average).</summary>
+    protected override List<MethodDrop> FormulaDrops => PaidChestFormulaDrops(27.5);
+    protected override double TeethPerPaidChest => 2.34; // 2 + 5 at 6.87%
+    protected override double PaidChestEssence => 400;
+    protected override double PaidChestKrakenShards => 1;
     protected override double ActionsPerHour => 8;
     protected override string HowTo => "Queue for Kuudra Burning (T3). Needs Hot cleared and 3,000 reputation. Coordinate supplies, construction and the stun/damage phases with your party.";
 }
@@ -184,7 +237,11 @@ public class KuudraT4Task : BaseKuudraTask
     protected override string MethodName => "Kuudra T4";
     protected override int KuudraTier => 4;
     protected override HashSet<string> Locations => ["Kuudra's Hollow (T4)"];
-    protected override List<MethodDrop> FormulaDrops => [new("ESSENCE_CRIMSON", 1500)];
+    /// <summary>Paid chest loot, see <see cref="BaseKuudraTask.TeethPerPaidChest"/>; free chest essence: wiki Kuudra, Fiery 80, 100 or 120 (average).</summary>
+    protected override List<MethodDrop> FormulaDrops => PaidChestFormulaDrops(100);
+    protected override double TeethPerPaidChest => 2.43; // 2 + 5 at 5.7% + 25 at 0.57%
+    protected override double PaidChestEssence => 800;
+    protected override double PaidChestKrakenShards => 1;
     protected override double ActionsPerHour => 6;
     protected override string HowTo => "Queue for Kuudra Fiery (T4). Needs Burning cleared and 7,000 reputation. Coordinate supplies, construction and the stun/damage phases; bring gear appropriate to your role.";
 }
@@ -196,11 +253,12 @@ public class KuudraT5Task : BaseKuudraTask
     /// <summary>
     /// Per run: 200 Crimson Essence from the free chest (wiki Kuudra loot table) plus the paid chest's guaranteed 2,000
     /// Crimson Essence, 3 Kuudra Teeth and a Kraken Shard (vexo KuudraProfitTracker INFERNAL_GUARANTEED_DROPS, Odin's
-    /// tracker example shows the same "Crimson Essence x2000"), at 5 runs/h. The rolled loot (armor, books, shards) is
-    /// left to the rare pool. Teeth first: they are the cost reference, see <see cref="TeethPerPaidChest"/>.
+    /// tracker example shows the same "Crimson Essence x2000"; the wiki says 1-2 shards, 1 is the lower value), at 5
+    /// runs/h. The rolled loot (armor, books, shards) is left to the rare pool.
     /// </summary>
-    protected override List<MethodDrop> FormulaDrops =>
-        [new("KUUDRA_TEETH", TeethPerPaidChest * RunsPerHour), new("ESSENCE_CRIMSON", 2_200 * RunsPerHour), new("SHARD_KRAKEN", RunsPerHour)];
+    protected override List<MethodDrop> FormulaDrops => PaidChestFormulaDrops(200);
+    protected override double PaidChestEssence => 2_000;
+    protected override double PaidChestKrakenShards => 1;
     /// <summary>
     /// 3 guaranteed plus the rolled slots' 25 (0.59%) and 100 (0.06%) teeth (vexo INFERNAL_SLOT tables): 3.2. Consistent
     /// with production (2026-11-27 audit, 104 h of T5): 2,900 teeth over 1,311 player runs (distinct player and server;

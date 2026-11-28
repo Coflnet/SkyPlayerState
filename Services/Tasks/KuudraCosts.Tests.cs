@@ -79,13 +79,16 @@ public class KuudraCostsTests
         }
     }
 
+    private static readonly BaseKuudraTask[] Tiers = [new KuudraT1Task(), new KuudraT2Task(), new KuudraT3Task(), new KuudraT4Task(), T5];
+
     [Test]
-    public void OnlyT5_ChargesAKeyInTheFormula_SinceOnlyItDeclaresThePaidChestLoot()
+    public void EveryTier_ChargesItsKeyPerRunInTheFormula_SinceItDeclaresThePaidChestLoot()
     {
         T5.FormulaCostsForTest.Should().BeEquivalentTo([new MethodDrop(InfernalKey, 5)]);
-        MethodTask[] withoutChestLoot = [new KuudraT1Task(), new KuudraT2Task(), new KuudraT3Task(), new KuudraT4Task(), new KuudraChestClaimsTask()];
-        foreach (var tier in withoutChestLoot)
-            tier.FormulaCostsForTest.Should().BeEmpty(tier.Name);
+        int[] runsPerHour = [12, 10, 8, 6, 5];
+        for (var i = 0; i < Tiers.Length; i++)
+            Tiers[i].FormulaCostsForTest.Should().BeEquivalentTo([new MethodDrop(KuudraKeyCost.OfTier(i + 1).Tag, runsPerHour[i])], Tiers[i].Name);
+        new KuudraChestClaimsTask().FormulaCostsForTest.Should().BeEmpty();
     }
 
     [Test]
@@ -108,13 +111,38 @@ public class KuudraCostsTests
         => TaskEstimator.FormulaRate(T5, ProductionPrices).Should().BePositive("the guaranteed paid chest loot pays for the key");
 
     /// <summary>
+    /// Per run the paid chest's teeth, essence and shard plus the free chest's essence, minus one key. Fiery's guaranteed
+    /// loot at the lower sourced 800 essence does not pay for its key: its profit is the rolled loot in the rare pool.
+    /// </summary>
+    [TestCase(1, 12, 1, 81.5, 0.70)]
+    [TestCase(2, 10, 1, 218, 0.52)]
+    [TestCase(3, 8, 2.34, 427.5, 0.07)]
+    [TestCase(4, 6, 2.43, 900, -0.47)]
+    [TestCase(5, 5, 3.2, 2_200, 0.78)]
+    public void FormulaRate_AtProductionPrices_IsTheGuaranteedLootMinusTheKeys(int tier, int runs, double teeth,
+        double essence, double millionsPerHour)
+    {
+        double PriceOf(string tag) => ProductionPrices.GetValueOrDefault(tag);
+        KuudraKeyCost.TryGetValue(KuudraKeyCost.OfTier(tier).Tag, PriceOf, out var key);
+        var loot = teeth * 8_616.8 + essence * 1_111.8 + 136_338.2;
+
+        var rate = TaskEstimator.FormulaRate(Tiers[tier - 1], ProductionPrices);
+
+        rate.Should().BeApproximately(runs * (loot - key), 1);
+        (rate / 1e6).Should().BeApproximately(millionsPerHour, 0.01);
+    }
+
+    /// <summary>
     /// 3.2 teeth stand for one paid chest. <paramref name="confirmed"/> opens booked <paramref name="coinsEach"/> each (the
-    /// listener books the actual purse drop) and one KUUDRA_PAID_CHEST each. The cost is the window total.
+    /// listener books the actual purse drop) and one KUUDRA_PAID_CHEST each. Confirmed and inventory key opens booked their
+    /// 2,000 essence, as DungeonRewardListener does, the estimated chests none. The cost is the window total.
     /// </summary>
     private static Dictionary<string, double> Chests(double paidChests, int confirmed = 0, double inventoryKeys = 0,
         double coinsEach = 2_328_000)
     {
-        var counts = new Dictionary<string, double> { ["KUUDRA_TEETH"] = 3.2 * paidChests, ["ESSENCE_CRIMSON"] = 500 };
+        var counts = new Dictionary<string, double> { ["KUUDRA_TEETH"] = 3.2 * paidChests };
+        if (confirmed + inventoryKeys > 0)
+            counts["ESSENCE_CRIMSON"] = 2_000 * (confirmed + inventoryKeys);
         if (confirmed > 0)
         {
             counts[PseudoItems.DUNGEON_CHEST_COST] = -confirmed * coinsEach;
@@ -129,12 +157,100 @@ public class KuudraCostsTests
     private static double ChestCostValued(string tag) => tag == PseudoItems.DUNGEON_CHEST_COST ? 1 : PriceOf(tag);
 
     private const double Materials = 80 * 1_000 + 2 * 50_000;
+    /// <summary>The Infernal paid chest's guaranteed 2,000 essence and Kraken Shard, never booked for an estimated chest.</summary>
+    private const double InfernalUnseenLoot = 2_000 * 1_000 + 100_000;
+    private const double InfernalNetKey = InfernalKeyValue - InfernalUnseenLoot;
 
     [Test]
-    public void ScaledFormulaCost_ChargesAKeyPerPaidChestTheTeethStandFor()
+    public void ScaledFormulaCost_ChargesAKeyPerPaidChestTheTeethStandFor_LessItsUnseenLoot()
     {
-        T5.ScaledFormulaCost(Chests(1), 0.25, PriceOf).Should().BeApproximately(InfernalKeyValue, 1);
-        T5.ScaledFormulaCost(Chests(3), 0.5, PriceOf).Should().BeApproximately(3 * InfernalKeyValue, 1);
+        T5.ScaledFormulaCost(Chests(1), 0.25, PriceOf).Should().BeApproximately(InfernalNetKey, 1);
+        T5.ScaledFormulaCost(Chests(3), 0.5, PriceOf).Should().BeApproximately(3 * InfernalNetKey, 1);
+    }
+
+    /// <summary>
+    /// Regression: a teeth-estimated T5 chest was charged its whole key while its guaranteed 2,000 essence (essence storage)
+    /// and Kraken Shard never reach a claim's counts, understating T5 by about 2.36M per chest at production prices.
+    /// </summary>
+    [Test]
+    public void T5_EstimatedChest_IsNoLongerUnderstatedByItsGuaranteedEssenceAndShard()
+    {
+        double PriceOf(string tag) => ProductionPrices.GetValueOrDefault(tag);
+        var teethOnly = new Dictionary<string, double> { ["KUUDRA_TEETH"] = 3.2 };
+        KuudraKeyCost.TryGetValue(InfernalKey, PriceOf, out var key);
+
+        var cost = T5.ScaledFormulaCost(teethOnly, 1, PriceOf);
+
+        cost.Should().BeApproximately(key - (2_000 * 1_111.8 + 136_338.2), 1);
+        (key - cost).Should().BeApproximately(2_360_000, 1_000);
+    }
+
+    /// <summary>One chest's teeth alone: its key less the paid chest's guaranteed essence and shard at the test prices.</summary>
+    [TestCase(1, 1, 80)]
+    [TestCase(2, 1, 200)]
+    [TestCase(3, 2.34, 400)]
+    [TestCase(4, 2.43, 800)]
+    [TestCase(5, 3.2, 2_000)]
+    public void TeethOnlyRow_ChargesTheKeyLessTheUnseenGuaranteedLoot(int tier, double teeth, double essence)
+    {
+        var task = Tiers[tier - 1];
+        KuudraKeyCost.TryGetValue(KuudraKeyCost.OfTier(tier).Tag, PriceOf, out var key);
+
+        var cost = task.ScaledFormulaCost(new() { ["KUUDRA_TEETH"] = teeth }, 1, PriceOf);
+
+        cost.Should().BeApproximately(key - essence * 1_000 - 100_000, 1, task.Name);
+    }
+
+    [Test]
+    public void ObservedEssence_LowersTheCredit_NeverBelowZero()
+    {
+        var t2 = new KuudraT2Task();
+        KuudraKeyCost.TryGetValue(KuudraKeyCost.OfTier(2).Tag, PriceOf, out var key);
+        double Cost(double essence) => t2.ScaledFormulaCost(new() { ["KUUDRA_TEETH"] = 2, ["ESSENCE_CRIMSON"] = essence }, 1, PriceOf);
+
+        Cost(150).Should().BeApproximately(2 * key - (400 - 150) * 1_000 - 2 * 100_000, 1, "150 of the 400 essence were booked");
+        Cost(10_000).Should().BeApproximately(2 * key - 2 * 100_000, 1, "booked essence leaves only the shards to credit");
+        Cost(399.9).Should().BeApproximately(Cost(400), 101, "continuous in the counts");
+        Cost(10_000).Should().Be(Cost(400), "the essence credit stops at 0");
+    }
+
+    [Test]
+    public void ObservedKrakenShards_LowerTheShardCredit()
+    {
+        var t1 = new KuudraT1Task();
+        KuudraKeyCost.TryGetValue(KuudraKeyCost.OfTier(1).Tag, PriceOf, out var key);
+
+        var cost = t1.ScaledFormulaCost(new() { ["KUUDRA_TEETH"] = 2, ["SHARD_KRAKEN"] = 1.5 }, 1, PriceOf);
+
+        cost.Should().BeApproximately(2 * key - 160 * 1_000 - 0.5 * 100_000, 1);
+    }
+
+    /// <summary>Confirmed opens book their essence themselves: they get no credit, and their essence is not credited twice.</summary>
+    [Test]
+    public void ConfirmedOpens_StillWin_AndTheirBookedEssenceIsNotCreditedAgain()
+    {
+        var t2 = new KuudraT2Task();
+        KuudraKeyCost.TryGetValue(KuudraKeyCost.OfTier(2).Tag, PriceOf, out var key);
+        var materials = 4 * 1_000 + 2 * 50_000;
+        Dictionary<string, double> Counts(double teeth, int confirmed) => new()
+        {
+            ["KUUDRA_TEETH"] = teeth, ["ESSENCE_CRIMSON"] = 200 * confirmed,
+            [PseudoItems.KUUDRA_PAID_CHEST] = -confirmed, [PseudoItems.DUNGEON_CHEST_COST] = -confirmed * 310_400,
+        };
+
+        t2.ScaledFormulaCost(Counts(3, 3), 1, ChestCostValued).Should().BeApproximately(3 * materials, 1);
+        t2.ScaledFormulaCost(Counts(3, 1), 1, ChestCostValued)
+            .Should().BeApproximately(materials + 2 * (key - 200 * 1_000 - 100_000), 1, "two estimated chests are credited");
+    }
+
+    [Test]
+    public void UnpricedEssenceAndShard_CreditNothing()
+    {
+        double KeyMaterialsOnly(string tag) => tag is "ESSENCE_CRIMSON" or "SHARD_KRAKEN" ? 0 : PriceOf(tag);
+
+        T5.ScaledFormulaCost(Chests(1), 1, KeyMaterialsOnly).Should().BeApproximately(InfernalKeyValue, 1);
+        T5.ScaledFormulaCost(Chests(1), 1, _ => 0).Should().Be(2_328_000);
+        T5.ScaledFormulaCost(Chests(1), 1, _ => double.NaN).Should().Be(2_328_000, "a NaN price counts as unpriced");
     }
 
     /// <summary>
@@ -146,39 +262,25 @@ public class KuudraCostsTests
     {
         var cost = T5.ScaledFormulaCost(Chests(625), 4.48, PriceOf);
 
-        cost.Should().BeApproximately(2 * 5 * 4.48 * InfernalKeyValue, 1);
+        cost.Should().BeApproximately(2 * 5 * 4.48 * InfernalNetKey, 1);
     }
 
-    /// <summary>
-    /// T1-T4 do not estimate paid chests from teeth: a claim's counts miss the paid chest's guaranteed essence and Kraken
-    /// Shard, worth about the key (see BaseKuudraTask.TeethPerPaidChest), so neither the formula nor the teeth charge a key.
-    /// </summary>
-    [Test]
-    public void LowerTiers_EstimateNoPaidChestsFromTeeth()
+    [TestCase(1, 12)]
+    [TestCase(4, 6)]
+    public void LowerTier_TeethBeyondTheRunsAnHourCanHold_ChargeAtMostTwoChestsPerRun(int tier, int runs)
     {
-        MethodTask[] lower = [new KuudraT1Task(), new KuudraT2Task(), new KuudraT3Task(), new KuudraT4Task()];
-        var counts = new Dictionary<string, double> { ["KUUDRA_TEETH"] = 30, ["TERROR_CHESTPLATE"] = 10, ["ESSENCE_CRIMSON"] = 4_000 };
+        var task = Tiers[tier - 1];
+        var oneChest = task.ScaledFormulaCost(new() { ["KUUDRA_TEETH"] = 3 }, 1, PriceOf) / (3 / TeethOf(tier));
 
-        foreach (var tier in lower)
-        {
-            tier.FormulaCostsForTest.Should().BeEmpty(tier.Name);
-            tier.ScaledFormulaCost(counts, 1, PriceOf).Should().Be(0, tier.Name);
-        }
+        task.ScaledFormulaCost(new() { ["KUUDRA_TEETH"] = 500 }, 1, PriceOf).Should().BeApproximately(2 * runs * oneChest, 1);
     }
 
-    [Test]
-    public void FormulaRate_EveryTier_AtProductionPrices_IsNotNegative()
-    {
-        MethodTask[] tiers = [new KuudraT1Task(), new KuudraT2Task(), new KuudraT3Task(), new KuudraT4Task(), T5];
-
-        foreach (var tier in tiers)
-            TaskEstimator.FormulaRate(tier, ProductionPrices).Should().BePositive(tier.Name);
-    }
+    private static double TeethOf(int tier) => new[] { 1, 1, 2.34, 2.43, 3.2 }[tier - 1];
 
     [Test]
     public void ScaledFormulaCost_ConfirmedOpensCountTowardTheRunCap()
         => T5.ScaledFormulaCost(Chests(100, confirmed: 8), 1, ChestCostValued)
-            .Should().BeApproximately(2 * InfernalKeyValue + 8 * Materials, 1, "10 chests fit into an hour, 8 of them confirmed");
+            .Should().BeApproximately(2 * InfernalNetKey + 8 * Materials, 1, "10 chests fit into an hour, 8 of them confirmed");
 
     /// <summary>Review probe: 50 runs with one confirmed open turned the whole key estimate off (-11.46M/h to +1.03M/h).</summary>
     [Test]
@@ -186,7 +288,7 @@ public class KuudraCostsTests
     {
         var cost = T5.ScaledFormulaCost(Chests(50, confirmed: 1), 6, ChestCostValued);
 
-        cost.Should().BeApproximately(49 * InfernalKeyValue + Materials, 1, "the confirmed chest's coins are in the counts, its materials are not");
+        cost.Should().BeApproximately(49 * InfernalNetKey + Materials, 1, "the confirmed chest's coins are in the counts, its materials are not");
     }
 
     [Test]
@@ -201,7 +303,7 @@ public class KuudraCostsTests
     [Test]
     public void ScaledFormulaCost_ConfirmedAboveTheFullReputationPrice_StillChargesTheFifthChest()
         => T5.ScaledFormulaCost(Chests(5, confirmed: 4, coinsEach: 3_000_000), 1, ChestCostValued)
-            .Should().BeApproximately(InfernalKeyValue + 4 * Materials, 1);
+            .Should().BeApproximately(InfernalNetKey + 4 * Materials, 1);
 
     /// <summary>
     /// With FullValueRates off (production now) the chest cost is worth 0 when a rate is read: the confirmed opens are
@@ -225,21 +327,21 @@ public class KuudraCostsTests
     [Test]
     public void ScaledFormulaCost_KeyTakenFromTheInventory_IsChargedInFull()
     {
-        T5.ScaledFormulaCost(Chests(2, inventoryKeys: 1), 0.5, PriceOf).Should().BeApproximately(2 * InfernalKeyValue, 1,
-            "one chest opened with an inventory key, the other estimated");
+        T5.ScaledFormulaCost(Chests(2, inventoryKeys: 1), 0.5, PriceOf).Should().BeApproximately(InfernalKeyValue + InfernalNetKey, 1,
+            "one chest opened with an inventory key and booked its essence, the other estimated");
         T5.ScaledFormulaCost(Chests(0, inventoryKeys: 2), 0.5, PriceOf).Should().BeApproximately(2 * InfernalKeyValue, 1,
             "consumed keys count even without teeth");
     }
 
     [Test]
-    public void ScaledFormulaCost_LowerTier_ChargesOnlyConsumedKeys()
+    public void ScaledFormulaCost_LowerTier_KeyFromTheInventoryCoversTheChestItsTeethStandFor()
     {
         var t2 = new KuudraT2Task();
         var hotKey = KuudraKeyCost.OfTier(2);
-        var counts = new Dictionary<string, double> { ["KUUDRA_TEETH"] = 30, [hotKey.Tag] = -1 };
+        var counts = new Dictionary<string, double> { ["KUUDRA_TEETH"] = 1, [hotKey.Tag] = -1, ["ESSENCE_CRIMSON"] = 200 };
 
         t2.ScaledFormulaCost(counts, 1, PriceOf).Should().BeApproximately(hotKey.Coins + 4 * 1_000 + 2 * 50_000, 1,
-            "T2 declares no paid chest teeth to estimate from");
+            "the one chest was opened with the key, nothing is estimated");
     }
 
     /// <summary>
@@ -289,7 +391,7 @@ public class KuudraCostsTests
     {
         double WithBogusKeyPrice(string tag) => tag == InfernalKey ? 99 : PriceOf(tag);
 
-        T5.ScaledFormulaCost(Chests(1), 1, WithBogusKeyPrice).Should().BeApproximately(InfernalKeyValue, 1);
+        T5.ScaledFormulaCost(Chests(1), 1, WithBogusKeyPrice).Should().BeApproximately(InfernalNetKey, 1);
     }
 
     [Test]
