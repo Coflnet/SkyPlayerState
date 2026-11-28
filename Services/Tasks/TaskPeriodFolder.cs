@@ -136,7 +136,7 @@ public class TaskPeriodFolder
             var promotedCoins = gated.PromotedCoins;
 
             // value each item; separate rare, high value, infrequent drops into an EV pool
-            var (commonCounts, rareCoins, itemValue, rareItemCoins) = SplitRareAndCommon(
+            var (commonCounts, rareCoins, itemValue, rareItemCoins, rareItemCounts) = SplitRareAndCommon(
                 owned, tag => coinValues.Value(tag, prices), tag => IsInfrequent(tag, bucketAgg));
 
             // AFK contamination: gross gains far below the community rate, unless the session proves activity (see
@@ -180,12 +180,14 @@ public class TaskPeriodFolder
             aggregates.AddContribution(task, bucket, period.PlayerUuid, seconds * weight, weightedItemCounts,
                 residual * weight, rareCoins * weight, itemValue * weight,
                 TaskEstimator.ItemValues(weightedItemCounts, prices), span?.TraceId.ToString(),
-                rareItemCoins: rareItemCoins.ToDictionary(e => e.Key, e => e.Value * weight),
-                undeclaredItemCoins: WeightedValues(undeclared, weight));
+                rareItemCoins: RareRepricing.Scaled(rareItemCoins, weight),
+                undeclaredItemCoins: WeightedValues(undeclared, weight),
+                rareItemCounts: RareRepricing.Scaled(rareItemCounts, weight));
 
-            // a promoted undeclared tag counts like a rare drop in the personal rate too, the others stay out of it
+            // a promoted undeclared tag counts like a rare drop in the personal rate too (untraced, at face value), the
+            // others stay out of it
             await UpdatePlayerStat(period.PlayerUuid, task, seconds, commonCounts, residual, rareCoins + promotedCoins,
-                itemValue + promotedCoins, minutes, prices);
+                itemValue + promotedCoins, minutes, prices, new RareItems(rareItemCoins, rareItemCounts));
 
             if (!lateReward)
                 gearObservations?.Record(new Services.Gear.GearFoldInput(period, task, bucket, seconds, weight,
@@ -308,7 +310,7 @@ public class TaskPeriodFolder
     /// blow out the winsorized common rate) - pulled out of <see cref="Fold"/> as a pure static so
     /// this split is unit testable without the Cassandra-backed dependencies the rest of Fold needs.
     /// The rare pool is also returned per tag (<see cref="PoolSplit.RareItemCoins"/>), so every rare coin stays traceable
-    /// to the item that earned it.
+    /// to the item that earned it, with its units (<see cref="PoolSplit.RareItemCounts"/>) for live re-pricing.
     /// <para>
     /// A negative <paramref name="owned"/> count is a real cost (see <see cref="FilterOwnedItems"/> -
     /// a <see cref="PseudoItems.IsCost"/> tag, or a FormulaCosts consumable like KISMET_FEATHER) - its
@@ -325,18 +327,22 @@ public class TaskPeriodFolder
         {
             var unit = unitPriceOf(tag);
             if (count > 0 && unit > RarePriceThreshold && isInfrequent(tag))
-                split.AddRare(tag, unit * count);
+                split.AddRare(tag, count, unit * count);
             else
                 split.AddCommon(tag, count, unit * count);
         }
         return split;
     }
 
-    /// <summary>The pools of one period: common counts, the rare/EV coins (in total and per tag) and the whole item value.</summary>
+    /// <summary>
+    /// The pools of one period: common counts, the rare/EV coins (in total and per tag, with the units per tag) and the
+    /// whole item value.
+    /// </summary>
     internal sealed class PoolSplit
     {
         public Dictionary<string, double> CommonCounts { get; } = new();
         public Dictionary<string, double> RareItemCoins { get; } = new();
+        public Dictionary<string, double> RareItemCounts { get; } = new();
         public double RareCoins { get; private set; }
         public double ItemValue { get; private set; }
 
@@ -346,9 +352,10 @@ public class TaskPeriodFolder
             ItemValue += value;
         }
 
-        public void AddRare(string tag, double coins)
+        public void AddRare(string tag, int count, double coins)
         {
             RareItemCoins[tag] = RareItemCoins.GetValueOrDefault(tag) + coins;
+            RareItemCounts[tag] = RareItemCounts.GetValueOrDefault(tag) + count;
             RareCoins += coins;
             ItemValue += coins;
         }
@@ -365,6 +372,13 @@ public class TaskPeriodFolder
         {
             Deconstruct(out commonCounts, out rareCoins, out itemValue);
             rareItemCoins = RareItemCoins;
+        }
+
+        public void Deconstruct(out Dictionary<string, double> commonCounts, out double rareCoins, out double itemValue,
+            out Dictionary<string, double> rareItemCoins, out Dictionary<string, double> rareItemCounts)
+        {
+            Deconstruct(out commonCounts, out rareCoins, out itemValue, out rareItemCoins);
+            rareItemCounts = RareItemCounts;
         }
     }
 
@@ -659,9 +673,12 @@ public class TaskPeriodFolder
         }
     }
 
+    /// <summary>A period's rare pool per tag: fold time coins and their units (see <see cref="RareRepricing"/>).</summary>
+    internal sealed record RareItems(Dictionary<string, double> Coins, Dictionary<string, double> Counts);
+
     private async Task UpdatePlayerStat(string playerUuid, string task, double seconds,
         Dictionary<string, double> commonCounts, double residual, double rareCoins, double itemValue,
-        double minutes, Dictionary<string, double> prices)
+        double minutes, Dictionary<string, double> prices, RareItems rareItems = null)
     {
         try
         {
@@ -670,6 +687,7 @@ public class TaskPeriodFolder
                 existing = null; // stale data from before the reset: start fresh
             var row = existing ?? new TaskPlayerStatRow { PlayerUuid = playerUuid, TaskName = task };
             double decay = existing != null ? Math.Pow(0.5, (DateTime.UtcNow - existing.LastFold).TotalDays / 7) : 1;
+            AddPlayerRareItems(row, rareItems, decay); // before the pool decays: the stored tags are bounded by it
             row.WSeconds = row.WSeconds * decay + seconds;
             row.ResidualCoins = row.ResidualCoins * decay + residual;
             row.RareCoins = row.RareCoins * decay + rareCoins;
@@ -687,6 +705,21 @@ public class TaskPeriodFolder
 
     /// <summary>Items kept per player row besides the costs.</summary>
     internal const int PlayerItemLimit = 20;
+
+    /// <summary>
+    /// Decays the row's rare tags and adds the period's (<paramref name="rareItems"/>), bounded like a day row
+    /// (<see cref="TaskAggregateService.RareItemLimit"/>). Called while <see cref="TaskPlayerStatRow.RareCoins"/> is still
+    /// the stored, undecayed pool: the stored tags are first bounded by it (<see cref="RareRepricing.BoundedBy"/>), older
+    /// code decays the pool but not the tags. On a row from before the tags were stored the old rare coins stay untraced
+    /// (the pool beyond its tags), at face value.
+    /// </summary>
+    internal static void AddPlayerRareItems(TaskPlayerStatRow row, RareItems rareItems, double decay)
+    {
+        var tags = RareTags.Empty();
+        RareRepricing.AddStored(tags, RareRepricing.BoundedBy(RareTags.Of(row), row.RareCoins), decay);
+        RareRepricing.AddFresh(tags, rareItems?.Coins, rareItems?.Counts);
+        RareRepricing.Trimmed(tags, TaskAggregateService.RareItemLimit).WriteTo(row);
+    }
 
     /// <summary>
     /// Decays the row's item counts and their fold time market values, adds the new counts at

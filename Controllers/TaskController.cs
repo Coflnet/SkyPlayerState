@@ -230,6 +230,7 @@ public class TaskController : ControllerBase
                     ScaledResidualCoins = parts.ScaledResidualCoins,
                     ScaledRareCoins = parts.ScaledRareCoins,
                     RareItemCoins = new Dictionary<string, double>(agg.RareItemCoins),
+                    RareItemCounts = new Dictionary<string, double>(agg.RareItemCounts),
                     UntracedRareCoins = agg.RareCoins - agg.RareItemCoins.Values.Sum(),
                     UndeclaredItemCoins = agg.UndeclaredItemCoins(),
                     UndeclaredPlayers = agg.UndeclaredPlayerCoins.Keys.ToDictionary(tag => tag, tag => undeclaredPlayers.GetValueOrDefault(tag)),
@@ -345,10 +346,18 @@ public class TaskAggregateInfo
     public double DriftScale { get; set; }
     /// <summary>Residual pool after drift scaling.</summary>
     public double ScaledResidualCoins { get; set; }
-    /// <summary>Rare EV pool after drift scaling, the promoted undeclared coins included.</summary>
+    /// <summary>
+    /// Rare EV pool as the rate counts it (before the evidence scale), the promoted undeclared coins included: drift
+    /// scaled with full value rates off, its counted tags at live prices with them on.
+    /// </summary>
     public double ScaledRareCoins { get; set; }
     /// <summary>The rare pool per item tag (unscaled, like <see cref="RareCoins"/>).</summary>
     public Dictionary<string, double> RareItemCoins { get; set; }
+    /// <summary>
+    /// Units behind the counted part of <see cref="RareItemCoins"/>, re-priced live when full value rates are on (see
+    /// <see cref="ScaledRareCoins"/>); tags without a count are counted at face value.
+    /// </summary>
+    public Dictionary<string, double> RareItemCounts { get; set; }
     /// <summary>Rare coins no tag explains: rows written before the pool was itemized.</summary>
     public double UntracedRareCoins { get; set; }
     /// <summary>
