@@ -117,26 +117,45 @@ public class FormulaCostTopUpTests
             new() { ["ESSENCE_FOSSIL"] = EssenceSeed * 7.2, ["SUSPICIOUS_SCRAP"] = -observed }, 1, FossilPrice);
 
         Math.Abs(Cost(scrap - 0.01) - Cost(scrap + 0.01)).Should().BeLessThan(5_000);
-        Math.Abs(Cost(scrap - 1) - Cost(scrap)).Should().BeLessThan(100_000, "one scrap (74k), or the essence it buys (33k)");
+        Math.Abs(Cost(scrap - 1) - Cost(scrap)).Should().BeLessThan(150_000, "one scrap (74k) plus the essence it can buy (66k)");
     }
 
     /// <summary>
-    /// Review regression: once 120 scraps were observed the essence at 7.2x the seed counted in full. An observed spend pays
-    /// only for the essence it bought: <see cref="FossilExcavationTask.EssencePerScrap"/> per scrap.
+    /// Review regression: once 120 scraps were observed the essence at 7.2x the seed (28,771 an hour) counted in full. An
+    /// observed spend pays only for the essence it can have bought: at most 66 per scrap (the best chisel).
     /// </summary>
-    [TestCase(120)]
-    [TestCase(500)]
-    [TestCase(864)]
-    [TestCase(1000)]
-    public void FossilExcavation_ObservedScrapPaysOnlyForTheEssenceItBought(double scrap)
+    [TestCase(120, 20_851_200)]
+    [TestCase(300, 8_971_200)]
+    [TestCase(436, 0)]
+    [TestCase(1000, 0)]
+    public void FossilExcavation_ObservedScrapPaysOnlyForTheEssenceItBought(double scrap, double withheldCoins)
     {
-        var essence = EssenceSeed * 7.2;
-        var counts = new Dictionary<string, double> { ["ESSENCE_FOSSIL"] = essence, ["SUSPICIOUS_SCRAP"] = -scrap };
-        var bought = Math.Max(EssenceSeed, scrap * FossilExcavationTask.EssencePerScrap);
+        var counts = new Dictionary<string, double> { ["ESSENCE_FOSSIL"] = 28_771.2, ["SUSPICIOUS_SCRAP"] = -scrap };
 
-        new FossilExcavationTask().ScaledFormulaCost(counts, 1, FossilPrice)
-            .Should().BeApproximately(Math.Max(0, essence - bought) * 1_000, 1);
+        new FossilExcavationTask().ScaledFormulaCost(counts, 1, FossilPrice).Should().BeApproximately(withheldCoins, 1);
     }
+
+    // 150 scraps in an hour, above the formula's 120, so no scrap is topped up and only the withheld essence differs
+    private static TaskPlayerStatRow FossilPlayer(double essencePerScrap) => new()
+    {
+        WSeconds = 3600, ItemCounts = new() { ["ESSENCE_FOSSIL"] = essencePerScrap * 150, ["SUSPICIOUS_SCRAP"] = -150 }
+    };
+
+    private static double FossilPlayerRate(double essencePerScrap) => TaskEstimator.RateFromPlayerStat(new FossilExcavationTask(),
+        FossilPlayer(essencePerScrap), new() { ["ESSENCE_FOSSIL"] = 1_000, ["SUSPICIOUS_SCRAP"] = 74_000 }, 1);
+
+    /// <summary>
+    /// Review regression: the bound allowed only the average 33.3 essence per observed scrap, so a Peridot chisel player at 45
+    /// had a quarter of real essence withheld. Up to the best chisel's 66 per scrap nothing is withheld.
+    /// </summary>
+    [Test]
+    public void FossilExcavation_PersonalRow_AGoodChiselKeepsAllItsEssence()
+        => FossilPlayerRate(45).Should().BeApproximately(6_750 * 1_000 - 150 * 74_000, 1);
+
+    [Test]
+    public void FossilExcavation_PersonalRow_EssenceAboveTheBestChiselIsWithheld()
+        // 80 essence per scrap: 150 scraps buy at most 9,900, the other 2,100 are withheld
+        => FossilPlayerRate(80).Should().BeApproximately(12_000 * 1_000 - 150 * 74_000 - 2_100 * 1_000, 1);
 
     /// <summary>
     /// Regression (2026-11-28): with the old seed of 21 essence per scrap, the live community aggregate (35.4 h, 282,532 essence,

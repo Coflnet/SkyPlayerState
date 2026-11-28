@@ -1473,6 +1473,14 @@ public class TaskClassifierTests
     public void FossilItems_ClassifyToFossilExcavation(string zone, string item)
         => NameAt(zone, new() { { item, 6 } }).Should().Be("Fossil Excavation");
 
+    /// <summary>The excavator's flawed gems prove it in the research center only; tunnel gem mining keeps its gems.</summary>
+    [TestCase("Fossil Research Center", "FLAWED_PERIDOT_GEM", "Fossil Excavation")]
+    [TestCase("Fossil Research Center", "FLAWED_ONYX_GEM", "Fossil Excavation")]
+    [TestCase("Glacite Tunnels", "FLAWED_PERIDOT_GEM", "Peridot Mining")]
+    [TestCase("Glacite Tunnels", "FLAWED_ONYX_GEM", "Onyx Mining")]
+    public void ExcavatedFlawedGems_StayWithGemMiningOutsideTheResearchCenter(string zone, string item, string expected)
+        => NameAt(zone, new() { { item, 40 } }).Should().Be(expected);
+
     [Test]
     public void GlaciteMiningWithExpensiveScrap_StaysMining()
         => NameAtPriced("Glacite Tunnels", new() { { "UMBER", 900 }, { "ENCHANTED_UMBER", 4 }, { "SUSPICIOUS_SCRAP", 2 } },

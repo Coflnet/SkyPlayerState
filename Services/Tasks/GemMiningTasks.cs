@@ -820,15 +820,20 @@ public class FossilExcavationTask : BaseMiningTask
         "ESSENCE_FOSSIL"
     ];
     // The excavator pays out mostly ore and gems, so at the research center any of them proves the excavation too
-    // (20 of 47 periods there had spent scrap but no fossil, 2026-10-11). Elsewhere only the fossils do.
+    // (20 of 47 periods there had spent scrap but no fossil, 2026-10-11). Elsewhere only the fossils do. The flawed gems are
+    // the excavator's most common gem payout; no gem mining task is done in the research center (they list the tunnels), so
+    // this zone scoped list takes no mining period from them.
     protected override Dictionary<string, HashSet<string>> ZoneDetectionItems => new()
     {
         ["Fossil Research Center"] =
         [
-            .. DetectionItems, "ENCHANTED_UMBER", "ENCHANTED_TUNGSTEN", "ENCHANTED_GLACITE", "FINE_PERIDOT_GEM",
-            "FINE_AQUAMARINE_GEM", "FINE_ONYX_GEM", "FINE_CITRINE_GEM", "ENCHANTMENT_PALEONTOLOGIST_1"
+            .. DetectionItems, "ENCHANTED_UMBER", "ENCHANTED_TUNGSTEN", "ENCHANTED_GLACITE", .. ExcavatedGemTags,
+            "ENCHANTMENT_PALEONTOLOGIST_1"
         ]
     };
+    private static readonly string[] ExcavatedGems = ["PERIDOT", "AQUAMARINE", "ONYX", "CITRINE"];
+    private static IEnumerable<string> ExcavatedGemTags
+        => ExcavatedGems.SelectMany(gem => new[] { $"FLAWED_{gem}_GEM", $"FINE_{gem}_GEM" });
     // Spent scrap is a negative count: it classifies a period whose loot was booked elsewhere and survives folding as a cost.
     protected override HashSet<string> EvidenceItems => ["SUSPICIOUS_SCRAP"];
     // A Dwarven Base Camp period that only holds spent scrap ties with Glacite Mineshafts (Priority 1, scrap is corpse
@@ -842,17 +847,31 @@ public class FossilExcavationTask : BaseMiningTask
     /// chisel raise it. The old seed of 21 made the withheld essence bound below take a third of the observed essence.
     /// </summary>
     internal const double EssencePerScrap = 33.3;
+    /// <summary>
+    /// Fossil Essence per excavation with the best chisel: a Perfect Chisel with Peridot gems gives +200% essence (wiki, Fossil
+    /// Research Center), 21.3 x 3 = 64, and the Perfect Chisel players in production got about 66 (Loki, 2026-10-20). Only the
+    /// withheld essence bound uses it: an observed scrap may have bought this much essence.
+    /// </summary>
+    internal const double BestChiselEssencePerScrap = 66;
+    protected override double ObservedSpendYieldBound => BestChiselEssencePerScrap / EssencePerScrap;
     private static MethodDrop PerScrap(string tag, double perScrap) => new(tag, perScrap * ScrapsPerHour);
 
-    // Per scrap: ores and gems from the wiki drop table (Fossil Excavator, 11.5 rolls; one entry shared by the three ores and by
-    // the four gem types, which the observed ores confirm at 0.82-0.94 each), fossils from the community aggregate. Flawed gems
-    // were missing (sack gems were never booked before e347ff6). Claw and Helix fossils left the excavator on 2026-04-30.
+    /// <summary>
+    /// The share of the excavator's drop table a player uncovers: the table (Fossil Excavator wiki page, 11.5 rolls, one row per
+    /// ore and per gem type) gives 2.49 of each enchanted ore per excavation, the community aggregate 0.82-0.94 (mean 0.87,
+    /// 8,414 scraps). The gems, unobserved before the sack gem fix e347ff6, get the same share.
+    /// </summary>
+    private const double UncoveredShare = 0.87 / 2.49;
+    private static MethodDrop Uncovered(string tag, double perScrapInTable) => PerScrap(tag, perScrapInTable * UncoveredShare);
+
+    // Per scrap: the ores as observed, the gems as the table's 37.3 Flawed and 0.53 Fine per type times the uncovered share,
+    // the fossils from the community aggregate. Claw and Helix fossils left the excavator on 2026-04-30.
     protected override List<MethodDrop> FormulaDrops =>
     [
         PerScrap("ESSENCE_FOSSIL", EssencePerScrap),
         PerScrap("ENCHANTED_UMBER", 0.83), PerScrap("ENCHANTED_TUNGSTEN", 0.83), PerScrap("ENCHANTED_GLACITE", 0.83), PerScrap("GLACITE", 0.7),
-        PerScrap("FLAWED_PERIDOT_GEM", 9.3), PerScrap("FLAWED_AQUAMARINE_GEM", 9.3), PerScrap("FLAWED_ONYX_GEM", 9.3), PerScrap("FLAWED_CITRINE_GEM", 9.3),
-        new("FINE_PERIDOT_GEM", 13.7), new("FINE_AQUAMARINE_GEM", 12.6), new("FINE_ONYX_GEM", 12.5), new("FINE_CITRINE_GEM", 9.1),
+        .. ExcavatedGems.Select(gem => Uncovered($"FLAWED_{gem}_GEM", 37.3)),
+        .. ExcavatedGems.Select(gem => Uncovered($"FINE_{gem}_GEM", 0.53)),
         PerScrap("ENCHANTMENT_PALEONTOLOGIST_1", 0.033), PerScrap("FOSSIL_THE_FISH", 0.016),
         PerScrap("TUSK_FOSSIL", 0.0098), PerScrap("FOOTPRINT_FOSSIL", 0.0089), PerScrap("CLUBBED_FOSSIL", 0.0086),
         PerScrap("WEBBED_FOSSIL", 0.0085), PerScrap("SPINE_FOSSIL", 0.0079), PerScrap("UGLY_FOSSIL", 0.006)
@@ -863,7 +882,8 @@ public class FossilExcavationTask : BaseMiningTask
     // listener (one credit per summary line, never through inventory or sacks), so the bound holds on both sides: the scrap
     // cost never exceeds the seeded 120 scraps an hour, and the essence beyond 1x its seed is not counted as revenue
     // either (MethodTask.WithheldReferenceValue). Spent scrap that was actually observed is a negative count and replaces
-    // that much of this estimate, and it pays for as much essence as it bought (EssencePerScrap each).
+    // that much of this estimate, and it pays for as much essence as the best chisel would have bought with it
+    // (BestChiselEssencePerScrap each).
     protected override double MaxCostScale => 1.0;
     // no gauntlet needed: the excavator is an NPC machine
     protected override List<RequiredItem> RequiredItems => [];
