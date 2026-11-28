@@ -36,12 +36,14 @@ public class EnderDragonTask : MethodTask
     private static readonly string[] DragonTypes = ["OLD", "UNSTABLE", "YOUNG", "WISE", "STRONG", "PROTECTOR", "SUPERIOR", "HOLY"];
     protected override string MethodName => "Ender Dragon";
     protected override HashSet<string> Locations => ["Dragon's Nest", "The End"];
-    protected override HashSet<string> DetectionItems => [
+    /// <summary>What only a dragon fight drops (fragments, dragon parts, armor); the other End tasks use it as a fight marker.</summary>
+    internal static readonly string[] DragonLoot = [
         "OLD_FRAGMENT", "UNSTABLE_FRAGMENT", "YOUNG_FRAGMENT", "WISE_FRAGMENT", "STRONG_FRAGMENT", "PROTECTOR_FRAGMENT",
         "SUPERIOR_FRAGMENT", "HOLY_FRAGMENT", "DRAGON_HORN", "DRAGON_CLAW", "DRAGON_SCALE", "ASPECT_OF_THE_DRAGON",
         "RITUAL_RESIDUE", "SHARD_DRACONIC",
         .. DragonTypes.SelectMany(type => new[] { "HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS" }.Select(piece => $"{type}_DRAGON_{piece}"))
     ];
+    protected override HashSet<string> DetectionItems => [.. DragonLoot];
     // A period of only placed eyes (negative count, see CollectionListener.BookPlacedSummoningEyes) is the cost of a
     // fight whose loot was booked elsewhere. The classifier lets a negative evidence count stand in for a detection
     // item; positive eyes (Zealot drops) stay Zealots (FD)'s.
