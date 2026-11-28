@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using AwesomeAssertions;
 using Coflnet.Sky.Crafts.Client.Model;
@@ -28,6 +29,19 @@ public class EconomicTaskAuditTests
         TaskEstimator.RateFromAggregate(task, aggregate, new() { ["SHARD_VIPER"] = 200_000 })
             .Should().BeApproximately(6_000_000, 0.01);
         task.ScaledFormulaCost(new() { ["SHARD_VIPER"] = -10 }, 1, _ => 200_000).Should().Be(0);
+    }
+
+    /// <summary>
+    /// Regression (2026-11-28): the flip had no FormulaDrops (Execute prices it), so the public estimate showed 0 coins/h even
+    /// at a bazaar price above Kiara's 100k. It is now the same margin: 10 shards per 3 minute run.
+    /// </summary>
+    [TestCase(106_000, 1_200_000)]
+    [TestCase(90_000, -2_000_000)]
+    public void ViperFormulaRate_IsTheMarginOfTenShardsPerRun(double price, double expected)
+    {
+        var task = new ViperShardNpcFlipTask();
+
+        TaskEstimator.FormulaRate(task, new() { ["SHARD_VIPER"] = price }).Should().BeApproximately(expected, 1);
     }
 
     [Test]
