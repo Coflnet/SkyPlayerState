@@ -96,18 +96,16 @@ public class KuudraCostsTests
         TaskEstimator.FormulaRate(T5, Prices).Should().BeApproximately(loot - 5 * InfernalKeyValue, 1);
     }
 
+    // production prices of the 2026-11-27 audit (bazaar sell)
+    private static readonly Dictionary<string, double> ProductionPrices = new()
+    {
+        ["ESSENCE_CRIMSON"] = 1_111.8, ["KUUDRA_TEETH"] = 8_616.8, ["SHARD_KRAKEN"] = 136_338.2,
+        ["ENCHANTED_RED_SAND"] = 1_335.5, ["ENCHANTED_MYCELIUM"] = 1_678.1, ["CORRUPTED_NETHER_STAR"] = 9_751.6,
+    };
+
     [Test]
     public void FormulaRate_T5_AtProductionPrices_IsNotNegative()
-    {
-        // production prices of the 2026-11-27 audit (bazaar sell)
-        var production = new Dictionary<string, double>
-        {
-            ["ESSENCE_CRIMSON"] = 1_111.8, ["KUUDRA_TEETH"] = 8_616.8, ["SHARD_KRAKEN"] = 136_338.2,
-            ["ENCHANTED_RED_SAND"] = 1_335.5, ["ENCHANTED_MYCELIUM"] = 1_678.1, ["CORRUPTED_NETHER_STAR"] = 9_751.6,
-        };
-
-        TaskEstimator.FormulaRate(T5, production).Should().BePositive("the guaranteed paid chest loot pays for the key");
-    }
+        => TaskEstimator.FormulaRate(T5, ProductionPrices).Should().BePositive("the guaranteed paid chest loot pays for the key");
 
     /// <summary>
     /// 3.2 teeth stand for one paid chest. <paramref name="confirmed"/> opens booked <paramref name="coinsEach"/> each (the
@@ -149,6 +147,32 @@ public class KuudraCostsTests
         var cost = T5.ScaledFormulaCost(Chests(625), 4.48, PriceOf);
 
         cost.Should().BeApproximately(2 * 5 * 4.48 * InfernalKeyValue, 1);
+    }
+
+    /// <summary>
+    /// T1-T4 do not estimate paid chests from teeth: their paid chest's guaranteed loot is not sourced (see
+    /// BaseKuudraTask.TeethPerPaidChest), so neither the formula nor the teeth charge a key.
+    /// </summary>
+    [Test]
+    public void LowerTiers_EstimateNoPaidChestsFromTeeth()
+    {
+        MethodTask[] lower = [new KuudraT1Task(), new KuudraT2Task(), new KuudraT3Task(), new KuudraT4Task()];
+        var counts = new Dictionary<string, double> { ["KUUDRA_TEETH"] = 30, ["TERROR_CHESTPLATE"] = 10, ["ESSENCE_CRIMSON"] = 4_000 };
+
+        foreach (var tier in lower)
+        {
+            tier.FormulaCostsForTest.Should().BeEmpty(tier.Name);
+            tier.ScaledFormulaCost(counts, 1, PriceOf).Should().Be(0, tier.Name);
+        }
+    }
+
+    [Test]
+    public void FormulaRate_EveryTier_AtProductionPrices_IsNotNegative()
+    {
+        MethodTask[] tiers = [new KuudraT1Task(), new KuudraT2Task(), new KuudraT3Task(), new KuudraT4Task(), T5];
+
+        foreach (var tier in tiers)
+            TaskEstimator.FormulaRate(tier, ProductionPrices).Should().BePositive(tier.Name);
     }
 
     [Test]

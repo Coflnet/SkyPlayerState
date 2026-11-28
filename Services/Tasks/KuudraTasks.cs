@@ -57,6 +57,13 @@ public abstract class BaseKuudraTask : MethodTask
     /// Kuudra Teeth one paid chest gives on average, 0 when not known: the paid chest's guaranteed teeth plus the expected
     /// teeth of its rolled slots. A tier that knows it declares the paid chest's guaranteed loot in its
     /// <see cref="FormulaDrops"/> and charges the key in the formula baseline.
+    /// <para>
+    /// T1-T4 stay at 0 although their teeth are known (2026-11-28 production, modal teeth of single armor piece claims and
+    /// the Paid Chest menu samples, plus the wiki's rolled teeth: T1 1.0, T2 1.0, T3 2.3, T4 2.4): their paid chest's
+    /// guaranteed Crimson Essence is not sourced (the wiki lists it for Infernal only), and without it the formula
+    /// baseline would charge a key per run against nothing but today's essence rate (T1: 600 essence/h against 12 keys/h,
+    /// about -1.5M/h at production prices).
+    /// </para>
     /// </summary>
     protected virtual double TeethPerPaidChest => 0;
     private bool EstimatesPaidChests => TeethPerPaidChest > 0 && KuudraKeyCost.OfTier(KuudraTier) != null;

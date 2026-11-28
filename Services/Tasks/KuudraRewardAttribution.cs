@@ -16,7 +16,9 @@ public static class KuudraRewardAttribution
 
     private static readonly TimeSpan NegativeTolerance = TimeSpan.FromSeconds(5);
 
-    /// <summary>Loot tags that mark a period as a Kuudra chest claim (same list as KuudraChestClaimsTask).</summary>
+    /// <summary>
+    /// Kuudra chest claim loot (same list as KuudraChestClaimsTask). Not all of it proves a claim, see <see cref="HasClaimEvidence"/>.
+    /// </summary>
     public static readonly HashSet<string> ClaimLootTags =
     [
         "KUUDRA_TEETH", "KUUDRA_TENTACLE", "KUUDRA_MANDIBLE", "ESSENCE_CRIMSON",
@@ -52,13 +54,44 @@ public static class KuudraRewardAttribution
         return best;
     }
 
-    public static bool HasClaimLoot(IReadOnlyDictionary<string, int> items)
-        => items != null && items.Any(kv => kv.Value > 0 && ClaimLootTags.Contains(kv.Key));
+    /// <summary>
+    /// Stackable chest loot that also lives in storage, sacks and bazaar orders, so a gain of it alone proves no chest
+    /// claim: production (7 days of T5) attributed 1,730 teeth from Dungeon Hub periods against 7 teeth in the tier zone,
+    /// 81% of them from 5 players moving stockpiles between storage and bazaar sell orders.
+    /// </summary>
+    private static readonly HashSet<string> BulkChestLoot = ["KUUDRA_TEETH", "KUUDRA_TENTACLE", "KUUDRA_MANDIBLE", "ESSENCE_CRIMSON"];
+
+    /// <summary>
+    /// True for an item of a paid chest's rolled slots: Kuudra armor, equipment, books and the rare extras of
+    /// <see cref="DeclaredLoot.KuudraChest"/>, without the <see cref="BulkChestLoot"/>. Read at call time: DeclaredLoot's
+    /// own static init reads <see cref="ClaimLootTags"/>, a static copy here would close the cycle.
+    /// </summary>
+    public static bool IsPaidChestSlotLoot(string tag)
+        => tag != null && !BulkChestLoot.Contains(tag) && DeclaredLoot.KuudraChest.Contains(tag);
+
+    /// <summary>
+    /// True when the items prove a Kuudra chest was claimed: a paid chest slot item gained (<see cref="IsPaidChestSlotLoot"/>,
+    /// about one per paid chest), a paid chest open confirmed by the purse (<see cref="PseudoItems.KUUDRA_PAID_CHEST"/>) or
+    /// a Kuudra key used from the inventory (a negative key count; DungeonRewardListener then books no KUUDRA_PAID_CHEST,
+    /// only the chest's essence).
+    /// </summary>
+    public static bool HasClaimEvidence(IReadOnlyDictionary<string, int> items)
+    {
+        if (items == null)
+            return false;
+        if (items.GetValueOrDefault(PseudoItems.KUUDRA_PAID_CHEST) < 0 || UsedAKey(items))
+            return true;
+        return items.Any(kv => kv.Value > 0 && IsPaidChestSlotLoot(kv.Key));
+    }
+
+    private static bool UsedAKey(IReadOnlyDictionary<string, int> items)
+        => KeyTiers.Any(k => items.GetValueOrDefault(k.Tag) < 0);
 
     /// <summary>
     /// The location a period should be attributed to: the matching tier zone for a key purchase (a
-    /// period gaining nothing but keys), the last Kuudra tier (within <see cref="MaxClaimDelay"/>) for claim loot at
-    /// the Dungeon Hub / Forgotten Skull, otherwise <paramref name="location"/> unchanged.
+    /// period gaining nothing but keys), the last Kuudra tier (within <see cref="MaxClaimDelay"/>) for a chest claim at
+    /// the Dungeon Hub / Forgotten Skull (<see cref="HasClaimEvidence"/>; teeth or essence alone are no claim), otherwise
+    /// <paramref name="location"/> unchanged.
     /// </summary>
     public static string ResolveLocation(string location, IReadOnlyDictionary<string, int> items,
         string lastTierZone, DateTime lastTierAt, DateTime periodStart)
@@ -68,7 +101,7 @@ public static class KuudraRewardAttribution
         var canonical = SkyblockZones.Canonical(location);
         if (canonical == "Dungeon Hub" || canonical == "Forgotten Skull")
         {
-            if (string.IsNullOrEmpty(lastTierZone) || !HasClaimLoot(items))
+            if (string.IsNullOrEmpty(lastTierZone) || !HasClaimEvidence(items))
                 return location;
             var delay = periodStart - lastTierAt;
             if (delay < -NegativeTolerance || delay > MaxClaimDelay)

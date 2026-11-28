@@ -9,13 +9,77 @@ public class KuudraRewardAttributionTests
 {
     private static readonly DateTime Base = new(2026, 10, 1, 22, 0, 0, DateTimeKind.Utc);
     private const string T5 = "Kuudra's Hollow (T5)";
-    private static readonly Dictionary<string, int> Loot = new() { { "KUUDRA_TENTACLE", 10 }, { "ENCHANTED_BOOK", 5 } };
+    // a paid chest's armor piece is the claim evidence; tentacles and an untyped book alone are none (see HasClaimEvidence)
+    private static readonly Dictionary<string, int> Loot = new() { { "KUUDRA_TENTACLE", 10 }, { "ENCHANTED_BOOK", 5 }, { "TERROR_CHESTPLATE", 1 } };
 
     [TestCase("Dungeon Hub")]
     [TestCase("Forgotten Skull")]
     public void ClaimLoot_WithinWindow_ResolvesToLastTier(string location)
     {
         KuudraRewardAttribution.ResolveLocation(location, Loot, T5, Base, Base.AddMinutes(3)).Should().Be(T5);
+    }
+
+    /// <summary>
+    /// Regression (production, 7 days of T5): a Dungeon Hub period holding only teeth moved from storage or a bazaar order
+    /// was attributed as a T5 chest claim, 1,730 teeth against 7 in the tier zone.
+    /// </summary>
+    [TestCase("Dungeon Hub")]
+    [TestCase("Forgotten Skull")]
+    public void OnlyTeeth_AfterATierRun_NotAttributed(string location)
+    {
+        var items = new Dictionary<string, int> { { "KUUDRA_TEETH", 500 } };
+        KuudraRewardAttribution.ResolveLocation(location, items, T5, Base, Base.AddMinutes(3)).Should().Be(location);
+    }
+
+    [Test]
+    public void OnlyBulkChestLoot_NotAttributed()
+    {
+        var items = new Dictionary<string, int>
+        {
+            { "KUUDRA_TEETH", 40 }, { "ESSENCE_CRIMSON", 2_000 }, { "KUUDRA_MANDIBLE", 2 }, { "KUUDRA_TENTACLE", 3 }, { "SHARD_KRAKEN", 1 }
+        };
+        KuudraRewardAttribution.ResolveLocation("Dungeon Hub", items, T5, Base, Base.AddMinutes(3)).Should().Be("Dungeon Hub");
+    }
+
+    [Test]
+    public void TeethWithATerrorChestplate_Attributed()
+    {
+        var items = new Dictionary<string, int> { { "KUUDRA_TEETH", 3 }, { "TERROR_CHESTPLATE", 1 } };
+        KuudraRewardAttribution.ResolveLocation("Dungeon Hub", items, T5, Base, Base.AddMinutes(3)).Should().Be(T5);
+    }
+
+    [TestCase("MOLTEN_BELT")]
+    [TestCase("ENCHANTMENT_ULTIMATE_FATAL_TEMPO_1")]
+    [TestCase("ENCHANTMENT_STRONG_MANA_4")]
+    public void TeethWithPaidChestEquipmentOrBook_Attributed(string slotLoot)
+    {
+        var items = new Dictionary<string, int> { { "KUUDRA_TEETH", 3 }, { slotLoot, 1 } };
+        KuudraRewardAttribution.ResolveLocation("Dungeon Hub", items, T5, Base, Base.AddMinutes(3)).Should().Be(T5);
+    }
+
+    [Test]
+    public void TeethWithAConfirmedPaidChestOpen_Attributed()
+    {
+        var items = new Dictionary<string, int> { { "KUUDRA_TEETH", 3 }, { PseudoItems.KUUDRA_PAID_CHEST, -1 } };
+        KuudraRewardAttribution.ResolveLocation("Dungeon Hub", items, T5, Base, Base.AddMinutes(3)).Should().Be(T5);
+    }
+
+    /// <summary>
+    /// Review probe: a paid chest opened with a key from the inventory books no KUUDRA_PAID_CHEST (only its essence), and
+    /// its shard is no slot item, so the claim stayed unattributed and its pending run time carried into the next claim.
+    /// </summary>
+    [Test]
+    public void TeethWithAKeyUsedFromTheInventory_Attributed()
+    {
+        var items = new Dictionary<string, int> { { "KUUDRA_TEETH", 3 }, { "KUUDRA_INFERNAL_TIER_KEY", -1 }, { "SHARD_KRAKEN", 1 } };
+        KuudraRewardAttribution.ResolveLocation("Dungeon Hub", items, T5, Base, Base.AddMinutes(3)).Should().Be(T5);
+    }
+
+    [Test]
+    public void ArmorPieceLeavingTheInventory_IsNoEvidence()
+    {
+        var items = new Dictionary<string, int> { { "KUUDRA_TEETH", 300 }, { "TERROR_CHESTPLATE", -1 } };
+        KuudraRewardAttribution.ResolveLocation("Dungeon Hub", items, T5, Base, Base.AddMinutes(3)).Should().Be("Dungeon Hub");
     }
 
     [Test]
