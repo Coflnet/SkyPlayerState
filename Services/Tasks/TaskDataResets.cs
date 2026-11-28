@@ -38,7 +38,10 @@ public static class TaskDataResets
         // 26 bazaar bought Bobbin' Time books (1.7B), Behemoth pots booked as loot and a merged dungeon chest claim: 484M/h
         // from 3.9 hours, 2.84B of it an untraced rare pool (see TaskPeriodFolder.UndeclaredExpensive)
         // 11-29, not 11-28: pods of the old version may still write rows on the deploy day
-        { "Helix Honey Lathering", new DateTime(2026, 11, 29, 0, 0, 0, DateTimeKind.Utc) }
+        { "Helix Honey Lathering", new DateTime(2026, 11, 29, 0, 0, 0, DateTimeKind.Utc) },
+        // stockpile moves credited as claims before KuudraRewardAttribution.HasClaimEvidence (2026-11-28): 2000 teeth and a
+        // 382M untraced rare pool in 4.5 hours, mostly 5 players moving storage (77M/h shown); 11-29 for the deploy day
+        { "Kuudra T5", new DateTime(2026, 11, 29, 0, 0, 0, DateTimeKind.Utc) }
     };
 
     public static bool IsBeforeReset(string task, DateTime at)

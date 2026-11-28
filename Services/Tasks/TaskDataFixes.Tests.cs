@@ -43,6 +43,16 @@ public class TaskDataResetsTests
         TaskDataResets.IsBeforeReset("Yog and Bal", cutoff).Should().BeFalse();
     }
 
+    /// <summary>Regression: stockpile moves credited as Kuudra T5 claims (2000 teeth, 382M untraced rare pool, 77M/h shown).</summary>
+    [Test]
+    public void KuudraT5_DataFromBeforeTheClaimEvidenceFix_IsReset()
+    {
+        var cutoff = new DateTime(2026, 11, 29, 0, 0, 0, DateTimeKind.Utc);
+        TaskDataResets.IsBeforeReset("Kuudra T5", new DateTime(2026, 11, 28, 0, 0, 0, DateTimeKind.Utc)).Should().BeTrue("the deploy day's rows hold old-version claims");
+        TaskDataResets.IsBeforeReset("Kuudra T5", cutoff).Should().BeFalse();
+        TaskDataResets.IsBeforeReset("Kuudra T4", new DateTime(2026, 11, 28, 0, 0, 0, DateTimeKind.Utc)).Should().BeFalse("only T5 held the stockpiles");
+    }
+
     [Test]
     public void Diana_IsReset_AndItsFormulaMatchesTheObservedEventRate()
     {
