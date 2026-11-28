@@ -834,23 +834,36 @@ public class FossilExcavationTask : BaseMiningTask
     // A Dwarven Base Camp period that only holds spent scrap ties with Glacite Mineshafts (Priority 1, scrap is corpse
     // loot there) on value and must go to the excavation.
     protected override int Priority => 2;
-    // Per scrap spent over 47 periods / 1,234 scraps (2026-10-11), times 120 scraps an hour. CLAW_FOSSIL was not seen, so it
-    // gets the Footprint rate.
+    /// <summary>Excavations (scraps spent) an hour the formula is written for.</summary>
+    internal const double ScrapsPerHour = 120;
+    /// <summary>
+    /// Fossil Essence per excavation: the community aggregate of 2026-10-26..11-28 (35 h, 120 players, 8,414 scraps) paid 33.6,
+    /// Loki 47.5 per paying summary line. The wiki base without chisel gemstones is 21.3 (11.5 rolls); Peridot and Onyx in the
+    /// chisel raise it. The old seed of 21 made the withheld essence bound below take a third of the observed essence.
+    /// </summary>
+    internal const double EssencePerScrap = 33.3;
+    private static MethodDrop PerScrap(string tag, double perScrap) => new(tag, perScrap * ScrapsPerHour);
+
+    // Per scrap: ores and gems from the wiki drop table (Fossil Excavator, 11.5 rolls; one entry shared by the three ores and by
+    // the four gem types, which the observed ores confirm at 0.82-0.94 each), fossils from the community aggregate. Flawed gems
+    // were missing (sack gems were never booked before e347ff6). Claw and Helix fossils left the excavator on 2026-04-30.
     protected override List<MethodDrop> FormulaDrops =>
     [
-        new("ESSENCE_FOSSIL", 2520), new("ENCHANTED_UMBER", 126), new("ENCHANTED_GLACITE", 122), new("ENCHANTED_TUNGSTEN", 122), new("GLACITE", 84),
+        PerScrap("ESSENCE_FOSSIL", EssencePerScrap),
+        PerScrap("ENCHANTED_UMBER", 0.83), PerScrap("ENCHANTED_TUNGSTEN", 0.83), PerScrap("ENCHANTED_GLACITE", 0.83), PerScrap("GLACITE", 0.7),
+        PerScrap("FLAWED_PERIDOT_GEM", 9.3), PerScrap("FLAWED_AQUAMARINE_GEM", 9.3), PerScrap("FLAWED_ONYX_GEM", 9.3), PerScrap("FLAWED_CITRINE_GEM", 9.3),
         new("FINE_PERIDOT_GEM", 13.7), new("FINE_AQUAMARINE_GEM", 12.6), new("FINE_ONYX_GEM", 12.5), new("FINE_CITRINE_GEM", 9.1),
-        new("ENCHANTMENT_PALEONTOLOGIST_1", 2.5), new("FOSSIL_THE_FISH", 1.3), new("UGLY_FOSSIL", 0.7), new("SPINE_FOSSIL", 0.6),
-        new("TUSK_FOSSIL", 0.5), new("WEBBED_FOSSIL", 0.4), new("CLUBBED_FOSSIL", 0.2), new("FOOTPRINT_FOSSIL", 0.2), new("CLAW_FOSSIL", 0.2)
+        PerScrap("ENCHANTMENT_PALEONTOLOGIST_1", 0.033), PerScrap("FOSSIL_THE_FISH", 0.016),
+        PerScrap("TUSK_FOSSIL", 0.0098), PerScrap("FOOTPRINT_FOSSIL", 0.0089), PerScrap("CLUBBED_FOSSIL", 0.0086),
+        PerScrap("WEBBED_FOSSIL", 0.0085), PerScrap("SPINE_FOSSIL", 0.0079), PerScrap("UGLY_FOSSIL", 0.006)
     ];
-    protected override List<MethodDrop> FormulaCosts => [new("SUSPICIOUS_SCRAP", 120)];
-    // The reference drop ESSENCE_FOSSIL is credited from chat and was observed at 7.2x its seed (2026-11-12), which scaled
-    // the scrap cost to 864 scraps an hour and the task to -19M/h. No double count of the essence could be proven in the
+    protected override List<MethodDrop> FormulaCosts => [new("SUSPICIOUS_SCRAP", ScrapsPerHour)];
+    // The reference drop ESSENCE_FOSSIL is credited from chat and was observed at 7.2x its old 2,520 seed (2026-11-12), which
+    // scaled the scrap cost to 864 scraps an hour and the task to -19M/h. No double count of the essence could be proven in the
     // listener (one credit per summary line, never through inventory or sacks), so the bound holds on both sides: the scrap
     // cost never exceeds the seeded 120 scraps an hour, and the essence beyond 1x its seed is not counted as revenue
     // either (MethodTask.WithheldReferenceValue). Spent scrap that was actually observed is a negative count and replaces
-    // that much of this estimate, and it pays for as much essence as it bought: at 7.2x the seed the essence only counts in
-    // full once about 864 scraps an hour are observed.
+    // that much of this estimate, and it pays for as much essence as it bought (EssencePerScrap each).
     protected override double MaxCostScale => 1.0;
     // no gauntlet needed: the excavator is an NPC machine
     protected override List<RequiredItem> RequiredItems => [];

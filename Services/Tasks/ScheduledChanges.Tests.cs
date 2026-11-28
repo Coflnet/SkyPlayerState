@@ -75,7 +75,7 @@ public class ScheduledChangesTests
         ScheduledChanges.SetNowForTest(Before);
         // 7.2x the seed with only a little scrap observed: old code charged neither side's excess
         var cost = new FossilExcavationTask().ScaledFormulaCost(
-            new() { ["ESSENCE_FOSSIL"] = 2520 * 7.2, ["SUSPICIOUS_SCRAP"] = -10 }, 1, t => t == "SUSPICIOUS_SCRAP" ? 74_000 : 1_000);
+            new() { ["ESSENCE_FOSSIL"] = FossilExcavationTask.EssencePerScrap * FossilExcavationTask.ScrapsPerHour * 7.2, ["SUSPICIOUS_SCRAP"] = -10 }, 1, t => t == "SUSPICIOUS_SCRAP" ? 74_000 : 1_000);
         cost.Should().Be(0);
     }
 

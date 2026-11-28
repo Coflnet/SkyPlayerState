@@ -93,16 +93,18 @@ public class FormulaCostTopUpTests
 
     // ── Fossil Excavation: MaxCostScale 1 still bounds the top-up ──
 
+    private const double EssenceSeed = FossilExcavationTask.EssencePerScrap * FossilExcavationTask.ScrapsPerHour;
+
     [Test]
     public void FossilExcavation_TopUpIsBoundedByMaxCostScale()
     {
         // essence at 7.2x the seed, 50 of the at most 120 scraps an hour observed
-        var counts = new Dictionary<string, double> { ["ESSENCE_FOSSIL"] = 2520 * 7.2, ["SUSPICIOUS_SCRAP"] = -50 };
+        var counts = new Dictionary<string, double> { ["ESSENCE_FOSSIL"] = EssenceSeed * 7.2, ["SUSPICIOUS_SCRAP"] = -50 };
 
         var cost = new FossilExcavationTask().ScaledFormulaCost(counts, 1, FossilPrice);
 
-        // 50 scraps buy less than the seeded 2,520 essence, so all essence above the bound is withheld
-        var withheldEssence = (2520 * 7.2 - 2520) * 1_000;
+        // 50 scraps buy less than the seeded essence, so all essence above the bound is withheld
+        var withheldEssence = (EssenceSeed * 7.2 - EssenceSeed) * 1_000;
         cost.Should().BeApproximately((120 - 50) * 74_000 + withheldEssence, 1);
     }
 
@@ -112,25 +114,43 @@ public class FormulaCostTopUpTests
     public void FossilExcavation_WithheldValueIsContinuous(double scrap)
     {
         double Cost(double observed) => new FossilExcavationTask().ScaledFormulaCost(
-            new() { ["ESSENCE_FOSSIL"] = 2520 * 7.2, ["SUSPICIOUS_SCRAP"] = -observed }, 1, FossilPrice);
+            new() { ["ESSENCE_FOSSIL"] = EssenceSeed * 7.2, ["SUSPICIOUS_SCRAP"] = -observed }, 1, FossilPrice);
 
         Math.Abs(Cost(scrap - 0.01) - Cost(scrap + 0.01)).Should().BeLessThan(5_000);
-        Math.Abs(Cost(scrap - 1) - Cost(scrap)).Should().BeLessThan(100_000, "one scrap (74k), or the 21 essence it buys (21k)");
+        Math.Abs(Cost(scrap - 1) - Cost(scrap)).Should().BeLessThan(100_000, "one scrap (74k), or the essence it buys (33k)");
     }
 
     /// <summary>
     /// Review regression: once 120 scraps were observed the essence at 7.2x the seed counted in full. An observed spend pays
-    /// only for the essence it bought: 21 per scrap.
+    /// only for the essence it bought: <see cref="FossilExcavationTask.EssencePerScrap"/> per scrap.
     /// </summary>
-    [TestCase(120, 2520 * 7.2 - 2520)]
-    [TestCase(500, 2520 * 7.2 - 500 * 21)]
-    [TestCase(864, 0)]
-    [TestCase(1000, 0)]
-    public void FossilExcavation_ObservedScrapPaysOnlyForTheEssenceItBought(double scrap, double withheldEssence)
+    [TestCase(120)]
+    [TestCase(500)]
+    [TestCase(864)]
+    [TestCase(1000)]
+    public void FossilExcavation_ObservedScrapPaysOnlyForTheEssenceItBought(double scrap)
     {
-        var counts = new Dictionary<string, double> { ["ESSENCE_FOSSIL"] = 2520 * 7.2, ["SUSPICIOUS_SCRAP"] = -scrap };
+        var essence = EssenceSeed * 7.2;
+        var counts = new Dictionary<string, double> { ["ESSENCE_FOSSIL"] = essence, ["SUSPICIOUS_SCRAP"] = -scrap };
+        var bought = Math.Max(EssenceSeed, scrap * FossilExcavationTask.EssencePerScrap);
 
-        new FossilExcavationTask().ScaledFormulaCost(counts, 1, FossilPrice).Should().BeApproximately(withheldEssence * 1_000, 1);
+        new FossilExcavationTask().ScaledFormulaCost(counts, 1, FossilPrice)
+            .Should().BeApproximately(Math.Max(0, essence - bought) * 1_000, 1);
+    }
+
+    /// <summary>
+    /// Regression (2026-11-28): with the old seed of 21 essence per scrap, the live community aggregate (35.4 h, 282,532 essence,
+    /// 8,414 scraps spent = 33.6 essence per scrap) had 207M of its essence withheld once the top-up starts (2026-12-05): -5.9M/h
+    /// on a task whose scrap is all observed. The seed matches the observed payout per scrap now.
+    /// </summary>
+    [Test]
+    public void FossilExcavation_LiveAggregate_KeepsTheEssenceItsObservedScrapBought()
+    {
+        var counts = new Dictionary<string, double> { ["ESSENCE_FOSSIL"] = 282_532, ["SUSPICIOUS_SCRAP"] = -8_414 };
+
+        var withheld = new FossilExcavationTask().ScaledFormulaCost(counts, 35.4, FossilPrice);
+
+        withheld.Should().BeLessThan(0.02 * 282_532 * 1_000, "all scrap is observed, so at most rounding of the per scrap seed is withheld");
     }
 
     // ── Gem Mixture: no negative counts in its derived counts, so nothing changes ──
