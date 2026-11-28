@@ -27,20 +27,22 @@ public abstract class ProfitTask
         get
         {
             var area = AreaRequirements.ForZones(AreaZones);
-            return RequirementEvaluator.Merge(area.Concat(SpotRequirements(area)).Concat(Requirements));
+            var own = Requirements;
+            var hard = area.Concat(own.Where(r => r.Hard)).ToList();
+            return RequirementEvaluator.Merge(area.Concat(SpotRequirements(hard)).Concat(own));
         }
     }
 
     /// <summary>
-    /// What the recommended spot (<see cref="Where"/>) needs beyond the hard <paramref name="area"/> requirements, as
-    /// recommended ones: a task doable in an open zone too (Coal Mining in the Hub Coal Mine) is not blocked, but its
-    /// shown spot (Magma Fields in the Crystal Hollows) still names what it takes to get there.
+    /// What the recommended spot (<see cref="Where"/>) needs beyond the <paramref name="hard"/> requirements (the area's and
+    /// the task's own), as recommended ones: a task doable in an open zone too (Coal Mining in the Hub Coal Mine) is not
+    /// blocked, but its shown spot (Magma Fields in the Crystal Hollows) still names what it takes to get there.
     /// </summary>
-    private List<TaskRequirement> SpotRequirements(List<TaskRequirement> area)
+    private List<TaskRequirement> SpotRequirements(List<TaskRequirement> hard)
     {
         if (string.IsNullOrEmpty(Where))
             return [];
-        return AreaRequirements.ForZone(Where).Where(r => !IsCoveredBy(r, area)).Select(AsRecommended).ToList();
+        return AreaRequirements.ForZone(Where).Where(r => !IsCoveredBy(r, hard)).Select(AsRecommended).ToList();
     }
 
     private static bool IsCoveredBy(TaskRequirement spot, List<TaskRequirement> hard)

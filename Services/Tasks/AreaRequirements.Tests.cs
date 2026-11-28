@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using AwesomeAssertions;
+using Moq;
+using Moq.Protected;
 using NUnit.Framework;
 
 namespace Coflnet.Sky.PlayerState.Tasks;
@@ -83,6 +85,21 @@ public class AreaRequirementsTests
                 .Select(spot => $"{t.GetDetectionSignature().MethodName}: {spot.Label}"))
             .ToList();
         missing.Should().BeEmpty();
+    }
+
+    /// <summary>Review regression: a spot requirement the task already declares as its own hard one is not recommended again.</summary>
+    [Test]
+    public void ASpotRequirementTheTaskAlreadyNeedsItselfIsNotRepeated()
+    {
+        // a mock, not a subclass: TaskCatalogTests requires every ProfitTask type of the assembly to be registered
+        var task = new Mock<MethodTask> { CallBase = true };
+        task.Protected().Setup<string>("MethodName").Returns("Magma Fields Test");
+        task.Protected().Setup<HashSet<string>>("Locations").Returns(["Coal Mine", "Magma Fields"]);
+        task.Protected().Setup<string>("Where").Returns("Magma Fields");
+        task.Protected().Setup<List<TaskRequirement>>("Requirements").Returns([TaskRequirement.HeartOfTheMountain(5)]);
+
+        task.Object.AllRequirements.Select(r => (r.Label, r.Hard))
+            .Should().Equal(("Mining 12", false), ("Heart of the Mountain 5", true));
     }
 
     private static MethodTask Public(string name)
