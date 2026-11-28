@@ -962,7 +962,8 @@ public class CollectionListenerInventoryTests
     {
         var itemsApi = new Moq.Mock<Coflnet.Sky.Items.Client.Api.IItemsApi>();
         itemsApi.Setup(i => i.ItemNamesGetAsync(Moq.It.IsAny<int>(), Moq.It.IsAny<System.Threading.CancellationToken>()))
-            .ReturnsAsync(new List<Coflnet.Sky.Items.Client.Model.ItemPreview> { new() { Name = "Enchanted Wheat", Tag = "ENCHANTED_WHEAT" }, new() { Name = "Compost", Tag = "COMPOST" } });
+            .ReturnsAsync(new List<Coflnet.Sky.Items.Client.Model.ItemPreview> { new() { Name = "Enchanted Wheat", Tag = "ENCHANTED_WHEAT" }, new() { Name = "Compost", Tag = "COMPOST" },
+                new() { Name = "Flawed Peridot Gemstone", Tag = "FLAWED_PERIDOT_GEM" } });
         var args = new MockedUpdateArgs
         {
             currentState = state,
@@ -1028,6 +1029,61 @@ public class CollectionListenerInventoryTests
         await ProcessView(plain, View("", new(), StackableItem("ENCHANTED_COBBLESTONE", 64)), Now);
         await SackNotification(plain, Now.AddSeconds(1));
         plain.ItemsCollectedRecently.GetValueOrDefault("ENCHANTED_WHEAT").Should().Be(70000);
+    }
+
+    /// <summary>
+    /// Regression (production, 3 days of "Ignored sack change" logs): Hypixel puts a private use area icon glyph in front
+    /// of every gemstone in a sack line, so "\uE051 Flawed Peridot Gemstone" was never found in the name lookup and no
+    /// sack gem was ever booked, for any gem task.
+    /// </summary>
+    [TestCase('\uE051')]
+    [TestCase('\uF8FF')]
+    public async Task SackGemstoneAfterIconGlyphIsBooked(char glyph)
+    {
+        var state = new StateObject();
+        var line = $"Added items:\n  +20 {glyph} Flawed Peridot Gemstone (Gemstone Sack)\n\nThis message can be disabled in the settings.";
+
+        await SackNotification(state, Now, line);
+
+        state.ItemsCollectedRecently.Should().BeEquivalentTo(new Dictionary<string, int> { ["FLAWED_PERIDOT_GEM"] = 20 });
+    }
+
+    [Test]
+    public async Task SackGemstoneRemovalAfterIconGlyphIsBooked()
+    {
+        var state = new StateObject();
+        var line = "Removed items:\n  -1,280 \uE051 Flawed Peridot Gemstone (Gemstone Sack)\n\nThis message can be disabled in the settings.";
+
+        await SackNotification(state, Now, line);
+
+        state.ItemsCollectedRecently.Should().BeEquivalentTo(new Dictionary<string, int> { ["FLAWED_PERIDOT_GEM"] = -1280 });
+    }
+
+    /// <summary>A supercraft of Fine gems takes the Flawed ones from the sack: still a conversion once the gem is found.</summary>
+    [Test]
+    public async Task SackGemstoneRemovalForASupercraftIsNotBooked()
+    {
+        var state = new StateObject();
+        await ProcessView(state, RecipeView("Fine Peridot Gemstone", "FINE_PERIDOT_GEM", ["FLAWED_PERIDOT_GEM"]), Now);
+        var line = "Removed items:\n  -80 \uE051 Flawed Peridot Gemstone (Gemstone Sack)\n\nThis message can be disabled in the settings.";
+
+        await SackNotification(state, Now.AddSeconds(5), line);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task IgnoredSackChangeLogNamesTheGemWithoutItsIconGlyph()
+    {
+        var state = new StateObject();
+        await ProcessView(state, View("Gemstone Sack", new(), StackableItem("FLAWED_PERIDOT_GEM", 10)), Now);
+        var line = "Added items:\n  +2,000 \uE051 Flawed Peridot Gemstone (Gemstone Sack)\n\nThis message can be disabled in the settings.";
+
+        var (_, logger) = await SackNotification(state, Now.AddSeconds(5), line);
+
+        state.ItemsCollectedRecently.Should().BeEmpty();
+        logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Information
+            && e.Message == $"Ignored sack change after transfer view for {state.PlayerId}: +2000 Flawed Peridot Gemstone");
     }
 
     [Test]

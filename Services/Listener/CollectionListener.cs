@@ -414,7 +414,7 @@ public class CollectionListener : UpdateListener
             var match = Regex.Match(item, @" ([+-]?[\d,]+) ([^(]+) ");
             if (match.Success)
             {
-                var itemName = match.Groups[2].Value.Trim();
+                var itemName = SackItemName(match.Groups[2].Value);
                 if (int.TryParse(match.Groups[1].Value.Replace(",", ""), out var count))
                 {
                     var tag = NametoTagLookup.GetValueOrDefault(itemName);
@@ -446,6 +446,16 @@ public class CollectionListener : UpdateListener
             Logger.LogInformation("Ignored sack change after craft for {playerId}: {summary}", args.currentState.PlayerId, SummarizeSackChanges(craftSkipped));
     }
 
+    // Hypixel draws item icons from the Unicode Private Use Area, e.g. before every gemstone in a sack line
+    private static readonly Regex LeadingIconRegex = new(@"^[\s\uE000-\uF8FF]+", RegexOptions.Compiled);
+
+    /// <summary>
+    /// The item name of a "[Sacks]" chat line without the icon glyph Hypixel puts in front of some items: every gemstone
+    /// line reads "+20 &lt;glyph&gt; Flawed Peridot Gemstone (Gemstone Sack)", and with the glyph no gem was ever found in the
+    /// name lookup (production: 24,280 of 24,280 unmatched sack names in 3 days were gemstones).
+    /// </summary>
+    internal static string SackItemName(string rawName) => LeadingIconRegex.Replace(rawName, "").Trim();
+
     private static string SummarizeSackChanges(List<(long Count, string Name)> changes)
         => string.Join(", ", changes.Take(5).Select(c => $"{(c.Count >= 0 ? "+" : "")}{c.Count} {c.Name}"));
 
@@ -456,7 +466,7 @@ public class CollectionListener : UpdateListener
         {
             var match = Regex.Match(item, @" ([+-]?[\d,]+) ([^(]+) ");
             if (match.Success && long.TryParse(match.Groups[1].Value.Replace(",", ""), out var count))
-                changes.Add((count, match.Groups[2].Value.Trim()));
+                changes.Add((count, SackItemName(match.Groups[2].Value)));
         }
         if (changes.Sum(c => Math.Abs(c.Count)) < IgnoredSackLogMinimumCount)
             return;
@@ -1743,7 +1753,7 @@ public class CollectionListener : UpdateListener
         // lasts seconds: remember the empty run time and hand it to the claim period's start.
         var claimedToTier = collected.Count > 0 && kuudraLocation != previousLocation
             && Tasks.KuudraRewardAttribution.IsClaimLocation(previousLocation)
-            && Tasks.KuudraRewardAttribution.HasClaimLoot(collected);
+            && Tasks.KuudraRewardAttribution.HasClaimEvidence(collected);
         info.KuudraPendingRunSeconds = Tasks.KuudraRewardAttribution.UpdatePendingRun(info.KuudraPendingRunSeconds,
             info.LastKuudraTierAt, now, collected.Count == 0 && Tasks.KuudraRewardAttribution.IsTierZone(previousLocation),
             now - periodStart, claimedToTier, out var claimShift);
