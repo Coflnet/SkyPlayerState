@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -41,12 +42,21 @@ public class EmptyChumBucketsTask : MethodTask
     // a gained Full Chum Bucket marks the method (bucket purchases are taken off the counts by PurchaseDiscount); a positive
     // Empty bucket or Chum is only the supply, and lava fishers collect Chum as junk
     protected override HashSet<string> DetectionItems => ["FULL_CHUM_BUCKET"];
-    // only crafting/filling counts: next to fishing catches the period needs a consumed Empty bucket or Chum
-    protected override bool IsForeignPeriod(IReadOnlyDictionary<string, int> items)
-        => items.Any(kv => kv.Value > 0 && FishingCatches.Contains(kv.Key)) && !ConsumedCraftInput(items);
+    /// <summary>
+    /// Consumed Chum per gained Full Chum Bucket that proves crafting (a craft takes 10; production crafts show 5-10 because
+    /// part of the Chum comes from sacks). A placed bucket fills from sea creatures: it books the Empty bucket as spent
+    /// and the Full one as gained, but no Chum, so a spent Empty bucket is no craft evidence (production 2026-11-21..28:
+    /// 5 Bayou fishing periods with "-1 Empty, +1 Full" and 0-3 Chum spent).
+    /// </summary>
+    private const int MinChumPerCraftedBucket = 5;
 
-    private static bool ConsumedCraftInput(IReadOnlyDictionary<string, int> items)
-        => items.GetValueOrDefault("EMPTY_CHUM_BUCKET") < 0 || items.GetValueOrDefault("CHUM") < 0;
+    // only crafting counts: next to fishing catches the period needs the Chum a craft consumes
+    protected override bool IsForeignPeriod(IReadOnlyDictionary<string, int> items)
+        => items.Any(kv => kv.Value > 0 && FishingCatches.Contains(kv.Key)) && !ConsumedCraftChum(items);
+
+    private static bool ConsumedCraftChum(IReadOnlyDictionary<string, int> items)
+        => -items.GetValueOrDefault("CHUM") >= MinChumPerCraftedBucket * Math.Max(1, items.GetValueOrDefault("FULL_CHUM_BUCKET"));
+
     protected override List<MethodDrop> FormulaDrops => [new("FULL_CHUM_BUCKET", BucketsPerHour)];
     protected override List<MethodDrop> FormulaCosts =>
         [new("EMPTY_CHUM_BUCKET", BucketsPerHour), new("CHUM", BucketsPerHour * ChumPerBucket)];

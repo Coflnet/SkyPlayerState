@@ -34,9 +34,17 @@ public class EnderNodesTask : BaseMiningTask
     /// Pearls (raw-equivalent, an Enchanted Ender Pearl is 20) per node drop (Mite Gel or Grand bottle) above which a
     /// period is pearl grinding with a node broken on the way. Production 2026-11-26..28: periods with gauntlets or bottles
     /// stay below ~55 (median ~8, nodes drop 5 Enchanted Ender Pearls themselves), Zealot and Voidgloom grinding with a little
-    /// Mite Gel is at 85 to 2,100.
+    /// Mite Gel is at 85 to 2,100. Stonk miners get no Mite Gel but 5 Enchanted Ender Pearls per pearl drop, which is why
+    /// <see cref="NodeOnlyLoot"/> lifts the rule.
     /// </summary>
     internal const int MaxPearlsPerNodeDrop = 60;
+
+    /// <summary>
+    /// Rare loot only a node gives (a gauntlet drops from ~3% of the nodes, so one stands for dozens of them). Magical Runes
+    /// only appeared in node periods in The End (production 2026-11-26..28, 16 periods).
+    /// </summary>
+    private static readonly string[] NodeOnlyLoot =
+        ["ENDER_GAUNTLET", "ENDSTONE_GEODE", "END_STONE_SHULKER", "RUNE_MAGIC", "SHRIMP_THE_FISH", "TITANIC_EXP_BOTTLE"];
     private const int PearlsPerEnchantedPearl = 20;
 
     protected override string MethodName => "Ender Nodes";
@@ -52,7 +60,7 @@ public class EnderNodesTask : BaseMiningTask
     protected override BulkItemRule BulkClaim => NodeBulk;
     // one Mite Gel is worth ~560 pearls, so without this a zealot period with a gel or two outvalued its pearls
     protected override bool IsForeignPeriod(IReadOnlyDictionary<string, int> items)
-        => RawPearls(items) > MaxPearlsPerNodeDrop * NodeDrops(items);
+        => !NodeOnlyLoot.Any(tag => Gained(items, tag) > 0) && RawPearls(items) > MaxPearlsPerNodeDrop * NodeDrops(items);
 
     private static int Gained(IReadOnlyDictionary<string, int> items, string tag)
         => Math.Max(0, items.GetValueOrDefault(tag));
@@ -62,6 +70,7 @@ public class EnderNodesTask : BaseMiningTask
 
     private static long NodeDrops(IReadOnlyDictionary<string, int> items)
         => Gained(items, "MITE_GEL") + Gained(items, "GRAND_EXP_BOTTLE");
+
     // ~500 nodes/h: production 2026-11-26..28 (3.3 h of node periods, 21 players) gave ~480 Mite Gel/h and per Mite Gel
     // 1.08 Enchanted End Stone, 0.33 Enchanted Ender Pearls, 0.17 Grand and 0.08 Enchanted Obsidian. Titanic bottles drop
     // from 1.31% of the obsidian nodes (wiki), about a quarter of the nodes mined.

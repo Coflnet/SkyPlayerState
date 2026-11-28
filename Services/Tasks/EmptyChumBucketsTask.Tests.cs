@@ -48,6 +48,11 @@ public class EmptyChumBucketsTaskTests
         Classify("Backwater Bayou", new() { { "RAW_FISH", 60 }, { "WATER_LILY", 10 }, { "FULL_CHUM_BUCKET", 1 } }).Should().Be("Bayou Fishing");
         Classify("Hub", new() { { "RAW_FISH", 100 }, { "ENCHANTED_RAW_FISH", 5 }, { "PRISMARINE_SHARD", 10 }, { "FULL_CHUM_BUCKET", 1 } })
             .Should().Be("Water Fishing");
+        // production: placing the bucket books the Empty one as spent, picking it up the Full one, a few Chum went elsewhere
+        Classify("Backwater Bayou", new() { { "RAW_FISH", 14 }, { "WATER_LILY", 109 }, { "CLAY_BALL", 2 }, { "EMPTY_CHUM_BUCKET", -1 }, { "FULL_CHUM_BUCKET", 2 } })
+            .Should().Be("Bayou Fishing");
+        Classify("Backwater Bayou", new() { { "RAW_FISH", 26 }, { "WATER_LILY", 13 }, { "CHUM", -3 }, { "FULL_CHUM_BUCKET", 1 } })
+            .Should().Be("Bayou Fishing");
     }
 
     [Test]

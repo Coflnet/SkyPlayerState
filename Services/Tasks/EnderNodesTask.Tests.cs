@@ -94,6 +94,19 @@ public class EnderNodesTaskTests
     }
 
     [Test]
+    public void StonkNodeMiningWithNodeOnlyLoot_StaysEnderNodes_DespiteItsPearls()
+    {
+        // production: 366 raw pearls per 4 bottles, but a geode and a Magical Rune only come from nodes
+        Classify("The End", new()
+        {
+            { "ENCHANTED_ENDER_PEARL", 15 }, { "ENDER_PEARL", 66 }, { "ENCHANTED_OBSIDIAN", 4 }, { "ENDSTONE_GEODE", 1 },
+            { "ENCHANTED_ENDSTONE", 3 }, { "RUNE_MAGIC", 1 }, { "GRAND_EXP_BOTTLE", 4 }
+        }).Should().Be("Ender Nodes");
+        Classify("Void Slate", new() { { "ENCHANTED_ENDSTONE", 6 }, { "ENCHANTED_OBSIDIAN", 4 }, { "ENDER_GAUNTLET", 1 }, { "GRAND_EXP_BOTTLE", 3 }, { "ENCHANTED_ENDER_PEARL", 21 } })
+            .Should().Be("Ender Nodes");
+    }
+
+    [Test]
     public void PersonalView_LeavesOutPearlGrinding()
     {
         Period Make(Dictionary<string, int> items) => new()
